@@ -285,6 +285,8 @@ export interface RoomData {
   labelSize?: number;
   locked?: boolean;
   isEquipmentRack?: boolean;
+  linkedRackPageId?: string;
+  linkedRackId?: string;
 }
 
 export type RoomNode = Node<RoomData, "room">;
@@ -531,6 +533,7 @@ export interface RackData {
   widthClass: "19in" | "half";
   /** Position on the rack page canvas */
   position: { x: number; y: number };
+  linkedRoomId?: string;
 }
 
 export interface RackDevicePlacement {
@@ -589,7 +592,7 @@ export interface RackAccessory {
   shelfDepthMm?: number;
 }
 
-export interface SchematicPage {
+export interface RackElevationPage {
   id: string;
   label: string;
   type: "rack-elevation";
@@ -597,6 +600,32 @@ export interface SchematicPage {
   placements: RackDevicePlacement[];
   accessories: RackAccessory[];
 }
+
+export interface PrintViewport {
+  id: string;
+  kind: "rack-front" | "rack-rear" | "rack-side";
+  rackRefPageId: string;
+  rackRefId: string;
+  positionMm: { x: number; y: number };
+  sizeMm: { w: number; h: number };
+  scale?: number;
+  showLabel?: boolean;
+  showStats?: boolean;
+}
+
+export interface PrintSheetPage {
+  id: string;
+  label: string;
+  type: "print-sheet";
+  paperId: string;
+  orientation: "landscape" | "portrait";
+  customWidthIn?: number;
+  customHeightIn?: number;
+  viewports: PrintViewport[];
+  showTitleBlock: boolean;
+}
+
+export type SchematicPage = RackElevationPage | PrintSheetPage;
 
 export interface SchematicFile {
   version: number;

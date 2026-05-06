@@ -1,9 +1,10 @@
 import { useCallback, useMemo, useState } from "react";
 import { useSchematicStore } from "../store";
-import type { DeviceData, SchematicPage, RackType, RackData } from "../types";
+import type { DeviceData, RackElevationPage, RackType, RackData, RoomData } from "../types";
 import { RACK_TYPE_LABELS } from "../types";
 import { inferRackHeightU } from "../rackUtils";
 import { aggregateRackStats, computeRackStats, formatStatsLine } from "../rackStats";
+import { getDevicesInRoom } from "../rackLink";
 
 /** Shared drag state — set by sidebar, read by RackRenderer during dragOver.
  *  (dataTransfer.getData is blocked during dragover for security; this fallback
@@ -12,23 +13,30 @@ export let draggedDeviceHeightU = 1;
 export let draggedDeviceNodeId: string | null = null;
 
 interface RackSidebarProps {
-  page: SchematicPage;
+  page: RackElevationPage;
 }
 
 export default function RackSidebar({ page }: RackSidebarProps) {
   const nodes = useSchematicStore((s) => s.nodes);
   const removeRack = useSchematicStore((s) => s.removeRack);
   const updateRack = useSchematicStore((s) => s.updateRack);
+  const moveRackToPage = useSchematicStore((s) => s.moveRackToPage);
+  const allPagesForMove = useSchematicStore((s) => s.pages);
+  const otherElevationPages = useMemo(() =>
+    allPagesForMove.filter((p): p is RackElevationPage => p.type === "rack-elevation" && p.id !== page.id),
+    [allPagesForMove, page.id],
+  );
   const [showAddRack, setShowAddRack] = useState(false);
   const [editRack, setEditRack] = useState<RackData | null>(null);
   const [search, setSearch] = useState("");
   const [editingRackId, setEditingRackId] = useState<string | null>(null);
   const [editingRackLabel, setEditingRackLabel] = useState("");
+  const [moveMenuRackId, setMoveMenuRackId] = useState<string | null>(null);
 
   // Find devices that haven't been placed in ANY rack on ANY page
   const allPages = useSchematicStore((s) => s.pages);
   const placedNodeIds = new Set(
-    allPages.flatMap((p) => p.placements.map((pl) => pl.deviceNodeId))
+    allPages.flatMap((p) => p.type === "rack-elevation" ? p.placements.map((pl) => pl.deviceNodeId) : [])
   );
 
   const unrackedDevices = nodes.filter(
@@ -129,6 +137,30 @@ export default function RackSidebar({ page }: RackSidebarProps) {
                 )}
                 <span className="text-neutral-400 text-[10px] shrink-0 ml-1 flex items-center gap-1">
                   {placementCount > 0 && <span>{placementCount} dev</span>}
+                  {otherElevationPages.length > 0 && (
+                    <div className="relative">
+                      <button
+                        className="text-neutral-300 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Move to page"
+                        onClick={(e) => { e.stopPropagation(); setMoveMenuRackId(moveMenuRackId === rack.id ? null : rack.id); }}
+                      >
+                        →
+                      </button>
+                      {moveMenuRackId === rack.id && (
+                        <div className="absolute right-0 top-5 z-50 bg-white border border-neutral-200 rounded shadow-lg py-1 min-w-[120px]">
+                          {otherElevationPages.map((p) => (
+                            <button
+                              key={p.id}
+                              className="w-full text-left px-3 py-1 text-xs text-neutral-700 hover:bg-blue-50 hover:text-blue-700"
+                              onClick={() => { moveRackToPage(page.id, rack.id, p.id); setMoveMenuRackId(null); }}
+                            >
+                              {p.label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                   <button
                     className="text-neutral-300 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity"
                     title={`Edit ${rack.label}`}
@@ -154,14 +186,11 @@ export default function RackSidebar({ page }: RackSidebarProps) {
         </div>
       )}
 
-      {/* Unracked devices */}
-      <div className="flex-1 overflow-y-auto p-2 flex flex-col">
-        <div className="font-semibold text-neutral-500 mb-1 uppercase tracking-wider" style={{ fontSize: 9 }}>
-          Unracked Devices ({unrackedDevices.length})
-        </div>
+      {/* Unracked devices — grouped by linked room */}
+      <div className="flex-1 overflow-y-auto p-2 flex flex-col gap-2">
         {unrackedDevices.length > 0 && (
           <input
-            className="w-full bg-neutral-50 border border-neutral-200 rounded px-2 py-1 text-xs outline-none focus:border-blue-400 mb-1"
+            className="w-full bg-neutral-50 border border-neutral-200 rounded px-2 py-1 text-xs outline-none focus:border-blue-400"
             placeholder="Search devices…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -170,41 +199,78 @@ export default function RackSidebar({ page }: RackSidebarProps) {
         )}
         {unrackedDevices.length === 0 ? (
           <div className="text-neutral-400 py-2">All devices placed</div>
-        ) : (
-          <div className="flex flex-col gap-0.5 overflow-y-auto flex-1">
-            {unrackedDevices
-              .filter((node) => {
-                if (!search.trim()) return true;
-                const data = node.data as DeviceData;
-                const q = search.toLowerCase();
-                return data.label.toLowerCase().includes(q)
-                  || (data.manufacturer?.toLowerCase().includes(q) ?? false)
-                  || (data.modelNumber?.toLowerCase().includes(q) ?? false)
-                  || data.deviceType.toLowerCase().includes(q);
-              })
-              .sort((a, b) => ((a.data as DeviceData).label).localeCompare((b.data as DeviceData).label))
-              .map((node) => {
-                const data = node.data as DeviceData;
-                const heightU = inferRackHeightU(data);
-                const needsShelf = data.heightMm == null;
-                return (
-                  <div
-                    key={node.id}
-                    className="flex items-center justify-between px-2 py-1 rounded bg-neutral-50 border border-neutral-200 cursor-grab hover:bg-blue-50 hover:border-blue-300"
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, node.id, heightU)}
-                    onDragEnd={handleDragEnd}
-                    title={needsShelf ? "No height set — drop on a shelf accessory" : data.label}
-                  >
-                    <span className="truncate">{data.label}</span>
-                    <span className="text-neutral-400 ml-1 shrink-0">
-                      {needsShelf ? <span className="text-amber-600" title="needs shelf">⬚</span> : `${heightU}U`}
-                    </span>
+        ) : (() => {
+          const q = search.trim().toLowerCase();
+          const matchesSearch = (node: typeof unrackedDevices[number]) => {
+            if (!q) return true;
+            const data = node.data as DeviceData;
+            return data.label.toLowerCase().includes(q)
+              || (data.manufacturer?.toLowerCase().includes(q) ?? false)
+              || (data.modelNumber?.toLowerCase().includes(q) ?? false)
+              || data.deviceType.toLowerCase().includes(q);
+          };
+          const renderDevice = (node: typeof unrackedDevices[number]) => {
+            const data = node.data as DeviceData;
+            const heightU = inferRackHeightU(data);
+            const needsShelf = data.heightMm == null;
+            return (
+              <div
+                key={node.id}
+                className="flex items-center justify-between px-2 py-1 rounded bg-neutral-50 border border-neutral-200 cursor-grab hover:bg-blue-50 hover:border-blue-300"
+                draggable
+                onDragStart={(e) => handleDragStart(e, node.id, heightU)}
+                onDragEnd={handleDragEnd}
+                title={needsShelf ? "No height set — drop on a shelf accessory" : data.label}
+              >
+                <span className="truncate">{data.label}</span>
+                <span className="text-neutral-400 ml-1 shrink-0">
+                  {needsShelf ? <span className="text-amber-600" title="needs shelf">⬚</span> : `${heightU}U`}
+                </span>
+              </div>
+            );
+          };
+
+          const unrackedIds = new Set(unrackedDevices.map((n) => n.id));
+          const linkedRacks = page.racks.filter((r) => r.linkedRoomId);
+          const claimedByGroup = new Set<string>();
+          const groups = linkedRacks.map((rack) => {
+            const roomNode = nodes.find((n) => n.id === rack.linkedRoomId);
+            const roomLabel = (roomNode?.data as RoomData | undefined)?.label ?? "Room";
+            const roomDevices = getDevicesInRoom(rack.linkedRoomId!, nodes)
+              .filter((n) => unrackedIds.has(n.id) && matchesSearch(n));
+            roomDevices.forEach((n) => claimedByGroup.add(n.id));
+            return { rack, roomLabel, devices: roomDevices };
+          }).filter((g) => g.devices.length > 0);
+
+          const otherUnracked = unrackedDevices
+            .filter((n) => !claimedByGroup.has(n.id) && matchesSearch(n))
+            .sort((a, b) => ((a.data as DeviceData).label).localeCompare((b.data as DeviceData).label));
+
+          return (
+            <>
+              {groups.map(({ rack, roomLabel, devices }) => (
+                <div key={rack.id}>
+                  <div className="font-semibold text-blue-600 mb-0.5 uppercase tracking-wider" style={{ fontSize: 8 }}>
+                    From {roomLabel} → {rack.label} ({devices.length})
                   </div>
-                );
-              })}
-          </div>
-        )}
+                  <div className="flex flex-col gap-0.5">
+                    {devices.sort((a, b) => ((a.data as DeviceData).label).localeCompare((b.data as DeviceData).label)).map(renderDevice)}
+                  </div>
+                </div>
+              ))}
+              {otherUnracked.length > 0 && (
+                <div>
+                  <div className="font-semibold text-neutral-500 mb-0.5 uppercase tracking-wider" style={{ fontSize: 8 }}>
+                    {groups.length > 0 ? `Other Unracked (${otherUnracked.length})` : `Unracked Devices (${otherUnracked.length})`}
+                  </div>
+                  <div className="flex flex-col gap-0.5">
+                    {otherUnracked.map(renderDevice)}
+                  </div>
+                </div>
+              )}
+            </>
+          );
+        })()}
       </div>
 
       {/* Add Rack Dialog */}

@@ -1,12 +1,13 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { useSchematicStore } from "../store";
-import type { DeviceData } from "../types";
+import type { DeviceData, RackElevationPage } from "../types";
 import { useContextMenuPosition } from "../hooks/useContextMenuPosition";
 import { inferRackHeightU } from "../rackUtils";
 
 export default function DeviceContextMenu() {
   const menu = useSchematicStore((s) => s.deviceContextMenu);
-  const pages = useSchematicStore((s) => s.pages);
+  const allPages = useSchematicStore((s) => s.pages);
+  const pages = useMemo(() => allPages.filter((p): p is RackElevationPage => p.type === "rack-elevation"), [allPages]);
   const setActivePage = useSchematicStore((s) => s.setActivePage);
   const nodes = useSchematicStore((s) => s.nodes);
   const { ref: menuRef, pos: menuPos } = useContextMenuPosition(

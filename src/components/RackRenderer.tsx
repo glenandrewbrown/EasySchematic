@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState, type WheelEvent, type MouseEvent } from "react";
 import { useSchematicStore } from "../store";
-import type { RackData, RackDevicePlacement, RackAccessory, RackDepthConflict, DeviceData, SchematicPage } from "../types";
+import type { RackData, RackDevicePlacement, RackAccessory, RackDepthConflict, DeviceData, RackElevationPage } from "../types";
 import { RACK_ACCESSORY_LABELS, RACK_TYPE_LABELS } from "../types";
 import {
   inferRackHeightU,
@@ -24,6 +24,7 @@ import { ConnectorIcon, getConnectorSpec } from "./connectorIcons";
 import { draggedDeviceHeightU, draggedDeviceNodeId } from "./RackSidebar";
 import FacePlateEditor from "./FacePlateEditor";
 import type { FacePlateLayout } from "../types";
+import { getDevicesInRoom, proposeRackPlacements } from "../rackLink";
 
 // ── Constants ──────────────────────────────────────────────────────
 
@@ -88,7 +89,7 @@ function shelfCanvasCoords(rack: RackData, shelf: RackAccessory, maxHeightU = 0)
 
 /** Find the shelf (and its rack) that contains canvas point (cx, cy) on the given face. */
 function hitTestShelfCanvas(
-  page: SchematicPage,
+  page: RackElevationPage,
   cx: number,
   cy: number,
   viewFace: "front" | "rear",
@@ -851,7 +852,7 @@ interface InRackDrag {
 // ── Helper: hit-test which rack + U position a canvas point is over ─
 
 function hitTestRack(
-  page: SchematicPage,
+  page: RackElevationPage,
   cx: number,
   cy: number,
   viewMode: ViewMode = "front",
@@ -874,7 +875,7 @@ function hitTestRack(
 
 /** Find a shelf accessory at the given U position on the active face. */
 function findShelfAt(
-  page: SchematicPage,
+  page: RackElevationPage,
   rackId: string,
   uPosition: number,
   face: "front" | "rear",
@@ -1175,7 +1176,7 @@ function SlotMenu({
 
 // ── Main RackRenderer ──────────────────────────────────────────────
 
-export default function RackRenderer({ page }: { page: SchematicPage }) {
+export default function RackRenderer({ page }: { page: RackElevationPage }) {
   const nodes = useSchematicStore((s) => s.nodes);
   const addRackPlacement = useSchematicStore((s) => s.addRackPlacement);
   const removeRackPlacement = useSchematicStore((s) => s.removeRackPlacement);
@@ -1192,6 +1193,7 @@ export default function RackRenderer({ page }: { page: SchematicPage }) {
   const removeRackAccessory = useSchematicStore((s) => s.removeRackAccessory);
   const updateRackAccessory = useSchematicStore((s) => s.updateRackAccessory);
   const removeRack = useSchematicStore((s) => s.removeRack);
+  const setActivePage = useSchematicStore((s) => s.setActivePage);
   // Edit Rack dialog (opened from rack-context menu)
   const [editRackTarget, setEditRackTarget] = useState<RackData | null>(null);
 
@@ -1824,6 +1826,45 @@ export default function RackRenderer({ page }: { page: SchematicPage }) {
                     <title>{`${oversized.length} device${oversized.length === 1 ? "" : "s"} ${oversized.length === 1 ? "is" : "are"} deeper than the rack (max +${Math.round(maxOversize)}mm). Consider a deeper rack.`}</title>
                   </g>
                 )}
+                {rack.linkedRoomId && (() => {
+                  const linkedRoom = nodes.find((n) => n.id === rack.linkedRoomId);
+                  const roomLabel = (linkedRoom?.data as { label?: string })?.label ?? "Room";
+                  return (
+                    <>
+                      <g
+                        className="cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActivePage("schematic");
+                          useSchematicStore.setState((state) => ({
+                            nodes: state.nodes.map((n) => ({ ...n, selected: n.id === rack.linkedRoomId })),
+                          }));
+                        }}
+                      >
+                        <rect x={RACK_WIDTH / 2 - 36} y={-36} width={72} height={13} rx={3} fill="#eff6ff" stroke="#3b82f6" strokeWidth={0.75} />
+                        <text x={RACK_WIDTH / 2} y={-29} textAnchor="middle" dominantBaseline="central" fontSize={8} fill="#1d4ed8">
+                          🔗 {roomLabel}
+                        </text>
+                      </g>
+                      <foreignObject x={RACK_WIDTH - 88} y={-52} width={88} height={16}>
+                        <button
+                          style={{ fontSize: 9, padding: "1px 4px", cursor: "pointer", background: "#f0fdf4", border: "0.75px solid #16a34a", borderRadius: 3, color: "#15803d", whiteSpace: "nowrap", width: "100%" }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const state = useSchematicStore.getState();
+                            const roomDevices = getDevicesInRoom(rack.linkedRoomId!, state.nodes);
+                            const { placements, skipped } = proposeRackPlacements(rack, roomDevices, page.placements);
+                            if (placements.length === 0 && skipped.length === 0) { state.addToast("No devices to place", "info"); return; }
+                            for (const p of placements) state.addRackPlacement(page.id, p);
+                            state.addToast(`Placed ${placements.length}${skipped.length ? ` · ${skipped.length} skipped (missing height)` : ""}`, "info");
+                          }}
+                        >
+                          Auto-Populate
+                        </button>
+                      </foreignObject>
+                    </>
+                  );
+                })()}
                 <RackFrame rack={rack} faceLabel={viewMode === "front" ? "Front" : "Rear"} viewFace={activeFace} />
                 {oppositePlacements.map((pl) => {
                   const dd = deviceDataMap.get(pl.deviceNodeId);

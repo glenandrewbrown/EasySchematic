@@ -476,6 +476,22 @@ export default function MenuBar() {
     });
   };
 
+  const doExportPrintSheets = async () => {
+    const { exportPrintSheetPdf } = await import("../printSheetPdf");
+    const state = useSchematicStore.getState();
+    const sheetPages = state.pages.filter((p) => p.type === "print-sheet");
+    if (sheetPages.length === 0) {
+      alert("No print sheets to export. Add a print sheet via the page tabs first.");
+      return;
+    }
+    await exportPrintSheetPdf({
+      pages: state.pages,
+      nodes: state.nodes,
+      schematicName: state.schematicName,
+      titleBlock: state.titleBlock,
+    });
+  };
+
   // ─── Name editing ──────────────────────────────────────
 
   const commitName = () => {
@@ -602,6 +618,7 @@ export default function MenuBar() {
       { type: "item", label: "Export as DXF", onClick: doExportDxf },
       { type: "item", label: "Export as PDF", onClick: doExportPdf },
       { type: "item", label: "Export Rack PDF", onClick: doExportRackPdf },
+      { type: "item", label: "Export Print Sheets", onClick: doExportPrintSheets },
       { type: "separator" },
       { type: "item", label: "Title Block...", onClick: () => setShowTitleBlockDialog(true) },
     ],

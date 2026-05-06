@@ -7,7 +7,7 @@ export default function RackPage() {
   const pages = useSchematicStore((s) => s.pages);
 
   const page = pages.find((p) => p.id === activePage);
-  if (!page) return null;
+  if (!page || page.type !== "rack-elevation") return null;
 
   return (
     <div className="flex flex-1 overflow-hidden">

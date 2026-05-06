@@ -4,6 +4,7 @@ import type {
   RackAccessory,
   RackData,
   RackDevicePlacement,
+  RackElevationPage,
   SchematicNode,
   SchematicPage,
   TitleBlock,
@@ -29,7 +30,7 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
   return btoa(binary);
 }
 
-async function loadInterFont(doc: jsPDF) {
+export async function loadInterFont(doc: jsPDF) {
   if (!interRegularB64) {
     const [r, b] = await Promise.all([
       fetch("/fonts/Inter-Regular.ttf"),
@@ -48,7 +49,7 @@ async function loadInterFont(doc: jsPDF) {
 
 // ─── Color helpers ───
 
-function setFillHex(doc: jsPDF, hex: string | undefined, fallback: [number, number, number]) {
+export function setFillHex(doc: jsPDF, hex: string | undefined, fallback: [number, number, number]) {
   const m = (hex ?? "").match(/^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
   if (m) doc.setFillColor(parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16));
   else doc.setFillColor(...fallback);
@@ -98,7 +99,7 @@ function drawTitleBar(
 
 // ─── Front / rear elevation ───
 
-function drawElevation(
+export function drawElevation(
   doc: jsPDF,
   rack: RackData,
   placements: RackDevicePlacement[],
@@ -231,7 +232,7 @@ function drawElevation(
 
 // ─── Side view ───
 
-function drawSideView(
+export function drawSideView(
   doc: jsPDF,
   rack: RackData,
   placements: RackDevicePlacement[],
@@ -348,7 +349,7 @@ function drawSideView(
 
 // ─── Stats footer ───
 
-function drawStatsFooter(
+export function drawStatsFooter(
   doc: jsPDF,
   rack: RackData,
   placements: RackDevicePlacement[],
@@ -399,7 +400,7 @@ export async function exportRackPdf(opts: RackPdfOptions): Promise<void> {
   const deviceDataMap = new Map<string, DeviceData>();
   for (const n of opts.nodes) if (n.type === "device") deviceDataMap.set(n.id, n.data as DeviceData);
 
-  const rackPages: { page: SchematicPage; rack: RackData }[] = [];
+  const rackPages: { page: RackElevationPage; rack: RackData }[] = [];
   for (const page of opts.pages) {
     if (page.type !== "rack-elevation") continue;
     if (opts.pageIds && !opts.pageIds.includes(page.id)) continue;
