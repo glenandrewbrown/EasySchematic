@@ -2,6 +2,7 @@ import { useSchematicStore } from "../store";
 import type { PrintSheetPage, RackElevationPage } from "../types";
 import { PAPER_SIZES } from "../printConfig";
 import { autoFillSheetForRack } from "../printSheetAutoFill";
+import { runPrintSheetExport } from "../printSheetExport";
 
 interface Props {
   page: PrintSheetPage;
@@ -14,6 +15,13 @@ export default function PrintSheetToolbar({ page }: Props) {
   const pages = useSchematicStore((s) => s.pages);
   const elevationPages = pages.filter((p): p is RackElevationPage => p.type === "rack-elevation");
 
+  // Sheet index display (e.g. "Sheet 2 of 3").
+  const printSheetPages = pages.filter((p): p is PrintSheetPage => p.type === "print-sheet");
+  const sheetIndex = printSheetPages.findIndex((p) => p.id === page.id) + 1;
+  const sheetCount = printSheetPages.length;
+
+  const isCustomPaper = page.paperId === "custom";
+
   const handleAutoFill = (elevPageId: string, rackId: string) => {
     const elevPage = elevationPages.find((p) => p.id === elevPageId);
     const rack = elevPage?.racks.find((r) => r.id === rackId);
@@ -23,16 +31,45 @@ export default function PrintSheetToolbar({ page }: Props) {
   };
 
   return (
-    <div className="flex items-center gap-3 px-3 py-1.5 bg-neutral-50 border-b border-neutral-200 text-xs" data-print-hide>
+    <div className="flex items-center gap-3 px-3 py-1.5 bg-blue-50 border-b border-blue-200 text-xs" data-print-hide>
       {/* Paper size */}
       <label className="text-neutral-500 uppercase tracking-wider" style={{ fontSize: 9 }}>Paper</label>
       <select
         className="bg-white border border-neutral-200 rounded px-2 py-0.5 text-xs outline-none focus:border-blue-400"
         value={page.paperId}
-        onChange={(e) => setPrintSheetPaper(page.id, e.target.value, page.orientation)}
+        onChange={(e) => setPrintSheetPaper(page.id, e.target.value, page.orientation, page.customWidthIn, page.customHeightIn)}
       >
         {PAPER_SIZES.map((ps) => <option key={ps.id} value={ps.id}>{ps.label}</option>)}
+        <option value="custom">Custom</option>
       </select>
+
+      {/* Custom paper dimensions */}
+      {isCustomPaper && (
+        <>
+          <input
+            type="number"
+            min={1}
+            max={200}
+            step={0.01}
+            value={page.customWidthIn ?? 24}
+            onChange={(e) => setPrintSheetPaper(page.id, "custom", page.orientation, Number(e.target.value), page.customHeightIn ?? 36)}
+            className="w-16 bg-white border border-neutral-200 rounded px-2 py-0.5 text-xs outline-none focus:border-blue-400"
+            title="Width (in)"
+          />
+          <span className="text-neutral-400">×</span>
+          <input
+            type="number"
+            min={1}
+            max={200}
+            step={0.01}
+            value={page.customHeightIn ?? 36}
+            onChange={(e) => setPrintSheetPaper(page.id, "custom", page.orientation, page.customWidthIn ?? 24, Number(e.target.value))}
+            className="w-16 bg-white border border-neutral-200 rounded px-2 py-0.5 text-xs outline-none focus:border-blue-400"
+            title="Height (in)"
+          />
+          <span className="text-neutral-500" style={{ fontSize: 9 }}>in</span>
+        </>
+      )}
 
       {/* Orientation */}
       <button
@@ -119,6 +156,13 @@ export default function PrintSheetToolbar({ page }: Props) {
 
       <div className="flex-1" />
 
+      {/* Sheet count */}
+      {sheetCount > 1 && (
+        <span className="text-neutral-500" style={{ fontFamily: "monospace", fontSize: 11 }}>
+          Sheet {sheetIndex} of {sheetCount}
+        </span>
+      )}
+
       {/* Clear all */}
       {page.viewports.length > 0 && (
         <button
@@ -128,6 +172,14 @@ export default function PrintSheetToolbar({ page }: Props) {
           Clear All
         </button>
       )}
+
+      {/* Export PDF — same handler as File → Export → Export Print Sheets */}
+      <button
+        className="px-3 py-1 text-xs font-medium bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+        onClick={() => { void runPrintSheetExport(); }}
+      >
+        Export PDF
+      </button>
     </div>
   );
 }

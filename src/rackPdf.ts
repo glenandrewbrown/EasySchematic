@@ -1,4 +1,4 @@
-import { jsPDF } from "jspdf";
+import { jsPDF, GState } from "jspdf";
 import type {
   DeviceData,
   RackAccessory,
@@ -15,13 +15,31 @@ import {
   inferRackHeightU,
   getRackDepthConflicts,
   shelfDepthMm,
+  shelfInnerWidthMm,
+  PX_PER_MM as RACK_PX_PER_MM,
 } from "./rackUtils";
 import { computeRackStats, formatStatsLine } from "./rackStats";
+import { wrapLabel } from "./components/RackFaceSVG";
+
+// SVG-px constants — must mirror RackFaceSVG.tsx exactly so the PDF and the
+// sheet view share the same coordinate system (within `s` mm-per-svg-px scale).
+const SVG_PX_PER_U = 24;
+const SVG_RACK_WIDTH = 260;
+const SVG_RAIL_WIDTH = 8;
+const SVG_FULL_WIDTH = 244; // RACK_WIDTH - 2 * RAIL_WIDTH
+const SVG_HALF_WIDTH = 121; // (RACK_WIDTH - 2 * DEVICE_INSET) / 2 - 1
+const SVG_DEVICE_INSET = 8;
+
+// Convert an SVG font size (in SVG-px) to jsPDF font size (pt).
+// At scale s mm-per-svg-px, an SVG-px font occupies s mm visual height.
+// 1pt = 1/72 inch = 0.3528 mm, so pt = mm / 0.3528.
+const PT_PER_MM = 1 / 0.3528;
 
 // ─── Inter font embedding (self-contained copy of reportPdf logic) ───
 
 let interRegularB64: string | null = null;
 let interBoldB64: string | null = null;
+let interItalicB64: string | null = null;
 
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
@@ -32,19 +50,34 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
 
 export async function loadInterFont(doc: jsPDF) {
   if (!interRegularB64) {
-    const [r, b] = await Promise.all([
+    const [r, b, it] = await Promise.all([
       fetch("/fonts/Inter-Regular.ttf"),
       fetch("/fonts/Inter-Bold.ttf"),
+      fetch("/fonts/Inter-Italic.ttf"),
     ]);
     if (!r.ok || !b.ok) throw new Error(`Font fetch failed: ${r.status}/${b.status}`);
     const [rb, bb] = await Promise.all([r.arrayBuffer(), b.arrayBuffer()]);
     interRegularB64 = arrayBufferToBase64(rb);
     interBoldB64 = arrayBufferToBase64(bb);
+    // Italic is optional — bundle if available, fall back to "normal" style at call sites if not.
+    if (it.ok) {
+      const ib = await it.arrayBuffer();
+      interItalicB64 = arrayBufferToBase64(ib);
+    }
   }
   doc.addFileToVFS("Inter-Regular.ttf", interRegularB64);
   doc.addFileToVFS("Inter-Bold.ttf", interBoldB64!);
   doc.addFont("Inter-Regular.ttf", "Inter", "normal");
   doc.addFont("Inter-Bold.ttf", "Inter", "bold");
+  if (interItalicB64) {
+    doc.addFileToVFS("Inter-Italic.ttf", interItalicB64);
+    doc.addFont("Inter-Italic.ttf", "Inter", "italic");
+  }
+}
+
+/** True once Inter italic is loaded into the doc — call sites can opt in for italic styling. */
+export function hasInterItalic(): boolean {
+  return interItalicB64 !== null;
 }
 
 // ─── Color helpers ───
@@ -97,7 +130,31 @@ function drawTitleBar(
   doc.setTextColor(0);
 }
 
+// ─── Aspect-preserving fit: matches RackFaceSVG's preserveAspectRatio="xMidYMid meet" ───
+
+interface FitResult {
+  scale: number;     // mm per SVG-px
+  offsetX: number;   // mm-space top-left of the fitted content box
+  offsetY: number;
+}
+
+/** Fit (vbW × vbH) viewBox inside (rectW × rectH) rect preserving aspect, centered. */
+function fitMeet(rectXMm: number, rectYMm: number, rectWMm: number, rectHMm: number, vbW: number, vbH: number): FitResult {
+  const scale = Math.min(rectWMm / vbW, rectHMm / vbH);
+  return {
+    scale,
+    offsetX: rectXMm + (rectWMm - vbW * scale) / 2,
+    offsetY: rectYMm + (rectHMm - vbH * scale) / 2,
+  };
+}
+
 // ─── Front / rear elevation ───
+//
+// Coordinate system mirrors RackFaceSVG.tsx exactly:
+//   viewBox = (-32, -20, 296, heightU*24+24)
+//   rack frame in SVG-space = (0, 0) to (260, heightU*24)
+//   RAIL_WIDTH = 8 SVG-px on each side
+// We multiply each SVG-px by `scale` to get mm.
 
 export function drawElevation(
   doc: jsPDF,
@@ -106,28 +163,46 @@ export function drawElevation(
   accessories: RackAccessory[],
   deviceDataMap: Map<string, DeviceData>,
   face: "front" | "rear",
-  centerXMm: number,
-  topYMm: number,
-  maxHeightMm: number,
+  rectXMm: number,
+  rectYMm: number,
+  rectWMm: number,
+  rectHMm: number,
+  drawFaceLabel: boolean = true,
 ) {
   const is2Post = rack.rackType === "open-2post";
-  // Skip rear of 2-post
   const empty = face === "rear" && is2Post;
+  const showRails = !empty;
 
-  const labelTitle = face === "front" ? "Front" : "Rear";
+  // viewBox: x=-32 .. 264 (296 wide), y=-20 .. heightU*24+4 (heightU*24+24 tall)
+  const VB_W = 296;
+  const VB_H = rack.heightU * SVG_PX_PER_U + 24;
+  const fit = fitMeet(rectXMm, rectYMm, rectWMm, rectHMm, VB_W, VB_H);
+  const s = fit.scale;
+  const ptPerSvg = s * PT_PER_MM; // jsPDF pt per SVG-px
+
+  // Rack frame top-left in mm (SVG (0,0) → mm).
+  const x = fit.offsetX + 32 * s;
+  const y = fit.offsetY + 20 * s;
+  const RACK_WIDTH_MM = SVG_RACK_WIDTH * s;
+  const drawHeightMm = rack.heightU * SVG_PX_PER_U * s;
+  const uHeightMm = SVG_PX_PER_U * s;
+  const railWMm = SVG_RAIL_WIDTH * s;
+
+  // Rack label — SVG: <text x={RACK_WIDTH/2} y={-8} fontSize={12} fontWeight={600} fill="#333">
+  // Always drawn (matches sheet view; legacy exportRackPdf also gets it for consistency).
   doc.setFont("Inter", "bold");
-  doc.setFontSize(9);
-  doc.setTextColor(60, 60, 60);
-  doc.text(labelTitle, centerXMm, topYMm - 2, { align: "center" });
+  doc.setFontSize(12 * ptPerSvg);
+  doc.setTextColor(51, 51, 51);
+  doc.text(rack.label, x + RACK_WIDTH_MM / 2, y - 8 * s, { align: "center" });
 
-  // Rack frame: scale to fit maxHeightMm; rack heightU * scale = drawHeight
-  const drawHeightMm = maxHeightMm;
-  const uHeightMm = drawHeightMm / rack.heightU;
-  const RACK_WIDTH_MM = 60; // arbitrary visual width per face
-  const railWMm = RACK_WIDTH_MM * 0.04;
-
-  const x = centerXMm - RACK_WIDTH_MM / 2;
-  const y = topYMm;
+  // Optional face label "Front"/"Rear" (drawn above rack label position when caller asks).
+  if (drawFaceLabel) {
+    const labelTitle = face === "front" ? "Front" : "Rear";
+    doc.setFont("Inter", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(60, 60, 60);
+    doc.text(labelTitle, x + RACK_WIDTH_MM / 2, y - 2, { align: "center" });
+  }
 
   // Frame fill
   setFillHex(doc, undefined, [245, 245, 245]);
@@ -139,98 +214,229 @@ export function drawElevation(
     doc.setFont("Inter", "normal");
     doc.setFontSize(7);
     doc.setTextColor(140, 140, 140);
-    doc.text("(no rear face on 2-post)", centerXMm, y + drawHeightMm / 2, { align: "center" });
+    doc.text("(no rear face on 2-post)", x + RACK_WIDTH_MM / 2, y + drawHeightMm / 2, { align: "center" });
     return;
   }
 
-  // Side rails
+  // Main side rails (SVG: rect at x=0,w=8 and x=RACK_WIDTH-8,w=8)
   setFillHex(doc, undefined, [212, 212, 212]);
-  doc.rect(x, y, railWMm, drawHeightMm, "F");
-  doc.rect(x + RACK_WIDTH_MM - railWMm, y, railWMm, drawHeightMm, "F");
+  doc.setDrawColor(153, 153, 153);
+  doc.setLineWidth(0.125);
+  doc.rect(x, y, railWMm, drawHeightMm, "FD");
+  doc.rect(x + RACK_WIDTH_MM - railWMm, y, railWMm, drawHeightMm, "FD");
 
-  // U gridlines
-  doc.setDrawColor(220, 220, 220);
-  doc.setLineWidth(0.1);
-  for (let i = 1; i < rack.heightU; i++) {
-    const ly = y + i * uHeightMm;
-    doc.line(x, ly, x + RACK_WIDTH_MM, ly);
+  // Inner pseudo-rails (SVG: rect at x=RAIL_WIDTH+1, w=3 and x=RACK_WIDTH-RAIL_WIDTH-4, w=3)
+  if (showRails) {
+    setFillHex(doc, undefined, [224, 224, 224]);
+    doc.setDrawColor(204, 204, 204);
+    doc.setLineWidth(0.063);
+    doc.rect(x + (SVG_RAIL_WIDTH + 1) * s, y, 3 * s, drawHeightMm, "FD");
+    doc.rect(x + (SVG_RACK_WIDTH - SVG_RAIL_WIDTH - 4) * s, y, 3 * s, drawHeightMm, "FD");
   }
-  // U numbers
+
+  // U gridlines + numbers + mounting holes
   doc.setFont("Inter", "normal");
-  doc.setFontSize(4);
-  doc.setTextColor(150, 150, 150);
+  const uFontPt = Math.max(2.5, 8 * ptPerSvg);
   for (let i = 0; i < rack.heightU; i++) {
+    const ly = y + i * uHeightMm;
+    if (i > 0) {
+      doc.setDrawColor(220, 220, 220);
+      doc.setLineWidth(0.1);
+      doc.line(x, ly, x + RACK_WIDTH_MM, ly);
+    }
+    // U number
+    doc.setFontSize(uFontPt);
+    doc.setTextColor(150, 150, 150);
     const uNum = rack.heightU - i;
-    doc.text(`${uNum}`, x - 1.5, y + i * uHeightMm + uHeightMm / 2 + 1, { align: "right" });
+    doc.text(`${uNum}`, x - 16 * s, ly + uHeightMm / 2, { align: "center", baseline: "middle" });
+    // Mounting holes (3 per U on each rail) — only when rails are shown.
+    if (showRails) {
+      doc.setFillColor(153, 153, 153);
+      for (const frac of [1 / 6, 3 / 6, 5 / 6]) {
+        const cy = ly + uHeightMm * frac;
+        doc.circle(x + (SVG_RAIL_WIDTH + 2.5) * s, cy, 1.2 * s, "F");
+        doc.circle(x + (SVG_RACK_WIDTH - SVG_RAIL_WIDTH - 2.5) * s, cy, 1.2 * s, "F");
+      }
+    }
   }
 
-  // Accessories on this face
+  // Opposite-face occupancy ghosts — diagonal stripe pattern + dashed border,
+  // mirroring the SVG <pattern id="occupancy-stripes"> behavior.
+  // SVG: 6×6 cell, vertical line at x=0, patternTransform=rotate(45) → 45° stripes
+  //      with 6 SVG-px perpendicular spacing, stroke=rgba(0,0,0,0.08), strokeWidth=2
+  // PDF: clip to rect, draw 45° lines at the same spacing using GState alpha.
+  const oppositeFace: "front" | "rear" = face === "front" ? "rear" : "front";
+  for (const p of placements) {
+    if (p.rackId !== rack.id || p.face !== oppositeFace || p.mountedOnShelfId) continue;
+    const dd = deviceDataMap.get(p.deviceNodeId);
+    if (!dd) continue;
+    const heightU = inferRackHeightU(dd);
+    const isHalf = !!p.halfRackSide;
+    const gw_svg = isHalf ? SVG_HALF_WIDTH : SVG_FULL_WIDTH;
+    const gx_svg = SVG_DEVICE_INSET + (isHalf && p.halfRackSide === "right" ? SVG_HALF_WIDTH + 2 : 0);
+    const gy = y + (rack.heightU - (p.uPosition + heightU - 1)) * uHeightMm;
+    const gh = heightU * uHeightMm - s;
+    const gx = x + gx_svg * s;
+    const gw = gw_svg * s;
+
+    // Stripes — slope -1 lines (forward-slash /, matching SVG rotate(45) on a vertical line).
+    // Perpendicular spacing 6 SVG-px → c-spacing along x = 6√2 SVG-px.
+    // We compute exact line endpoints clipped to the rect (avoids jsPDF clip quirks
+    // where doc.rect() may auto-stroke and consume the path before clip() takes it).
+    doc.saveGraphicsState();
+    doc.setGState(new GState({ "stroke-opacity": 0.08 }));
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineWidth(2 * s); // 2 SVG-px stroke
+    const cSpacing = 6 * Math.SQRT2 * s;
+    for (let c = 0; c <= gw + gh; c += cSpacing) {
+      // Line equation in rect-local coords: x + y = c, with x ∈ [0, gw], y ∈ [0, gh].
+      // Find the two intersection points with the rect edges.
+      const pts: Array<[number, number]> = [];
+      if (c >= 0 && c <= gw) pts.push([c, 0]);                 // top edge
+      if (c - gh >= 0 && c - gh <= gw) pts.push([c - gh, gh]); // bottom edge
+      if (c >= 0 && c <= gh && pts.length < 2) pts.push([0, c]); // left edge (skip if already covered)
+      if (c - gw >= 0 && c - gw <= gh && pts.length < 2) pts.push([gw, c - gw]); // right edge
+      if (pts.length < 2) continue;
+      doc.line(gx + pts[0][0], gy + pts[0][1], gx + pts[1][0], gy + pts[1][1]);
+    }
+    doc.restoreGraphicsState();
+
+    // Dashed border on top
+    doc.setDrawColor(187, 187, 187);
+    doc.setLineWidth(0.15);
+    doc.setLineDashPattern([0.75, 0.5], 0);
+    doc.rect(gx, gy, gw, gh, "S");
+    doc.setLineDashPattern([], 0);
+  }
+
+  // Accessories on this face (SVG: rect from DEVICE_INSET=8 to DEVICE_INSET+FULL_WIDTH=252, width=244)
   for (const a of accessories) {
     if (a.rackId !== rack.id || a.face !== face) continue;
     const ay = y + (rack.heightU - (a.uPosition + a.heightU - 1)) * uHeightMm;
-    const ah = a.heightU * uHeightMm;
+    const ah_svg = a.heightU * SVG_PX_PER_U - 1;
+    const ah = ah_svg * s;
     const fill: Record<string, [number, number, number]> = {
       "blank-panel": [136, 136, 136], "vent-panel": [170, 170, 170], "shelf": [160, 133, 91],
       "drawer": [138, 122, 90], "cable-manager": [102, 102, 102], "fan-unit": [85, 107, 122],
     };
     doc.setFillColor(...(fill[a.type] ?? [136, 136, 136]));
-    doc.setDrawColor(80, 80, 80);
-    doc.rect(x + railWMm, ay, RACK_WIDTH_MM - 2 * railWMm, ah - 0.2, "FD");
-    doc.setFont("Inter", "normal");
-    doc.setFontSize(Math.min(6, ah * 1.5));
-    doc.setTextColor(255, 255, 255);
-    doc.text(a.label ?? RACK_ACCESSORY_LABELS[a.type], x + RACK_WIDTH_MM / 2, ay + ah / 2 + 1, { align: "center" });
+    doc.setDrawColor(85, 85, 85);
+    doc.setLineWidth(0.125);
+    doc.rect(x + SVG_DEVICE_INSET * s, ay, SVG_FULL_WIDTH * s, ah, "FD");
+
+    // Vent panel hatching — horizontal stripes inside the panel.
+    if (a.type === "vent-panel") {
+      doc.setDrawColor(238, 238, 238); // approximates rgba(255,255,255,0.3) over a grey panel
+      doc.setLineWidth(0.15);
+      const stripes = Math.max(1, Math.floor(ah_svg / 6));
+      for (let si = 0; si < stripes; si++) {
+        const ly = ay + (3 + si * 6) * s;
+        doc.line(x + (SVG_DEVICE_INSET + 8) * s, ly, x + (SVG_DEVICE_INSET + SVG_FULL_WIDTH - 8) * s, ly);
+      }
+    }
+
+    if (a.type !== "shelf") {
+      doc.setFont("Inter", "normal");
+      doc.setFontSize(8 * ptPerSvg);
+      doc.setTextColor(255, 255, 255);
+      doc.text(a.label ?? RACK_ACCESSORY_LABELS[a.type], x + RACK_WIDTH_MM / 2, ay + ah / 2, { align: "center", baseline: "middle" });
+    }
   }
 
-  // Devices on this face (skip shelf-mounted — drawn separately on the shelf)
+  // Devices on this face (skip shelf-mounted — drawn separately on the shelf surface)
   for (const p of placements) {
     if (p.rackId !== rack.id || p.face !== face || p.mountedOnShelfId) continue;
     const dd = deviceDataMap.get(p.deviceNodeId);
     if (!dd) continue;
     const heightU = inferRackHeightU(dd);
+    const isHalf = !!p.halfRackSide;
+    const w_svg = isHalf ? SVG_HALF_WIDTH : SVG_FULL_WIDTH;
+    const x_svg = SVG_DEVICE_INSET + (isHalf && p.halfRackSide === "right" ? SVG_HALF_WIDTH + 2 : 0);
+    const h_svg = heightU * SVG_PX_PER_U - 1;
+    const dx = x + x_svg * s;
     const dy = y + (rack.heightU - (p.uPosition + heightU - 1)) * uHeightMm;
-    const dh = heightU * uHeightMm - 0.2;
-    const dx = x + railWMm;
-    const dw = RACK_WIDTH_MM - 2 * railWMm;
+    const dw = w_svg * s;
+    const dh = h_svg * s;
     setFillHex(doc, dd.headerColor ?? dd.color, [74, 144, 217]);
     doc.setDrawColor(40, 40, 40);
     doc.setLineWidth(0.2);
     doc.rect(dx, dy, dw, dh, "FD");
+
+    // Multi-line label — wrapLabel matches RackFaceSVG exactly.
+    const fs_svg = h_svg > 20 ? 8 : 7;
+    const fs_pt = fs_svg * ptPerSvg;
+    const maxChars = Math.min(isHalf ? 14 : 36, Math.floor(w_svg / (fs_svg * 0.58)));
+    const maxLines = Math.max(1, Math.floor(h_svg / (fs_svg * 1.5)));
+    const lines = wrapLabel(dd.label, maxChars, maxLines);
+    const lineH_svg = fs_svg * 1.35;
+    const baseY_svg = h_svg / 2 - ((lines.length - 1) * lineH_svg) / 2;
     doc.setFont("Inter", "bold");
-    const fs = Math.min(7, dh * 1.6);
-    doc.setFontSize(fs);
+    doc.setFontSize(fs_pt);
     doc.setTextColor(255, 255, 255);
-    const maxChars = Math.floor(dw / (fs * 0.18));
-    const lbl = dd.label.length > maxChars ? dd.label.slice(0, Math.max(1, maxChars - 1)) + "…" : dd.label;
-    doc.text(lbl, x + RACK_WIDTH_MM / 2, dy + dh / 2 + fs * 0.3, { align: "center" });
+    for (let i = 0; i < lines.length; i++) {
+      doc.text(lines[i], dx + dw / 2, dy + (baseY_svg + i * lineH_svg) * s, { align: "center", baseline: "middle" });
+    }
+
+    // hU badge in top-right corner (>1U devices) — SVG renders at fontSize=7, alpha 0.7.
+    if (heightU > 1) {
+      doc.setFontSize(7 * ptPerSvg);
+      doc.setTextColor(220, 220, 220); // approximates rgba(255,255,255,0.7) over a colored bg
+      doc.text(`${heightU}U`, dx + dw - 4 * s, dy + 8 * s, { align: "right" });
+    }
   }
 
-  // Shelf occupants on this face — draw as small rects on the shelf surface
+  // Shelf occupants on this face — mirror RackFaceSVG.tsx exactly:
+  // position by shelfOffsetMm (real-mm), size by device widthMm/heightMm, support rotated.
   for (const a of accessories) {
     if (a.rackId !== rack.id || a.face !== face || a.type !== "shelf") continue;
-    const occupants = placements.filter((p) => p.mountedOnShelfId === a.id);
+    const occupants = placements.filter((p) => p.mountedOnShelfId === a.id && p.face === face);
     if (occupants.length === 0) continue;
     const ay = y + (rack.heightU - (a.uPosition + a.heightU - 1)) * uHeightMm;
-    const ah = a.heightU * uHeightMm;
-    const innerW = RACK_WIDTH_MM - 2 * railWMm;
-    const padding = 0.3;
-    let cursorX = x + railWMm + padding;
+    const ah = a.heightU * uHeightMm - s; // mirror SVG (-1 SVG-px)
+    const surfaceY = ay + ah - 0.5 * s;
+    const innerW = shelfInnerWidthMm();
+    const realToPdf = RACK_PX_PER_MM * s; // real-mm → SVG-px → PDF-mm
     for (const occ of occupants) {
       const dd = deviceDataMap.get(occ.deviceNodeId);
       if (!dd) continue;
-      const wFrac = Math.min(1, (dd.widthMm ?? 482) / 482); // 482mm = standard 19" inner mount
-      const ow = wFrac * (innerW - padding * 2);
-      const oy = ay + padding;
-      const oh = ah - padding * 2;
+      const wRealMm = occ.rotated ? (dd.heightMm ?? 44.45) : (dd.widthMm ?? innerW);
+      const hRealMm = occ.rotated ? (dd.widthMm ?? innerW) : (dd.heightMm ?? 44.45);
+      const wPdf = wRealMm * realToPdf;
+      const hPdf = hRealMm * realToPdf;
+      const offset = occ.shelfOffsetMm ?? { x: 0, y: 0 };
+      const xPdf = x + railWMm + offset.x * realToPdf;
+      const topY = surfaceY - hPdf - offset.y * realToPdf;
       setFillHex(doc, dd.headerColor ?? dd.color, [74, 144, 217]);
       doc.setDrawColor(40, 40, 40);
-      doc.rect(cursorX, oy, ow, oh, "FD");
-      cursorX += ow + 0.3;
+      doc.setLineWidth(0.2);
+      doc.rect(xPdf, topY, wPdf, hPdf, "FD");
+
+      // Label — mirror SVG: fontSize=Math.min(7, hPx*0.4) where hPx = hRealMm * PX_PER_MM (SVG-px).
+      const hSvgPx = hRealMm * RACK_PX_PER_MM;
+      const wSvgPx = wRealMm * RACK_PX_PER_MM;
+      const fs_svg = Math.min(7, hSvgPx * 0.4);
+      const fs_pt = Math.max(2.5, fs_svg * ptPerSvg);
+      doc.setFont("Inter", "normal");
+      doc.setFontSize(fs_pt);
+      doc.setTextColor(255, 255, 255);
+      const effectiveSvgPx = occ.rotated ? hSvgPx : wSvgPx;
+      const labelTrim = Math.max(4, Math.floor(effectiveSvgPx / 5));
+      const lbl = dd.label.length > labelTrim ? dd.label.slice(0, Math.max(1, labelTrim - 1)) + "…" : dd.label;
+      const cx = xPdf + wPdf / 2;
+      const cy = topY + hPdf / 2;
+      if (occ.rotated) {
+        // jsPDF angle is counterclockwise degrees; 90 reads bottom-up like SVG rotate(-90).
+        doc.text(lbl, cx, cy, { align: "center", baseline: "middle", angle: 90 });
+      } else {
+        doc.text(lbl, cx, cy, { align: "center", baseline: "middle" });
+      }
     }
   }
 }
 
 // ─── Side view ───
+//
+// SVG viewBox = (-8, -20, sideW(depth)+16, heightU*24+24) where sideW = max(80, depth*PX_PER_MM).
 
 export function drawSideView(
   doc: jsPDF,
@@ -238,41 +444,68 @@ export function drawSideView(
   placements: RackDevicePlacement[],
   accessories: RackAccessory[],
   deviceDataMap: Map<string, DeviceData>,
-  centerXMm: number,
-  topYMm: number,
-  maxHeightMm: number,
+  rectXMm: number,
+  rectYMm: number,
+  rectWMm: number,
+  rectHMm: number,
+  drawFaceLabel: boolean = true,
 ) {
-  doc.setFont("Inter", "bold");
-  doc.setFontSize(9);
-  doc.setTextColor(60, 60, 60);
-  doc.text("Side", centerXMm, topYMm - 2, { align: "center" });
-
   const is2Post = rack.rackType === "open-2post";
-  const sideWMm = 50;
-  const drawHeightMm = maxHeightMm;
-  const uHeightMm = drawHeightMm / rack.heightU;
-  const depthScale = sideWMm / rack.depthMm;
 
-  const x = centerXMm - sideWMm / 2;
-  const y = topYMm;
+  const SIDE_W_PX = Math.max(80, rack.depthMm * RACK_PX_PER_MM);
+  const VB_W = SIDE_W_PX + 16;
+  const VB_H = rack.heightU * SVG_PX_PER_U + 24;
+  const fit = fitMeet(rectXMm, rectYMm, rectWMm, rectHMm, VB_W, VB_H);
+  const s = fit.scale;
+  const ptPerSvg = s * PT_PER_MM;
+
+  // Rack frame in mm (SVG (0,0) to (SIDE_W_PX, heightU*24)).
+  const x = fit.offsetX + 8 * s;          // SVG x=0 with vbX=-8
+  const y = fit.offsetY + 20 * s;         // SVG y=0 with vbY=-20
+  const sideWMm = SIDE_W_PX * s;
+  const drawHeightMm = rack.heightU * SVG_PX_PER_U * s;
+  const uHeightMm = SVG_PX_PER_U * s;
+  const depthScale = sideWMm / rack.depthMm;
+  const railOffsetMm = 4 * s;             // rails are 4 SVG-px in from each frame edge
+
+  // Rack label — SVG: <text x={SW/2} y={-8} fontSize={12} fontWeight={600} fill="#333">
+  doc.setFont("Inter", "bold");
+  doc.setFontSize(12 * ptPerSvg);
+  doc.setTextColor(51, 51, 51);
+  doc.text(rack.label, x + sideWMm / 2, y - 8 * s, { align: "center" });
+
+  if (drawFaceLabel) {
+    doc.setFont("Inter", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(60, 60, 60);
+    doc.text("Side", x + sideWMm / 2, y - 2, { align: "center" });
+  }
 
   setFillHex(doc, undefined, [250, 250, 250]);
   doc.setDrawColor(60, 60, 60);
   doc.setLineWidth(0.3);
   doc.rect(x, y, sideWMm, drawHeightMm, "FD");
 
+  // Faint U gridlines (matches SVG side-view <line stroke="#eee" strokeWidth={0.5}>).
+  doc.setDrawColor(238, 238, 238);
+  doc.setLineWidth(0.1);
+  for (let i = 1; i < rack.heightU; i++) {
+    const ly = y + i * uHeightMm;
+    doc.line(x, ly, x + sideWMm, ly);
+  }
+
   // Rails
   doc.setDrawColor(170, 170, 170);
   doc.setLineDashPattern([0.6, 0.4], 0);
-  doc.line(x + 1, y, x + 1, y + drawHeightMm);
-  if (!is2Post) doc.line(x + sideWMm - 1, y, x + sideWMm - 1, y + drawHeightMm);
+  doc.line(x + railOffsetMm, y, x + railOffsetMm, y + drawHeightMm);
+  if (!is2Post) doc.line(x + sideWMm - railOffsetMm, y, x + sideWMm - railOffsetMm, y + drawHeightMm);
   doc.setLineDashPattern([], 0);
 
   doc.setFont("Inter", "normal");
-  doc.setFontSize(5);
+  doc.setFontSize(Math.max(3, Math.min(7, 7 * s)));
   doc.setTextColor(140, 140, 140);
-  doc.text("F", x + 1, y - 0.5, { align: "center" });
-  if (!is2Post) doc.text("R", x + sideWMm - 1, y - 0.5, { align: "center" });
+  doc.text("F", x + railOffsetMm, y - 1, { align: "center" });
+  if (!is2Post) doc.text("R", x + sideWMm - railOffsetMm, y - 1, { align: "center" });
 
   // Shelves first
   for (const a of accessories) {
@@ -280,7 +513,7 @@ export function drawSideView(
     const ay = y + (rack.heightU - (a.uPosition + a.heightU - 1)) * uHeightMm;
     const ah = a.heightU * uHeightMm;
     const sd = shelfDepthMm(a, rack) * depthScale;
-    const sx = (is2Post || a.face === "front") ? x + 1 : x + sideWMm - 1 - sd;
+    const sx = (is2Post || a.face === "front") ? x + railOffsetMm : x + sideWMm - railOffsetMm - sd;
     setFillHex(doc, undefined, [160, 133, 91]);
     doc.rect(sx, ay + ah - 0.5, sd, 0.5, "F");
   }
@@ -293,14 +526,20 @@ export function drawSideView(
     if (p.mountedOnShelfId) {
       const shelf = accessories.find((a) => a.id === p.mountedOnShelfId);
       if (!shelf) continue;
+      // Mirror RackFaceSVG side-view: device sized by real heightMm, positioned by shelfOffsetMm.y.
       const ay = y + (rack.heightU - (shelf.uPosition + shelf.heightU - 1)) * uHeightMm;
-      const ah = shelf.heightU * uHeightMm;
+      const ah = shelf.heightU * uHeightMm - s; // -1 SVG-px in PDF-mm
+      const realToPdf = RACK_PX_PER_MM * s;
       const dDepth = (dd.depthMm ?? shelfDepthMm(shelf, rack)) * depthScale;
-      const dx = (is2Post || shelf.face === "front") ? x + 1 : x + sideWMm - 1 - dDepth;
-      const dh = Math.max(0.6, ah - 0.6);
-      const dy = ay + ah - 0.5 - dh;
+      const hRealMm = p.rotated ? (dd.widthMm ?? 44.45) : (dd.heightMm ?? 44.45);
+      const dh = hRealMm * realToPdf;
+      const surfaceY = ay + ah - 0.5 * s;
+      const offset = p.shelfOffsetMm ?? { x: 0, y: 0 };
+      const dy = surfaceY - dh - offset.y * realToPdf;
+      const dx = (is2Post || shelf.face === "front") ? x + railOffsetMm : x + sideWMm - railOffsetMm - dDepth;
       setFillHex(doc, dd.headerColor ?? dd.color, [74, 144, 217]);
       doc.setDrawColor(40, 40, 40);
+      doc.setLineWidth(0.2);
       doc.rect(dx, dy, dDepth, dh, "FD");
       continue;
     }
@@ -309,7 +548,7 @@ export function drawSideView(
     const dh = heightU * uHeightMm - 0.1;
     const deviceDepthMm = dd.depthMm ?? rack.depthMm * 0.6;
     const dDepth = deviceDepthMm * depthScale;
-    const dx = (is2Post || p.face === "front") ? x + 1 : x + sideWMm - 1 - dDepth;
+    const dx = (is2Post || p.face === "front") ? x + railOffsetMm : x + sideWMm - railOffsetMm - dDepth;
     setFillHex(doc, dd.headerColor ?? dd.color, [74, 144, 217]);
     doc.setDrawColor(40, 40, 40);
     doc.setLineWidth(0.2);
@@ -327,8 +566,8 @@ export function drawSideView(
     if (!ad?.depthMm || !bd?.depthMm) continue;
     const yTop = y + (rack.heightU - c.uOverlapEnd) * uHeightMm;
     const yBot = y + (rack.heightU - c.uOverlapStart + 1) * uHeightMm;
-    const frontEnd = x + 1 + ad.depthMm * depthScale;
-    const rearStart = x + sideWMm - 1 - bd.depthMm * depthScale;
+    const frontEnd = x + railOffsetMm + ad.depthMm * depthScale;
+    const rearStart = x + sideWMm - railOffsetMm - bd.depthMm * depthScale;
     const ox = Math.min(frontEnd, rearStart);
     const ow = Math.max(0, Math.max(frontEnd, rearStart) - ox);
     doc.setFillColor(239, 68, 68);
@@ -339,9 +578,9 @@ export function drawSideView(
     doc.rect(ox, yTop, ow, yBot - yTop);
     doc.setLineDashPattern([], 0);
     doc.setFont("Inter", "bold");
-    doc.setFontSize(5);
+    doc.setFontSize(Math.max(3, Math.min(6, 6 * s)));
     doc.setTextColor(127, 29, 29);
-    doc.text(`+${Math.round(c.depthOverhangMm)}mm`, ox + ow / 2, (yTop + yBot) / 2, { align: "center" });
+    doc.text(`+${Math.round(c.depthOverhangMm)}mm`, ox + ow / 2, (yTop + yBot) / 2, { align: "center", baseline: "middle" });
   }
 
   doc.setTextColor(0);
@@ -355,7 +594,7 @@ export function drawStatsFooter(
   placements: RackDevicePlacement[],
   accessories: RackAccessory[],
   deviceDataMap: Map<string, DeviceData>,
-  pageWidthMm: number,
+  centerXMm: number,
   yMm: number,
 ) {
   const stats = computeRackStats(rack, placements, accessories, deviceDataMap);
@@ -363,7 +602,7 @@ export function drawStatsFooter(
   doc.setFont("Inter", "bold");
   doc.setFontSize(9);
   doc.setTextColor(40, 40, 40);
-  doc.text(line, pageWidthMm / 2, yMm, { align: "center" });
+  doc.text(line, centerXMm, yMm, { align: "center" });
 
   if (stats.unknownDepthCount > 0 || stats.unknownWeightCount > 0 || stats.unknownPowerCount > 0) {
     const caveat = [
@@ -374,7 +613,7 @@ export function drawStatsFooter(
     doc.setFont("Inter", "normal");
     doc.setFontSize(7);
     doc.setTextColor(120, 120, 120);
-    doc.text(caveat, pageWidthMm / 2, yMm + 4, { align: "center" });
+    doc.text(caveat, centerXMm, yMm + 4, { align: "center" });
   }
   doc.setTextColor(0);
 }
@@ -430,16 +669,18 @@ export async function exportRackPdf(opts: RackPdfOptions): Promise<void> {
     const bottomRowH = drawableH * 0.4;
 
     const halfW = (widthMm - 2 * PAGE_MARGIN_MM) / 2;
-    const frontCx = PAGE_MARGIN_MM + halfW * 0.5;
-    const rearCx = PAGE_MARGIN_MM + halfW + halfW * 0.5;
+    const frontX = PAGE_MARGIN_MM;
+    const rearX = PAGE_MARGIN_MM + halfW;
 
-    drawElevation(doc, rack, page.placements, page.accessories, deviceDataMap, "front", frontCx, contentTopY + 4, topRowH);
-    drawElevation(doc, rack, page.placements, page.accessories, deviceDataMap, "rear", rearCx, contentTopY + 4, topRowH);
+    drawElevation(doc, rack, page.placements, page.accessories, deviceDataMap, "front", frontX, contentTopY + 4, halfW, topRowH);
+    drawElevation(doc, rack, page.placements, page.accessories, deviceDataMap, "rear", rearX, contentTopY + 4, halfW, topRowH);
 
     const sideTop = contentTopY + topRowH + 12;
-    drawSideView(doc, rack, page.placements, page.accessories, deviceDataMap, widthMm / 2, sideTop, bottomRowH - 4);
+    const sideX = PAGE_MARGIN_MM;
+    const sideW = widthMm - 2 * PAGE_MARGIN_MM;
+    drawSideView(doc, rack, page.placements, page.accessories, deviceDataMap, sideX, sideTop, sideW, bottomRowH - 4);
 
-    drawStatsFooter(doc, rack, page.placements, page.accessories, deviceDataMap, widthMm, statsY);
+    drawStatsFooter(doc, rack, page.placements, page.accessories, deviceDataMap, widthMm / 2, statsY);
   });
 
   const safeName = opts.schematicName.replace(/[^a-zA-Z0-9-_ ]/g, "").trim() || "Untitled";

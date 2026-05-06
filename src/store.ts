@@ -3520,7 +3520,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
     const state = get();
     pushUndo({ nodes: state.nodes, edges: state.edges });
     const id = nextViewportId();
-    const viewport: PrintViewport = { ...viewportData, id };
+    const viewport: PrintViewport = { showStats: true, ...viewportData, id };
     const updatedPages = state.pages.map((p): SchematicPage => {
       if (p.id !== pageId || p.type !== "print-sheet") return p;
       return { ...p, viewports: [...p.viewports, viewport] };

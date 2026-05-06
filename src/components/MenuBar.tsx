@@ -477,19 +477,8 @@ export default function MenuBar() {
   };
 
   const doExportPrintSheets = async () => {
-    const { exportPrintSheetPdf } = await import("../printSheetPdf");
-    const state = useSchematicStore.getState();
-    const sheetPages = state.pages.filter((p) => p.type === "print-sheet");
-    if (sheetPages.length === 0) {
-      alert("No print sheets to export. Add a print sheet via the page tabs first.");
-      return;
-    }
-    await exportPrintSheetPdf({
-      pages: state.pages,
-      nodes: state.nodes,
-      schematicName: state.schematicName,
-      titleBlock: state.titleBlock,
-    });
+    const { runPrintSheetExport } = await import("../printSheetExport");
+    await runPrintSheetExport();
   };
 
   // ─── Name editing ──────────────────────────────────────

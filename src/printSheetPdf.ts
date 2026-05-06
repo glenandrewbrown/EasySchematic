@@ -8,12 +8,17 @@ import type {
   TitleBlock,
 } from "./types";
 import { getPaperSize, PAGE_MARGIN_IN } from "./printConfig";
-import { loadInterFont, drawElevation, drawSideView, drawStatsFooter } from "./rackPdf";
+import { loadInterFont, drawElevation, drawSideView, hasInterItalic } from "./rackPdf";
+import { computeRackStats, formatStatsLine } from "./rackStats";
 import { computeCellRects, normalizeSizes, getFieldValue } from "./titleBlockLayout";
 import { useSchematicStore } from "./store";
 
 const IN_TO_MM = 25.4;
 const PAGE_MARGIN_MM = PAGE_MARGIN_IN * IN_TO_MM; // 10.16mm
+
+// PrintSheetRenderer chrome uses CSS px (96 PPI). Convert to PDF mm and pt for parity.
+const PX_TO_MM = 25.4 / 96;
+const PX_TO_PT = 72 / 96; // = 0.75
 
 export interface PrintSheetPdfOptions {
   pages: SchematicPage[];
@@ -189,27 +194,51 @@ export async function exportPrintSheetPdf(opts: PrintSheetPdfOptions): Promise<v
       if (!srcPage || !rack) continue;
 
       const centerX = pos.x + size.w / 2;
-      const topY = pos.y;
-      const maxH = size.h;
 
+      // Rack face — face label is drawn below the viewport (not above the frame).
+      // Pass the full viewport rect so drawElevation/drawSideView can fit-with-aspect.
       if (vp.kind === "rack-front") {
-        drawElevation(doc, rack, srcPage.placements, srcPage.accessories, deviceDataMap, "front", centerX, topY + 4, maxH - 8);
+        drawElevation(doc, rack, srcPage.placements, srcPage.accessories, deviceDataMap, "front", pos.x, pos.y, size.w, size.h, false);
       } else if (vp.kind === "rack-rear") {
-        drawElevation(doc, rack, srcPage.placements, srcPage.accessories, deviceDataMap, "rear", centerX, topY + 4, maxH - 8);
+        drawElevation(doc, rack, srcPage.placements, srcPage.accessories, deviceDataMap, "rear", pos.x, pos.y, size.w, size.h, false);
       } else if (vp.kind === "rack-side") {
-        drawSideView(doc, rack, srcPage.placements, srcPage.accessories, deviceDataMap, centerX, topY + 4, maxH - 8);
+        drawSideView(doc, rack, srcPage.placements, srcPage.accessories, deviceDataMap, pos.x, pos.y, size.w, size.h, false);
       }
 
+      // Chrome below viewport — mirrors PrintSheetRenderer.tsx typography exactly.
+      // UI uses CSS px (9px / 7px font, top offsets 2/14/26 px below viewport).
+      // PDF: convert px → pt for fonts, px → mm for positions, baseline:"top" so
+      // y is the cap-height top (matches HTML div top edge).
       if (vp.showLabel !== false) {
         const kindLabel = vp.kind === "rack-front" ? "Front" : vp.kind === "rack-rear" ? "Rear" : "Side";
-        doc.setFont("Inter", "normal");
-        doc.setFontSize(7);
-        doc.setTextColor(100, 100, 100);
-        doc.text(`${rack.label} · ${kindLabel}`, pos.x, pos.y, { baseline: "top" });
+        doc.setFont("Inter", hasInterItalic() ? "italic" : "normal");
+        doc.setFontSize(9 * PX_TO_PT); // = 6.75pt to match UI 9px
+        doc.setTextColor(153, 153, 153); // #999
+        doc.text(kindLabel, centerX, pos.y + size.h + 2 * PX_TO_MM, { align: "center", baseline: "top", maxWidth: size.w });
       }
 
-      if (vp.showStats) {
-        drawStatsFooter(doc, rack, srcPage.placements, srcPage.accessories, deviceDataMap, pageW, pos.y + size.h + 3);
+      if (vp.showStats !== false) {
+        // Inline stats + caveat — match UI div positioning + sizing.
+        const rackPl = srcPage.placements.filter((p) => p.rackId === rack.id);
+        const rackAcc = srcPage.accessories.filter((a) => a.rackId === rack.id);
+        const stats = computeRackStats(rack, rackPl, rackAcc, deviceDataMap);
+        const statsLine = formatStatsLine(stats);
+
+        doc.setFont("Inter", "normal");
+        doc.setFontSize(9 * PX_TO_PT);
+        doc.setTextColor(68, 68, 68); // #444
+        doc.text(statsLine, centerX, pos.y + size.h + 14 * PX_TO_MM, { align: "center", baseline: "top", maxWidth: size.w });
+
+        if (stats.unknownDepthCount > 0 || stats.unknownWeightCount > 0 || stats.unknownPowerCount > 0) {
+          const caveat = [
+            stats.unknownDepthCount > 0 ? `${stats.unknownDepthCount} unknown depth` : null,
+            stats.unknownWeightCount > 0 ? `${stats.unknownWeightCount} unknown weight` : null,
+            stats.unknownPowerCount > 0 ? `${stats.unknownPowerCount} unknown power` : null,
+          ].filter(Boolean).join(" · ");
+          doc.setFontSize(7 * PX_TO_PT); // = 5.25pt to match UI 7px
+          doc.setTextColor(153, 153, 153);
+          doc.text(caveat, centerX, pos.y + size.h + 26 * PX_TO_MM, { align: "center", baseline: "top", maxWidth: size.w });
+        }
       }
     }
 

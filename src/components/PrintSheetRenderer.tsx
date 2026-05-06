@@ -1,34 +1,28 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSchematicStore } from "../store";
-import type { PrintSheetPage, PrintViewport, RackElevationPage, DeviceData, TitleBlock, TitleBlockLayout } from "../types";
-import { RACK_ACCESSORY_LABELS } from "../types";
+import type { PrintSheetPage, PrintViewport, RackElevationPage, DeviceData, RackData, TitleBlock, TitleBlockLayout } from "../types";
 import { getPaperSize, PAGE_MARGIN_IN, TITLE_BLOCK_HEIGHT_IN } from "../printConfig";
-import { inferRackHeightU, shelfDepthMm, shelfInnerWidthMm, PX_PER_MM } from "../rackUtils";
+import { PX_PER_MM } from "../rackUtils";
 import { computeRackStats, formatStatsLine } from "../rackStats";
 import { computeCellRects, normalizeSizes, getFieldValue } from "../titleBlockLayout";
+import { computeDragSnap, computeResizeSnap, type SheetGuide, type Rect } from "../printSheetSnap";
+import RackFaceSVG from "./RackFaceSVG";
 
 const IN_TO_MM = 25.4;
 const SCREEN_PPI = 96;
+const SNAP_THRESHOLD_MM = 3;
 
-// ── Rack face constants — mirrors RackRenderer.tsx exactly ──────────
-const PX_PER_U = 24;
-const RACK_WIDTH = 260;
-const RULER_WIDTH = 28;
-const RAIL_WIDTH = 8;
-const FULL_WIDTH = RACK_WIDTH - 2 * RAIL_WIDTH; // 244
-const DEVICE_INSET = RAIL_WIDTH;
-const HALF_WIDTH = (RACK_WIDTH - 2 * DEVICE_INSET) / 2 - 1;
-
-function uToY(uPos: number, rackH: number) { return (rackH - uPos) * PX_PER_U; }
-function sideW(depthMm: number) { return Math.max(80, depthMm * PX_PER_MM); }
-
-const ACC_COLORS: Record<string, string> = {
-  "blank-panel": "#888", "vent-panel": "#aaa", "shelf": "#a0855b",
-  "drawer": "#8a7a5a", "cable-manager": "#666", "fan-unit": "#556b7a",
-};
-
-// ── Title block helper ──────────────────────────────────────────────
 const PT_TO_PX = SCREEN_PPI / 72;
+
+/** Natural aspect ratio of a rack face SVG (matches RackFaceSVG viewBox). width/height. */
+function getNaturalAspect(rack: RackData, face: "front" | "rear" | "side"): number {
+  const VB_H = rack.heightU * 24 + 24;
+  if (face === "side") {
+    const VB_W = Math.max(80, rack.depthMm * PX_PER_MM) + 16;
+    return VB_W / VB_H;
+  }
+  return 296 / VB_H;
+}
 
 interface TitleBlockSVGProps {
   tb: TitleBlock;
@@ -142,256 +136,6 @@ function TitleBlockSVG({ tb, layout, pageNum, totalPages, widthPx, heightPx }: T
           >
             {text}
           </text>
-        );
-      })}
-    </svg>
-  );
-}
-
-function wrapLabel(text: string, maxChars: number, maxLines: number): string[] {
-  if (maxChars < 2) return [text.slice(0, 1) + "…"];
-  const words = text.split(/\s+/);
-  const lines: string[] = [];
-  let cur = "";
-  for (const word of words) {
-    if (lines.length >= maxLines) break;
-    const candidate = cur ? cur + " " + word : word;
-    if (candidate.length <= maxChars) { cur = candidate; }
-    else { if (cur) lines.push(cur); cur = word.length > maxChars ? word.slice(0, maxChars - 1) + "…" : word; }
-  }
-  if (cur && lines.length < maxLines) lines.push(cur);
-  if (lines.length === 0) lines.push(text.slice(0, maxChars - 1) + "…");
-  return lines;
-}
-
-// ── Rack face SVG — uses exact same coordinate system as RackRenderer ──
-
-interface RackFaceProps {
-  elevPage: RackElevationPage;
-  viewport: PrintViewport;
-  widthPx: number;
-  heightPx: number;
-  deviceDataMap: Map<string, DeviceData>;
-}
-
-function RackFaceSVG({ elevPage, viewport, widthPx, heightPx, deviceDataMap }: RackFaceProps) {
-  const rack = elevPage.racks.find((r) => r.id === viewport.rackRefId);
-  if (!rack) {
-    return (
-      <svg width={widthPx} height={heightPx}>
-        <rect width={widthPx} height={heightPx} fill="#f5f5f5" stroke="#ccc" />
-        <text x={widthPx / 2} y={heightPx / 2} textAnchor="middle" dominantBaseline="central" fontSize={10} fill="#aaa">Rack not found</text>
-      </svg>
-    );
-  }
-
-  const placements = elevPage.placements.filter((p) => p.rackId === rack.id);
-  const accessories = elevPage.accessories.filter((a) => a.rackId === rack.id);
-
-  const totalH = rack.heightU * PX_PER_U;
-  const is2Post = rack.rackType === "open-2post";
-  const isOpen = is2Post || rack.rackType === "open-4post";
-  const isSide = viewport.kind === "rack-side";
-  const face = viewport.kind === "rack-rear" ? "rear" : "front";
-
-  if (isSide) {
-    const SW = sideW(rack.depthMm);
-    const depthScale = PX_PER_MM;
-    // ViewBox: 8px left pad, 20px above for label, 8px right pad, 4px below
-    const vbX = -8;
-    const vbY = -20;
-    const vbW = SW + 16;
-    const vbH = totalH + 24;
-
-    return (
-      <svg width={widthPx} height={heightPx} viewBox={`${vbX} ${vbY} ${vbW} ${vbH}`} preserveAspectRatio="xMidYMid meet">
-        {/* Rack label */}
-        <text x={SW / 2} y={-8} textAnchor="middle" fontSize={12} fontWeight={600} fill="#333">{rack.label}</text>
-        {/* Frame */}
-        <rect x={0} y={0} width={SW} height={totalH}
-          fill={isOpen ? "rgba(250,250,250,0.4)" : "#fafafa"} stroke="#333" strokeWidth={1}
-          strokeDasharray={isOpen ? "4 2" : undefined} rx={1} />
-        {/* U lines */}
-        {Array.from({ length: rack.heightU }, (_, i) => (
-          <line key={i} x1={0} y1={i * PX_PER_U} x2={SW} y2={i * PX_PER_U} stroke="#eee" strokeWidth={0.5} />
-        ))}
-        {/* Front rail */}
-        <line x1={4} y1={0} x2={4} y2={totalH} stroke="#aaa" strokeWidth={1} strokeDasharray="2 2" />
-        <text x={4} y={-3} textAnchor="middle" fontSize={7} fill="#aaa">F</text>
-        {/* Rear rail (4-post only) */}
-        {!is2Post && (
-          <>
-            <line x1={SW - 4} y1={0} x2={SW - 4} y2={totalH} stroke="#aaa" strokeWidth={1} strokeDasharray="2 2" />
-            <text x={SW - 4} y={-3} textAnchor="middle" fontSize={7} fill="#aaa">R</text>
-          </>
-        )}
-        {/* Shelf accessories */}
-        {accessories.filter((a) => a.type === "shelf").map((a) => {
-          const ay = uToY(a.uPosition + a.heightU - 1, rack.heightU);
-          const ah = a.heightU * PX_PER_U - 1;
-          const sd = shelfDepthMm(a, rack) * depthScale;
-          const ax = (is2Post || a.face === "front") ? 4 : SW - 4 - sd;
-          return <rect key={a.id} x={ax} y={ay + ah - 2} width={sd} height={2} fill="#a0855b" stroke="#7a6240" strokeWidth={0.5} />;
-        })}
-        {/* Devices */}
-        {placements.map((pl) => {
-          const dd = deviceDataMap.get(pl.deviceNodeId);
-          if (!dd) return null;
-          const heightU = inferRackHeightU(dd);
-          if (pl.mountedOnShelfId) {
-            const shelf = accessories.find((a) => a.id === pl.mountedOnShelfId);
-            if (!shelf) return null;
-            const ay = uToY(shelf.uPosition + shelf.heightU - 1, rack.heightU);
-            const ah = shelf.heightU * PX_PER_U - 1;
-            const dDepth = (dd.depthMm ?? shelfDepthMm(shelf, rack)) * depthScale;
-            const hMm = pl.rotated ? (dd.widthMm ?? 44.45) : (dd.heightMm ?? 44.45);
-            const dh = hMm * PX_PER_MM;
-            const surfaceY = ay + ah - 0.5;
-            const dy = surfaceY - dh - (pl.shelfOffsetMm?.y ?? 0) * PX_PER_MM;
-            const dx = (is2Post || shelf.face === "front") ? 4 : SW - 4 - dDepth;
-            return <rect key={pl.id} x={dx} y={dy} width={dDepth} height={dh} fill={dd.headerColor ?? dd.color ?? "#4a90d9"} stroke="#333" strokeWidth={0.5} rx={1} opacity={0.85} />;
-          }
-          const y = uToY(pl.uPosition + heightU - 1, rack.heightU);
-          const h = heightU * PX_PER_U - 1;
-          const deviceDepth = (dd.depthMm ?? rack.depthMm * 0.6) * depthScale;
-          const x = (is2Post || pl.face === "front") ? 4 : SW - 4 - deviceDepth;
-          return <rect key={pl.id} x={x} y={y} width={deviceDepth} height={h} fill={dd.headerColor ?? dd.color ?? "#4a90d9"} stroke="#333" strokeWidth={0.5} opacity={0.85} />;
-        })}
-      </svg>
-    );
-  }
-
-  // Front / rear view
-  const showRails = !(is2Post && face === "rear");
-  const activePlacements = placements.filter((p) => p.face === face && !p.mountedOnShelfId);
-  const activeAccessories = accessories.filter((a) => a.face === face);
-
-  // ViewBox: ruler to left, label above, small padding right/below
-  const vbX = -(RULER_WIDTH + 4); // -32
-  const vbY = -20;
-  const vbW = RACK_WIDTH + RULER_WIDTH + 8; // 296
-  const vbH = totalH + 24;
-
-  return (
-    <svg width={widthPx} height={heightPx} viewBox={`${vbX} ${vbY} ${vbW} ${vbH}`} preserveAspectRatio="xMidYMid meet">
-      {/* Rack label */}
-      <text x={RACK_WIDTH / 2} y={-8} textAnchor="middle" fontSize={12} fontWeight={600} fill="#333">{rack.label}</text>
-
-      {/* Frame */}
-      <rect x={0} y={0} width={RACK_WIDTH} height={totalH}
-        fill={isOpen ? "rgba(245,245,245,0.4)" : "#f5f5f5"} stroke="#333"
-        strokeWidth={isOpen ? 1 : 1.5} strokeDasharray={isOpen ? "4 2" : undefined} rx={2} />
-
-      {/* Main rails */}
-      <rect x={0} y={0} width={RAIL_WIDTH} height={totalH} fill="#d4d4d4" stroke="#999" strokeWidth={0.5} />
-      <rect x={RACK_WIDTH - RAIL_WIDTH} y={0} width={RAIL_WIDTH} height={totalH} fill="#d4d4d4" stroke="#999" strokeWidth={0.5} />
-
-      {/* Inner pseudo-rails */}
-      {showRails && (
-        <>
-          <rect x={RAIL_WIDTH + 1} y={0} width={3} height={totalH} fill="#e0e0e0" stroke="#ccc" strokeWidth={0.25} />
-          <rect x={RACK_WIDTH - RAIL_WIDTH - 4} y={0} width={3} height={totalH} fill="#e0e0e0" stroke="#ccc" strokeWidth={0.25} />
-        </>
-      )}
-
-      {/* U gridlines + ruler numbers */}
-      {Array.from({ length: rack.heightU }, (_, i) => {
-        const uNum = rack.heightU - i;
-        const y = i * PX_PER_U;
-        return (
-          <g key={uNum}>
-            <line x1={0} y1={y} x2={RACK_WIDTH} y2={y} stroke="#ddd" strokeWidth={0.5} />
-            <text x={-RULER_WIDTH / 2 - 2} y={y + PX_PER_U / 2} textAnchor="middle" dominantBaseline="central" fontSize={8} fill="#999">{uNum}</text>
-          </g>
-        );
-      })}
-
-      {/* Accessories + shelf occupants — mirrors AccessoryBlock from RackRenderer exactly */}
-      {activeAccessories.map((a) => {
-        const ay = uToY(a.uPosition + a.heightU - 1, rack.heightU);
-        const ah = a.heightU * PX_PER_U - 1;
-        const fill = ACC_COLORS[a.type] ?? "#888";
-        const isShelf = a.type === "shelf";
-        const occupants = isShelf ? placements.filter((p) => p.mountedOnShelfId === a.id && p.face === face) : [];
-        return (
-          <g key={a.id}>
-            <rect x={DEVICE_INSET} y={ay} width={FULL_WIDTH} height={ah} fill={fill} stroke="#555" strokeWidth={0.5} rx={1} />
-            {a.type === "vent-panel" && Array.from({ length: Math.max(1, Math.floor(ah / 6)) }, (_, i) => (
-              <line key={i} x1={DEVICE_INSET + 8} y1={ay + 3 + i * 6} x2={DEVICE_INSET + FULL_WIDTH - 8} y2={ay + 3 + i * 6} stroke="rgba(255,255,255,0.3)" strokeWidth={1} />
-            ))}
-            {!isShelf && (
-              <text x={DEVICE_INSET + FULL_WIDTH / 2} y={ay + ah / 2} textAnchor="middle" dominantBaseline="central" fontSize={8} fill="rgba(255,255,255,0.8)" style={{ pointerEvents: "none" }}>
-                {a.label ?? RACK_ACCESSORY_LABELS[a.type]}
-              </text>
-            )}
-            {isShelf && (() => {
-              const surfaceY = ay + ah - 0.5;
-              const innerW = shelfInnerWidthMm();
-              return occupants.map((p) => {
-                const dd = deviceDataMap.get(p.deviceNodeId);
-                if (!dd) return null;
-                const wMm = p.rotated ? (dd.heightMm ?? 44.45) : (dd.widthMm ?? innerW);
-                const hMm = p.rotated ? (dd.widthMm ?? innerW) : (dd.heightMm ?? 44.45);
-                const wPx = wMm * PX_PER_MM;
-                const hPx = hMm * PX_PER_MM;
-                const offset = p.shelfOffsetMm ?? { x: 0, y: 0 };
-                const xPx = DEVICE_INSET + offset.x * PX_PER_MM;
-                const topY = surfaceY - hPx - offset.y * PX_PER_MM;
-                const effectiveWidthPx = p.rotated ? hPx : wPx;
-                const labelTrim = Math.max(4, Math.floor(effectiveWidthPx / 5));
-                const lbl = dd.label.length > labelTrim ? dd.label.slice(0, Math.max(1, labelTrim - 1)) + "…" : dd.label;
-                return (
-                  <g key={p.id}>
-                    <rect x={xPx} y={topY} width={wPx} height={hPx}
-                      fill={dd.headerColor ?? dd.color ?? "#4a90d9"} stroke="#333" strokeWidth={0.5} rx={1} />
-                    <text
-                      x={xPx + wPx / 2} y={topY + hPx / 2}
-                      textAnchor="middle" dominantBaseline="central"
-                      fontSize={Math.min(7, hPx * 0.4)} fill="#fff"
-                      style={{ pointerEvents: "none" }}
-                      transform={p.rotated ? `rotate(-90 ${xPx + wPx / 2} ${topY + hPx / 2})` : undefined}
-                    >
-                      {lbl}
-                    </text>
-                  </g>
-                );
-              });
-            })()}
-          </g>
-        );
-      })}
-
-      {/* Rack-mounted devices (not on shelves) — mirrors DeviceBlock from RackRenderer */}
-      {activePlacements.map((p) => {
-        const dd = deviceDataMap.get(p.deviceNodeId);
-        if (!dd) return null;
-        const hU = inferRackHeightU(dd);
-        const color = dd.headerColor ?? dd.color ?? "#4a90d9";
-        const y = uToY(p.uPosition + hU - 1, rack.heightU);
-        const h = hU * PX_PER_U - 1;
-        const isHalf = !!p.halfRackSide;
-        const w = isHalf ? HALF_WIDTH : FULL_WIDTH;
-        const x = DEVICE_INSET + (isHalf && p.halfRackSide === "right" ? HALF_WIDTH + 2 : 0);
-        const fs = h > 20 ? 8 : 7;
-        const maxChars = Math.min(isHalf ? 14 : 36, Math.floor(w / (fs * 0.58)));
-        const lines = wrapLabel(dd.label, maxChars, Math.max(1, Math.floor(h / (fs * 1.5))));
-        const lineH = fs * 1.35;
-        const baseY = y + h / 2 - ((lines.length - 1) * lineH) / 2;
-        return (
-          <g key={p.id}>
-            <clipPath id={`psp-clip-${p.id}`}><rect x={x} y={y} width={w} height={h} rx={1} /></clipPath>
-            <rect x={x} y={y} width={w} height={h} fill={color} stroke="#333" strokeWidth={0.75} rx={1} />
-            <g clipPath={`url(#psp-clip-${p.id})`}>
-              <text x={x + w / 2} textAnchor="middle" fontSize={fs} fill="#fff" fontWeight={600} style={{ pointerEvents: "none" }}>
-                {lines.map((line, i) => (
-                  <tspan key={i} x={x + w / 2} y={baseY + i * lineH} dominantBaseline="central">{line}</tspan>
-                ))}
-              </text>
-              {hU > 1 && (
-                <text x={x + w - 4} y={y + 8} textAnchor="end" fontSize={7} fill="rgba(255,255,255,0.7)" style={{ pointerEvents: "none" }}>{hU}U</text>
-              )}
-            </g>
-          </g>
         );
       })}
     </svg>
@@ -540,11 +284,50 @@ export default function PrintSheetRenderer({ page }: Props) {
   }, [setViewport]);
 
   // ── Viewport interaction ─────────────────────────────────────────
-  const [selectedVpId, setSelectedVpId] = useState<string | null>(null);
-  const [dragging, setDragging] = useState<{ vpId: string; startX: number; startY: number; startPosMm: { x: number; y: number } } | null>(null);
-  const [resizing, setResizing] = useState<{ vpId: string; startX: number; startY: number; startSizeMm: { w: number; h: number } } | null>(null);
+  const [selectedVpIds, setSelectedVpIds] = useState<string[]>([]);
+  const selectedVpIdsRef = useRef<string[]>([]);
+  selectedVpIdsRef.current = selectedVpIds;
+
+  type DragState = {
+    startClientX: number;
+    startClientY: number;
+    starts: Record<string, { x: number; y: number }>; // viewport id → start position
+  };
+  type SingleResizeState = {
+    kind: "single";
+    vpId: string;
+    startClientX: number;
+    startClientY: number;
+    startPos: { x: number; y: number };
+    startSize: { w: number; h: number };
+    aspect: number; // natural aspect (width/height) of rack face
+  };
+  type GroupResizeState = {
+    kind: "group";
+    startClientX: number;
+    startClientY: number;
+    groupStart: Rect;
+    starts: Record<string, Rect>; // viewport id → starting rect
+  };
+
+  const [dragging, setDragging] = useState<DragState | null>(null);
+  const [resizing, setResizing] = useState<SingleResizeState | GroupResizeState | null>(null);
   const [panning, setPanning] = useState<{ startX: number; startY: number; startPan: { x: number; y: number } } | null>(null);
+  const [snapGuides, setSnapGuides] = useState<SheetGuide[]>([]);
   const didMoveRef = useRef(false);
+
+  // Pixel→mm helpers (zoom-aware)
+  const clientPxToMm = useCallback((dxClient: number, dyClient: number) => {
+    const { zoom: z } = vpRef.current;
+    return {
+      dxMm: (dxClient / z / pageWPx) * pageWIn * IN_TO_MM,
+      dyMm: (dyClient / z / pageHPx) * pageHIn * IN_TO_MM,
+    };
+  }, [pageWPx, pageHPx, pageWIn, pageHIn]);
+
+  const vpRect = useCallback((vp: PrintViewport): Rect => ({
+    x: vp.positionMm.x, y: vp.positionMm.y, w: vp.sizeMm.w, h: vp.sizeMm.h,
+  }), []);
 
   const handleCanvasMouseDown = useCallback((e: React.MouseEvent) => {
     const willPan = e.button === 1 || spaceHeld || panMode === "pan-first";
@@ -556,41 +339,179 @@ export default function PrintSheetRenderer({ page }: Props) {
 
   const handleVpMouseDown = useCallback((e: React.MouseEvent, vp: PrintViewport) => {
     e.stopPropagation();
-    setSelectedVpId(vp.id);
-    setDragging({ vpId: vp.id, startX: e.clientX, startY: e.clientY, startPosMm: { ...vp.positionMm } });
-  }, []);
+    const additive = e.shiftKey || e.metaKey || e.ctrlKey;
+    const wasSelected = selectedVpIdsRef.current.includes(vp.id);
+
+    let nextSelection: string[];
+    if (additive) {
+      nextSelection = wasSelected
+        ? selectedVpIdsRef.current.filter((id) => id !== vp.id)
+        : [...selectedVpIdsRef.current, vp.id];
+    } else if (!wasSelected) {
+      nextSelection = [vp.id];
+    } else {
+      nextSelection = selectedVpIdsRef.current; // keep current multi-selection if dragging an already-selected one
+    }
+    setSelectedVpIds(nextSelection);
+    selectedVpIdsRef.current = nextSelection;
+
+    // Build drag state with starting positions for every selected viewport.
+    const starts: Record<string, { x: number; y: number }> = {};
+    for (const id of nextSelection) {
+      const v = page.viewports.find((vv) => vv.id === id);
+      if (v) starts[id] = { ...v.positionMm };
+    }
+    setDragging({ startClientX: e.clientX, startClientY: e.clientY, starts });
+  }, [page.viewports]);
 
   const handleResizeMouseDown = useCallback((e: React.MouseEvent, vp: PrintViewport) => {
     e.stopPropagation();
-    setSelectedVpId(vp.id);
-    setResizing({ vpId: vp.id, startX: e.clientX, startY: e.clientY, startSizeMm: { ...vp.sizeMm } });
-  }, []);
+    const elevPage = elevationPages.find((p) => p.id === vp.rackRefPageId);
+    const rack = elevPage?.racks.find((r) => r.id === vp.rackRefId);
+    const face: "front" | "rear" | "side" = vp.kind === "rack-rear" ? "rear" : vp.kind === "rack-side" ? "side" : "front";
+    const aspect = rack ? getNaturalAspect(rack, face) : vp.sizeMm.w / vp.sizeMm.h;
+    setSelectedVpIds([vp.id]);
+    selectedVpIdsRef.current = [vp.id];
+    setResizing({
+      kind: "single",
+      vpId: vp.id,
+      startClientX: e.clientX,
+      startClientY: e.clientY,
+      startPos: { ...vp.positionMm },
+      startSize: { ...vp.sizeMm },
+      aspect,
+    });
+  }, [elevationPages]);
+
+  const handleGroupResizeMouseDown = useCallback((e: React.MouseEvent, groupRect: Rect) => {
+    e.stopPropagation();
+    const starts: Record<string, Rect> = {};
+    for (const id of selectedVpIdsRef.current) {
+      const v = page.viewports.find((vv) => vv.id === id);
+      if (v) starts[id] = vpRect(v);
+    }
+    setResizing({
+      kind: "group",
+      startClientX: e.clientX,
+      startClientY: e.clientY,
+      groupStart: { ...groupRect },
+      starts,
+    });
+  }, [page.viewports, vpRect]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    const { zoom: z } = vpRef.current;
     if (dragging) {
-      const dxMm = ((e.clientX - dragging.startX) / z / pageWPx) * pageWIn * IN_TO_MM;
-      const dyMm = ((e.clientY - dragging.startY) / z / pageHPx) * pageHIn * IN_TO_MM;
-      updateViewport(page.id, dragging.vpId, { positionMm: { x: dragging.startPosMm.x + dxMm, y: dragging.startPosMm.y + dyMm } });
+      const { dxMm, dyMm } = clientPxToMm(e.clientX - dragging.startClientX, e.clientY - dragging.startClientY);
+      const ids = Object.keys(dragging.starts);
+      if (Math.abs(e.clientX - dragging.startClientX) > 2 || Math.abs(e.clientY - dragging.startClientY) > 2) {
+        didMoveRef.current = true;
+      }
+
+      // Snap: compute against viewports outside the selection. Use the bounding rect of
+      // the dragged group as the moving rect — snaps the group as a whole.
+      let groupMinX = Infinity, groupMinY = Infinity, groupMaxX = -Infinity, groupMaxY = -Infinity;
+      for (const id of ids) {
+        const v = page.viewports.find((vv) => vv.id === id);
+        if (!v) continue;
+        const sx = dragging.starts[id].x + dxMm;
+        const sy = dragging.starts[id].y + dyMm;
+        groupMinX = Math.min(groupMinX, sx);
+        groupMinY = Math.min(groupMinY, sy);
+        groupMaxX = Math.max(groupMaxX, sx + v.sizeMm.w);
+        groupMaxY = Math.max(groupMaxY, sy + v.sizeMm.h);
+      }
+      const movingGroup: Rect = { x: groupMinX, y: groupMinY, w: groupMaxX - groupMinX, h: groupMaxY - groupMinY };
+      const others: Rect[] = page.viewports.filter((vv) => !ids.includes(vv.id)).map(vpRect);
+      const marginMm = PAGE_MARGIN_IN * IN_TO_MM;
+      const pageWMm = pageWIn * IN_TO_MM;
+      const pageHMm = pageHIn * IN_TO_MM;
+      const snap = e.altKey ? { snappedX: movingGroup.x, snappedY: movingGroup.y, guides: [] } : computeDragSnap(movingGroup, others, pageWMm, pageHMm, marginMm, SNAP_THRESHOLD_MM);
+      const snapDx = snap.snappedX - movingGroup.x;
+      const snapDy = snap.snappedY - movingGroup.y;
+      setSnapGuides(snap.guides);
+
+      for (const id of ids) {
+        const start = dragging.starts[id];
+        updateViewport(page.id, id, { positionMm: { x: start.x + dxMm + snapDx, y: start.y + dyMm + snapDy } });
+      }
     } else if (resizing) {
-      const dxMm = ((e.clientX - resizing.startX) / z / pageWPx) * pageWIn * IN_TO_MM;
-      const dyMm = ((e.clientY - resizing.startY) / z / pageHPx) * pageHIn * IN_TO_MM;
-      updateViewport(page.id, resizing.vpId, { sizeMm: { w: Math.max(20, resizing.startSizeMm.w + dxMm), h: Math.max(20, resizing.startSizeMm.h + dyMm) } });
+      const { dxMm, dyMm } = clientPxToMm(e.clientX - resizing.startClientX, e.clientY - resizing.startClientY);
+      const marginMm = PAGE_MARGIN_IN * IN_TO_MM;
+      const pageWMm = pageWIn * IN_TO_MM;
+      const pageHMm = pageHIn * IN_TO_MM;
+
+      if (resizing.kind === "single") {
+        const r = resizing;
+        const aspectLock = !e.shiftKey;
+        let newW = Math.max(20, r.startSize.w + dxMm);
+        let newH = Math.max(20, r.startSize.h + dyMm);
+        if (aspectLock && r.aspect > 0) {
+          // Drive by the dimension whose proportional delta is larger.
+          const dW_rel = Math.abs(dxMm) / r.startSize.w;
+          const dH_rel = Math.abs(dyMm) / r.startSize.h;
+          if (dW_rel >= dH_rel) {
+            newH = newW / r.aspect;
+          } else {
+            newW = newH * r.aspect;
+          }
+        }
+
+        // Snap edges to other viewports / page margins.
+        const others: Rect[] = page.viewports.filter((vv) => vv.id !== r.vpId).map(vpRect);
+        const moving: Rect = { x: r.startPos.x, y: r.startPos.y, w: newW, h: newH };
+        const snap = e.altKey ? { snappedW: newW, snappedH: newH, guides: [] } : computeResizeSnap(moving, others, pageWMm, pageHMm, marginMm, SNAP_THRESHOLD_MM);
+        let finalW = snap.snappedW;
+        let finalH = snap.snappedH;
+        if (aspectLock && r.aspect > 0) {
+          // Re-apply aspect after snap — drive again by largest delta from start.
+          const dW_rel = Math.abs(finalW - r.startSize.w) / r.startSize.w;
+          const dH_rel = Math.abs(finalH - r.startSize.h) / r.startSize.h;
+          if (dW_rel >= dH_rel) finalH = finalW / r.aspect;
+          else finalW = finalH * r.aspect;
+        }
+        setSnapGuides(snap.guides);
+        updateViewport(page.id, r.vpId, { sizeMm: { w: finalW, h: finalH } });
+      } else {
+        // Group resize — uniform scale based on max relative delta of right/bottom edge.
+        const r = resizing;
+        const newRight = r.groupStart.x + r.groupStart.w + dxMm;
+        const newBottom = r.groupStart.y + r.groupStart.h + dyMm;
+        const newW = Math.max(20, newRight - r.groupStart.x);
+        const newH = Math.max(20, newBottom - r.groupStart.y);
+        // Pick scale: largest of width/height ratios so corner drag scales group uniformly.
+        const sx = newW / r.groupStart.w;
+        const sy = newH / r.groupStart.h;
+        const scale = e.shiftKey ? Math.max(sx, sy) : Math.max(0.1, Math.max(sx, sy)); // shift = same; could differ later
+        const finalGroupW = r.groupStart.w * scale;
+        const finalGroupH = r.groupStart.h * scale;
+        for (const id of Object.keys(r.starts)) {
+          const start = r.starts[id];
+          const relX = (start.x - r.groupStart.x) / r.groupStart.w;
+          const relY = (start.y - r.groupStart.y) / r.groupStart.h;
+          updateViewport(page.id, id, {
+            positionMm: { x: r.groupStart.x + relX * finalGroupW, y: r.groupStart.y + relY * finalGroupH },
+            sizeMm: { w: start.w * scale, h: start.h * scale },
+          });
+        }
+        setSnapGuides([]);
+      }
     } else if (panning) {
       const dx = e.clientX - panning.startX;
       const dy = e.clientY - panning.startY;
       if (Math.abs(dx) > 2 || Math.abs(dy) > 2) didMoveRef.current = true;
       setViewport(vpRef.current.zoom, { x: panning.startPan.x + dx, y: panning.startPan.y + dy });
     }
-  }, [dragging, resizing, panning, page.id, pageWIn, pageHIn, pageWPx, pageHPx, updateViewport, setViewport]);
+  }, [dragging, resizing, panning, page.id, page.viewports, pageWIn, pageHIn, updateViewport, setViewport, clientPxToMm, vpRect]);
 
   const handleMouseUp = useCallback((e: React.MouseEvent) => {
     if (panning && !didMoveRef.current && e.button === 0 && panMode !== "pan-first" && !spaceHeldRef.current) {
-      setSelectedVpId(null);
+      setSelectedVpIds([]);
+      selectedVpIdsRef.current = [];
     }
     setDragging(null);
     setResizing(null);
     setPanning(null);
+    setSnapGuides([]);
   }, [panning, panMode]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
@@ -609,13 +530,42 @@ export default function PrintSheetRenderer({ page }: Props) {
     addViewport(page.id, { kind, rackRefPageId: pageId, rackRefId: rackId, positionMm: { x: dropXMm - defaultW / 2, y: dropYMm - defaultH / 2 }, sizeMm: { w: defaultW, h: defaultH }, showLabel: true });
   }, [page.id, pageWIn, pageHIn, pageWPx, pageHPx, addViewport]);
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if ((e.key === "Delete" || e.key === "Backspace") && selectedVpId) {
-      e.preventDefault();
-      removeViewport(page.id, selectedVpId);
-      setSelectedVpId(null);
+  const resetSelectionSize = useCallback(() => {
+    for (const id of selectedVpIdsRef.current) {
+      const v = page.viewports.find((vv) => vv.id === id);
+      if (!v) continue;
+      const elevPage = elevationPages.find((p) => p.id === v.rackRefPageId);
+      const rack = elevPage?.racks.find((r) => r.id === v.rackRefId);
+      if (!rack) continue;
+      const face: "front" | "rear" | "side" = v.kind === "rack-rear" ? "rear" : v.kind === "rack-side" ? "side" : "front";
+      const aspect = getNaturalAspect(rack, face);
+      // Keep height, snap width to natural aspect.
+      updateViewport(page.id, id, { sizeMm: { w: v.sizeMm.h * aspect, h: v.sizeMm.h } });
     }
-  }, [selectedVpId, page.id, removeViewport]);
+  }, [page.viewports, page.id, elevationPages, updateViewport]);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if ((e.key === "Delete" || e.key === "Backspace") && selectedVpIdsRef.current.length > 0) {
+      e.preventDefault();
+      for (const id of selectedVpIdsRef.current) removeViewport(page.id, id);
+      setSelectedVpIds([]);
+      selectedVpIdsRef.current = [];
+    } else if ((e.key === "r" || e.key === "R") && selectedVpIdsRef.current.length > 0) {
+      // Don't trigger when typing in an input field.
+      const tag = (document.activeElement as HTMLElement | null)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      e.preventDefault();
+      resetSelectionSize();
+    } else if ((e.key === "a" || e.key === "A") && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      const all = page.viewports.map((v) => v.id);
+      setSelectedVpIds(all);
+      selectedVpIdsRef.current = all;
+    } else if (e.key === "Escape") {
+      setSelectedVpIds([]);
+      selectedVpIdsRef.current = [];
+    }
+  }, [page.id, page.viewports, removeViewport, resetSelectionSize]);
 
   const isPanning = panning !== null && (didMoveRef.current || spaceHeld || panMode === "pan-first");
 
@@ -651,19 +601,25 @@ export default function PrintSheetRenderer({ page }: Props) {
             const wPx = mmToPagePx(vp.sizeMm.w);
             const hPx = mmToPagePx(vp.sizeMm.h);
             const elevPage = elevationPages.find((p) => p.id === vp.rackRefPageId);
-            const isSelected = selectedVpId === vp.id;
-            const rackLabel = elevPage?.racks.find((r) => r.id === vp.rackRefId)?.label ?? "";
+            const rack = elevPage?.racks.find((r) => r.id === vp.rackRefId);
+            const isSelected = selectedVpIds.includes(vp.id);
+            const isOnlySelected = isSelected && selectedVpIds.length === 1;
             const kindLabel = vp.kind === "rack-front" ? "Front" : vp.kind === "rack-rear" ? "Rear" : "Side";
+            const face = vp.kind === "rack-rear" ? "rear" : vp.kind === "rack-side" ? "side" : "front";
 
-            let statsLine: string | null = null;
-            if (vp.showStats && elevPage) {
-              const rack = elevPage.racks.find((r) => r.id === vp.rackRefId);
-              if (rack) {
-                const rackPl = elevPage.placements.filter((p) => p.rackId === rack.id);
-                const rackAcc = elevPage.accessories.filter((a) => a.rackId === rack.id);
-                statsLine = formatStatsLine(computeRackStats(rack, rackPl, rackAcc, deviceDataMap));
-              }
-            }
+            const rackPlacements = rack && elevPage ? elevPage.placements.filter((p) => p.rackId === rack.id) : [];
+            const rackAccessories = rack && elevPage ? elevPage.accessories.filter((a) => a.rackId === rack.id) : [];
+            const stats = rack && vp.showStats !== false
+              ? computeRackStats(rack, rackPlacements, rackAccessories, deviceDataMap)
+              : null;
+            const statsLine = stats ? formatStatsLine(stats) : null;
+            const caveatLine = stats && (stats.unknownDepthCount > 0 || stats.unknownWeightCount > 0 || stats.unknownPowerCount > 0)
+              ? [
+                  stats.unknownDepthCount > 0 ? `${stats.unknownDepthCount} unknown depth` : null,
+                  stats.unknownWeightCount > 0 ? `${stats.unknownWeightCount} unknown weight` : null,
+                  stats.unknownPowerCount > 0 ? `${stats.unknownPowerCount} unknown power` : null,
+                ].filter(Boolean).join(" · ")
+              : null;
 
             return (
               <Fragment key={vp.id}>
@@ -672,38 +628,137 @@ export default function PrintSheetRenderer({ page }: Props) {
                   style={{ left: xPx, top: yPx, width: wPx, height: hPx, cursor: "move" }}
                   onMouseDown={(e) => handleVpMouseDown(e, vp)}
                 >
-                  {elevPage ? (
-                    <RackFaceSVG elevPage={elevPage} viewport={vp} widthPx={wPx} heightPx={hPx} deviceDataMap={deviceDataMap} />
+                  {rack ? (
+                    <RackFaceSVG
+                      rack={rack}
+                      placements={rackPlacements}
+                      accessories={rackAccessories}
+                      deviceDataMap={deviceDataMap}
+                      face={face}
+                      widthPx={wPx}
+                      heightPx={hPx}
+                    />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center bg-neutral-100 border border-neutral-300 text-neutral-400 text-xs">
                       Rack not found
                     </div>
                   )}
-                  {/* Selection ring drawn over the SVG */}
                   {isSelected && (
                     <div className="absolute inset-0 border-2 border-blue-500 pointer-events-none" />
                   )}
-                  {vp.showLabel !== false && (
-                    <div className="absolute top-0 left-0 text-[8px] text-neutral-500 bg-white/80 px-1 leading-tight pointer-events-none">
-                      {kindLabel}{rackLabel ? ` · ${rackLabel}` : ""}
-                    </div>
-                  )}
-                  {isSelected && (
+                  {isOnlySelected && (
                     <div
                       className="absolute bottom-0 right-0 w-3 h-3 bg-blue-500 cursor-se-resize"
                       onMouseDown={(e) => { e.stopPropagation(); handleResizeMouseDown(e, vp); }}
                     />
                   )}
+                  {isOnlySelected && (
+                    <button
+                      className="absolute bottom-0 left-0 w-5 h-5 bg-blue-500 hover:bg-blue-600 text-white flex items-center justify-center rounded-tr text-[11px] leading-none"
+                      style={{ zIndex: 11, paddingTop: 1 }}
+                      title="Reset size to natural rack aspect (shortcut: R)"
+                      onMouseDown={(e) => e.stopPropagation()}
+                      onClick={(e) => { e.stopPropagation(); resetSelectionSize(); }}
+                    >
+                      ⟲
+                    </button>
+                  )}
                 </div>
+                {/* Chrome below viewport — matches live rack page typography */}
+                {vp.showLabel !== false && (
+                  <div
+                    className="absolute pointer-events-none"
+                    style={{ left: xPx, top: yPx + hPx + 2, width: wPx,
+                             fontSize: 9, fontStyle: "italic", color: "#999", textAlign: "center" }}
+                  >
+                    {kindLabel}
+                  </div>
+                )}
                 {statsLine && (
                   <div
-                    className="absolute text-[7px] text-neutral-500 pointer-events-none text-center"
-                    style={{ left: xPx, top: yPx + hPx + 2, width: wPx }}
+                    className="absolute pointer-events-none"
+                    style={{ left: xPx, top: yPx + hPx + 14, width: wPx,
+                             fontSize: 9, color: "#444", textAlign: "center" }}
                   >
                     {statsLine}
                   </div>
                 )}
+                {caveatLine && (
+                  <div
+                    className="absolute pointer-events-none"
+                    style={{ left: xPx, top: yPx + hPx + 26, width: wPx,
+                             fontSize: 7, color: "#999", textAlign: "center" }}
+                  >
+                    {caveatLine}
+                  </div>
+                )}
               </Fragment>
+            );
+          })}
+
+          {/* Group bounding box + group resize handle (when 2+ selected) */}
+          {(() => {
+            if (selectedVpIds.length < 2) return null;
+            const sel = page.viewports.filter((v) => selectedVpIds.includes(v.id));
+            if (sel.length < 2) return null;
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+            for (const v of sel) {
+              minX = Math.min(minX, v.positionMm.x);
+              minY = Math.min(minY, v.positionMm.y);
+              maxX = Math.max(maxX, v.positionMm.x + v.sizeMm.w);
+              maxY = Math.max(maxY, v.positionMm.y + v.sizeMm.h);
+            }
+            const groupRect: Rect = { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+            const left = mmToPagePx(groupRect.x);
+            const top = mmToPagePx(groupRect.y);
+            const width = mmToPagePx(groupRect.w);
+            const height = mmToPagePx(groupRect.h);
+            return (
+              <>
+                <div
+                  className="absolute pointer-events-none border-2 border-dashed border-blue-400"
+                  style={{ left, top, width, height, zIndex: 9 }}
+                />
+                <div
+                  className="absolute bg-blue-500 cursor-se-resize"
+                  style={{ left: left + width - 6, top: top + height - 6, width: 12, height: 12, zIndex: 11 }}
+                  onMouseDown={(e) => handleGroupResizeMouseDown(e, groupRect)}
+                />
+              </>
+            );
+          })()}
+
+          {/* Snap guide lines (during drag/resize) */}
+          {snapGuides.map((g, i) => {
+            if (g.orientation === "v") {
+              const left = mmToPagePx(g.posMm);
+              const top = mmToPagePx(g.fromMm);
+              const height = mmToPagePx(g.toMm - g.fromMm);
+              return (
+                <div
+                  key={`g-${i}`}
+                  className="absolute pointer-events-none"
+                  style={{
+                    left, top, width: 1, height,
+                    borderLeft: "1px dashed #3b82f6",
+                    zIndex: 50,
+                  }}
+                />
+              );
+            }
+            const top = mmToPagePx(g.posMm);
+            const left = mmToPagePx(g.fromMm);
+            const width = mmToPagePx(g.toMm - g.fromMm);
+            return (
+              <div
+                key={`g-${i}`}
+                className="absolute pointer-events-none"
+                style={{
+                  left, top, width, height: 1,
+                  borderTop: "1px dashed #3b82f6",
+                  zIndex: 50,
+                }}
+              />
             );
           })}
 
