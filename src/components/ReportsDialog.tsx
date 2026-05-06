@@ -8,9 +8,11 @@ import {
   mergeCablesByType,
   exportPackListCsv,
   getPackListTableData,
+  getRoomLabel,
   type PackListDevice,
   type PackListSummaryRow,
   groupCablesByCategory,
+  cableCostKey,
 } from "../packList";
 import {
   computeCableSchedule,
@@ -18,17 +20,25 @@ import {
   getCableScheduleTableData,
   type CableScheduleRow,
 } from "../cableSchedule";
-import { createDefaultPackListLayout, createDefaultNetworkReportLayout, createDefaultCableScheduleLayout, createDefaultPowerReportLayout } from "../reportLayout";
+import {
+  computePatchPanelSchedule,
+  exportPatchPanelScheduleCsv,
+  getPatchPanelScheduleTableData,
+  type PatchPanelScheduleRow,
+} from "../patchPanelSchedule";
+import { createDefaultPackListLayout, createDefaultNetworkReportLayout, createDefaultCableScheduleLayout, createDefaultPatchPanelScheduleLayout, createDefaultPowerReportLayout } from "../reportLayout";
 import { getNetworkReportTableData } from "../networkReport";
 import { computePowerReport, exportPowerReportCsv, getPowerReportTableData } from "../powerReport";
 import ReportPreviewDialog from "./ReportPreviewDialog";
 import IpInput from "./IpInput";
-import type { DeviceData, SchematicNode, RoomData, ConnectionData } from "../types";
+import type { DeviceData, SchematicNode, ConnectionData, OwnedGearItem } from "../types";
+import { inventoryKeyFromDeviceData, inventoryKeyFromTemplate } from "../inventoryKey";
+import { formatCurrency } from "../auxiliaryData";
 import { useSpreadsheetSelection } from "../spreadsheet/useSpreadsheetSelection";
 import type { SpreadsheetColumn } from "../spreadsheet/types";
 import FillSeriesDialog from "../spreadsheet/FillSeriesDialog";
 
-export type ReportsTab = "network" | "devices" | "packList" | "cableSchedule" | "power";
+export type ReportsTab = "network" | "devices" | "packList" | "cableSchedule" | "patchPanel" | "power";
 
 interface ReportsDialogProps {
   initialTab: ReportsTab;
@@ -38,6 +48,7 @@ interface ReportsDialogProps {
 const PACKLIST_LAYOUT_KEY = "easyschematic-packlist-layout";
 const NETWORK_LAYOUT_KEY = "easyschematic-network-report-layout";
 const CABLE_SCHEDULE_LAYOUT_KEY = "easyschematic-cable-schedule-layout";
+const PATCH_PANEL_LAYOUT_KEY = "easyschematic-patch-panel-layout";
 const POWER_LAYOUT_KEY = "easyschematic-power-report-layout";
 
 function ReportsDialog({ initialTab, onClose }: ReportsDialogProps) {
@@ -46,6 +57,7 @@ function ReportsDialog({ initialTab, onClose }: ReportsDialogProps) {
   const [showPreview, setShowPreview] = useState(false);
   const [showNetworkPreview, setShowNetworkPreview] = useState(false);
   const [showCableSchedulePreview, setShowCableSchedulePreview] = useState(false);
+  const [showPatchPanelPreview, setShowPatchPanelPreview] = useState(false);
   const [showPowerPreview, setShowPowerPreview] = useState(false);
 
   const nodes = useSchematicStore((s) => s.nodes);
@@ -64,31 +76,45 @@ function ReportsDialog({ initialTab, onClose }: ReportsDialogProps) {
     "px-3 py-1 text-xs rounded bg-[var(--color-surface)] text-[var(--color-text)] hover:text-[var(--color-text-heading)] hover:bg-[var(--color-surface-hover)] border border-[var(--color-border)] transition-colors cursor-pointer";
 
   const handleCsvExport = useCallback(() => {
+    const ownedGear = useSchematicStore.getState().ownedGear;
     if (tab === "network") {
       exportNetworkCsv(nodes, edges, schematicName);
     } else if (tab === "devices") {
-      exportDevicesCsv(nodes, schematicName);
+      exportDevicesCsv(nodes, ownedGear, schematicName);
     } else if (tab === "cableSchedule") {
-      const cableNamingScheme = useSchematicStore.getState().cableNamingScheme;
-      const rows = computeCableSchedule(nodes, edges, cableNamingScheme);
+      const s = useSchematicStore.getState();
+      const rows = computeCableSchedule(nodes, edges, s.cableNamingScheme, {
+        roomDistances: s.roomDistances,
+        distanceSettings: s.distanceSettings,
+      });
       exportCableScheduleCsv(rows, schematicName);
+    } else if (tab === "patchPanel") {
+      const s = useSchematicStore.getState();
+      const rows = computePatchPanelSchedule(nodes, edges, s.cableNamingScheme, {
+        roomDistances: s.roomDistances,
+        distanceSettings: s.distanceSettings,
+      });
+      exportPatchPanelScheduleCsv(rows, schematicName);
     } else if (tab === "power") {
       const data = computePowerReport(nodes, edges);
       exportPowerReportCsv(data, schematicName);
     } else {
       const data = computePackList(nodes, edges);
-      exportPackListCsv(data, schematicName);
+      const cableCosts = useSchematicStore.getState().cableCosts;
+      exportPackListCsv(data, schematicName, cableCosts);
     }
   }, [tab, nodes, edges, schematicName]);
 
   const defaultLayout = useMemo(() => createDefaultPackListLayout(), []);
   const networkDefaultLayout = useMemo(() => createDefaultNetworkReportLayout(), []);
   const cableScheduleDefaultLayout = useMemo(() => createDefaultCableScheduleLayout(), []);
+  const patchPanelDefaultLayout = useMemo(() => createDefaultPatchPanelScheduleLayout(), []);
   const powerDefaultLayout = useMemo(() => createDefaultPowerReportLayout(), []);
 
   const tabLabels: Record<ReportsTab, string> = {
     devices: "Devices",
     cableSchedule: "Cable Schedule",
+    patchPanel: "Patch Panels",
     packList: "Pack List",
     network: "Network",
     power: "Power",
@@ -129,6 +155,11 @@ function ReportsDialog({ initialTab, onClose }: ReportsDialogProps) {
             )}
             {tab === "cableSchedule" && (
               <button onClick={() => setShowCableSchedulePreview(true)} className={btnClass}>
+                PDF
+              </button>
+            )}
+            {tab === "patchPanel" && (
+              <button onClick={() => setShowPatchPanelPreview(true)} className={btnClass}>
                 PDF
               </button>
             )}
@@ -176,6 +207,7 @@ function ReportsDialog({ initialTab, onClose }: ReportsDialogProps) {
             {tab === "devices" && <DeviceReportTab />}
             {tab === "packList" && <PackListTabInline />}
             {tab === "cableSchedule" && <CableScheduleTabInline />}
+            {tab === "patchPanel" && <PatchPanelScheduleTabInline />}
             {tab === "power" && <PowerReportTab />}
           </div>
         </div>
@@ -200,7 +232,7 @@ function ReportsDialog({ initialTab, onClose }: ReportsDialogProps) {
           defaultLayout={defaultLayout}
           titleBlock={titleBlock}
           getTableData={(layout) =>
-            getPackListTableData(computePackList(nodes, edges), layout)
+            getPackListTableData(computePackList(nodes, edges), layout, useSchematicStore.getState().cableCosts)
           }
           onClose={() => setShowPreview(false)}
           filename={`${schematicName.replace(/[^a-zA-Z0-9-_ ]/g, "")} - Pack List.pdf`}
@@ -212,11 +244,38 @@ function ReportsDialog({ initialTab, onClose }: ReportsDialogProps) {
           reportKey={CABLE_SCHEDULE_LAYOUT_KEY}
           defaultLayout={cableScheduleDefaultLayout}
           titleBlock={titleBlock}
-          getTableData={(layout) =>
-            getCableScheduleTableData(computeCableSchedule(nodes, edges, useSchematicStore.getState().cableNamingScheme), layout)
-          }
+          getTableData={(layout) => {
+            const s = useSchematicStore.getState();
+            return getCableScheduleTableData(
+              computeCableSchedule(nodes, edges, s.cableNamingScheme, {
+                roomDistances: s.roomDistances,
+                distanceSettings: s.distanceSettings,
+              }),
+              layout,
+            );
+          }}
           onClose={() => setShowCableSchedulePreview(false)}
           filename={`${schematicName.replace(/[^a-zA-Z0-9-_ ]/g, "")} - Cable Schedule.pdf`}
+        />
+      )}
+
+      {showPatchPanelPreview && (
+        <ReportPreviewDialog
+          reportKey={PATCH_PANEL_LAYOUT_KEY}
+          defaultLayout={patchPanelDefaultLayout}
+          titleBlock={titleBlock}
+          getTableData={(layout) => {
+            const s = useSchematicStore.getState();
+            return getPatchPanelScheduleTableData(
+              computePatchPanelSchedule(nodes, edges, s.cableNamingScheme, {
+                roomDistances: s.roomDistances,
+                distanceSettings: s.distanceSettings,
+              }),
+              layout,
+            );
+          }}
+          onClose={() => setShowPatchPanelPreview(false)}
+          filename={`${schematicName.replace(/[^a-zA-Z0-9-_ ]/g, "")} - Patch Panel Schedule.pdf`}
         />
       )}
 
@@ -951,22 +1010,45 @@ interface DeviceReportRow {
   deviceType: string;
   manufacturer: string;
   model: string;
+  modelNumber: string;
   room: string;
   portCount: number;
+  unitCost: number;
   color: string;
+  ownedCount: number;
+  neededCount: number;
 }
 
-function computeDeviceReport(nodes: SchematicNode[]): DeviceReportRow[] {
+function getDeviceInventoryCounts(nodes: SchematicNode[], ownedGear: OwnedGearItem[]) {
+  const usedCounts = new Map<string, number>();
+  for (const node of nodes) {
+    if (node.type !== "device") continue;
+    const data = node.data as DeviceData;
+    if (data.isCableAccessory) continue;
+    const key = inventoryKeyFromDeviceData(data);
+    usedCounts.set(key, (usedCounts.get(key) ?? 0) + 1);
+  }
+
+  const ownedCounts = new Map<string, number>();
+  for (const item of ownedGear) {
+    const key = inventoryKeyFromTemplate(item.template);
+    ownedCounts.set(key, (ownedCounts.get(key) ?? 0) + item.quantity);
+  }
+
+  return { usedCounts, ownedCounts };
+}
+
+function computeDeviceReport(nodes: SchematicNode[], ownedGear: OwnedGearItem[]): DeviceReportRow[] {
+  const { usedCounts, ownedCounts } = getDeviceInventoryCounts(nodes, ownedGear);
   const rows: DeviceReportRow[] = [];
   for (const node of nodes) {
     if (node.type !== "device") continue;
     const data = node.data as DeviceData;
     if (data.isCableAccessory) continue;
-    const parentRoom = nodes.find((n) => n.id === node.parentId);
-    const room =
-      parentRoom?.type === "room"
-        ? (parentRoom.data as RoomData).label || "Unassigned"
-        : "Unassigned";
+    const room = getRoomLabel(nodes, node.parentId);
+    const inventoryKey = inventoryKeyFromDeviceData(data);
+    const ownedCount = ownedCounts.get(inventoryKey) ?? 0;
+    const neededCount = Math.max((usedCounts.get(inventoryKey) ?? 0) - ownedCount, 0);
 
     rows.push({
       nodeId: node.id,
@@ -974,29 +1056,37 @@ function computeDeviceReport(nodes: SchematicNode[]): DeviceReportRow[] {
       deviceType: data.deviceType,
       manufacturer: data.manufacturer ?? "",
       model: data.model ?? data.label,
+      modelNumber: data.modelNumber ?? "",
       room,
       portCount: data.ports.length,
+      unitCost: data.unitCost ?? 0,
       color: data.color ?? "#6366f1",
+      ownedCount,
+      neededCount,
     });
   }
   return rows;
 }
 
-type DeviceSortKey = "label" | "deviceType" | "manufacturer" | "model" | "room" | "portCount";
+type DeviceSortKey = "label" | "deviceType" | "manufacturer" | "model" | "modelNumber" | "room" | "portCount" | "unitCost" | "ownedCount" | "neededCount";
 
 const deviceColumns: SpreadsheetColumn<DeviceReportRow>[] = [
   { id: "label", header: "Device", getValue: (r) => r.label, editable: true, fillType: "deviceName" },
+  { id: "unitCost", header: "Unit Cost", getValue: (r) => r.unitCost > 0 ? r.unitCost.toFixed(2) : "", editable: true },
 ];
 
 function DeviceReportTab() {
   const nodes = useSchematicStore((s) => s.nodes);
+  const ownedGear = useSchematicStore((s) => s.ownedGear);
+  const showOwnedGearPane = useSchematicStore((s) => s.showOwnedGearPane);
   const patchDeviceData = useSchematicStore((s) => s.patchDeviceData);
 
   const [filter, setFilter] = useState("");
   const [sortKey, setSortKey] = useState<DeviceSortKey>("label");
   const [sortAsc, setSortAsc] = useState(true);
+  const showInventoryColumns = showOwnedGearPane || ownedGear.length > 0;
 
-  const rows = useMemo(() => computeDeviceReport(nodes), [nodes]);
+  const rows = useMemo(() => computeDeviceReport(nodes, ownedGear), [nodes, ownedGear]);
 
   const filtered = useMemo(() => {
     const q = filter.toLowerCase();
@@ -1015,10 +1105,10 @@ function DeviceReportTab() {
     const copy = [...filtered];
     copy.sort((a, b) => {
       let cmp: number;
-      if (sortKey === "portCount") {
-        cmp = a.portCount - b.portCount;
+      if (sortKey === "portCount" || sortKey === "unitCost" || sortKey === "ownedCount" || sortKey === "neededCount") {
+        cmp = (a[sortKey] as number) - (b[sortKey] as number);
       } else {
-        cmp = a[sortKey].localeCompare(b[sortKey]);
+        cmp = (a[sortKey] as string).localeCompare(b[sortKey] as string);
       }
       return sortAsc ? cmp : -cmp;
     });
@@ -1044,28 +1134,38 @@ function DeviceReportTab() {
   );
 
   const onCellChange = useCallback(
-    (rowIndex: number, _columnId: string, value: string) => {
+    (rowIndex: number, columnId: string, value: string) => {
       const row = sorted[rowIndex];
-      if (!row || !value.trim()) return;
-      useSchematicStore.getState().updateDeviceLabel(row.nodeId, value.trim());
+      if (!row) return;
+      if (columnId === "unitCost") {
+        const parsed = parseFloat(value);
+        patchDeviceData(row.nodeId, { unitCost: isNaN(parsed) || parsed <= 0 ? undefined : parsed });
+      } else {
+        if (!value.trim()) return;
+        useSchematicStore.getState().updateDeviceLabel(row.nodeId, value.trim());
+      }
     },
-    [sorted],
+    [sorted, patchDeviceData],
   );
 
   const onBatchChange = useCallback(
     (changes: { rowIndex: number; columnId: string; value: string }[]) => {
-      const labelChanges = changes
-        .map((c) => {
-          const row = sorted[c.rowIndex];
-          if (!row || !c.value.trim()) return null;
-          return { nodeId: row.nodeId, label: c.value.trim() };
-        })
-        .filter((c): c is { nodeId: string; label: string } => c !== null);
+      const labelChanges: { nodeId: string; label: string }[] = [];
+      for (const c of changes) {
+        const row = sorted[c.rowIndex];
+        if (!row) continue;
+        if (c.columnId === "unitCost") {
+          const parsed = parseFloat(c.value);
+          patchDeviceData(row.nodeId, { unitCost: isNaN(parsed) || parsed <= 0 ? undefined : parsed });
+        } else {
+          if (c.value.trim()) labelChanges.push({ nodeId: row.nodeId, label: c.value.trim() });
+        }
+      }
       if (labelChanges.length > 0) {
         useSchematicStore.getState().batchUpdateDeviceLabels(labelChanges);
       }
     },
-    [sorted],
+    [sorted, patchDeviceData],
   );
 
   const isCellEditable = useCallback(
@@ -1074,7 +1174,12 @@ function DeviceReportTab() {
   );
 
   const getCellValue = useCallback(
-    (rowIndex: number, _columnId: string) => sorted[rowIndex]?.label ?? "",
+    (rowIndex: number, columnId: string) => {
+      const row = sorted[rowIndex];
+      if (!row) return "";
+      if (columnId === "unitCost") return row.unitCost > 0 ? row.unitCost.toFixed(2) : "";
+      return row.label ?? "";
+    },
     [sorted],
   );
 
@@ -1147,11 +1252,27 @@ function DeviceReportTab() {
               <th className={thClass} onClick={() => toggleSort("model")}>
                 Model{sortArrow("model")}
               </th>
+              <th className={thClass} onClick={() => toggleSort("modelNumber")}>
+                Model #{sortArrow("modelNumber")}
+              </th>
               <th className={thClass} onClick={() => toggleSort("room")}>
                 Room{sortArrow("room")}
               </th>
               <th className={thClass} onClick={() => toggleSort("portCount")}>
                 Ports{sortArrow("portCount")}
+              </th>
+              {showInventoryColumns && (
+                <th className={thClass} onClick={() => toggleSort("ownedCount")}>
+                  Owned{sortArrow("ownedCount")}
+                </th>
+              )}
+              {showInventoryColumns && (
+                <th className={thClass} onClick={() => toggleSort("neededCount")}>
+                  Need{sortArrow("neededCount")}
+                </th>
+              )}
+              <th className={thClass} onClick={() => toggleSort("unitCost")}>
+                Unit Cost{sortArrow("unitCost")}
               </th>
               <th className={thClass} style={{ width: 40 }}>Color</th>
             </tr>
@@ -1164,6 +1285,7 @@ function DeviceReportTab() {
                 rowIndex={i}
                 altClass={rowClass(i)}
                 spreadsheet={spreadsheet}
+                showInventoryColumns={showInventoryColumns}
                 onColorChange={handleColorChange}
               />
             ))}
@@ -1189,16 +1311,19 @@ const DeviceRow = memo(function DeviceRow({
   rowIndex,
   altClass,
   spreadsheet,
+  showInventoryColumns,
   onColorChange,
 }: {
   row: DeviceReportRow;
   rowIndex: number;
   altClass: string;
   spreadsheet: ReturnType<typeof useSpreadsheetSelection<DeviceReportRow>>;
+  showInventoryColumns: boolean;
   onColorChange: (nodeId: string, color: string) => void;
 }) {
   const cellProps = spreadsheet.getCellProps(rowIndex, "label");
   const hasSelection = cellProps.isSelected;
+  const currency = useSchematicStore((s) => s.currency);
 
   return (
     <tr className={hasSelection ? "bg-blue-50" : altClass}>
@@ -1231,8 +1356,48 @@ const DeviceRow = memo(function DeviceRow({
       <td className={tdClass}>{row.deviceType}</td>
       <td className={tdClass}>{row.manufacturer || "—"}</td>
       <td className={tdClass}>{row.model}</td>
+      <td className={tdClass}>{row.modelNumber || "—"}</td>
       <td className={tdClass}>{row.room}</td>
       <td className={tdClass}>{row.portCount}</td>
+      {showInventoryColumns && <td className={tdClass}>{row.ownedCount}</td>}
+      {showInventoryColumns && <td className={tdClass}>{row.neededCount}</td>}
+      {(() => {
+        const costCellProps = spreadsheet.getCellProps(rowIndex, "unitCost");
+        if (costCellProps.isEditing) {
+          return (
+            <td className={`${tdClass} p-0.5`}>
+              <input
+                className="w-full bg-[var(--color-surface)] border border-blue-500 rounded px-1 py-0.5 text-xs outline-none"
+                value={spreadsheet.editValue}
+                onChange={(e) => spreadsheet.setEditValue(e.target.value)}
+                onBlur={() => spreadsheet.commitEdit(spreadsheet.editValue)}
+                onKeyDown={(e) => {
+                  e.stopPropagation();
+                  if (e.key === "Enter") { e.preventDefault(); spreadsheet.commitEdit(spreadsheet.editValue); }
+                  else if (e.key === "Escape") { e.preventDefault(); spreadsheet.cancelEdit(); }
+                  else if (e.key === "Tab") { e.preventDefault(); spreadsheet.commitEdit(spreadsheet.editValue); }
+                }}
+                autoFocus
+                type="number"
+                step={0.01}
+                min={0}
+              />
+            </td>
+          );
+        }
+        return (
+          <td
+            className={`${tdClass} p-0.5 cursor-cell ${costCellProps.isSelected ? "bg-blue-100 ring-1 ring-inset ring-blue-300" : ""}`}
+            onMouseDown={costCellProps.onMouseDown}
+            onMouseEnter={costCellProps.onMouseEnter}
+            onDoubleClick={costCellProps.onDoubleClick}
+          >
+            <span className="text-[10px] px-1 select-none">
+              {row.unitCost > 0 ? formatCurrency(row.unitCost, currency) : "—"}
+            </span>
+          </td>
+        );
+      })()}
       <td className={`${tdClass} p-0.5`}>
         <input
           type="color"
@@ -1247,7 +1412,7 @@ const DeviceRow = memo(function DeviceRow({
 
 // ─── Cable Schedule Tab ────────────────────────────────────────
 
-type CableSortKey = "cableId" | "sourceDevice" | "sourcePort" | "sourceConnector" | "targetDevice" | "targetPort" | "targetConnector" | "cableType" | "signalType" | "cableLength" | "sourceRoom" | "targetRoom" | "multicableLabel";
+type CableSortKey = "cableId" | "sourceDevice" | "sourcePort" | "sourceConnector" | "targetDevice" | "targetPort" | "targetConnector" | "cableType" | "signalType" | "cableLength" | "computedLength" | "sourceRoom" | "targetRoom" | "multicableLabel";
 type CableGroupBy = "" | "sourceRoom" | "signalType" | "cableType" | "multicableLabel";
 
 const cableScheduleColumns: SpreadsheetColumn<CableScheduleRow>[] = [
@@ -1268,7 +1433,12 @@ function CableScheduleTabInline() {
   const [groupByKey, setGroupByKey] = useState<CableGroupBy>("");
 
   const cableNamingScheme = useSchematicStore((s) => s.cableNamingScheme);
-  const rows = useMemo(() => computeCableSchedule(nodes, edges, cableNamingScheme), [nodes, edges, cableNamingScheme]);
+  const roomDistances = useSchematicStore((s) => s.roomDistances);
+  const distanceSettings = useSchematicStore((s) => s.distanceSettings);
+  const rows = useMemo(
+    () => computeCableSchedule(nodes, edges, cableNamingScheme, { roomDistances, distanceSettings }),
+    [nodes, edges, cableNamingScheme, roomDistances, distanceSettings],
+  );
 
   const filtered = useMemo(() => {
     const q = filter.toLowerCase();
@@ -1285,6 +1455,7 @@ function CableScheduleTabInline() {
         r.cableType.toLowerCase().includes(q) ||
         r.signalType.toLowerCase().includes(q) ||
         r.cableLength.toLowerCase().includes(q) ||
+        (r.computedLength ?? "").toLowerCase().includes(q) ||
         r.sourceRoom.toLowerCase().includes(q) ||
         r.targetRoom.toLowerCase().includes(q) ||
         r.multicableLabel.toLowerCase().includes(q),
@@ -1294,7 +1465,7 @@ function CableScheduleTabInline() {
   const sorted = useMemo(() => {
     const copy = [...filtered];
     copy.sort((a, b) => {
-      const cmp = a[sortKey].localeCompare(b[sortKey]);
+      const cmp = (a[sortKey] ?? "").localeCompare(b[sortKey] ?? "");
       return sortAsc ? cmp : -cmp;
     });
     return copy;
@@ -1384,11 +1555,11 @@ function CableScheduleTabInline() {
         const changes = Array.from(selectedRows)
           .map((ri) => sorted[ri])
           .filter(Boolean)
-          .map((r) => ({ edgeId: r.edgeId, patch: { hideLabel: newValue } as Partial<ConnectionData> }));
+          .map((r) => ({ edgeId: r.edgeId, patch: { hideCableId: newValue, hideCustomLabel: newValue } as Partial<ConnectionData> }));
         if (changes.length > 0) batchPatchEdgeData(changes);
       } else {
         const row = sorted[rowIndex];
-        if (row) patchEdgeData(row.edgeId, { hideLabel: newValue });
+        if (row) patchEdgeData(row.edgeId, { hideCableId: newValue, hideCustomLabel: newValue });
       }
     },
     [sorted, spreadsheet.selectedCells, patchEdgeData, batchPatchEdgeData],
@@ -1468,6 +1639,7 @@ function CableScheduleTabInline() {
               <th className={thClass} onClick={() => toggleSort("cableType")}>Cable Type{sortArrow("cableType")}</th>
               <th className={thClass} onClick={() => toggleSort("signalType")}>Signal{sortArrow("signalType")}</th>
               <th className={thClass} onClick={() => toggleSort("cableLength")}>Length{sortArrow("cableLength")}</th>
+              <th className={thClass} onClick={() => toggleSort("computedLength")} title="Estimated length from room-to-room distance + slack">Est. Length{sortArrow("computedLength")}</th>
               <th className={thClass} onClick={() => toggleSort("sourceRoom")}>Src Room{sortArrow("sourceRoom")}</th>
               <th className={thClass} onClick={() => toggleSort("targetRoom")}>Tgt Room{sortArrow("targetRoom")}</th>
               <th className={thClass} onClick={() => toggleSort("multicableLabel")}>Snake{sortArrow("multicableLabel")}</th>
@@ -1561,7 +1733,7 @@ const CableScheduleRow_ = memo(function CableScheduleRow_({
   const hasSelection = labelProps.isSelected || cableIdProps.isSelected || lengthProps.isSelected;
   const hideLabel = useSchematicStore((s) => {
     const edge = s.edges.find((e) => e.id === row.edgeId);
-    return edge?.data?.hideLabel === true;
+    return edge?.data?.hideCableId === true;
   });
 
   return (
@@ -1591,6 +1763,7 @@ const CableScheduleRow_ = memo(function CableScheduleRow_({
       <td className={tdClass}>{row.cableType}</td>
       <td className={tdClass}>{row.signalType}</td>
       <EditableCell spreadsheet={spreadsheet} rowIndex={rowIndex} columnId="cableLength" value={row.cableLength} />
+      <td className={`${tdClass} text-[var(--color-text-muted)]`}>{row.computedLength ?? ""}</td>
       <td className={tdClass}>{row.sourceRoom}</td>
       <td className={tdClass}>{row.targetRoom}</td>
       <td className={tdClass}>{row.multicableLabel}</td>
@@ -1620,7 +1793,7 @@ function renderGroupedCableSchedule(
     elements.push(
       <tr key={`h-${group}`}>
         <td
-          colSpan={14}
+          colSpan={15}
           className="pt-3 pb-1 px-2 text-xs font-semibold text-[var(--color-text-heading)] border-b border-[var(--color-border)]"
         >
           {group}
@@ -1644,6 +1817,233 @@ function renderGroupedCableSchedule(
   return elements;
 }
 
+// ─── Patch Panel Schedule Tab ──────────────────────────────────
+
+type PatchPanelSortKey =
+  | "panel" | "panelRoom" | "face" | "position" | "connector" | "gender"
+  | "remoteDevice" | "remotePort" | "remoteRoom"
+  | "cableId" | "cableType" | "signalType" | "cableLength" | "computedLength" | "multicableLabel";
+
+type PatchPanelGroupBy = "" | "panel" | "panelRoom" | "signalType" | "face";
+
+function PatchPanelScheduleTabInline() {
+  const nodes = useSchematicStore((s) => s.nodes);
+  const edges = useSchematicStore((s) => s.edges);
+  const cableNamingScheme = useSchematicStore((s) => s.cableNamingScheme);
+  const roomDistances = useSchematicStore((s) => s.roomDistances);
+  const distanceSettings = useSchematicStore((s) => s.distanceSettings);
+
+  const [filter, setFilter] = useState("");
+  const [sortKey, setSortKey] = useState<PatchPanelSortKey>("panel");
+  const [sortAsc, setSortAsc] = useState(true);
+  const [groupByKey, setGroupByKey] = useState<PatchPanelGroupBy>("panel");
+  const [hideUnconnected, setHideUnconnected] = useState(false);
+
+  const rows = useMemo(
+    () => computePatchPanelSchedule(nodes, edges, cableNamingScheme, { roomDistances, distanceSettings }),
+    [nodes, edges, cableNamingScheme, roomDistances, distanceSettings],
+  );
+
+  const filtered = useMemo(() => {
+    let list = rows;
+    if (hideUnconnected) list = list.filter((r) => r.edgeId !== "");
+    const q = filter.trim().toLowerCase();
+    if (!q) return list;
+    return list.filter(
+      (r) =>
+        r.panel.toLowerCase().includes(q) ||
+        r.panelRoom.toLowerCase().includes(q) ||
+        r.face.toLowerCase().includes(q) ||
+        r.position.toLowerCase().includes(q) ||
+        r.connector.toLowerCase().includes(q) ||
+        r.remoteDevice.toLowerCase().includes(q) ||
+        r.remotePort.toLowerCase().includes(q) ||
+        r.remoteRoom.toLowerCase().includes(q) ||
+        r.cableId.toLowerCase().includes(q) ||
+        r.cableType.toLowerCase().includes(q) ||
+        r.signalType.toLowerCase().includes(q) ||
+        r.cableLength.toLowerCase().includes(q) ||
+        r.computedLength.toLowerCase().includes(q) ||
+        r.multicableLabel.toLowerCase().includes(q),
+    );
+  }, [rows, filter, hideUnconnected]);
+
+  const sorted = useMemo(() => {
+    const copy = [...filtered];
+    if (sortKey === "position") {
+      // Natural rear-then-front-by-index order from compute(); keep the existing
+      // sort and only flip direction if user asks descending.
+      if (!sortAsc) copy.reverse();
+      return copy;
+    }
+    copy.sort((a, b) => {
+      const va = (a[sortKey] ?? "") as string;
+      const vb = (b[sortKey] ?? "") as string;
+      const cmp = va.localeCompare(vb);
+      return sortAsc ? cmp : -cmp;
+    });
+    return copy;
+  }, [filtered, sortKey, sortAsc]);
+
+  const toggleSort = (key: PatchPanelSortKey) => {
+    if (sortKey === key) setSortAsc(!sortAsc);
+    else { setSortKey(key); setSortAsc(true); }
+  };
+
+  const sortArrow = (key: PatchPanelSortKey) =>
+    sortKey === key ? (sortAsc ? " ▴" : " ▾") : "";
+
+  if (rows.length === 0) {
+    return (
+      <div className="text-sm text-[var(--color-text-muted)] text-center py-8">
+        No patch panels in this schematic.
+      </div>
+    );
+  }
+
+  const groups: { label: string; rows: PatchPanelScheduleRow[] }[] = [];
+  if (groupByKey) {
+    const map = new Map<string, PatchPanelScheduleRow[]>();
+    for (const r of sorted) {
+      const k = groupByKey === "signalType"
+        ? (r.signalType || "Unconnected")
+        : (r[groupByKey] || "—");
+      const arr = map.get(k);
+      if (arr) arr.push(r); else map.set(k, [r]);
+    }
+    for (const [label, list] of map) groups.push({ label, rows: list });
+  } else {
+    groups.push({ label: "", rows: sorted });
+  }
+
+  // Occupancy summary: unique panels × (connected / total ports).
+  const perPanel = new Map<string, { connected: number; total: number; label: string }>();
+  for (const r of rows) {
+    const key = `${r.panelId}`;
+    const entry = perPanel.get(key) ?? { connected: 0, total: 0, label: r.panel };
+    entry.total += 1;
+    if (r.edgeId) entry.connected += 1;
+    perPanel.set(key, entry);
+  }
+
+  return (
+    <>
+      <div className="flex items-center gap-2 mb-3 flex-wrap">
+        <input
+          className="flex-1 min-w-[240px] bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2 py-1 text-xs outline-none focus:border-blue-500"
+          placeholder="Filter by panel, port, device, cable, signal, room..."
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          onKeyDown={(e) => e.stopPropagation()}
+        />
+        <select
+          className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2 py-1 text-xs outline-none cursor-pointer"
+          value={groupByKey}
+          onChange={(e) => setGroupByKey(e.target.value as PatchPanelGroupBy)}
+          title="Group by"
+        >
+          <option value="">No Grouping</option>
+          <option value="panel">Panel</option>
+          <option value="panelRoom">Panel Room</option>
+          <option value="signalType">Signal Type</option>
+          <option value="face">Face</option>
+        </select>
+        <label className="flex items-center gap-1 text-xs text-[var(--color-text-muted)] cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={hideUnconnected}
+            onChange={(e) => setHideUnconnected(e.target.checked)}
+            className="cursor-pointer"
+          />
+          Hide empty
+        </label>
+      </div>
+
+      {/* Occupancy summary */}
+      <div className="flex gap-2 flex-wrap mb-3">
+        {Array.from(perPanel.values()).map((p) => {
+          const pct = p.total > 0 ? Math.round((p.connected / p.total) * 100) : 0;
+          return (
+            <div
+              key={p.label}
+              className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2 py-1 text-[10px]"
+              title={`${p.connected} of ${p.total} ports used`}
+            >
+              <span className="font-semibold text-[var(--color-text-heading)]">{p.label}</span>
+              <span className="text-[var(--color-text-muted)] ml-1.5">
+                {p.connected}/{p.total} ({pct}%)
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      <table className="w-full border-collapse">
+        <thead>
+          <tr>
+            <th className={thClass} onClick={() => toggleSort("panel")}>Panel{sortArrow("panel")}</th>
+            <th className={thClass} onClick={() => toggleSort("panelRoom")}>Panel Room{sortArrow("panelRoom")}</th>
+            <th className={thClass} onClick={() => toggleSort("face")}>Face{sortArrow("face")}</th>
+            <th className={thClass} onClick={() => toggleSort("position")}>Position{sortArrow("position")}</th>
+            <th className={thClass} onClick={() => toggleSort("connector")}>Connector{sortArrow("connector")}</th>
+            <th className={thClass} onClick={() => toggleSort("gender")}>M/F{sortArrow("gender")}</th>
+            <th className={thClass} onClick={() => toggleSort("remoteDevice")}>Remote Device{sortArrow("remoteDevice")}</th>
+            <th className={thClass} onClick={() => toggleSort("remotePort")}>Remote Port{sortArrow("remotePort")}</th>
+            <th className={thClass} onClick={() => toggleSort("remoteRoom")}>Remote Room{sortArrow("remoteRoom")}</th>
+            <th className={thClass} onClick={() => toggleSort("cableId")}>Cable ID{sortArrow("cableId")}</th>
+            <th className={thClass} onClick={() => toggleSort("cableType")}>Cable Type{sortArrow("cableType")}</th>
+            <th className={thClass} onClick={() => toggleSort("signalType")}>Signal{sortArrow("signalType")}</th>
+            <th className={thClass} onClick={() => toggleSort("cableLength")}>Length{sortArrow("cableLength")}</th>
+            <th className={thClass} onClick={() => toggleSort("computedLength")} title="Estimated length from room-to-room distance + slack">Est. Length{sortArrow("computedLength")}</th>
+            <th className={thClass} onClick={() => toggleSort("multicableLabel")}>Snake{sortArrow("multicableLabel")}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {groups.map((g, gi) => (
+            <React.Fragment key={g.label || `__g${gi}`}>
+              {g.label && (
+                <tr>
+                  <td
+                    colSpan={15}
+                    className="bg-[var(--color-surface)] text-[10px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)] py-1 px-2"
+                  >
+                    {g.label}
+                  </td>
+                </tr>
+              )}
+              {g.rows.map((r, i) => {
+                const unconnected = r.edgeId === "";
+                return (
+                  <tr
+                    key={r.rowId}
+                    className={`${rowClass(i)} ${unconnected ? "opacity-60" : ""}`}
+                  >
+                    <td className={tdClass}>{r.panel}</td>
+                    <td className={tdClass}>{r.panelRoom}</td>
+                    <td className={tdClass}>{r.face}</td>
+                    <td className={tdClass}>{r.position}</td>
+                    <td className={tdClass}>{r.connector}</td>
+                    <td className={tdClass}>{r.gender}</td>
+                    <td className={tdClass}>{r.remoteDevice}</td>
+                    <td className={tdClass}>{r.remotePort}</td>
+                    <td className={tdClass}>{r.remoteRoom}</td>
+                    <td className={tdClass}>{r.cableId || "—"}</td>
+                    <td className={tdClass}>{r.cableType || "—"}</td>
+                    <td className={tdClass}>{r.signalType || "—"}</td>
+                    <td className={tdClass}>{r.cableLength || "—"}</td>
+                    <td className={`${tdClass} text-[var(--color-text-muted)]`}>{r.computedLength || "—"}</td>
+                    <td className={tdClass}>{r.multicableLabel || "—"}</td>
+                  </tr>
+                );
+              })}
+            </React.Fragment>
+          ))}
+        </tbody>
+      </table>
+    </>
+  );
+}
+
 // ─── Pack List Tab (inline, reusing packList.ts logic) ─────────
 
 function PackListTabInline() {
@@ -1656,7 +2056,25 @@ function PackListTabInline() {
   type CableGrouping = "" | "path" | "category";
   const [cableGrouping, setCableGrouping] = useState<CableGrouping>("category");
 
+  const cableCosts = useSchematicStore((s) => s.cableCosts);
+  const setCableCost = useSchematicStore((s) => s.setCableCost);
+  const currency = useSchematicStore((s) => s.currency);
+
   const data = useMemo(() => computePackList(nodes, edges), [nodes, edges]);
+
+  const totalCost = useMemo(() => {
+    let sum = 0;
+    for (const d of data.devices) {
+      sum += (d.unitCost ?? 0) * d.count;
+      for (const c of d.cards) sum += (c.cardUnitCost ?? 0) * c.count;
+    }
+    // Include cable costs
+    for (const s of data.summary) {
+      const uc = cableCosts?.[cableCostKey(s.cableType, s.signalType, s.cableLength)] ?? 0;
+      sum += uc * s.count;
+    }
+    return sum;
+  }, [data, cableCosts]);
 
   const subTabClass = (t: SubTab) =>
     `px-2 py-1 text-[10px] rounded cursor-pointer transition-colors ${
@@ -1710,6 +2128,15 @@ function PackListTabInline() {
         )}
       </div>
 
+      {totalCost > 0 && (
+        <div className="mb-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-3 py-2 inline-block">
+          <div className="text-[10px] text-[var(--color-text-muted)] uppercase tracking-wide">Project Total</div>
+          <div className="text-sm font-semibold text-[var(--color-text-heading)]">
+            ${totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </div>
+        </div>
+      )}
+
       {subTab === "devices" && (
         <>
           {data.devices.length === 0 ? (
@@ -1723,12 +2150,14 @@ function PackListTabInline() {
                   <th className={plThClass}>Qty</th>
                   <th className={plThClass}>Device</th>
                   <th className={plThClass}>Type</th>
+                  <th className={plThClass}>Unit Cost</th>
+                  <th className={plThClass}>Ext. Cost</th>
                 </tr>
               </thead>
               <tbody>
                 {(groupDevicesByRoom
-                  ? renderGroupedDevices(data.devices)
-                  : renderDeviceRows(mergeDevicesByModel(data.devices))
+                  ? renderGroupedDevices(data.devices, currency)
+                  : renderDeviceRows(mergeDevicesByModel(data.devices), "", currency)
                 )}
               </tbody>
             </table>
@@ -1747,15 +2176,24 @@ function PackListTabInline() {
               {(() => {
                 const showPath = cableGrouping === "path";
                 const cableRows = showPath ? data.summary : mergeCablesByType(data.summary);
-                const renderRow = (s: PackListSummaryRow, i: number) => (
-                  <tr key={i} className={rowClass(i)}>
-                    <td className={tdClass}>{s.count}&times;</td>
-                    <td className={tdClass}>{s.cableType}</td>
-                    <td className={tdClass}>{s.signalType}</td>
-                    <td className={tdClass}>{s.cableLength}</td>
-                    {showPath && <td className={tdClass}>{s.route}</td>}
-                  </tr>
-                );
+                const renderRow = (s: PackListSummaryRow, i: number) => {
+                  const key = cableCostKey(s.cableType, s.signalType, s.cableLength);
+                  const uc = cableCosts?.[key] ?? 0;
+                  const ext = uc > 0 ? uc * s.count : 0;
+                  return (
+                    <tr key={i} className={rowClass(i)}>
+                      <td className={tdClass}>{s.count}&times;</td>
+                      <td className={tdClass}>{s.cableType}</td>
+                      <td className={tdClass}>{s.signalType}</td>
+                      <td className={tdClass}>{s.cableLength}</td>
+                      {showPath && <td className={tdClass}>{s.route}</td>}
+                      <td className={`${tdClass} p-0.5`}>
+                        <CableCostCell costKey={key} value={uc} onChange={setCableCost} currency={currency} />
+                      </td>
+                      <td className={tdClass}>{ext > 0 ? formatCurrency(ext, currency) : "—"}</td>
+                    </tr>
+                  );
+                };
 
                 const categories = cableGrouping === "category" ? groupCablesByCategory(cableRows) : null;
                 let rowIdx = 0;
@@ -1769,6 +2207,8 @@ function PackListTabInline() {
                         <th className={plThClass}>Signal</th>
                         <th className={plThClass}>Length</th>
                         {showPath && <th className={plThClass}>Route</th>}
+                        <th className={plThClass}>Unit Cost</th>
+                        <th className={plThClass}>Ext. Cost</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1855,20 +2295,24 @@ function PackListTabInline() {
   );
 }
 
-function renderDeviceRows(devices: PackListDevice[], keyPrefix = "") {
+function renderDeviceRows(devices: PackListDevice[], keyPrefix = "", currency = "USD") {
   const elements: React.ReactNode[] = [];
   let idx = 0;
   for (const d of devices) {
+    const extCost = d.unitCost > 0 ? d.unitCost * d.count : 0;
     elements.push(
       <tr key={`${keyPrefix}${idx}`} className={rowClass(idx)}>
         <td className={tdClass}>{d.count}&times;</td>
         <td className={tdClass}>{d.model}</td>
         <td className={tdClass}>{d.deviceType}</td>
+        <td className={tdClass}>{d.unitCost > 0 ? formatCurrency(d.unitCost, currency) : "—"}</td>
+        <td className={tdClass}>{extCost > 0 ? formatCurrency(extCost, currency) : "—"}</td>
       </tr>,
     );
     idx++;
     for (let ci = 0; ci < d.cards.length; ci++) {
       const c = d.cards[ci];
+      const cardExt = c.cardUnitCost > 0 ? c.cardUnitCost * c.count : 0;
       elements.push(
         <tr key={`${keyPrefix}${idx}-c${ci}`} className="bg-[var(--color-surface)]">
           <td className={`${tdClass} pl-6 text-[var(--color-text-muted)]`}>{c.count}&times;</td>
@@ -1876,6 +2320,8 @@ function renderDeviceRows(devices: PackListDevice[], keyPrefix = "") {
             <span className="pl-3">{c.cardLabel}</span>
           </td>
           <td className={tdClass} />
+          <td className={`${tdClass} text-[var(--color-text-muted)]`}>{c.cardUnitCost > 0 ? formatCurrency(c.cardUnitCost, currency) : ""}</td>
+          <td className={`${tdClass} text-[var(--color-text-muted)]`}>{cardExt > 0 ? formatCurrency(cardExt, currency) : ""}</td>
         </tr>,
       );
     }
@@ -1883,7 +2329,7 @@ function renderDeviceRows(devices: PackListDevice[], keyPrefix = "") {
   return elements;
 }
 
-function renderGroupedDevices(devices: PackListDevice[]) {
+function renderGroupedDevices(devices: PackListDevice[], currency = "USD") {
   const groups = new Map<string, PackListDevice[]>();
   for (const d of devices) {
     const arr = groups.get(d.room);
@@ -1903,7 +2349,7 @@ function renderGroupedDevices(devices: PackListDevice[]) {
         </td>
       </tr>,
     );
-    elements.push(...renderDeviceRows(rows, `${room}-`));
+    elements.push(...renderDeviceRows(rows, `${room}-`, currency));
   }
   return elements;
 }
@@ -1937,34 +2383,54 @@ function exportNetworkCsv(nodes: SchematicNode[], edges: import("../types").Conn
   downloadCsv(lines.join("\n"), `${schematicName} - Network Report.csv`);
 }
 
-function exportDevicesCsv(nodes: SchematicNode[], schematicName: string) {
-  const rows = computeDeviceReport(nodes);
+function exportDevicesCsv(nodes: SchematicNode[], ownedGear: OwnedGearItem[], schematicName: string) {
+  const showInventoryColumns = useSchematicStore.getState().showOwnedGearPane || ownedGear.length > 0;
+  const rows = computeDeviceReport(nodes, ownedGear);
   // Group identical devices (same model, manufacturer, type, room) for quantity column
-  const grouped = new Map<string, { row: DeviceReportRow; count: number }>();
+  const grouped = new Map<string, { row: DeviceReportRow; count: number; owned: number; need: number }>();
   for (const r of rows) {
     const key = `${r.model}|${r.manufacturer}|${r.deviceType}|${r.room}`;
     const existing = grouped.get(key);
     if (existing) {
       existing.count++;
     } else {
-      grouped.set(key, { row: r, count: 1 });
+      grouped.set(key, { row: r, count: 1, owned: r.ownedCount, need: r.neededCount });
     }
   }
-  const header = ["Qty", "Device", "Manufacturer", "Model", "Type", "Room", "Ports"];
+  const header = showInventoryColumns
+    ? ["Qty", "Device", "Manufacturer", "Model #", "Type", "Room", "Ports", "Owned", "Need", "Unit Cost", "Extended Cost"]
+    : ["Qty", "Device", "Manufacturer", "Model #", "Type", "Room", "Ports", "Unit Cost", "Extended Cost"];
+  const groupedValues = [...grouped.values()];
   const lines = [
     header.join(","),
-    ...[...grouped.values()].map(({ row: r, count }) =>
-      [
+    ...groupedValues.map(({ row: r, count, owned, need }) => {
+      const extCost = r.unitCost > 0 ? r.unitCost * count : 0;
+      const cells = [
         count,
         csvEscape(r.model),
         csvEscape(r.manufacturer),
-        csvEscape(r.model),
+        csvEscape(r.modelNumber),
         csvEscape(r.deviceType),
         csvEscape(r.room),
         r.portCount,
-      ].join(","),
-    ),
+        r.unitCost > 0 ? r.unitCost.toFixed(2) : "",
+        extCost > 0 ? extCost.toFixed(2) : "",
+      ];
+      if (showInventoryColumns) cells.splice(7, 0, owned, need);
+      return cells.join(",");
+    }),
   ];
+  const totalCost = groupedValues.reduce(
+    (sum, { row, count }) => sum + (row.unitCost > 0 ? row.unitCost * count : 0), 0,
+  );
+  if (totalCost > 0) {
+    lines.push(
+      (showInventoryColumns
+        ? ["", "", "", "", "", "", "", "", "", "TOTAL", totalCost.toFixed(2)]
+        : ["", "", "", "", "", "", "", "TOTAL", totalCost.toFixed(2)]
+      ).join(","),
+    );
+  }
   downloadCsv(lines.join("\n"), `${schematicName} - Device List.csv`);
 }
 
@@ -1995,6 +2461,18 @@ function PowerReportTab() {
             {(report.totalPowerW / 120).toFixed(1)}A @120V &middot; {(report.totalPowerW / 208).toFixed(1)}A @208V
           </div>
         </div>
+        {report.totalThermalBtuh > 0 && (
+          <div
+            className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-3 py-2"
+            title="Thermal load for HVAC sizing. Auto-derived from power draw (× 3.412) where not explicitly entered."
+          >
+            <div className="text-[10px] text-[var(--color-text-muted)] uppercase tracking-wide">Total Thermal</div>
+            <div className="text-sm font-semibold text-[var(--color-text-heading)]">{report.totalThermalBtuh.toLocaleString()} BTU/h</div>
+            <div className="text-[10px] text-[var(--color-text-muted)]">
+              ≈ {(report.totalThermalBtuh / 12000).toFixed(1)} ton AC
+            </div>
+          </div>
+        )}
         {report.unconnectedPowerW > 0 && (
           <div className="bg-amber-50 border border-amber-200 rounded px-3 py-2">
             <div className="text-[10px] text-amber-600 uppercase tracking-wide">Unconnected</div>
@@ -2059,27 +2537,90 @@ function PowerReportTab() {
               <th className={thClass}>Room</th>
               <th className={thClass}>Power (W)</th>
               <th className={thClass}>Total (W)</th>
+              <th className={thClass}>Thermal (BTU/h)</th>
+              <th className={thClass}>Total (BTU/h)</th>
               <th className={thClass}>Voltage</th>
             </tr>
           </thead>
           <tbody>
-            {report.devices.map((d, i) => (
-              <tr key={`${d.model}-${d.room}-${i}`} className={rowClass(i)}>
-                <td className={tdClass}>{d.count}x</td>
-                <td className={tdClass}>{d.model}</td>
-                <td className={tdClass}>{d.deviceType}</td>
-                <td className={tdClass}>{d.room}</td>
-                <td className={tdClass}>{d.powerDrawW > 0 ? d.powerDrawW.toLocaleString() : "—"}</td>
-                <td className={tdClass}>{d.powerDrawW > 0 ? (d.powerDrawW * d.count).toLocaleString() : "—"}</td>
-                <td className={tdClass}>{d.voltage || "—"}</td>
-              </tr>
-            ))}
+            {report.devices.map((d, i) => {
+              const thermalTitle = d.thermalDerived ? "Auto-derived from power draw (× 3.412)" : undefined;
+              const thermalCls = d.thermalDerived ? `${tdClass} italic text-[var(--color-text-muted)]` : tdClass;
+              return (
+                <tr key={`${d.model}-${d.room}-${i}`} className={rowClass(i)}>
+                  <td className={tdClass}>{d.count}x</td>
+                  <td className={tdClass}>{d.model}</td>
+                  <td className={tdClass}>{d.deviceType}</td>
+                  <td className={tdClass}>{d.room}</td>
+                  <td className={tdClass}>{d.powerDrawW > 0 ? d.powerDrawW.toLocaleString() : "—"}</td>
+                  <td className={tdClass}>{d.powerDrawW > 0 ? (d.powerDrawW * d.count).toLocaleString() : "—"}</td>
+                  <td className={thermalCls} title={thermalTitle}>
+                    {d.thermalBtuh > 0 ? `${d.thermalDerived ? "~" : ""}${d.thermalBtuh.toLocaleString()}` : "—"}
+                  </td>
+                  <td className={thermalCls} title={thermalTitle}>
+                    {d.thermalBtuh > 0 ? `${d.thermalDerived ? "~" : ""}${(d.thermalBtuh * d.count).toLocaleString()}` : "—"}
+                  </td>
+                  <td className={tdClass}>{d.voltage || "—"}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
     </div>
   );
 }
+
+/** Inline-editable cost cell for cable rows */
+const CableCostCell = memo(function CableCostCell({
+  costKey,
+  value,
+  onChange,
+  currency = "USD",
+}: {
+  costKey: string;
+  value: number;
+  onChange: (key: string, cost: number | undefined) => void;
+  currency?: string;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [editValue, setEditValue] = useState("");
+
+  const commit = () => {
+    const parsed = parseFloat(editValue);
+    onChange(costKey, isNaN(parsed) || parsed <= 0 ? undefined : parsed);
+    setEditing(false);
+  };
+
+  if (editing) {
+    return (
+      <input
+        className="w-full bg-[var(--color-surface)] border border-blue-500 rounded px-1 py-0.5 text-xs outline-none"
+        value={editValue}
+        onChange={(e) => setEditValue(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          e.stopPropagation();
+          if (e.key === "Enter") { e.preventDefault(); commit(); }
+          else if (e.key === "Escape") { e.preventDefault(); setEditing(false); }
+        }}
+        autoFocus
+        type="number"
+        step={0.01}
+        min={0}
+      />
+    );
+  }
+
+  return (
+    <span
+      className="text-[10px] px-1 cursor-cell select-none block"
+      onDoubleClick={() => { setEditValue(value > 0 ? value.toFixed(2) : ""); setEditing(true); }}
+    >
+      {value > 0 ? formatCurrency(value, currency) : "—"}
+    </span>
+  );
+});
 
 function csvEscape(s: string): string {
   if (s.includes(",") || s.includes('"') || s.includes("\n")) {
@@ -2089,7 +2630,7 @@ function csvEscape(s: string): string {
 }
 
 function downloadCsv(content: string, filename: string) {
-  const blob = new Blob([content], { type: "text/csv;charset=utf-8;" });
+  const blob = new Blob(["\uFEFF" + content], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;

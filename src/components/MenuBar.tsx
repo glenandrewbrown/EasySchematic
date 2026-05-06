@@ -12,6 +12,7 @@ import ReportsDialog, { type ReportsTab } from "./ReportsDialog";
 import TitleBlockDialog from "./TitleBlockDialog";
 import AboutDialog from "./AboutDialog";
 import PreferencesDialog from "./PreferencesDialog";
+import RoomDistancesDialog from "./RoomDistancesDialog";
 import AlignmentMenu from "./AlignmentMenu";
 import UserMenuButton from "./UserMenuButton";
 import SchematicBrowser from "./SchematicBrowser";
@@ -21,6 +22,7 @@ import ViewOptionsPanel from "./ViewOptionsPanel";
 import ShowInfoPanel from "./ShowInfoPanel";
 import CsvImportWizard from "./CsvImportWizard";
 import SignalColorPanel from "./SignalColorPanel";
+import { useTheme } from "../hooks/useTheme";
 
 // ─── Menu data types ─────────────────────────────────────────────
 
@@ -119,6 +121,7 @@ export default function MenuBar() {
   } = useSchematicStore();
 
   const printView = useSchematicStore((s) => s.printView);
+  const showOwnedGearPane = useSchematicStore((s) => s.showOwnedGearPane);
   const undoSize = useSchematicStore((s) => s.undoSize);
   const redoSize = useSchematicStore((s) => s.redoSize);
 
@@ -126,6 +129,8 @@ export default function MenuBar() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const archiveInputRef = useRef<HTMLInputElement>(null);
   const menuBarRef = useRef<HTMLDivElement>(null);
+
+  const { isDark, toggle: toggleTheme } = useTheme();
 
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -137,6 +142,7 @@ export default function MenuBar() {
   const [showTitleBlockDialog, setShowTitleBlockDialog] = useState(false);
   const [showAboutDialog, setShowAboutDialog] = useState(false);
   const [showPreferences, setShowPreferences] = useState(false);
+  const [showRoomDistances, setShowRoomDistances] = useState(false);
   const [showCsvImport, setShowCsvImport] = useState(false);
   const [showSchematicBrowser, setShowSchematicBrowser] = useState(false);
   const [showCloudLogin, setShowCloudLogin] = useState(false);
@@ -208,7 +214,7 @@ export default function MenuBar() {
   // Legacy download fallback (always triggers browser download)
   const downloadFile = useCallback(() => {
     const data = exportToJSON();
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json; charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -354,7 +360,7 @@ export default function MenuBar() {
           alert("Invalid schematic file.");
         }
       };
-      reader.readAsText(file);
+      reader.readAsText(file, "UTF-8");
       e.target.value = "";
     },
     [importFromJSON],
@@ -472,12 +478,13 @@ export default function MenuBar() {
     // Place annotation in the center of the current viewport
     const x = (-viewport.x + window.innerWidth / 2) / viewport.zoom - 100;
     const y = (-viewport.y + window.innerHeight / 2) / viewport.zoom - 50;
+    const isSquare = shape === "circle" || shape === "diamond";
     const newNode: SchematicNode = {
       id: `annotation-${Date.now()}`,
       type: "annotation",
-      position: { x, y },
-      data: { shape, color: "rgba(59, 130, 246, 0.1)", borderColor: "#3b82f6" } as AnnotationData,
-      style: { width: 200, height: 100 },
+      position: { x: isSquare ? x + 50 : x, y },
+      data: { shape, color: "rgba(59, 130, 246, 0.15)", borderColor: "#3b82f6" } as AnnotationData,
+      style: { width: isSquare ? 100 : 200, height: 100 },
     };
     useSchematicStore.setState({ nodes: [...state.nodes, newNode] });
     state.saveToLocalStorage();
@@ -528,6 +535,9 @@ export default function MenuBar() {
     Insert: [
       { type: "item", label: "Add Rectangle", onClick: () => addAnnotation("rectangle") },
       { type: "item", label: "Add Ellipse", onClick: () => addAnnotation("ellipse") },
+      { type: "item", label: "Add Circle", onClick: () => addAnnotation("circle") },
+      { type: "item", label: "Add Diamond", onClick: () => addAnnotation("diamond") },
+      { type: "item", label: "Add Triangle", onClick: () => addAnnotation("triangle") },
     ],
     View: [
       {
@@ -536,6 +546,15 @@ export default function MenuBar() {
         shortcut: "F9",
         checked: printView,
         onClick: () => useSchematicStore.getState().setPrintView(!printView),
+      },
+      {
+        type: "item",
+        label: "Show Owned Gear",
+        checked: showOwnedGearPane,
+        onClick: () => {
+          const s = useSchematicStore.getState();
+          s.setShowOwnedGearPane(!s.showOwnedGearPane);
+        },
       },
       {
         type: "item",
@@ -572,9 +591,12 @@ export default function MenuBar() {
     Reports: [
       { type: "item", label: "Device List...", onClick: () => setReportsTab("devices") },
       { type: "item", label: "Cable Schedule...", onClick: () => setReportsTab("cableSchedule") },
+      { type: "item", label: "Patch Panels...", onClick: () => setReportsTab("patchPanel") },
       { type: "item", label: "Pack List...", onClick: () => setReportsTab("packList") },
       { type: "item", label: "Network Report...", onClick: () => setReportsTab("network") },
       { type: "item", label: "Power Report...", onClick: () => setReportsTab("power") },
+      { type: "separator" },
+      { type: "item", label: "Room Distances...", onClick: () => setShowRoomDistances(true) },
     ],
     Help: [
       {
@@ -773,6 +795,23 @@ export default function MenuBar() {
           <div className="w-px h-5 bg-[var(--color-border)] mx-1" />
           <AlignmentMenu />
           <div className="w-px h-5 bg-[var(--color-border)] mx-1" />
+          <button
+            onClick={toggleTheme}
+            title={isDark ? "Switch to light mode" : "Switch to dark mode"}
+            className="p-1.5 rounded hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer text-[var(--color-text)]"
+          >
+            {isDark ? (
+              <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="8" cy="8" r="3.5" />
+                <path d="M8 1v1.5M8 13.5V15M1 8h1.5M13.5 8H15M3.05 3.05l1.06 1.06M11.89 11.89l1.06 1.06M3.05 12.95l1.06-1.06M11.89 4.11l1.06-1.06" />
+              </svg>
+            ) : (
+              <svg viewBox="0 0 16 16" className="w-4 h-4" fill="currentColor">
+                <path d="M6 .278a.77.77 0 0 1 .08.858 7.208 7.208 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277.527 0 1.04-.055 1.533-.16a.787.787 0 0 1 .81.316.733.733 0 0 1-.031.893A8.349 8.349 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.752.752 0 0 1 6 .278z" />
+              </svg>
+            )}
+          </button>
+          <div className="w-px h-5 bg-[var(--color-border)] mx-1" />
           <UserMenuButton />
         </div>
       </div>
@@ -823,15 +862,33 @@ export default function MenuBar() {
               </button>
             </div>
             <span className="text-sm font-semibold text-[var(--color-text-heading)]">Menu</span>
-            <button
-              onClick={closeMobileMenu}
-              className="p-2 rounded hover:bg-[var(--color-surface-hover)] transition-colors text-[var(--color-text)]"
-            >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
-                <line x1="6" y1="6" x2="18" y2="18" />
-                <line x1="18" y1="6" x2="6" y2="18" />
-              </svg>
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={toggleTheme}
+                title={isDark ? "Switch to light mode" : "Switch to dark mode"}
+                className="p-2 rounded hover:bg-[var(--color-surface-hover)] transition-colors text-[var(--color-text)]"
+              >
+                {isDark ? (
+                  <svg viewBox="0 0 16 16" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="8" cy="8" r="3.5" />
+                    <path d="M8 1v1.5M8 13.5V15M1 8h1.5M13.5 8H15M3.05 3.05l1.06 1.06M11.89 11.89l1.06 1.06M3.05 12.95l1.06-1.06M11.89 4.11l1.06-1.06" />
+                  </svg>
+                ) : (
+                  <svg viewBox="0 0 16 16" className="w-5 h-5" fill="currentColor">
+                    <path d="M6 .278a.77.77 0 0 1 .08.858 7.208 7.208 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277.527 0 1.04-.055 1.533-.16a.787.787 0 0 1 .81.316.733.733 0 0 1-.031.893A8.349 8.349 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.752.752 0 0 1 6 .278z" />
+                  </svg>
+                )}
+              </button>
+              <button
+                onClick={closeMobileMenu}
+                className="p-2 rounded hover:bg-[var(--color-surface-hover)] transition-colors text-[var(--color-text)]"
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                </svg>
+              </button>
+            </div>
           </div>
 
           {/* Scrollable menu sections */}
@@ -913,6 +970,9 @@ export default function MenuBar() {
       )}
       {showPreferences && (
         <PreferencesDialog onClose={() => setShowPreferences(false)} />
+      )}
+      {showRoomDistances && (
+        <RoomDistancesDialog onClose={() => setShowRoomDistances(false)} />
       )}
       {showCsvImport && (
         <CsvImportWizard onClose={() => setShowCsvImport(false)} />

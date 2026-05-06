@@ -33,10 +33,13 @@ export default function GettingStartedPage() {
           </tr>
         </thead>
         <tbody>
-          <tr><td><strong>Pan</strong></td><td>Hold Space + drag, or middle-mouse drag</td></tr>
+          <tr><td><strong>Pan</strong></td><td>Hold Space + drag, or middle-mouse drag (always available). In "Drag to pan" mode, left drag also pans.</td></tr>
           <tr><td><strong>Zoom</strong></td><td>Scroll wheel</td></tr>
-          <tr><td><strong>Select</strong></td><td>Click a device or connection. Shift+click for multi-select</td></tr>
-          <tr><td><strong>Box select</strong></td><td>Click and drag on empty canvas</td></tr>
+          <tr><td><strong>Select</strong></td><td>Click a device or connection</td></tr>
+          <tr><td><strong>Toggle selection</strong></td><td>Shift+click to add/remove items from the current selection</td></tr>
+          <tr><td><strong>Box select</strong></td><td>Click and drag on empty canvas (default mode). In "Drag to pan" mode, hold Shift and drag instead.</td></tr>
+          <tr><td><strong>Directional select</strong></td><td>Drag right to enclose (only items fully inside), drag left to crossing-select (anything the box touches) — AutoCAD-style. Crossing mode also picks up connections whose routed paths cross the box.</td></tr>
+          <tr><td><strong>Selection bar</strong></td><td>Appears at the bottom of the canvas when 2+ items are selected. Shows a chip per entity kind — click to solo that kind, Ctrl/⌘+click to deselect it. When connections are selected, an <strong>Edit N connections…</strong> button opens the bulk edit panel.</td></tr>
           <tr><td><strong>Delete</strong></td><td>Select items, then press Delete or Backspace</td></tr>
           <tr><td><strong>Connect</strong></td><td>Click an output port, then click a compatible input</td></tr>
           <tr><td><strong>Reconnect</strong></td><td>Drag from a connected port to move the connection</td></tr>
@@ -46,13 +49,51 @@ export default function GettingStartedPage() {
           <tr><td><strong>Align</strong></td><td>Select multiple items, then use the Align menu in the menu bar</td></tr>
           <tr><td><strong>Quick-add device</strong></td><td>Double-click empty canvas or room background</td></tr>
           <tr><td><strong>Room properties</strong></td><td>Right-click a room</td></tr>
+          <tr><td><strong>Connection menu</strong></td><td>Right-click a connection — add waypoints, toggle stub, override connector mismatch, hide label, reset route</td></tr>
           <tr><td><strong>Print View</strong></td><td>Press F9</td></tr>
+          <tr><td><strong>Dark mode</strong></td><td>Sun/moon icon in the menu bar (right side)</td></tr>
         </tbody>
       </table>
+
+      <h2>Dark mode</h2>
+      <p>
+        Click the <strong>sun/moon icon</strong> in the right side of the menu bar to toggle between light and dark
+        themes. The preference is saved to your browser and automatically applied on future visits. On first visit,
+        EasySchematic follows your OS dark mode setting.
+      </p>
+      <p>
+        The dark mode toggle is also available in the <strong>devices database</strong> (devices.easyschematic.live)
+        via the same icon in the top navigation bar.
+      </p>
 
       <h2>Preferences</h2>
       <p>
         Open <strong>Edit → Preferences</strong> to customize application behavior.
+      </p>
+
+      <h3>Navigation (left-drag behavior)</h3>
+      <p>
+        Controls what left drag does on the canvas background. The full button map is always
+        shown in Preferences so you can see exactly what each input does at a glance:
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Input</th>
+            <th>Drag to select (default)</th>
+            <th>Drag to pan</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>Left drag</strong></td><td>Selection box</td><td>Pan canvas</td></tr>
+          <tr><td><strong>Shift + left drag</strong></td><td>Add to selection</td><td>Selection box</td></tr>
+          <tr><td><strong>Middle drag</strong></td><td colSpan={2}>Pan canvas (always)</td></tr>
+          <tr><td><strong>Space + drag</strong></td><td colSpan={2}>Pan canvas (always)</td></tr>
+        </tbody>
+      </table>
+      <p>
+        "Drag to pan" is useful if you're coming from Figma, Miro, or draw.io and prefer left drag
+        to navigate rather than select.
       </p>
 
       <h3>Scroll wheel configuration</h3>
@@ -94,6 +135,27 @@ export default function GettingStartedPage() {
         <strong>Edit → Preferences</strong>.
       </p>
 
+      <h3>Label case</h3>
+      <p>
+        Forces the display case of device names, port labels, slot labels, and card labels across
+        the canvas and in all exports (PDF, DXF, pack list, cable schedule, patch panel schedule,
+        network / power reports):
+      </p>
+      <ul>
+        <li><strong>As-typed</strong> — default; labels appear exactly as entered</li>
+        <li><strong>UPPERCASE</strong> — forces everything to uppercase</li>
+        <li><strong>lowercase</strong> — forces everything to lowercase</li>
+        <li>
+          <strong>Capitalize Words</strong> — capitalizes the first letter of each word; leaves
+          existing uppercase letters alone so acronyms like HDMI and SDI stay intact
+        </li>
+      </ul>
+      <p>
+        The preference is display-only — your underlying label data is never modified, so you can
+        switch back to <strong>As-typed</strong> at any time to see the original casing. The
+        preference is saved with the schematic, so shared files arrive with the same setting.
+      </p>
+
       <h2>View options</h2>
       <p>
         Open the <strong>View Options</strong> panel from the right sidebar (or via the{" "}
@@ -128,7 +190,7 @@ export default function GettingStartedPage() {
           <strong>Auto-save</strong> — saves to localStorage after every change (always on, no account needed)
         </li>
         <li>
-          <strong>Cloud save</strong> — create a free account (magic-link email login, no password) to save up to
+          <strong>Cloud save</strong> — create a free account (magic-link email or Google sign-in, no password needed) to save up to
           10 schematics to the cloud. Access them from any browser via <strong>File → My Schematics</strong>
         </li>
         <li>

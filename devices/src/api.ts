@@ -1,8 +1,28 @@
-import type { DeviceTemplate } from "../../src/types";
+import type { DeviceTemplate, SignalType } from "../../src/types";
 
 const API_URL = import.meta.env.VITE_API_URL || "https://api.easyschematic.live";
 
 // ==================== TEMPLATES (public) ====================
+
+export interface TemplateSummary {
+  id: string;
+  label: string;
+  deviceType: string;
+  category: string;
+  manufacturer?: string;
+  modelNumber?: string;
+  color?: string;
+  searchTerms?: string[];
+  portCount: number;
+  signalTypes: SignalType[];
+  slotCount: number;
+}
+
+export async function fetchTemplateSummaries(): Promise<TemplateSummary[]> {
+  const res = await fetch(`${API_URL}/templates/summary`);
+  if (!res.ok) throw new Error(`Failed to fetch templates: ${res.status}`);
+  return res.json();
+}
 
 export async function fetchTemplates(): Promise<DeviceTemplate[]> {
   const res = await fetch(`${API_URL}/templates`);
@@ -11,7 +31,9 @@ export async function fetchTemplates(): Promise<DeviceTemplate[]> {
 }
 
 export async function fetchTemplate(id: string): Promise<DeviceTemplate> {
-  const res = await fetch(`${API_URL}/templates/${id}`);
+  // Include credentials so logged-in mods/admins can view flagged-for-deletion
+  // templates via the standard endpoint (non-mods still get 404 for flagged rows).
+  const res = await fetch(`${API_URL}/templates/${id}`, { credentials: "include" });
   if (!res.ok) throw new Error(`Failed to fetch template: ${res.status}`);
   return res.json();
 }
@@ -34,6 +56,12 @@ export async function fetchSearchTerms(): Promise<string[]> {
   return res.json();
 }
 
+export async function fetchManufacturers(): Promise<string[]> {
+  const res = await fetch(`${API_URL}/templates/manufacturers`);
+  if (!res.ok) return [];
+  return res.json();
+}
+
 // ==================== DRAFTS ====================
 
 export async function fetchDraft(id: string): Promise<Record<string, unknown>> {
@@ -47,12 +75,21 @@ export async function fetchDraft(id: string): Promise<Record<string, unknown>> {
   return res.json();
 }
 
-// ==================== TEMPLATES (admin token) ====================
+// ==================== TEMPLATES (admin token or admin/moderator session) ====================
 
-export async function createTemplate(template: Omit<DeviceTemplate, "id" | "version">, token: string): Promise<DeviceTemplate> {
+function templateAuthInit(token: string | null): RequestInit {
+  if (token) {
+    return { headers: { Authorization: `Bearer ${token}` } };
+  }
+  return { credentials: "include" };
+}
+
+export async function createTemplate(template: Omit<DeviceTemplate, "id" | "version">, token: string | null): Promise<DeviceTemplate> {
+  const init = templateAuthInit(token);
   const res = await fetch(`${API_URL}/templates`, {
+    ...init,
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    headers: { "Content-Type": "application/json", ...(init.headers ?? {}) },
     body: JSON.stringify(template),
   });
   if (res.status === 401) throw new Error("Unauthorized");
@@ -60,10 +97,12 @@ export async function createTemplate(template: Omit<DeviceTemplate, "id" | "vers
   return res.json();
 }
 
-export async function updateTemplate(id: string, template: Omit<DeviceTemplate, "id" | "version">, token: string): Promise<DeviceTemplate> {
+export async function updateTemplate(id: string, template: Omit<DeviceTemplate, "id" | "version">, token: string | null): Promise<DeviceTemplate> {
+  const init = templateAuthInit(token);
   const res = await fetch(`${API_URL}/templates/${id}`, {
+    ...init,
     method: "PUT",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    headers: { "Content-Type": "application/json", ...(init.headers ?? {}) },
     body: JSON.stringify(template),
   });
   if (res.status === 401) throw new Error("Unauthorized");
@@ -71,10 +110,11 @@ export async function updateTemplate(id: string, template: Omit<DeviceTemplate, 
   return res.json();
 }
 
-export async function deleteTemplate(id: string, token: string): Promise<void> {
+export async function deleteTemplate(id: string, token: string | null): Promise<void> {
+  const init = templateAuthInit(token);
   const res = await fetch(`${API_URL}/templates/${id}`, {
+    ...init,
     method: "DELETE",
-    headers: { Authorization: `Bearer ${token}` },
   });
   if (res.status === 401) throw new Error("Unauthorized");
   if (!res.ok) throw new Error(`Failed to delete template: ${res.status}`);
@@ -196,7 +236,7 @@ export interface Submission {
   action: "create" | "update";
   templateId: string | null;
   data: Omit<DeviceTemplate, "id" | "version">;
-  status: "pending" | "approved" | "rejected";
+  status: "pending" | "approved" | "rejected" | "deferred";
   reviewerId: string | null;
   reviewerNote: string | null;
   createdAt: string;
@@ -204,6 +244,11 @@ export interface Submission {
   submitterEmail?: string;
   submitterName?: string;
   submitterNote?: string;
+  source?: "manual" | "bulk-json" | "bulk-csv" | "moderator-flag";
+  claimedBy: string | null;
+  claimedAt: string | null;
+  claimerEmail?: string;
+  claimerName?: string;
 }
 
 export async function createSubmission(
@@ -211,16 +256,24 @@ export async function createSubmission(
   data: Omit<DeviceTemplate, "id" | "version">,
   templateId?: string,
   submitterNote?: string,
+  source: "manual" | "bulk-json" | "bulk-csv" = "manual",
 ): Promise<Submission> {
   const res = await fetch(`${API_URL}/submissions`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
-    body: JSON.stringify({ action, data, templateId, ...(submitterNote && { submitterNote }) }),
+    body: JSON.stringify({ action, data, templateId, source, ...(submitterNote && { submitterNote }) }),
   });
   if (res.status === 401) throw new Error("Not authenticated");
   if (res.status === 403) throw new Error("Account suspended");
-  if (res.status === 429) throw new Error("Too many submissions. Try again later.");
+  if (res.status === 429) {
+    const err = await res.json().catch(() => ({})) as { error?: string };
+    throw new Error(err.error || "Too many submissions. Try again later.");
+  }
+  if (res.status === 409) {
+    const err = await res.json().catch(() => ({})) as { error?: string };
+    throw new Error(err.error || "Duplicate submission");
+  }
   if (!res.ok) {
     const err = await res.json() as { error: string };
     throw new Error(err.error || `Submission failed: ${res.status}`);
@@ -274,6 +327,24 @@ export async function rejectSubmission(id: string, note?: string): Promise<void>
   if (!res.ok) throw new Error(`Failed to reject: ${res.status}`);
 }
 
+export async function claimSubmission(id: string): Promise<void> {
+  await fetch(`${API_URL}/submissions/${id}/claim`, {
+    method: "POST",
+    credentials: "include",
+  });
+  // Silently ignore errors — claim is advisory, not critical
+}
+
+export async function deferSubmission(id: string, note: string): Promise<void> {
+  const res = await fetch(`${API_URL}/submissions/${id}/defer`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ note }),
+  });
+  if (!res.ok) throw new Error(`Failed to defer: ${res.status}`);
+}
+
 // ==================== USER MANAGEMENT (admin) ====================
 
 export interface UserRecord {
@@ -312,4 +383,199 @@ export async function updateUserBan(id: string, banned: boolean): Promise<void> 
     body: JSON.stringify({ banned }),
   });
   if (!res.ok) throw new Error(`Failed to update ban status: ${res.status}`);
+}
+
+// ==================== MOD ACTIVITY (admin) ====================
+
+export interface ModAction {
+  id: number;
+  moderator_id: string;
+  moderator_email?: string | null; // Omitted by the server; kept optional for back-compat.
+  moderator_name: string | null;
+  // Action taxonomy (string, not narrowed union — taxonomy grows over time):
+  //   approve, reject, defer, edit, send_back,
+  //   flag-delete, unflag-delete, confirm-delete,
+  //   note_added, note_edited, note_deleted
+  action: string;
+  submission_id: string | null;
+  template_id: string | null;
+  before_data: string | null;
+  after_data: string | null;
+  submission_data_override: string | null;
+  submission_action: "create" | "update" | null;
+  submission_data: string | null;
+  note: string | null;
+  created_at: string;
+}
+
+export interface ModeratorSummary {
+  id: string;
+  name: string | null;
+  role: string;
+}
+
+export async function fetchModActivity(opts?: {
+  moderatorId?: string;
+  action?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<ModAction[]> {
+  const params = new URLSearchParams();
+  if (opts?.moderatorId) params.set("moderator_id", opts.moderatorId);
+  if (opts?.action) params.set("action", opts.action);
+  if (opts?.limit) params.set("limit", String(opts.limit));
+  if (opts?.offset) params.set("offset", String(opts.offset));
+  const qs = params.toString();
+  const res = await fetch(`${API_URL}/admin/mod-activity${qs ? `?${qs}` : ""}`, {
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error(`Failed to fetch mod activity: ${res.status}`);
+  return res.json();
+}
+
+export async function fetchModerators(): Promise<ModeratorSummary[]> {
+  const res = await fetch(`${API_URL}/admin/moderators`, {
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error(`Failed to fetch moderators: ${res.status}`);
+  return res.json();
+}
+
+// ==================== MODERATOR TEMPLATE TOOLS ====================
+
+export interface TemplateNote {
+  id: string;
+  body: string;
+  authorId: string;
+  authorName: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TemplateModHistoryEntry {
+  action: string;
+  note: string | null;
+  createdAt: string;
+  moderatorName: string;
+}
+
+export interface TemplateAdminView extends DeviceTemplate {
+  submittedBy?: { name: string };
+  lastEditedBy?: { name: string };
+  approvedAt: string | null;
+  approvedBy: { name: string } | null;
+  approvedSchemaVersion: string | null;
+  needsReview: boolean;
+  needsReviewReason: string | null;
+  flaggedForDeletion: boolean;
+  flaggedForDeletionReason: string | null;
+  flaggedForDeletionAt: string | null;
+  flaggedBy: { id: string; name: string; email: string | null } | null;
+  modNotes: TemplateNote[];
+  modHistory: TemplateModHistoryEntry[];
+}
+
+export interface PendingDeletion {
+  id: string;
+  label: string;
+  deviceType: string;
+  category: string;
+  manufacturer: string | null;
+  modelNumber: string | null;
+  flaggedReason: string;
+  flaggedAt: string;
+  flaggedBy: { id: string; name: string; email: string | null } | null;
+}
+
+export async function fetchTemplateAdmin(id: string): Promise<TemplateAdminView> {
+  const res = await fetch(`${API_URL}/templates/${id}/admin`, {
+    credentials: "include",
+  });
+  if (res.status === 403) throw new Error("Moderator access required");
+  if (!res.ok) throw new Error(`Failed to fetch admin template: ${res.status}`);
+  return res.json();
+}
+
+export async function fetchTemplateNotes(id: string): Promise<TemplateNote[]> {
+  const res = await fetch(`${API_URL}/templates/${id}/notes`, {
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error(`Failed to fetch notes: ${res.status}`);
+  return res.json();
+}
+
+export async function addTemplateNote(id: string, body: string): Promise<TemplateNote> {
+  const res = await fetch(`${API_URL}/templates/${id}/notes`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ body }),
+  });
+  if (!res.ok) throw new Error(`Failed to add note: ${res.status}`);
+  return res.json();
+}
+
+export async function editTemplateNote(id: string, noteId: string, body: string): Promise<void> {
+  const res = await fetch(`${API_URL}/templates/${id}/notes/${noteId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ body }),
+  });
+  if (!res.ok) throw new Error(`Failed to edit note: ${res.status}`);
+}
+
+export async function deleteTemplateNote(id: string, noteId: string): Promise<void> {
+  const res = await fetch(`${API_URL}/templates/${id}/notes/${noteId}`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error(`Failed to delete note: ${res.status}`);
+}
+
+export async function sendBackTemplate(id: string, reason: string): Promise<{ submission_id: string }> {
+  const res = await fetch(`${API_URL}/templates/${id}/send-back`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ reason }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({})) as { error?: string };
+    throw new Error(err.error || `Failed to send back: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function flagForDeletion(id: string, reason: string): Promise<void> {
+  const res = await fetch(`${API_URL}/templates/${id}/flag-delete`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ reason }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({})) as { error?: string };
+    throw new Error(err.error || `Failed to flag for deletion: ${res.status}`);
+  }
+}
+
+export async function unflagDeletion(id: string): Promise<void> {
+  const res = await fetch(`${API_URL}/templates/${id}/unflag-delete`, {
+    method: "POST",
+    credentials: "include",
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({})) as { error?: string };
+    throw new Error(err.error || `Failed to restore template: ${res.status}`);
+  }
+}
+
+export async function fetchPendingDeletions(): Promise<PendingDeletion[]> {
+  const res = await fetch(`${API_URL}/admin/pending-deletions`, {
+    credentials: "include",
+  });
+  if (res.status === 403) throw new Error("Admin access required");
+  if (!res.ok) throw new Error(`Failed to fetch pending deletions: ${res.status}`);
+  return res.json();
 }

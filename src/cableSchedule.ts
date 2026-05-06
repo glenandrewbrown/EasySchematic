@@ -2,13 +2,21 @@ import type {
   SchematicNode,
   ConnectionEdge,
   SignalType,
+  DistanceSettings,
 } from "./types";
-import { SIGNAL_LABELS, CONNECTOR_LABELS } from "./types";
+import { SIGNAL_LABELS, CONNECTOR_LABELS, DEFAULT_DISTANCE_SETTINGS } from "./types";
 import { getCableType } from "./cableTypes";
 import { resolvePort, resolvePortLabel, getRoomLabel, escapeCsv, csvRow, groupBy } from "./packList";
+import { transformLabelNow } from "./labelCaseUtils";
 import type { ReportLayout } from "./reportLayout";
 import type { ReportTableData } from "./reportPdf";
 import type { DeviceData } from "./types";
+import { computeCableLength, formatLength, getRoomDistance } from "./roomDistance";
+
+export interface CableScheduleDistanceContext {
+  roomDistances?: Record<string, number>;
+  distanceSettings?: DistanceSettings;
+}
 
 export interface CableScheduleRow {
   edgeId: string;
@@ -22,6 +30,8 @@ export interface CableScheduleRow {
   cableType: string;
   signalType: string;
   cableLength: string;
+  /** Estimated cable length derived from room-to-room distance + slack (#146). */
+  computedLength?: string;
   sourceRoom: string;
   targetRoom: string;
   multicableLabel: string;
@@ -33,7 +43,11 @@ const SIGNAL_PREFIX: Record<SignalType, string> = {
   hdmi: "H",
   ndi: "N",
   dante: "D",
+  avb: "AV",
   "analog-audio": "A",
+  "speaker-level": "SPK",
+  bluetooth: "BT",
+  digilink: "DGL",
   aes: "AE",
   dmx: "DX",
   madi: "MA",
@@ -45,10 +59,12 @@ const SIGNAL_PREFIX: Record<SignalType, string> = {
   srt: "SR",
   genlock: "G",
   gpio: "GP",
+  "contact-closure": "CC",
   rs422: "RS",
   serial: "SL",
   thunderbolt: "TB",
   composite: "CO",
+  "component-video": "CV",
   "s-video": "SV",
   vga: "V",
   dvi: "D",
@@ -72,6 +88,27 @@ const SIGNAL_PREFIX: Record<SignalType, string> = {
   st2110: "21",
   artnet: "AN",
   sacn: "SC",
+  ir: "IR",
+  timecode: "TC",
+  gigaace: "GA",
+  dx5: "DX",
+  slink: "SL",
+  soundgrid: "SG",
+  fibreace: "FA",
+  dsnake: "DS",
+  dxlink: "DL",
+  gps: "GPS",
+  dars: "DA",
+  rtmp: "RM",
+  rtsp: "RP",
+  "mpeg-ts": "MT",
+  ebus: "EB",
+  "control-voltage": "VC",
+  "extron-exp": "EX",
+  pots: "PT",
+  "blu-link": "BL",
+  cresnet: "CN",
+  sensor: "SNS",
   custom: "X",
 };
 
@@ -79,27 +116,55 @@ export function computeCableSchedule(
   nodes: SchematicNode[],
   edges: ConnectionEdge[],
   namingScheme: "sequential" | "type-prefix" = "sequential",
+  distanceContext?: CableScheduleDistanceContext,
 ): CableScheduleRow[] {
+  // For stubbed connections (split into 2 stub-leg edges sharing a linkedConnectionId),
+  // emit ONE row per logical cable using the source-side leg as canonical and following
+  // through to the target-side leg to find the real target device. The target-side leg
+  // is skipped — its cable ID gets attached via recomputeCableIds in store.ts.
+  const linkedPartner = new Map<string, ConnectionEdge>();
+  for (const e of edges) {
+    const link = e.data?.linkedConnectionId;
+    if (!link) continue;
+    const partner = edges.find((p) => p.id !== e.id && p.data?.linkedConnectionId === link);
+    if (partner) linkedPartner.set(e.id, partner);
+  }
+  const isSourceLeg = (e: ConnectionEdge): boolean => {
+    const src = nodes.find((n) => n.id === e.source);
+    return src?.type !== "stub-label";
+  };
+
   const connections = edges
     .filter((e) => e.data?.signalType && !e.data?.directAttach)
+    // For linked pairs, only process the source-side leg (the one whose source is a real device).
+    .filter((e) => !e.data?.linkedConnectionId || isSourceLeg(e))
     .map((e) => {
+      // For a source-side leg of a linked pair, follow the partner to find the real target device.
+      const partner = linkedPartner.get(e.id);
+      const effectiveTargetEdge = partner ?? e;
       const srcNode = nodes.find((n) => n.id === e.source);
-      const tgtNode = nodes.find((n) => n.id === e.target);
+      const tgtNode = nodes.find((n) => n.id === effectiveTargetEdge.target);
       const signalType = e.data!.signalType as SignalType;
       const srcPort = resolvePort(srcNode, e.sourceHandle);
-      const tgtPort = resolvePort(tgtNode, e.targetHandle);
+      const tgtPort = resolvePort(tgtNode, effectiveTargetEdge.targetHandle);
+      const computedLength = computeRowEstimatedLength(
+        srcNode?.parentId,
+        tgtNode?.parentId,
+        nodes,
+        distanceContext,
+      );
 
       const sourceDevice = srcNode?.type === "device"
-        ? (srcNode.data as DeviceData).label
+        ? transformLabelNow((srcNode.data as DeviceData).label)
         : "Unknown";
       const sourcePort = srcNode ? resolvePortLabel(srcNode, e.sourceHandle) : "";
       const sourceConnector = srcPort?.connectorType
         ? (CONNECTOR_LABELS[srcPort.connectorType] ?? "—")
         : "—";
       const targetDevice = tgtNode?.type === "device"
-        ? (tgtNode.data as DeviceData).label
+        ? transformLabelNow((tgtNode.data as DeviceData).label)
         : "Unknown";
-      const targetPort = tgtNode ? resolvePortLabel(tgtNode, e.targetHandle) : "";
+      const targetPort = tgtNode ? resolvePortLabel(tgtNode, effectiveTargetEdge.targetHandle) : "";
       const targetConnector = tgtPort?.connectorType
         ? (CONNECTOR_LABELS[tgtPort.connectorType] ?? "—")
         : "—";
@@ -122,6 +187,7 @@ export function computeCableSchedule(
         signalType: SIGNAL_LABELS[signalType],
         sourceRoom,
         targetRoom,
+        computedLength,
       };
     });
 
@@ -146,6 +212,7 @@ export function computeCableSchedule(
         cableType: c.cableType,
         signalType: c.signalType,
         cableLength: c.storedCableLength,
+        computedLength: c.computedLength,
         sourceRoom: c.sourceRoom,
         targetRoom: c.targetRoom,
         multicableLabel: c.multicableLabel,
@@ -165,10 +232,24 @@ export function computeCableSchedule(
     cableType: c.cableType,
     signalType: c.signalType,
     cableLength: c.storedCableLength,
+    computedLength: c.computedLength,
     sourceRoom: c.sourceRoom,
     targetRoom: c.targetRoom,
     multicableLabel: c.multicableLabel,
   }));
+}
+
+function computeRowEstimatedLength(
+  sourceParentId: string | undefined,
+  targetParentId: string | undefined,
+  nodes: SchematicNode[],
+  ctx: CableScheduleDistanceContext | undefined,
+): string | undefined {
+  if (!ctx?.roomDistances) return undefined;
+  const dist = getRoomDistance(sourceParentId, targetParentId, { roomDistances: ctx.roomDistances }, nodes);
+  if (dist === undefined) return undefined;
+  const settings = ctx.distanceSettings ?? DEFAULT_DISTANCE_SETTINGS;
+  return formatLength(computeCableLength(dist, settings), settings.unit);
 }
 
 export function exportCableScheduleCsv(
@@ -184,14 +265,14 @@ export function exportCableScheduleCsv(
   lines.push(csvRow([
     "Cable ID", "Source", "Src Port", "Src Conn",
     "Target", "Tgt Port", "Tgt Conn",
-    "Cable Type", "Signal", "Length",
+    "Cable Type", "Signal", "Length", "Est. Length",
     "Src Room", "Tgt Room", "Snake",
   ]));
   for (const r of rows) {
     lines.push(csvRow([
       r.cableId, r.sourceDevice, r.sourcePort, r.sourceConnector,
       r.targetDevice, r.targetPort, r.targetConnector,
-      r.cableType, r.signalType, r.cableLength,
+      r.cableType, r.signalType, r.cableLength, r.computedLength ?? "",
       r.sourceRoom, r.targetRoom, r.multicableLabel,
     ]));
   }
@@ -222,6 +303,7 @@ export function getCableScheduleTableData(
     cableType: r.cableType,
     signalType: r.signalType,
     cableLength: r.cableLength,
+    computedLength: r.computedLength ?? "",
     sourceRoom: r.sourceRoom,
     targetRoom: r.targetRoom,
     multicableLabel: r.multicableLabel,

@@ -8,8 +8,10 @@ import {
   ConnectionLineType,
   ConnectionMode,
   SelectionMode,
+  useNodesInitialized,
   useReactFlow,
   useStoreApi,
+  useUpdateNodeInternals,
   useViewport,
   reconnectEdge,
   type Node,
@@ -35,19 +37,24 @@ import PendingSubmissionBanner from "./components/PendingSubmissionBanner";
 import PortContextMenu from "./components/PortContextMenu";
 import RoutingDebugOverlay from "./components/RoutingDebugOverlay";
 import RoutingTuningPanel from "./components/RoutingTuningPanel";
+import SelectionFilterBar from "./components/SelectionFilterBar";
 import RoomContextMenu from "./components/RoomContextMenu";
+import DeviceContextMenu from "./components/DeviceContextMenu";
+import StubLabelContextMenu from "./components/StubLabelContextMenu";
 import RoomEditor from "./components/RoomEditor";
+import AnnotationEditor from "./components/AnnotationEditor";
 import QuickAddDevice from "./components/QuickAddDevice";
-import RouterCreator from "./components/RouterCreator";
+import DeviceCreatorPicker from "./components/DeviceCreatorPicker";
 import PageTabs from "./components/PageTabs";
 import RackPage from "./components/RackPage";
-import DeviceContextMenu from "./components/DeviceContextMenu";
 import { computeSnap, enforceMinSpacing, detectOverlap, speculativeReparent, type GuideLine } from "./snapUtils";
-import type { DeviceData, DeviceTemplate, SchematicFile, SchematicNode } from "./types";
+import { STUB_W_EST, STUB_H_EST } from "./stubPlacement";
+import type { ConnectionEdge, DeviceData, DeviceTemplate, SchematicFile, SchematicNode } from "./types";
 import { findAdaptersForSignalBridge, findAdaptersForConnectorBridge, areConnectorsCompatible } from "./connectorTypes";
 import { DEVICE_TEMPLATES } from "./deviceLibrary";
 import { loadSharedSchematic, checkSession } from "./templateApi";
 import { refreshCloudCache } from "./cloudSync";
+import { useTheme } from "./hooks/useTheme";
 
 /** Darkens the canvas area left of x=0 and above y=0, marking the printable origin. */
 function CanvasOriginOverlay() {
@@ -74,12 +81,25 @@ function CanvasOriginOverlay() {
         }}
       >
         {/* Everything left of x=0 */}
-        <rect x={-FAR} y={-FAR} width={FAR} height={2 * FAR} fill="#e5e5e5" />
+        <rect x={-FAR} y={-FAR} width={FAR} height={2 * FAR} fill="var(--color-canvas-origin)" />
         {/* Everything above y=0 (only the positive-x portion, avoid double-fill) */}
-        <rect x={0} y={-FAR} width={FAR} height={FAR} fill="#e5e5e5" />
+        <rect x={0} y={-FAR} width={FAR} height={FAR} fill="var(--color-canvas-origin)" />
       </svg>
     </div>
   );
+}
+
+/** Returns true if a polyline segment (a→b) intersects an axis-aligned rect. */
+function segmentIntersectsRect(
+  a: { x: number; y: number },
+  b: { x: number; y: number },
+  minX: number, minY: number, maxX: number, maxY: number,
+): boolean {
+  const x1 = Math.min(a.x, b.x), x2 = Math.max(a.x, b.x);
+  const y1 = Math.min(a.y, b.y), y2 = Math.max(a.y, b.y);
+  if (Math.abs(y1 - y2) < 1) return a.y >= minY && a.y <= maxY && x2 >= minX && x1 <= maxX;
+  if (Math.abs(x1 - x2) < 1) return a.x >= minX && a.x <= maxX && y2 >= minY && y1 <= maxY;
+  return x2 >= minX && x1 <= maxX && y2 >= minY && y1 <= maxY;
 }
 
 /** Combines drag snap guides (local state) with resize snap guides (store state). */
@@ -121,6 +141,72 @@ function AutoRouteChip() {
   );
 }
 
+function AutoRouteConfirmDialog() {
+  const pending = useSchematicStore((s) => s.autoRouteConfirmPending);
+  const confirm = useSchematicStore((s) => s.confirmAutoRouteOff);
+  const cancel = useSchematicStore((s) => s.cancelAutoRouteOff);
+  const [remember, setRemember] = useState(false);
+
+  if (!pending) return null;
+
+  const handleChoice = (preserve: boolean) => {
+    if (remember) {
+      localStorage.setItem("easyschematic-autoroute-pref", preserve ? "keep" : "revert");
+    }
+    confirm(preserve);
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
+      onClick={() => cancel()}
+    >
+      <div
+        className="bg-white border border-[var(--color-border)] rounded-lg shadow-2xl w-[340px] flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--color-border)]">
+          <span className="text-sm font-semibold text-[var(--color-text-heading)]">
+            Keep current routing?
+          </span>
+          <button
+            onClick={() => cancel()}
+            className="text-[var(--color-text-muted)] hover:text-[var(--color-text)] text-lg leading-none cursor-pointer"
+          >
+            &times;
+          </button>
+        </div>
+        <div className="px-5 py-4 text-xs text-[var(--color-text)] space-y-3">
+          <p>Auto-routing is being turned off. What should happen to the current routes?</p>
+          <div className="flex gap-2">
+            <button
+              className="flex-1 px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors cursor-pointer text-xs"
+              onClick={() => handleChoice(true)}
+            >
+              Keep Routes
+            </button>
+            <button
+              className="flex-1 px-3 py-1.5 bg-[var(--color-surface)] text-[var(--color-text)] rounded hover:bg-[var(--color-surface-hover)] border border-[var(--color-border)] transition-colors cursor-pointer text-xs"
+              onClick={() => handleChoice(false)}
+            >
+              Restore Previous
+            </button>
+          </div>
+          <label className="flex items-center gap-1.5 text-[11px] text-[var(--color-text-muted)] cursor-pointer">
+            <input
+              type="checkbox"
+              checked={remember}
+              onChange={(e) => setRemember(e.target.checked)}
+              className="accent-blue-600 cursor-pointer"
+            />
+            Remember my choice
+          </label>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SchematicCanvas() {
   const {
     nodes,
@@ -136,7 +222,10 @@ function SchematicCanvas() {
     copySelected,
     pasteClipboard,
     pushSnapshot,
+    setPendingUndoSnapshot,
+    flushPendingSnapshot,
     reparentNode,
+    reparentAllDevices,
     undo,
     redo,
     loadFromLocalStorage,
@@ -144,10 +233,72 @@ function SchematicCanvas() {
 
   const rfInstance = useReactFlow();
   const rfStore = useStoreApi();
+  const updateNodeInternals = useUpdateNodeInternals();
   const { screenToFlowPosition } = rfInstance;
+  const rfContainerRef = useRef<HTMLDivElement>(null);
+  const { isDark } = useTheme();
+
+  // Refit viewport whenever a new schematic is wholesale-loaded (import, share link, "New", autosave hydrate).
+  // The <ReactFlow fitView> boolean prop only fires on first mount; without this, opening a file whose content
+  // sits far from the origin leaves the viewport at its previous transform and the canvas appears blank.
+  const loadSeq = useSchematicStore((s) => s.loadSeq);
+  const nodesInitialized = useNodesInitialized();
+  const lastFittedSeq = useRef<number | null>(null);
+  useEffect(() => {
+    if (lastFittedSeq.current === null) {
+      // First render: defer to <ReactFlow fitView> so we don't double-fit.
+      lastFittedSeq.current = loadSeq;
+      return;
+    }
+    if (lastFittedSeq.current === loadSeq) return;
+    if (!nodesInitialized) return;
+    lastFittedSeq.current = loadSeq;
+    rfInstance.fitView({ duration: 200, padding: 0.1 });
+  }, [loadSeq, nodesInitialized, rfInstance]);
+
+  // Locked rooms have pointer-events: none (CSS) so right-clicks fall through.
+  // React Flow's pane handler uses wrapHandler() which only fires when
+  // event.target === paneDiv, so onPaneContextMenu never triggers for these.
+  // React Flow also calls stopPropagation() in the pane handler, blocking bubbling.
+  // Solution: native capture-phase listener fires BEFORE React Flow's handlers.
+  useEffect(() => {
+    const el = rfContainerRef.current;
+    if (!el) return;
+    const handler = (e: MouseEvent) => {
+      // Skip if another handler already claimed this event
+      if (e.defaultPrevented) return;
+      // Skip if target is an interactive element (device, edge, port, button, etc.)
+      const target = e.target as HTMLElement;
+      if (target.closest('.react-flow__node:not(.locked), .react-flow__edge, .react-flow__handle, button, input, a')) {
+        return;
+      }
+      const pos = screenToFlowPosition({ x: e.clientX, y: e.clientY });
+      const state = useSchematicStore.getState();
+      const room = state.nodes.find(
+        (n) => {
+          if (n.type !== "room" || !(n.data as import("./types").RoomData).locked) return false;
+          const w = n.measured?.width ?? (n.style?.width as number) ?? (n.width as number) ?? 0;
+          const h = n.measured?.height ?? (n.style?.height as number) ?? (n.height as number) ?? 0;
+          return pos.x >= n.position.x && pos.x <= n.position.x + w &&
+                 pos.y >= n.position.y && pos.y <= n.position.y + h;
+        },
+      );
+      if (room) {
+        e.preventDefault();
+        e.stopPropagation();
+        useSchematicStore.setState({
+          roomContextMenu: { nodeId: room.id, screenX: e.clientX, screenY: e.clientY },
+        });
+      }
+    };
+    el.addEventListener("contextmenu", handler, true); // capture phase
+    return () => el.removeEventListener("contextmenu", handler, true);
+  }, [screenToFlowPosition]);
 
   // Space-held state for pan-on-drag (Vectorworks-style)
   const [spaceHeld, setSpaceHeld] = useState(false);
+  // Shift-held state used in pan-first mode to temporarily enable box selection
+  const [shiftHeld, setShiftHeld] = useState(false);
 
   // AutoCAD-style directional selection: drag direction determines selection mode
   const [selectionDirection, setSelectionDirection] = useState<'window' | 'crossing' | null>(null);
@@ -157,16 +308,54 @@ function SchematicCanvas() {
 
   useEffect(() => {
     let currentDir: 'window' | 'crossing' | null = null;
+    let lastRect: { x: number; y: number; width: number; height: number } | null = null;
+    let lastTransform: [number, number, number] | null = null;
+
     const unsubscribe = rfStore.subscribe((state) => {
       const rect = state.userSelectionRect;
       if (!rect) {
+        // Rect just cleared — if it was a crossing drag, also select edges whose
+        // routed paths cross the selection box (not just those with enclosed endpoints).
+        if (currentDir === 'crossing' && lastRect && lastTransform) {
+          const capturedRect = lastRect;
+          const capturedTransform = lastTransform;
+          setTimeout(() => {
+            const [tx, ty, zoom] = capturedTransform;
+            const minX = (capturedRect.x - tx) / zoom;
+            const minY = (capturedRect.y - ty) / zoom;
+            const maxX = (capturedRect.x + capturedRect.width - tx) / zoom;
+            const maxY = (capturedRect.y + capturedRect.height - ty) / zoom;
+            const schStore = useSchematicStore.getState();
+            const toSelect = new Set<string>();
+            for (const [edgeId, route] of Object.entries(schStore.routedEdges)) {
+              const wps = route.waypoints;
+              for (let i = 0; i < wps.length - 1; i++) {
+                if (segmentIntersectsRect(wps[i], wps[i + 1], minX, minY, maxX, maxY)) {
+                  toSelect.add(edgeId);
+                  break;
+                }
+              }
+            }
+            if (toSelect.size > 0) {
+              useSchematicStore.setState({
+                edges: schStore.edges.map((e) =>
+                  toSelect.has(e.id) ? { ...e, selected: true } : e,
+                ),
+              });
+            }
+          }, 0);
+        }
         if (currentDir !== null) {
           currentDir = null;
           setSelectionDirection(null);
         }
+        lastRect = null;
+        lastTransform = null;
         return;
       }
       if (rect.width === 0 && rect.height === 0) return;
+      lastRect = { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+      lastTransform = [...state.transform] as [number, number, number];
       const nextDir = rect.x < rect.startX ? 'crossing' : 'window';
       if (nextDir !== currentDir) {
         currentDir = nextDir;
@@ -187,6 +376,91 @@ function SchematicCanvas() {
 
   // Track physical Ctrl key to distinguish real Ctrl+scroll from trackpad pinch
   const ctrlHeldRef = useRef(false);
+
+  // Shift-selection: bypass RF's selection system via XOR on pointerup.
+  // RF doesn't emit NodeSelectionChange for already-selected nodes, so
+  // onNodesChange interception can't toggle them. Instead we snapshot
+  // selection on shift+mousedown, let RF do its thing, then XOR the
+  // result on pointerup. Works identically for both click and drag.
+  useEffect(() => {
+    const el = rfContainerRef.current;
+    if (!el) return;
+
+    let shiftSnapshot: Map<string, boolean> | null = null;
+    let shiftClickNodeId: string | null = null;
+
+    const onMouseDown = (e: MouseEvent) => {
+      if (!e.shiftKey || e.button !== 0) {
+        shiftSnapshot = null;
+        shiftClickNodeId = null;
+        return;
+      }
+      if (!el.contains(e.target as globalThis.Node)) return;
+      if (isClickConnectMode.current) return;
+
+      const s = useSchematicStore.getState();
+      shiftSnapshot = new Map<string, boolean>([
+        ...s.nodes.map(n => [n.id, !!n.selected] as const),
+        ...s.edges.map(e => [e.id, !!e.selected] as const),
+      ]);
+
+      // Track which node was clicked (null for empty space / drag)
+      const nodeEl = (e.target as HTMLElement).closest('.react-flow__node');
+      shiftClickNodeId = nodeEl?.getAttribute('data-id') ?? null;
+    };
+
+    const onPointerUp = () => {
+      if (!shiftSnapshot) return;
+      const snapshot = shiftSnapshot;
+      const clickedNodeId = shiftClickNodeId;
+      shiftSnapshot = null;
+      shiftClickNodeId = null;
+
+      // Defer so RF's final selection processing completes first
+      requestAnimationFrame(() => {
+        const state = useSchematicStore.getState();
+
+        // Did RF actually change selection? (It won't when clicking an
+        // already-selected node with multiSelectionActive=false.)
+        const rfChanged = state.nodes.some(n =>
+          (!!n.selected) !== (snapshot.get(n.id) ?? false)
+        ) || state.edges.some(e =>
+          (!!e.selected) !== (snapshot.get(e.id) ?? false)
+        );
+
+        if (rfChanged) {
+          // RF changed selection → XOR to toggle items in the box/clicked
+          useSchematicStore.setState({
+            nodes: state.nodes.map(n => ({
+              ...n,
+              selected: (!!n.selected) !== (snapshot.get(n.id) ?? false),
+            })) as SchematicNode[],
+            edges: state.edges.map(e => ({
+              ...e,
+              selected: (!!e.selected) !== (snapshot.get(e.id) ?? false),
+            })) as ConnectionEdge[],
+          });
+        } else if (clickedNodeId) {
+          // RF did nothing (clicked already-selected node) → toggle just that node
+          useSchematicStore.setState({
+            nodes: state.nodes.map(n => ({
+              ...n,
+              selected: n.id === clickedNodeId ? !n.selected : n.selected,
+            })) as SchematicNode[],
+          });
+        }
+
+        useSchematicStore.getState().saveToLocalStorage();
+      });
+    };
+
+    window.addEventListener('mousedown', onMouseDown, true);
+    window.addEventListener('pointerup', onPointerUp);
+    return () => {
+      window.removeEventListener('mousedown', onMouseDown, true);
+      window.removeEventListener('pointerup', onPointerUp);
+    };
+  }, []);
 
   // Sticky trackpad detection: once a trackpad gesture is detected, treat all
   // subsequent wheel events as trackpad until 400ms of silence (gesture end).
@@ -210,8 +484,8 @@ function SchematicCanvas() {
 
   // Quick-add device dialog state
   const [quickAddPos, setQuickAddPos] = useState<{ x: number; y: number } | null>(null);
-  const [showRouterCreator, setShowRouterCreator] = useState(false);
-  const routerCreatorPosRef = useRef<{ x: number; y: number } | undefined>(undefined);
+  const [showDeviceCreator, setShowDeviceCreator] = useState(false);
+  const deviceCreatorPosRef = useRef<{ x: number; y: number } | undefined>(undefined);
   const lastPaneClickRef = useRef<{ time: number; x: number; y: number }>({ time: 0, x: 0, y: 0 });
 
   // Viewport transform for rendering flow-space overlays
@@ -282,13 +556,15 @@ function SchematicCanvas() {
     s.nodes.map((n) => {
       const base = `${n.id}:${Math.round(n.position.x)},${Math.round(n.position.y)},${n.measured?.width ?? 0},${n.measured?.height ?? 0}`;
       if (n.type !== "device") return base;
-      const flipped = (n.data as DeviceData).ports.filter((p) => p.flipped).map((p) => p.id).join(",");
-      return flipped ? `${base}:F${flipped}` : base;
+      const ports = (n.data as DeviceData).ports;
+      const portIds = ports.map((p) => p.id).join(",");
+      const flipped = ports.filter((p) => p.flipped).map((p) => p.id).join(",");
+      return flipped ? `${base}:P${portIds}:F${flipped}` : `${base}:P${portIds}`;
     }).join("|"),
   );
   // Digest of edge connectivity
   const edgeDigest = useSchematicStore((s) =>
-    s.edges.map((e) => `${e.id}:${e.source}:${e.sourceHandle}:${e.target}:${e.targetHandle}:${e.data?.manualWaypoints?.length ?? 0}`).join("|"),
+    s.edges.map((e) => `${e.id}:${e.source}:${e.sourceHandle}:${e.target}:${e.targetHandle}:${e.data?.manualWaypoints?.length ?? 0}:${e.data?.stubbed ? "s" : ""}`).join("|"),
   );
 
   // Filter out edges whose signal type is hidden (presentation-only — store edges stay complete)
@@ -300,17 +576,49 @@ function SchematicCanvas() {
 
   const autoRoute = useSchematicStore((s) => s.autoRoute);
   const edgeHitboxSize = useSchematicStore((s) => s.edgeHitboxSize);
+  const panMode = useSchematicStore((s) => s.panMode);
   const routingParamVersion = useSchematicStore((s) => s.routingParamVersion);
+
+  // When a device's port list changes (add/remove/reorder), React Flow won't
+  // re-measure handle bounds on its own — the internal cache stays pinned to
+  // the old port layout until updateNodeInternals() forces a re-measure.
+  // Without this, edges connected to shifted ports render at stale positions
+  // until the next page refresh.
+  const portSignatures = useSchematicStore((s) =>
+    s.nodes
+      .filter((n) => n.type === "device")
+      .map((n) => `${n.id}:${(n.data as DeviceData).ports.map((p) => p.id).join(",")}`)
+      .join("|"),
+  );
+  const prevPortSignaturesRef = useRef<Map<string, string>>(new Map());
+  useEffect(() => {
+    const current = new Map<string, string>();
+    for (const entry of portSignatures.split("|")) {
+      if (!entry) continue;
+      const idx = entry.indexOf(":");
+      if (idx < 0) continue;
+      current.set(entry.slice(0, idx), entry.slice(idx + 1));
+    }
+    const changed: string[] = [];
+    for (const [nodeId, sig] of current) {
+      if (prevPortSignaturesRef.current.get(nodeId) !== sig) changed.push(nodeId);
+    }
+    prevPortSignaturesRef.current = current;
+    if (changed.length > 0) updateNodeInternals(changed);
+  }, [portSignatures, updateNodeInternals]);
 
   useEffect(() => {
     if (isDragging) return;
     if (nodeCount === 0 && edgeCount === 0) return;
+    // Small delay lets React Flow re-measure handle bounds after
+    // updateNodeInternals() fires (e.g. on port add/remove) so routing reads
+    // fresh positions. Applies to both simple and A* paths.
     if (!autoRoute) {
-      // Simple orthogonal L-shapes — no A*, instant
-      useSchematicStore.getState().computeSimpleRoutes(rfInstance);
-      return;
+      const timer = setTimeout(() => {
+        useSchematicStore.getState().computeSimpleRoutes(rfInstance);
+      }, 50);
+      return () => clearTimeout(timer);
     }
-    // Full A* routing with small delay to let React Flow measure handles
     useSchematicStore.setState({ isRouting: true });
     const timer = setTimeout(() => {
       useSchematicStore.getState().recomputeRoutes(rfInstance);
@@ -436,6 +744,7 @@ function SchematicCanvas() {
     clickConnectFromRef.current = null;
     clickConnectCleanupRef.current?.();
     clickConnectCleanupRef.current = null;
+    // eslint-disable-next-line react-hooks/immutability -- intentional mutable ref flag
     isClickConnectMode.current = false;
     setConnectPreview(null);
   }, []);
@@ -446,7 +755,7 @@ function SchematicCanvas() {
       if (e.key === "Control") { ctrlHeldRef.current = true; }
 
       const tag = (e.target as HTMLElement).tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || (e.target as HTMLElement).isContentEditable) return;
 
       if (e.key === "Escape") {
         clearClickConnect();
@@ -457,6 +766,11 @@ function SchematicCanvas() {
       if (e.key === " ") {
         e.preventDefault();
         setSpaceHeld(true);
+        return;
+      }
+
+      if (e.key === "Shift") {
+        setShiftHeld(true);
         return;
       }
 
@@ -500,8 +814,9 @@ function SchematicCanvas() {
     const handleKeyUp = (e: KeyboardEvent) => {
       if (e.key === "Control") { ctrlHeldRef.current = false; }
       if (e.key === " ") setSpaceHeld(false);
+      if (e.key === "Shift") setShiftHeld(false);
     };
-    const handleBlur = () => { ctrlHeldRef.current = false; };
+    const handleBlur = () => { ctrlHeldRef.current = false; setShiftHeld(false); };
     window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("keyup", handleKeyUp);
     window.addEventListener("blur", handleBlur);
@@ -562,7 +877,7 @@ function SchematicCanvas() {
         const state = useSchematicStore.getState();
         const lastDevice = state.nodes.filter((n) => n.type === "device").at(-1);
         if (lastDevice) {
-          reparentNode(lastDevice.id, position);
+          reparentNode(lastDevice.id, position, { skipUndo: true });
 
           // Enforce spacing so new device doesn't land on top of another
           const updated = useSchematicStore.getState();
@@ -589,7 +904,7 @@ function SchematicCanvas() {
                   absY += parent.position.y;
                 }
               }
-              reparentNode(device.id, { x: absX, y: absY });
+              reparentNode(device.id, { x: absX, y: absY }, { skipUndo: true });
             }
           }
         }
@@ -770,6 +1085,7 @@ function SchematicCanvas() {
   const onClickConnectStart = useCallback(
     (event: MouseEvent | TouchEvent, params: { nodeId: string | null; handleId: string | null; handleType: string | null }) => {
       if (!params.nodeId || !params.handleType) return;
+      // eslint-disable-next-line react-hooks/immutability -- intentional mutable ref flag
       isClickConnectMode.current = true;
       startPreviewTracking(event, params.nodeId, params.handleId, params.handleType);
     },
@@ -854,19 +1170,44 @@ function SchematicCanvas() {
   );
 
   const onNodeDragStart = useCallback(() => {
-    pushSnapshot();
+    setPendingUndoSnapshot();
     useSchematicStore.setState({ isDragging: true });
-  }, [pushSnapshot]);
+  }, [setPendingUndoSnapshot]);
 
   const onNodeDrag = useCallback(
     (_event: React.MouseEvent, draggedNode: Node) => {
       const state = useSchematicStore.getState();
+
+      // Waypoint nodes are simple: snap to grid, no overlap or reparent logic.
+      if (draggedNode.type === "waypoint") {
+        const sx = Math.round(draggedNode.position.x / GRID_SIZE) * GRID_SIZE;
+        const sy = Math.round(draggedNode.position.y / GRID_SIZE) * GRID_SIZE;
+        if (sx !== draggedNode.position.x || sy !== draggedNode.position.y) {
+          const updated = state.nodes.map((n) =>
+            n.id === draggedNode.id ? { ...n, position: { x: sx, y: sy } } : n,
+          );
+          useSchematicStore.setState({ nodes: updated as SchematicNode[] });
+        }
+        return;
+      }
+
       const snap = computeSnap(draggedNode as SchematicNode, state.nodes);
       setSnapGuides(snap.guides);
 
+      // Stub labels snap their CENTER to the grid, so the side handle's Y aligns
+      // with the connected device's port Y (which is on the 20px grid).
+      let snappedX = snap.x;
+      let snappedY = snap.y;
+      if (draggedNode.type === "stub-label") {
+        const w = (draggedNode as SchematicNode).measured?.width ?? STUB_W_EST;
+        const h = (draggedNode as SchematicNode).measured?.height ?? STUB_H_EST;
+        snappedX = Math.round((snap.x + w / 2) / GRID_SIZE) * GRID_SIZE - w / 2;
+        snappedY = Math.round((snap.y + h / 2) / GRID_SIZE) * GRID_SIZE - h / 2;
+      }
+
       // Apply snapped position if it differs
-      if (snap.x !== draggedNode.position.x || snap.y !== draggedNode.position.y) {
-        const snappedNode = { ...draggedNode, position: { x: snap.x, y: snap.y } } as SchematicNode;
+      if (snappedX !== draggedNode.position.x || snappedY !== draggedNode.position.y) {
+        const snappedNode = { ...draggedNode, position: { x: snappedX, y: snappedY } } as SchematicNode;
         const updated = state.nodes.map((n) =>
           n.id === draggedNode.id ? snappedNode : n,
         );
@@ -891,11 +1232,41 @@ function SchematicCanvas() {
     (_event: React.MouseEvent, draggedNode: Node) => {
       setSnapGuides([]);
 
-      // Apply final snap so the node lands on the aligned position
       const state = useSchematicStore.getState();
+
+      // Waypoints don't participate in spacing/overlap/reparent logic. Just
+      // grid-snap the final position and bail out so the manualWaypoints sync
+      // (in store.onNodesChange) sees the resting position.
+      if (draggedNode.type === "waypoint") {
+        const sx = Math.round(draggedNode.position.x / GRID_SIZE) * GRID_SIZE;
+        const sy = Math.round(draggedNode.position.y / GRID_SIZE) * GRID_SIZE;
+        if (sx !== draggedNode.position.x || sy !== draggedNode.position.y) {
+          const updated = state.nodes.map((n) =>
+            n.id === draggedNode.id ? { ...n, position: { x: sx, y: sy } } : n,
+          );
+          useSchematicStore.setState({
+            nodes: updated as SchematicNode[],
+            isDragging: false,
+            overlapNodeId: null,
+          });
+        } else {
+          useSchematicStore.setState({ isDragging: false, overlapNodeId: null });
+        }
+        flushPendingSnapshot();
+        return;
+      }
+
+      // Apply final snap so the node lands on the aligned position
       const snap = computeSnap(draggedNode as SchematicNode, state.nodes);
       let finalX = snap.x;
       let finalY = snap.y;
+      // Stub labels snap their CENTER to the grid (matches onNodeDrag).
+      if (draggedNode.type === "stub-label") {
+        const w = (draggedNode as SchematicNode).measured?.width ?? STUB_W_EST;
+        const h = (draggedNode as SchematicNode).measured?.height ?? STUB_H_EST;
+        finalX = Math.round((snap.x + w / 2) / GRID_SIZE) * GRID_SIZE - w / 2;
+        finalY = Math.round((snap.y + h / 2) / GRID_SIZE) * GRID_SIZE - h / 2;
+      }
 
       // Enforce minimum spacing so stubs don't land inside neighbor obstacle rects
       // Speculatively reparent so enforcement works when dragging into a room
@@ -925,20 +1296,29 @@ function SchematicCanvas() {
         useSchematicStore.setState({ isDragging: false, overlapNodeId: null });
       }
 
-      if (draggedNode.type === "room") return;
-      // Compute absolute position for reparenting check
+      // Compute absolute position by walking the full parent chain
       let absX = finalX;
       let absY = finalY;
-      if (draggedNode.parentId) {
-        const parent = state.nodes.find((n) => n.id === draggedNode.parentId);
-        if (parent) {
-          absX += parent.position.x;
-          absY += parent.position.y;
-        }
+      let parentId: string | undefined = draggedNode.parentId as string | undefined;
+      while (parentId) {
+        const parent = state.nodes.find((n) => n.id === parentId);
+        if (!parent) break;
+        absX += parent.position.x;
+        absY += parent.position.y;
+        parentId = parent.parentId as string | undefined;
       }
-      reparentNode(draggedNode.id, { x: absX, y: absY });
+      reparentNode(draggedNode.id, { x: absX, y: absY }, { skipUndo: true });
+      // When a room is moved, re-evaluate every device: ones that now fall
+      // inside the moved room become its children, ones that fell out get
+      // unparented. Children of the moved room itself already travelled with
+      // it via relative coords, but findBestEnclosingRoom will pick the
+      // smallest enclosing room so nested layouts still resolve correctly.
+      if (draggedNode.type === "room") {
+        reparentAllDevices({ skipUndo: true });
+      }
+      flushPendingSnapshot();
     },
-    [reparentNode],
+    [reparentNode, reparentAllDevices, flushPendingSnapshot],
   );
 
   // Dynamic minZoom: allow zooming out just enough to see all nodes, with padding
@@ -965,9 +1345,11 @@ function SchematicCanvas() {
   return (
     <>
     <ReactFlow
+      ref={rfContainerRef}
       className={[
         debugEdges ? "debug-active" : "",
         selectionDirection ? `selection-${selectionDirection}` : "",
+        panMode === "pan-first" && !shiftHeld && !isMobile ? "pan-mode" : "",
       ].filter(Boolean).join(" ") || undefined}
       nodes={nodes}
       edges={visibleEdges}
@@ -985,6 +1367,8 @@ function SchematicCanvas() {
       onClickConnectStart={onClickConnectStart}
       onClickConnectEnd={onClickConnectEnd}
       onPaneClick={onPaneClick}
+      // Locked room context menu is handled by capture-phase listener on rfContainerRef
+
       onNodeClick={(event, node) => {
         if (!isClickConnectMode.current) return;
         // If clicking a handle, let the normal click-connect flow handle it
@@ -997,11 +1381,13 @@ function SchematicCanvas() {
           return;
         }
 
-        // Find first available compatible handle on the clicked device
+        // Find first available compatible handle on the clicked device.
+        // Search all handles (not just target/source) because bidirectional port
+        // handles are all registered as type="source" for React Flow compatibility.
         const state = useSchematicStore.getState();
         const intNode = rfInstance.getInternalNode(node.id);
         const hBounds = intNode?.internals.handleBounds;
-        const targetHandles = from.fromSource ? hBounds?.target : hBounds?.source;
+        const targetHandles = [...(hBounds?.source ?? []), ...(hBounds?.target ?? [])];
 
         let connected = false;
         for (const h of targetHandles ?? []) {
@@ -1051,6 +1437,11 @@ function SchematicCanvas() {
           useSchematicStore.setState({
             deviceContextMenu: { nodeId: node.id, screenX: event.clientX, screenY: event.clientY },
           });
+        } else if (node.type === "stub-label") {
+          event.preventDefault();
+          useSchematicStore.setState({
+            stubLabelContextMenu: { nodeId: node.id, screenX: event.clientX, screenY: event.clientY },
+          });
         }
       }}
       onReconnectStart={onReconnectStart}
@@ -1061,16 +1452,16 @@ function SchematicCanvas() {
       edgeTypes={edgeTypes}
       onDragOver={onDragOver}
       onDrop={onDrop}
-      selectionOnDrag={isMobile ? false : !spaceHeld}
+      selectionOnDrag={isMobile ? false : (panMode === "pan-first" ? shiftHeld : !spaceHeld)}
       selectionMode={selectionMode}
-      panOnDrag={isMobile ? [0] : (spaceHeld ? [0] : [1])}
+      panOnDrag={isMobile ? [0] : (panMode === "pan-first" ? (shiftHeld ? [1] : [0, 1]) : (spaceHeld ? [0, 1] : [1]))}
       fitView
       minZoom={minZoom}
       elevateNodesOnSelect={false}
       elevateEdgesOnSelect={false}
       deleteKeyCode={null}
       selectionKeyCode={null}
-      multiSelectionKeyCode="Shift"
+      multiSelectionKeyCode={null}
       proOptions={{ hideAttribution: true }}
       panOnScroll={false}
       zoomOnScroll={false}
@@ -1148,27 +1539,28 @@ function SchematicCanvas() {
         </div>
       )}
       {!printView && <CanvasOriginOverlay />}
-      <Background variant={BackgroundVariant.Dots} gap={GRID_SIZE} size={1} color="#d4d4d4" />
+      <Background variant={BackgroundVariant.Dots} gap={GRID_SIZE} size={1} color={isDark ? "#374151" : "#d4d4d4"} />
       <Controls position="bottom-right" />
       <AutoRouteChip />
+      <AutoRouteConfirmDialog />
       <MiniMap
         position="bottom-left"
         pannable
         zoomable
-        nodeColor={(node) => node.type === "room" ? "#e5e7eb" : "#3b82f6"}
+        nodeColor={(node) => node.type === "room" ? (isDark ? "#334155" : "#e5e7eb") : "#3b82f6"}
       />
       <RoutingDebugOverlay />
     </ReactFlow>
     <RoutingTuningPanel />
+    <SelectionFilterBar />
     {quickAddPos && (
       <QuickAddDevice
         position={quickAddPos}
         onClose={() => setQuickAddPos(null)}
-        onOpenRouterCreator={() => { routerCreatorPosRef.current = quickAddPos ?? undefined; setShowRouterCreator(true); }}
+        onOpenDeviceCreator={() => { deviceCreatorPosRef.current = quickAddPos ?? undefined; setShowDeviceCreator(true); }}
       />
     )}
-    {/* eslint-disable-next-line react-hooks/refs -- ref read is intentional; value is set before render */}
-    {showRouterCreator && <RouterCreator position={routerCreatorPosRef.current} onClose={() => { setShowRouterCreator(false); routerCreatorPosRef.current = undefined; }} />}
+    {showDeviceCreator && deviceCreatorPosRef.current && <DeviceCreatorPicker position={deviceCreatorPosRef.current} onClose={() => { setShowDeviceCreator(false); deviceCreatorPosRef.current = undefined; }} />}
     </>
   );
 }
@@ -1273,9 +1665,11 @@ export default function App() {
       )}
       <DeviceEditor />
       <RoomEditor />
-      <DeviceContextMenu />
+      <AnnotationEditor />
       <EdgeContextMenu />
       <RoomContextMenu />
+      <DeviceContextMenu />
+      <StubLabelContextMenu />
       <PortContextMenu />
       <IncompatibleConnectionDialog />
       <MobileGate />

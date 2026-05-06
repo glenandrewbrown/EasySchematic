@@ -8,9 +8,12 @@
 import type { ReactFlowInstance } from "@xyflow/react";
 import type { SchematicNode, ConnectionEdge } from "./types";
 import {
+  buildGlobalGrid,
   buildObstacles,
   computeEdgePath,
+  createPenaltySpatialIndex,
   g2px,
+  growPenaltyIndex,
   pixelRectsToGrid,
   px2g,
   simplifyWaypoints,
@@ -160,15 +163,16 @@ function getHandlePositions(
   return result;
 }
 
-function getAbsPos(node: SchematicNode, nodes: SchematicNode[]) {
+function getAbsPos(node: SchematicNode, nodeMap: Map<string, SchematicNode>) {
   let x = node.position.x;
   let y = node.position.y;
-  if (node.parentId) {
-    const parent = nodes.find((n) => n.id === node.parentId);
-    if (parent) {
-      x += parent.position.x;
-      y += parent.position.y;
-    }
+  let parentId = node.parentId;
+  while (parentId) {
+    const parent = nodeMap.get(parentId);
+    if (!parent) break;
+    x += parent.position.x;
+    y += parent.position.y;
+    parentId = parent.parentId;
   }
   return { x, y };
 }
@@ -179,14 +183,14 @@ function computeStubSpread(
   edgeId: string,
   sourceNodeId: string,
   edges: ConnectionEdge[],
-  nodes: SchematicNode[],
+  nodeMap: Map<string, SchematicNode>,
 ): number {
   const allFromSource: { edgeId: string; handleY: number }[] = [];
   for (const e of edges) {
     if (e.source !== sourceNodeId) continue;
-    const tgt = nodes.find((n) => n.id === e.target);
+    const tgt = nodeMap.get(e.target);
     if (!tgt) continue;
-    const tgtPos = getAbsPos(tgt, nodes);
+    const tgtPos = getAbsPos(tgt, nodeMap);
     const tgtH = tgt.measured?.height ?? 80;
     allFromSource.push({ edgeId: e.id, handleY: tgtPos.y + tgtH / 2 });
   }
@@ -218,7 +222,7 @@ export function extractSegments(waypoints: Point[]): Segment[] {
 // ---------- Violation detection ----------
 
 /** Do two perpendicular segments actually cross? */
-function segmentsCross(a: Segment, b: Segment): boolean {
+export function segmentsCross(a: Segment, b: Segment): boolean {
   if (a.axis === b.axis) return false;
   // Ensure h is horizontal, v is vertical
   const h = a.axis === "h" ? a : b;
@@ -575,7 +579,15 @@ export function routeAllEdges(
   printConfig?: PrintConfig,
   _timeBudgetMs: number = DEFAULT_TIME_BUDGET_MS,
 ): RouteAllResult {
-  const overBudget = false;
+  let overBudget = false;
+  const routingStart = Date.now();
+
+  // Build node map for O(1) lookups
+  const nodeMap = new Map<string, SchematicNode>();
+  for (const n of nodes) {
+    nodeMap.set(n.id, n);
+  }
+
   // Build handle position map
   const handleMap = new Map<string, HandlePos>();
   for (const node of nodes) {
@@ -586,8 +598,10 @@ export function routeAllEdges(
 
   // Build obstacles once (all devices)
   const getAbsPosAdapter = (n: { id: string; position: { x: number; y: number }; parentId?: string }) =>
-    getAbsPos(n as SchematicNode, nodes);
+    getAbsPos(n as SchematicNode, nodeMap);
   const obs = buildObstacles(nodes, [], getAbsPosAdapter);
+  // Pre-convert obstacles to grid rects once — avoids per-edge re-conversion
+  const precomputedGridRects = pixelRectsToGrid(obs.rects);
 
   // Add title block obstacles in print view
   if (printConfig) {
@@ -607,14 +621,14 @@ export function routeAllEdges(
 
     if (!srcHandle || !tgtHandle) continue; // node not measured yet
 
-    const stubSpread = computeStubSpread(edge.id, edge.source, edges, nodes);
+    const stubSpread = computeStubSpread(edge.id, edge.source, edges, nodeMap);
 
     // Determine handle exit directions by comparing handle X to node center X.
     // Handles on the right half of their device exit rightward, left half exit leftward.
-    const srcNode = nodes.find((n) => n.id === edge.source);
-    const tgtNode = nodes.find((n) => n.id === edge.target);
-    const srcPos = srcNode ? getAbsPos(srcNode, nodes) : { x: 0, y: 0 };
-    const tgtPos = tgtNode ? getAbsPos(tgtNode, nodes) : { x: 0, y: 0 };
+    const srcNode = nodeMap.get(edge.source);
+    const tgtNode = nodeMap.get(edge.target);
+    const srcPos = srcNode ? getAbsPos(srcNode, nodeMap) : { x: 0, y: 0 };
+    const tgtPos = tgtNode ? getAbsPos(tgtNode, nodeMap) : { x: 0, y: 0 };
     const srcCenterX = srcPos.x + (srcNode?.measured?.width ?? 180) / 2;
     const tgtCenterX = tgtPos.x + (tgtNode?.measured?.width ?? 180) / 2;
 
@@ -629,6 +643,18 @@ export function routeAllEdges(
       targetEntersLeft: tgtHandle.absX <= tgtCenterX,
     });
   }
+
+  // Build one global grid covering all obstacles + endpoints — shared across all A* calls.
+  // Eliminates per-edge grid construction (allocation + obstacle marking).
+  const epGXs: number[] = [];
+  const epGYs: number[] = [];
+  for (const ep of edgeEndpoints) {
+    epGXs.push(px2g(ep.sourceX), px2g(ep.targetX));
+    epGYs.push(px2g(ep.sourceY), px2g(ep.targetY));
+  }
+  const globalGrid = epGXs.length > 0
+    ? buildGlobalGrid(precomputedGridRects, epGXs, epGYs)
+    : undefined;
 
   // Sort order determines corridor priority — edges routed first claim corridors,
   // later edges route around them via penalty zones.
@@ -699,9 +725,41 @@ export function routeAllEdges(
   const results: Record<string, RoutedEdge> = {};
   const routeStates: RouteState[] = [];
 
-  // Stubbed edges should be excluded from crossing detection —
-  // their invisible middle sections shouldn't affect other edges.
-  const stubbedIds = new Set(edgeEndpoints.filter((ep) => ep.edge.data?.stubbed).map((ep) => ep.edge.id));
+  // Incremental penalty zones — append after each edge instead of rebuilding from scratch
+  const runningPenalties: PenaltyZone[] = [];
+  const penaltySpatialIdx = createPenaltySpatialIndex();
+
+  /** Append penalty zones for a newly routed edge and grow the spatial index. */
+  const appendPenalties = (rs: RouteState) => {
+    for (const seg of rs.segments) {
+      if (seg.axis === "v") {
+        runningPenalties.push({
+          axis: "v",
+          coordinate: px2g(seg.x1),
+          rangeMin: px2g(Math.min(seg.y1, seg.y2)),
+          rangeMax: px2g(Math.max(seg.y1, seg.y2)),
+          signalType: rs.signalType,
+        });
+      } else {
+        runningPenalties.push({
+          axis: "h",
+          coordinate: px2g(seg.y1),
+          rangeMin: px2g(Math.min(seg.x1, seg.x2)),
+          rangeMax: px2g(Math.max(seg.x1, seg.x2)),
+          signalType: rs.signalType,
+        });
+      }
+    }
+    growPenaltyIndex(penaltySpatialIdx, runningPenalties);
+  };
+
+  /** Check time budget and set overBudget flag. */
+  const checkBudget = () => {
+    if (!overBudget && Date.now() - routingStart > _timeBudgetMs) {
+      overBudget = true;
+    }
+    return overBudget;
+  };
 
   // ---------- Route manual edges first (unchanged — they get a clean slate) ----------
   const manualEndpoints: EdgeEndpoints[] = [];
@@ -716,7 +774,7 @@ export function routeAllEdges(
 
   for (const ep of manualEndpoints) {
     const sigType = ep.edge.data?.signalType;
-    const penalties = buildPenaltyZones(routeStates);
+    const penalties = runningPenalties;
     const manualWps = ep.edge.data!.manualWaypoints!;
 
     const allPoints = [
@@ -756,11 +814,17 @@ export function routeAllEdges(
       const reserved = reservedExitDir[leg + 1];
       const reservedAtTarget = reserved !== undefined ? (reserved + 2) % 4 : undefined;
 
+      // Pass exit/entry directions for first and last legs
+      const legSrcExitsRight = isFirstLeg ? ep.sourceExitsRight : undefined;
+      const legTgtEntersLeft = isLastLeg ? ep.targetEntersLeft : undefined;
+
       let legResult = computeEdgePath(
         from.x, from.y, to.x, to.y,
         obs.rects, 0, spread,
         penalties.length > 0 ? penalties : undefined,
         sigType, noSourceStub, noTargetStub, excludeDir, reservedAtTarget,
+        undefined, legSrcExitsRight, legTgtEntersLeft,
+        precomputedGridRects, penaltySpatialIdx, globalGrid,
       );
 
       if (!legResult) {
@@ -771,6 +835,8 @@ export function routeAllEdges(
           relaxedRects, 0, spread,
           penalties.length > 0 ? penalties : undefined,
           sigType, noSourceStub, noTargetStub, excludeDir, reservedAtTarget,
+          undefined, legSrcExitsRight, legTgtEntersLeft,
+          undefined, penaltySpatialIdx,
         );
       }
 
@@ -791,12 +857,14 @@ export function routeAllEdges(
       const svgPath = waypointsToSvgPath(allWaypoints);
       const segments = extractSegments(allWaypoints);
       const midIdx = Math.floor(allWaypoints.length / 2);
-      routeStates.push({
+      const rs: RouteState = {
         edgeId: ep.edge.id, waypoints: allWaypoints, segments, svgPath,
         labelX: allWaypoints[midIdx]?.x ?? ep.sourceX,
         labelY: allWaypoints[midIdx]?.y ?? ep.sourceY,
         turns: "manual", status: "good", signalType: sigType,
-      });
+      };
+      routeStates.push(rs);
+      appendPenalties(rs);
       continue;
     }
 
@@ -804,12 +872,14 @@ export function routeAllEdges(
     const fbSvg = waypointsToSvgPath(fallbackWp);
     const fbSegs = extractSegments(fallbackWp);
     const fbMid = Math.floor(fallbackWp.length / 2);
-    routeStates.push({
+    const rs: RouteState = {
       edgeId: ep.edge.id, waypoints: fallbackWp, segments: fbSegs, svgPath: fbSvg,
       labelX: fallbackWp[fbMid]?.x ?? ep.sourceX,
       labelY: fallbackWp[fbMid]?.y ?? ep.sourceY,
       turns: "manual-fallback", status: "good", signalType: sigType,
-    });
+    };
+    routeStates.push(rs);
+    appendPenalties(rs);
   }
 
   // ---------- PHASE 0: Column-First Allocation ----------
@@ -860,43 +930,58 @@ export function routeAllEdges(
   };
   const columnEdges: ColumnEdge[] = [];
   for (const ep of autoEndpoints) {
-    if (stubbedIds.has(ep.edge.id)) continue;
     const srcGX = px2g(ep.sourceX);
     const srcGY = px2g(ep.sourceY);
     const tgtGX = px2g(ep.targetX);
     const tgtGY = px2g(ep.targetY);
+    // Column routing assumes left-to-right flow (source exits right → corridor → target enters left).
+    // Same-side connections (both handles on right or both on left) and reversed edges bypass this.
+    const needsUnconstrained = tgtGX <= srcGX || !(ep.sourceExitsRight && ep.targetEntersLeft);
     columnEdges.push({
       ep,
       srcGX, srcGY, tgtGX, tgtGY,
       signalType: ep.edge.data?.signalType ?? "",
       assignedCol: null,
-      isBackward: tgtGX <= srcGX,
+      isBackward: needsUnconstrained,
       fanGroupId: -1,
     });
   }
 
   // ---------- Fan group detection ----------
-  // Group forward edges by source/target device proximity.
+  // Group forward edges by source/target device proximity (X AND Y).
   // Edges in the same fan group get allocated as a contiguous block.
+  // Y proximity prevents independent device groups (e.g., stacked copies of a
+  // schematic) from competing for the same column block.
   type FanGroup = {
     id: number;
     srcXMin: number; srcXMax: number;
     tgtXMin: number; tgtXMax: number;
+    yMin: number; yMax: number;
     edges: ColumnEdge[];
   };
   const fanGroups: FanGroup[] = [];
   let nextFanId = 0;
+  const FAN_Y_MARGIN = 5; // grid cells (~100px) of slack for Y-range overlap
 
   for (const ce of columnEdges) {
     if (ce.isBackward) continue;
+    const ceYMin = Math.min(ce.srcGY, ce.tgtGY);
+    const ceYMax = Math.max(ce.srcGY, ce.tgtGY);
     let placed = false;
     for (const fg of fanGroups) {
-      if (Math.abs(ce.tgtGX - fg.tgtXMin) <= 5 && Math.abs(ce.srcGX - fg.srcXMin) <= 15) {
+      // Y-range overlap: the edge's Y extent must overlap the group's Y extent
+      // (with a small margin). This prevents stacked copies from merging.
+      const overlapsY = ceYMax >= fg.yMin - FAN_Y_MARGIN && ceYMin <= fg.yMax + FAN_Y_MARGIN;
+      if (Math.abs(ce.tgtGX - fg.tgtXMin) <= 5
+        && Math.abs(ce.srcGX - fg.srcXMin) <= 15
+        && overlapsY) {
         fg.edges.push(ce);
         fg.srcXMin = Math.min(fg.srcXMin, ce.srcGX);
         fg.srcXMax = Math.max(fg.srcXMax, ce.srcGX);
         fg.tgtXMin = Math.min(fg.tgtXMin, ce.tgtGX);
         fg.tgtXMax = Math.max(fg.tgtXMax, ce.tgtGX);
+        fg.yMin = Math.min(fg.yMin, ceYMin);
+        fg.yMax = Math.max(fg.yMax, ceYMax);
         ce.fanGroupId = fg.id;
         placed = true;
         break;
@@ -909,6 +994,7 @@ export function routeAllEdges(
         id,
         srcXMin: ce.srcGX, srcXMax: ce.srcGX,
         tgtXMin: ce.tgtGX, tgtXMax: ce.tgtGX,
+        yMin: ceYMin, yMax: ceYMax,
         edges: [ce],
       });
     }
@@ -925,7 +1011,27 @@ export function routeAllEdges(
   //     → Sort by srcY descending → highest corridor. Zero first-horizontal crossings.
   //   These are OPPOSITE orderings. No single sort works for both.
 
-  const takenColumns = new Set<number>();
+  // Y-range-aware column tracking — a column is only "taken" for the Y span of the
+  // edge that claimed it. Edges at different Y positions can share the same X column.
+  const takenColumns = new Map<number, { yMin: number; yMax: number }[]>();
+  const COL_GAP = 2; // grid cells of vertical gap tolerance between claimed ranges
+
+  /** Check if a column X is available for a given Y range. */
+  const isColumnAvailable = (gx: number, yMin: number, yMax: number): boolean => {
+    const ranges = takenColumns.get(gx);
+    if (!ranges) return true;
+    for (const r of ranges) {
+      if (yMax + COL_GAP >= r.yMin && yMin - COL_GAP <= r.yMax) return false;
+    }
+    return true;
+  };
+
+  /** Claim a column X for a given Y range. */
+  const claimColumn = (gx: number, yMin: number, yMax: number): void => {
+    let ranges = takenColumns.get(gx);
+    if (!ranges) { ranges = []; takenColumns.set(gx, ranges); }
+    ranges.push({ yMin, yMax });
+  };
 
   // Process fan groups largest first (more edges = more constrained = allocate first)
   const sortedFanGroups = [...fanGroups].sort((a, b) => b.edges.length - a.edges.length);
@@ -948,10 +1054,10 @@ export function routeAllEdges(
       let allClear = true;
       for (let i = 0; i < n; i++) {
         const candidateX = baseX - i;
-        if (takenColumns.has(candidateX)) { allClear = false; break; }
         const ce = edges[i];
         const yMin = Math.min(ce.srcGY, ce.tgtGY);
         const yMax = Math.max(ce.srcGY, ce.tgtGY);
+        if (!isColumnAvailable(candidateX, yMin, yMax)) { allClear = false; break; }
         if (!isColumnClear(candidateX, yMin, yMax, excludeNodeIds)) { allClear = false; break; }
       }
       if (allClear) {
@@ -963,8 +1069,9 @@ export function routeAllEdges(
     if (blockStart >= 0) {
       for (let i = 0; i < n; i++) {
         const colX = blockStart - i;
-        edges[i].assignedCol = colX;
-        takenColumns.add(colX);
+        const ce = edges[i];
+        ce.assignedCol = colX;
+        claimColumn(colX, Math.min(ce.srcGY, ce.tgtGY), Math.max(ce.srcGY, ce.tgtGY));
       }
     } else {
       // Fallback: per-edge scan (non-contiguous but still unique columns)
@@ -974,10 +1081,10 @@ export function routeAllEdges(
         const yMax = Math.max(ce.srcGY, ce.tgtGY);
         let found = false;
         for (let gx = nextX; gx >= searchEnd; gx--) {
-          if (takenColumns.has(gx)) continue;
+          if (!isColumnAvailable(gx, yMin, yMax)) continue;
           if (isColumnClear(gx, yMin, yMax, excludeNodeIds)) {
             ce.assignedCol = gx;
-            takenColumns.add(gx);
+            claimColumn(gx, yMin, yMax);
             nextX = gx - 1;
             found = true;
             break;
@@ -985,10 +1092,10 @@ export function routeAllEdges(
         }
         if (!found) {
           for (let gx = searchStart + 1; gx <= searchStart + 20; gx++) {
-            if (takenColumns.has(gx)) continue;
+            if (!isColumnAvailable(gx, yMin, yMax)) continue;
             if (isColumnClear(gx, yMin, yMax, excludeNodeIds)) {
               ce.assignedCol = gx;
-              takenColumns.add(gx);
+              claimColumn(gx, yMin, yMax);
               found = true;
               break;
             }
@@ -1014,15 +1121,9 @@ export function routeAllEdges(
     }
 
     // DOWN: sort by tgtY ascending → highest corridor to lowest tgtY.
-    // The edge with the lowest tgtY gets the highest corridor. Its second horizontal
-    // is above all other verticals' endpoints → zero second-horizontal crossings.
-    // Its first horizontal is at the topmost srcY → above all other verticals' starts
-    // → zero first-horizontal crossings.
     downEdges.sort((a, b) => a.tgtGY - b.tgtGY);
 
     // UP: sort by srcY descending → highest corridor to highest srcY.
-    // The edge with the highest srcY gets the highest corridor. Its first horizontal
-    // is below all other verticals' endpoints → zero first-horizontal crossings.
     upEdges.sort((a, b) => b.srcGY - a.srcGY);
 
     // Collect all endpoint device IDs for this fan group — corridors may overlap
@@ -1033,8 +1134,7 @@ export function routeAllEdges(
       fanEndpointIds.add(ce.ep.edge.target);
     }
 
-    // Allocate DOWN subgroup first (gets higher corridors, closer to target),
-    // then UP subgroup (gets lower corridors). The two subgroups occupy different
+    // Allocate DOWN subgroup first, then UP subgroup. The two subgroups occupy different
     // Y bands so cross-direction crossings are geometrically impossible.
     allocateBlock(downEdges, searchStart, searchEnd, fanEndpointIds);
     allocateBlock(upEdges, searchStart, searchEnd, fanEndpointIds);
@@ -1054,11 +1154,14 @@ export function routeAllEdges(
     noSrcStub: boolean, noTgtStub: boolean,
     excludeStartDir?: number, excludeEndDir?: number,
     srcNodeId?: string, tgtNodeId?: string,
+    srcExitsRight?: boolean, tgtEntersLeft?: boolean,
   ) => {
     let result = computeEdgePath(
       fromX, fromY, toX, toY, rects, 0, spread,
       penalties, sigType, noSrcStub, noTgtStub,
       excludeStartDir, excludeEndDir,
+      undefined, srcExitsRight, tgtEntersLeft,
+      precomputedGridRects, penaltySpatialIdx,
     );
     if (!result) {
       const excludeSet = new Set<string>();
@@ -1070,6 +1173,8 @@ export function routeAllEdges(
           fromX, fromY, toX, toY, relaxed, 0, spread,
           penalties, sigType, noSrcStub, noTgtStub,
           excludeStartDir, excludeEndDir,
+          undefined, srcExitsRight, tgtEntersLeft,
+          undefined, penaltySpatialIdx,
         );
       }
     }
@@ -1082,35 +1187,44 @@ export function routeAllEdges(
 
     // Backward edges or edges without column assignment → unconstrained A* fallback
     if (ce.isBackward || ce.assignedCol === null) {
-      const penalties = buildPenaltyZones(routeStates);
-      const result = routeLeg(
+      const pens = runningPenalties.length > 0 ? runningPenalties : undefined;
+      // If over time budget, skip A* and use fallback directly
+      const result = checkBudget() ? null : routeLeg(
         ep.sourceX, ep.sourceY, ep.targetX, ep.targetY,
-        obs.rects, ep.stubSpread, penalties.length > 0 ? penalties : undefined,
+        obs.rects, ep.stubSpread, pens,
         sigType, false, false, undefined, undefined,
         ep.edge.source, ep.edge.target,
+        ep.sourceExitsRight, ep.targetEntersLeft,
       );
       if (result) {
-        routeStates.push({
+        const rs: RouteState = {
           edgeId: ep.edge.id, waypoints: result.waypoints,
           segments: extractSegments(result.waypoints), svgPath: result.path,
           labelX: result.labelX, labelY: result.labelY,
           turns: result.turns, status: "good", signalType: sigType,
-        });
+        };
+        routeStates.push(rs);
+        appendPenalties(rs);
       } else {
-        const midX = Math.max(ep.sourceX, ep.targetX) + 40;
+        // Fallback: route around the outside based on exit/entry directions
+        const midX = ep.sourceExitsRight
+          ? Math.max(ep.sourceX, ep.targetX) + 40
+          : Math.min(ep.sourceX, ep.targetX) - 40;
         const wp: Point[] = [
           { x: ep.sourceX, y: ep.sourceY },
           { x: midX, y: ep.sourceY },
           { x: midX, y: ep.targetY },
           { x: ep.targetX, y: ep.targetY },
         ];
-        routeStates.push({
+        const rs: RouteState = {
           edgeId: ep.edge.id, waypoints: wp,
           segments: extractSegments(wp),
           svgPath: wp.map((p, i) => i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`).join(" "),
           labelX: midX, labelY: (ep.sourceY + ep.targetY) / 2,
           turns: "fallback", status: "bad", signalType: sigType,
-        });
+        };
+        routeStates.push(rs);
+        appendPenalties(rs);
       }
       continue;
     }
@@ -1120,11 +1234,15 @@ export function routeAllEdges(
 
     // Check if a clean L-shape works (no INTERMEDIATE obstacles on horizontal segments).
     // Exclude the edge's own source/target devices — the horizontal naturally exits/enters them.
+    // Also verify the corridor is in the correct direction relative to exit/entry sides —
+    // if the source exits left but the corridor is right (or vice versa), L-shape goes through device.
     const endpointIds = new Set([ep.edge.source, ep.edge.target]);
+    const srcCorridorOk = ep.sourceExitsRight ? corridorPx >= ep.sourceX : corridorPx <= ep.sourceX;
+    const tgtCorridorOk = ep.targetEntersLeft ? corridorPx <= ep.targetX : corridorPx >= ep.targetX;
     const hSeg1Clear = isHSegmentClear(ce.srcGY, Math.min(ce.srcGX, ce.assignedCol), Math.max(ce.srcGX, ce.assignedCol), endpointIds);
     const hSeg2Clear = isHSegmentClear(ce.tgtGY, Math.min(ce.tgtGX, ce.assignedCol), Math.max(ce.tgtGX, ce.assignedCol), endpointIds);
 
-    if (hSeg1Clear && hSeg2Clear) {
+    if (srcCorridorOk && tgtCorridorOk && hSeg1Clear && hSeg2Clear) {
       // Clean L-shape: source → corridor → target
       const wp: Point[] = [
         { x: ep.sourceX, y: ep.sourceY },
@@ -1134,7 +1252,7 @@ export function routeAllEdges(
       ];
       const cleaned = simplifyWaypoints(wp);
       const svgPath = waypointsToSvgPath(cleaned);
-      routeStates.push({
+      const rs: RouteState = {
         edgeId: ep.edge.id, waypoints: cleaned,
         segments: extractSegments(cleaned), svgPath,
         labelX: corridorPx, labelY: (ep.sourceY + ep.targetY) / 2,
@@ -1142,35 +1260,38 @@ export function routeAllEdges(
           ? cleaned.slice(1, -1).map((p) => `${Math.round(p.x)},${Math.round(p.y)}`).join(" → ")
           : "straight",
         status: "good", signalType: sigType,
-      });
+      };
+      routeStates.push(rs);
+      appendPenalties(rs);
       continue;
     }
 
     // L-shape obstructed by intermediate devices → route via corridor as mandatory waypoint.
     // Split into legs: source → (corridor, srcY) → (corridor, tgtY) → target.
     // Each leg uses A* to navigate around obstacles while respecting the corridor.
-    const penalties = buildPenaltyZones(routeStates);
-    const pens = penalties.length > 0 ? penalties : undefined;
+    const pens = runningPenalties.length > 0 ? runningPenalties : undefined;
 
     // Corridor waypoints (the vertical segment endpoints)
     const cwp1 = { x: corridorPx, y: ep.sourceY }; // top of vertical
     const cwp2 = { x: corridorPx, y: ep.targetY }; // bottom of vertical
 
-    // Leg 1: source → corridor top (horizontal-ish, navigates around intermediate devices)
-    const leg1 = routeLeg(
+    // If over budget, skip A* legs
+    const leg1 = checkBudget() ? null : routeLeg(
       ep.sourceX, ep.sourceY, cwp1.x, cwp1.y,
       obs.rects, ep.stubSpread, pens, sigType,
       false, true, // has source stub, no target stub (it's a waypoint)
       undefined, undefined, ep.edge.source, undefined,
+      ep.sourceExitsRight, undefined,
     );
 
     // Leg 3: corridor bottom → target (horizontal-ish, navigates around intermediate devices)
-    const leg3 = routeLeg(
+    const leg3 = (leg1 && !checkBudget()) ? routeLeg(
       cwp2.x, cwp2.y, ep.targetX, ep.targetY,
       obs.rects, 0, pens, sigType,
       true, false, // no source stub (waypoint), has target stub
       undefined, undefined, undefined, ep.edge.target,
-    );
+      undefined, ep.targetEntersLeft,
+    ) : null;
 
     if (leg1 && leg3) {
       // Assemble: leg1 waypoints + vertical segment + leg3 waypoints
@@ -1181,7 +1302,7 @@ export function routeAllEdges(
       ];
       const cleaned = simplifyWaypoints(allWaypoints);
       const svgPath = waypointsToSvgPath(cleaned);
-      routeStates.push({
+      const rs: RouteState = {
         edgeId: ep.edge.id, waypoints: cleaned,
         segments: extractSegments(cleaned), svgPath,
         labelX: corridorPx, labelY: (ep.sourceY + ep.targetY) / 2,
@@ -1189,7 +1310,9 @@ export function routeAllEdges(
           ? cleaned.slice(1, -1).map((p) => `${Math.round(p.x)},${Math.round(p.y)}`).join(" → ")
           : "straight",
         status: "good", signalType: sigType,
-      });
+      };
+      routeStates.push(rs);
+      appendPenalties(rs);
     } else {
       // Multi-leg failed → force L-shape at corridor (may cross obstacles visually,
       // but at least uses the assigned corridor for consistent nesting)
@@ -1200,60 +1323,14 @@ export function routeAllEdges(
         { x: ep.targetX, y: ep.targetY },
       ];
       const cleaned = simplifyWaypoints(wp);
-      routeStates.push({
+      const rs: RouteState = {
         edgeId: ep.edge.id, waypoints: cleaned,
         segments: extractSegments(cleaned), svgPath: waypointsToSvgPath(cleaned),
         labelX: corridorPx, labelY: (ep.sourceY + ep.targetY) / 2,
         turns: "corridor-forced", status: "bad", signalType: sigType,
-      });
-    }
-  }
-
-  // Route any stubbed auto edges that were skipped from column allocation
-  for (const ep of autoEndpoints) {
-    if (!stubbedIds.has(ep.edge.id)) continue;
-    const sigType = ep.edge.data?.signalType;
-    const penalties = buildPenaltyZones(routeStates);
-    let result = computeEdgePath(
-      ep.sourceX, ep.sourceY, ep.targetX, ep.targetY,
-      obs.rects, 0, ep.stubSpread,
-      penalties.length > 0 ? penalties : undefined,
-      sigType, undefined, undefined, undefined, undefined, undefined,
-      ep.sourceExitsRight, ep.targetEntersLeft,
-    );
-    if (!result) {
-      const excludeSet = new Set([ep.edge.source, ep.edge.target]);
-      const relaxedRects = obs.rects.filter((r) => !r.nodeId || !excludeSet.has(r.nodeId));
-      result = computeEdgePath(
-        ep.sourceX, ep.sourceY, ep.targetX, ep.targetY,
-        relaxedRects, 0, ep.stubSpread,
-        penalties.length > 0 ? penalties : undefined,
-        sigType, undefined, undefined, undefined, undefined, undefined,
-        ep.sourceExitsRight, ep.targetEntersLeft,
-      );
-    }
-    if (result) {
-      routeStates.push({
-        edgeId: ep.edge.id, waypoints: result.waypoints,
-        segments: extractSegments(result.waypoints), svgPath: result.path,
-        labelX: result.labelX, labelY: result.labelY,
-        turns: result.turns, status: "good", signalType: sigType,
-      });
-    } else {
-      const midX = Math.max(ep.sourceX, ep.targetX) + 40;
-      const wp: Point[] = [
-        { x: ep.sourceX, y: ep.sourceY },
-        { x: midX, y: ep.sourceY },
-        { x: midX, y: ep.targetY },
-        { x: ep.targetX, y: ep.targetY },
-      ];
-      routeStates.push({
-        edgeId: ep.edge.id, waypoints: wp,
-        segments: extractSegments(wp),
-        svgPath: wp.map((p, i) => i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`).join(" "),
-        labelX: midX, labelY: (ep.sourceY + ep.targetY) / 2,
-        turns: "fallback", status: "bad", signalType: sigType,
-      });
+      };
+      routeStates.push(rs);
+      appendPenalties(rs);
     }
   }
 
@@ -1271,7 +1348,6 @@ export function routeAllEdges(
       for (let j = i + 1; j < routeStates.length; j++) {
         const a = routeStates[i];
         const b = routeStates[j];
-        if (stubbedIds.has(a.edgeId) || stubbedIds.has(b.edgeId)) continue;
         for (const sa of a.segments) {
           for (const sb of b.segments) {
             if (segmentsCross(sa, sb)) {
@@ -1317,7 +1393,7 @@ export function routeAllEdges(
   }
 
   // Export debug data for overlay and Claude analysis
-  const finalPenalties = buildPenaltyZones(routeStates);
+  const finalPenalties = runningPenalties;
 
   const w = globalThis as unknown as Record<string, unknown>;
   w.__routingDebug = {

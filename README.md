@@ -6,24 +6,43 @@
 
 <p align="center">A drag-and-drop AV signal flow diagram tool for designing and documenting AV system hook-ups.<br>Built for broadcast, live production, and AV integration workflows.</p>
 
-<p align="center"><b><a href="https://easyschematic.live">Try it live →</a></b> · <b><a href="https://docs.easyschematic.live">Documentation →</a></b> · <b><a href="https://devices.easyschematic.live">Device Database →</a></b> · <b><a href="https://discord.gg/dxXn3Jk2a6">Discord →</a></b></p>
+<p align="center"><b><a href="https://easyschematic.live">Try it live →</a></b> · <b><a href="https://docs.easyschematic.live">Documentation →</a></b> · <b><a href="https://devices.easyschematic.live">Device Database →</a></b> · <b><a href="https://discord.gg/dxXn3Jk2a6">Discord →</a></b> · <b><a href="https://ko-fi.com/duremovich">Support the project →</a></b></p>
+
+<h3 align="center">Supported by</h3>
+
+<p align="center">
+  <a href="https://cumoratek.com/">
+    <img src="https://avatars.githubusercontent.com/u/137531034?v=4" height="64" alt="Cumoratek AV Solutions" title="Cumoratek AV Solutions"/>
+  </a>
+</p>
+
+<p align="center"><sub><b>Individual supporters</b><br/>Sean Curtis</sub></p>
 
 ## Features
 
 ### Canvas & Devices
 
-- **500+ built-in device templates** across 21 categories — Sources, Peripherals, Switching, Processing, Distribution, Monitoring, Projection, Recording, Audio, Speakers, Amplifiers, Networking, KVM/Extenders, Wireless, LED Video, Media Servers, Lighting, Control, Infrastructure, Cloud Services, Cable Accessories
+- **2,000+ device templates** drawn from the [community device library](https://devices.easyschematic.live) — fetched live when you're online, with a bundled offline fallback so the app stays usable without a connection
 - **User templates** — save modified devices as reusable templates
 - **Favorite devices** — star templates in the library for quick access; favorites pin to the top and sort first in search
 - **Template presets** — save a device configuration as the project default for that template; new placements auto-apply the preset
 - **Quick-add** — double-click empty canvas to open a search dialog; type to find any device, note, or room and place it instantly
-- **Expansion slots** — devices with swappable card bays (e.g. router chassis with SDI/HDMI/fiber cards); right-click a slot to swap cards in or out
-- **Quick-create routers** — generate routers with configurable input/output counts and signal type
+- **Signal type filter** — narrow device search to templates exposing a chosen signal type, in both the app and the devices site
+- **Expansion slots** — devices with swappable card bays (e.g. router chassis with SDI/HDMI/fiber cards); right-click a slot to swap cards in or out, or build a custom card from scratch
+- **Custom devices** — design any device from scratch with a guided builder (matrix routers, breakout panels, anything with structured I/O sections)
 - **Notes & annotations** — text annotations on the canvas with rectangle and ellipse shapes
 - **Rooms** — resizable dashed-border containers for grouping devices, with lock/unlock to prevent accidental moves
 - **Auto-numbering** — dropped devices auto-increment (Camera → Camera 1, Camera 2, …)
-- **Demo schematic** loaded for first-time visitors
-- **Collapsible device library sidebar**
+- **Dark mode** — toggle light/dark themes from the menu bar; saved automatically, respects OS setting on first visit
+- **Mobile support** — mobile detection with hamburger menu and touch-friendly pan controls
+- **Physical dimensions** — height, width, depth (mm) and weight (kg) fields on devices
+- **Auxiliary data block** — up to 5 custom lines at the bottom of a device, either free text or bound to device properties (hostname, power, weight, port counts, etc.) via a `{{field}}` picker that keeps values in sync automatically
+- **Custom label expansion** — embed `{{cableId}}` and other tokens in device labels for inline cable references
+- **IO counts** — optional badges on devices showing connected/total ports per direction (View Options)
+- **Hostname** — per-device hostname field, feeding into the network report
+- **Venue-provided gear flag** — mark devices as provided by venue; distinguished in the pack list
+- **Owned Gear library** — track an inventory of gear you own; the pack list reports used vs. needed counts so you know what to buy or rent
+- **Nested slots** — expansion cards with their own sub-slots (e.g., SFP/QSFP transceivers in network cards)
 
 ### Connections
 
@@ -34,13 +53,16 @@
 - **Auto-route toggle** — disable A\* routing for lag-free editing on large schematics; click the status chip in the top-right corner
 - **Manual route editing** — right-click a connection to add draggable waypoints; A\* routes each leg between waypoints while other connections yield
 - **Cable length** — editable per-connection field, tracked in cable schedule and pack list
+- **Estimated cable length** — auto-populated from room-to-room distances when both endpoints are inside placed rooms; flows into the cable schedule, patch panel schedule, and pack list
 - **Multicable support** — cable accessory templates (snakes, socapex), trunk ports, break-in/break-out devices
 - **Cable ID labels** — auto-assigned with type-prefix naming (e.g. "SDI-1", "HDMI-2") or sequential ("Cable 1", "Cable 2")
 - **Line jump arcs** at connection crossings
-- **Stubbed connections** — render as short stubs with destination labels (device name, room, page) instead of full routed lines; drag labels to reposition, add intermediate waypoints via right-click
+- **Stubbed connections** — render as short stubs with destination labels (device name, optional port, room, page) instead of full routed lines; drag labels to reposition, add intermediate waypoints via right-click. Globally toggle port-name display and page-number mode (cross-page only / always / never), or override per connection.
 - **Connector mismatch override** — force-connect ports with incompatible connectors
 - **Bare wire compatibility** — Phoenix and Terminal Block connectors connect to any connector type without adapter warnings
-- **42 signal types**, all color-coded (see below)
+- **68 signal types**, all color-coded (see below)
+- **Connection line styles** — solid, dashed, dotted, or dash-dot per connection or per signal type
+- **Adapters** — automatic adapter insertion between incompatible ports, with direct-attach support, barrels, gender labels, and per-adapter visibility controls
 
 ### Ports
 
@@ -48,6 +70,10 @@
 - **Port sections** — group related ports under headers
 - **Drag-and-drop reordering** in the device editor
 - Add, remove, and rename ports per device
+- **Port notes** — optional notes field per port for documenting specific usage
+- **Flip ports** — move any port to the opposite side of the device for flexible signal flow layouts
+- **Connector gender** — auto-derived from connector type and direction, with per-port overrides for connectors where gender varies (XLR, powerCON, IEC, Cam-Lok, BNC, TRS). The cable schedule adds an `M-M` or `F-F` suffix to cables that need two like-gendered plugs, so pack lists reflect what you actually need to buy.
+- **Patch panels** — devices with `patch-panel` type render as front/rear instead of input/output, with column headers on the canvas; built-in templates for RJ45, BNC, XLR, fiber LC, and TT bantam patch bays in common port counts
 
 ### Organization
 
@@ -59,10 +85,14 @@
 - **Room snap guides** — rooms and resize handles snap to other rooms' edges/centers with visible alignment guides
 - **Room styling** — right-click a room to set background color, border color, border style, and label size
 - **Space + drag** to pan (Vectorworks-style)
+- **Subrooms** — nested room containers for representing locations within locations (e.g., rack bays inside a control room)
+- **Equipment racks** — mark a room as an equipment rack via right-click for rack-style rendering
+- **Shift+click toggle selection** — add/remove items from selection; Shift+drag for AutoCAD-style directional selection. Crossing (right-to-left) drag also selects connections whose routed paths cross the box.
+- **Selection filter bar** — appears at the bottom of the canvas when 2+ items are selected; chip per entity kind with click-to-solo / Ctrl+click-to-deselect. When connections are in the selection, an **Edit N connections…** button opens a bulk edit panel for label, line style, direct attach, and label visibility — applied in one undo step.
 
 ### Signal Types
 
-SDI · HDMI · NDI · Dante · Analog Audio · AES · AES67 · DMX · MADI · USB · Ethernet · Fiber · DisplayPort · HDBaseT · SRT · ST 2110 · Genlock · Word Clock · GPIO · RS-422 · Serial · Thunderbolt · Composite · VGA · RF · Power · L1 · L2 · L3 · Neutral · Ground · MIDI · Tally · S/PDIF · ADAT · YDIF · Ultranet · AES50 · StageConnect · Art-Net · sACN · Custom
+SDI · HDMI · NDI · Dante · AVB · Analog Audio · Speaker-Level · Bluetooth · AES · AES67 · DMX · MADI · USB · Ethernet · Fiber · DisplayPort · HDBaseT · SRT · ST 2110 · Genlock · Word Clock · GPIO · Contact Closure · RS-422 · Serial · Thunderbolt · Composite · Component Video · S-Video · VGA · DVI · RF · Power · L1 · L2 · L3 · Neutral · Ground · MIDI · Tally · S/PDIF · ADAT · YDIF · Ultranet · AES50 · StageConnect · Art-Net · sACN · IR · Timecode · GigaACE · DX5 · SLink · SoundGrid · fibreACE · dSnake · DX Link · Digilink · eBUS · Control Voltage · Extron Expansion · POTS · GPS · DARS · RTMP · RTSP · MPEG-TS · Custom
 
 **Signal color panel** — collapsible right sidebar with per-signal color pickers. Custom colors are saved in schematic files and persist across sessions. Reset to defaults anytime.
 
@@ -71,7 +101,9 @@ SDI · HDMI · NDI · Dante · Analog Audio · AES · AES67 · DMX · MADI · US
 ### Pack List & Reports
 
 - **Pack list** — auto-generated bill of materials from your schematic (devices + cables)
-- **Cable schedule** — per-connection wiring report with editable cable IDs, connector info, cable types, signal types, and room assignments; fill series support for batch renaming
+- **Cable schedule** — per-connection wiring report with editable cable IDs, connector info, cable types, signal types, room assignments, and an Est. Length column derived from room positions; fill series support for batch renaming
+- **Patch panel schedule** — per-port inventory of every patch panel in the schematic, including unconnected ports; occupancy badges per panel, group by Panel / Room / Signal / Face; shares cable IDs and estimated lengths with the cable schedule
+- **Owned Gear library** — track inventory of gear you own; the pack list reports used vs. needed counts so a single schematic tells you what to pull from the shop and what to rent or buy
 - **Print preview** — WYSIWYG report editor with interactive header/footer grid, column visibility, grouping, sorting
 - **Multi-page preview** with accurate page breaks, page navigation, zoom, and "Page X of Y" numbering
 - **Header/footer grid editor** — assign fields (show name, venue, date, etc.), static text, logo, or page numbers to cells; merge, resize, add/delete rows and columns via right-click
@@ -80,11 +112,13 @@ SDI · HDMI · NDI · Dante · Analog Audio · AES · AES67 · DMX · MADI · US
 - **CSV export** for spreadsheet use
 - **PDF export** matching the preview layout exactly
 - Layout preferences saved per-schematic
+- **BOM cost tracking** — unit cost field on devices and cables for budgeting
 
 ### Community Device Database
 
 - **[devices.easyschematic.live](https://devices.easyschematic.live)** — browse, search, and submit device templates
 - **Community submissions** — submit new devices or suggest edits to existing templates via magic-link email auth
+- **Submit from the canvas** — right-click any device and choose "Submit to Community" to seed a submission with all the fields you've already filled in, instead of re-entering them on the devices site
 - **Moderation workflow** — submissions are reviewed by moderators before going live
 - **Reference URLs** — branded devices link to manufacturer product pages for spec verification
 - **Contributor attribution** — approved submissions credit the contributor on the device page and the hall of fame
@@ -110,8 +144,11 @@ Responses are JSON, cached for 5 minutes. See the [full API reference](https://d
 - **Print** — configurable paper size (Standard, ISO A0–A4, ANSI, Architectural, or custom dimensions), orientation, scale, title block
 - **PNG** — 4x resolution raster export
 - **SVG** — vector export
-- **DXF** — CAD export with organized layer hierarchy (`EasySchematic-Devices`, `EasySchematic-Connections-SDI`, etc.) for Vectorworks, AutoCAD
+- **DXF** — AutoCAD R2000 (AC1015) export with canvas-faithful visuals and organized layer hierarchy (`EasySchematic-Devices`, `EasySchematic-Connections-SDI`, etc.) for Vectorworks, AutoCAD, and similar CAD tools
 - **Template import/export** — export and import user device templates as JSON
+- **Bulk device-template import** — import many templates at once from a JSON or CSV file (e.g. a vendor catalog dump) straight into your user-template library
+- **Google OAuth** — sign in with Google as an alternative to magic-link email
+- **Offline cloud cache** — cloud schematics cached to IndexedDB for offline access
 
 ### Editing
 
@@ -119,7 +156,7 @@ Responses are JSON, cached for 5 minutes. See the [full API reference](https://d
 - **Copy/paste** with offset positioning
 - **Double-click device** to open device editor (label, type, ports, presets); **Ctrl+Enter** applies and closes from any field
 - **Double-click canvas** to quick-add a device via search dialog
-- **Preferences** — scroll wheel configuration, trackpad support with sensitivity sliders, via Edit menu
+- **Preferences** — navigation mode (left drag: selection box or pan canvas), scroll wheel configuration, trackpad support with sensitivity sliders, label case display (UPPERCASE / lowercase / Capitalize), via Edit menu
 - **Right-click room** for context menu — edit properties (label, colors, border style) or lock/unlock the room
 
 ## Getting Started
@@ -138,6 +175,42 @@ npm run build
 ```
 
 Output goes to `dist/` — deploy as a static site anywhere.
+
+## Self-Hosting with Docker
+
+Run EasySchematic locally with Docker:
+
+```bash
+docker compose up -d
+```
+
+Open [http://localhost:8080](http://localhost:8080) in your browser.
+
+This builds the frontend from source and serves it with nginx. Cloud features (save to cloud, device submissions, sharing) still communicate with the hosted API at `api.easyschematic.live` — no account or API key required for read access.
+
+### Docker commands
+
+| Command | Description |
+|---------|-------------|
+| `make build` | Build the Docker image |
+| `make up` | Start the container (port 8080) |
+| `make down` | Stop the container |
+| `make restart` | Restart the container |
+| `make logs` | Tail container logs |
+| `make build-clean` | Rebuild with no cache |
+
+Or use `docker compose` directly — the `makefile` is just a convenience wrapper.
+
+### Changing the port
+
+Edit `compose.yml` and change the first number in the port mapping:
+
+```yaml
+ports:
+  - "3000:80"  # now available at localhost:3000
+```
+
+See the [Self-Hosting docs](https://docs.easyschematic.live/self-hosting) for reverse proxy setup and more details.
 
 ## Install as Desktop App
 
@@ -191,6 +264,9 @@ The installed app opens in its own window without browser chrome, works fully of
 | Double-click room background | Quick-add device inside room |
 | Right-click room | Room context menu (edit properties, lock/unlock) |
 | Right-click connection | Connection context menu (waypoints, stub, override connector mismatch, hide label, reset route) |
+| `Ctrl+Shift+S` | Save As |
+| `Shift+click` | Toggle item in selection |
+| `Shift+drag` | Directional toggle selection |
 
 ## Contributing
 

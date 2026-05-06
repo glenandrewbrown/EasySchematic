@@ -1,6 +1,6 @@
 import { memo, useState, useEffect, useCallback, useMemo, useRef } from "react";
 import type { TitleBlock, TitleBlockLayout, TitleBlockCell } from "../types";
-import type { ReportLayout, ReportTableDef, PaperSize } from "../reportLayout";
+import type { ReportLayout, ReportTableDef, PaperSize, TableBorderStyle } from "../reportLayout";
 import {
   getVisibleColumns,
   getPageDimensions,
@@ -17,6 +17,44 @@ import {
   getFieldLabel,
 } from "../titleBlockLayout";
 
+/**
+ * Resolve a layout by combining hardcoded defaults with saved user preferences.
+ * Column definitions, headers, and groupByOptions always come from code.
+ * Only user selections (visibility, widths, groupBy, sort) are restored from saved data.
+ */
+function resolveLayout(defaults: ReportLayout, saved: ReportLayout | null): ReportLayout {
+  if (!saved) return defaults;
+  return {
+    ...defaults,
+    // Restore user's page/header/footer preferences
+    headerLayout: saved.headerLayout ?? defaults.headerLayout,
+    headerHeightMm: saved.headerHeightMm ?? defaults.headerHeightMm,
+    footerLayout: saved.footerLayout ?? defaults.footerLayout,
+    footerHeightMm: saved.footerHeightMm ?? defaults.footerHeightMm,
+    orientation: saved.orientation ?? defaults.orientation,
+    paperSize: saved.paperSize ?? defaults.paperSize,
+    tables: defaults.tables.map((defaultTable) => {
+      const savedTable = saved.tables.find((t) => t.id === defaultTable.id);
+      if (!savedTable) return defaultTable;
+      // Apply saved visibility and widths onto hardcoded column definitions
+      const savedVis = new Map(savedTable.columns.map((c) => [c.key, c.visible]));
+      const savedWidths = new Map(savedTable.columns.map((c) => [c.key, c.widthMm]));
+      return {
+        ...defaultTable, // id, label, columns (definitions), groupByOptions from code
+        columns: defaultTable.columns.map((col) => ({
+          ...col,
+          visible: savedVis.has(col.key) ? savedVis.get(col.key)! : col.visible,
+          widthMm: savedWidths.has(col.key) ? savedWidths.get(col.key)! : col.widthMm,
+        })),
+        groupBy: savedTable.groupBy,
+        sortBy: savedTable.sortBy,
+        sortDir: savedTable.sortDir,
+        borderStyle: savedTable.borderStyle,
+      };
+    }),
+  };
+}
+
 // ─── Page Break Computation ───
 // Heights in mm — must match the PDF renderer constants in reportPdf.ts
 
@@ -28,7 +66,7 @@ type PageItem =
   | { kind: "sectionTitle"; tableId: string; label: string }
   | { kind: "colHeaders"; tableId: string }
   | { kind: "groupHeader"; tableId: string; label: string }
-  | { kind: "dataRow"; tableId: string; row: Record<string, string>; rowIndex: number }
+  | { kind: "dataRow"; tableId: string; row: Record<string, string>; rowIndex: number; isLastRow?: boolean }
   | { kind: "gap"; heightMm: number };
 
 interface PageDesc {
@@ -109,6 +147,22 @@ function computePages(
       td.rows.forEach((row, i) => addRow(row, i));
     }
 
+    // Mark the last data row of this table (for outer border bottom)
+    // Check currentItems first, then previous pages
+    let marked = false;
+    for (let j = currentItems.length - 1; j >= 0 && !marked; j--) {
+      const it = currentItems[j];
+      if (it.kind === "dataRow" && it.tableId === tableDef.id) { it.isLastRow = true; marked = true; }
+    }
+    if (!marked) {
+      for (let p = pages.length - 1; p >= 0 && !marked; p--) {
+        for (let j = pages[p].items.length - 1; j >= 0 && !marked; j--) {
+          const it = pages[p].items[j];
+          if (it.kind === "dataRow" && it.tableId === tableDef.id) { it.isLastRow = true; marked = true; }
+        }
+      }
+    }
+
     // Gap between tables
     currentItems.push({ kind: "gap", heightMm: PDF_TABLE_GAP });
     y += PDF_TABLE_GAP;
@@ -151,33 +205,20 @@ function ReportPreviewDialog({
   const setGlobalReportFooterLayout = useSchematicStore((s) => s.setGlobalReportFooterLayout);
 
   const [layout, setLayout] = useState<ReportLayout>(() => {
-    let base: ReportLayout | null = null;
-    if (storedLayout) {
-      base = storedLayout;
-    } else {
-      // One-time migration: check old localStorage key
+    // Load saved preferences (old localStorage key or store)
+    let saved: ReportLayout | null = storedLayout ?? null;
+    if (!saved) {
       try {
         const raw = localStorage.getItem(reportKey);
         if (raw) {
           const parsed = JSON.parse(raw) as ReportLayout;
           localStorage.removeItem(reportKey);
-          if (parsed.headerLayout) base = parsed;
+          if (parsed.headerLayout) saved = parsed;
         }
       } catch { /* ignore */ }
     }
-    if (!base) return defaultLayout;
-    // Merge new groupByOptions from default layout into saved layouts
-    return {
-      ...base,
-      tables: base.tables.map((t) => {
-        const defaultTable = defaultLayout.tables.find((dt) => dt.id === t.id);
-        if (!defaultTable) return t;
-        const existingKeys = new Set(t.groupByOptions.map((o) => o.key));
-        const newOptions = defaultTable.groupByOptions.filter((o) => !existingKeys.has(o.key));
-        if (newOptions.length === 0) return t;
-        return { ...t, groupByOptions: [...t.groupByOptions, ...newOptions] };
-      }),
-    };
+    // Resolve: hardcoded definitions + saved user preferences
+    return resolveLayout(defaultLayout, saved);
   });
 
   const tables = getTableData(layout);
@@ -512,6 +553,23 @@ function ReportPreviewDialog({
                       </button>
                     )}
                   </div>
+                </div>
+                <div className="mt-2">
+                  <label className="text-[10px] text-[var(--color-text-muted)] uppercase tracking-wide">
+                    Borders
+                  </label>
+                  <select
+                    value={tableDef.borderStyle ?? "none"}
+                    onChange={(e) =>
+                      updateTable(tableDef.id, { borderStyle: e.target.value as TableBorderStyle })
+                    }
+                    className="w-full mt-0.5 px-2 py-1 text-xs border border-[var(--color-border)] rounded bg-white text-[var(--color-text)] cursor-pointer"
+                  >
+                    <option value="none">None</option>
+                    <option value="horizontal">Horizontal</option>
+                    <option value="grid">Grid</option>
+                    <option value="outer">Outer</option>
+                  </select>
                 </div>
               </SidebarSection>
             ))}
@@ -890,7 +948,9 @@ function PageContentRenderer({
 
     const tableDef = layout.tables.find((t) => t.id === item.tableId);
     if (!tableDef) continue;
-    const visCols = getVisibleColumns(tableDef);
+    const { widthMm: pageWidthMm } = getPageDimensions(layout.paperSize, layout.orientation);
+    const contentWidthMm = pageWidthMm - 2 * REPORT_MARGIN_MM;
+    const visCols = getVisibleColumns(tableDef, contentWidthMm);
     if (visCols.length === 0) continue;
 
     switch (item.kind) {
@@ -921,12 +981,15 @@ function PageContentRenderer({
             mm={mm}
             topMm={y}
             setLayout={setLayout}
+            contentWidthMm={contentWidthMm}
           />,
         );
         y += PDF_HEADER_HEIGHT + 2;
         break;
 
-      case "groupHeader":
+      case "groupHeader": {
+        const ghBorders = tableDef.borderStyle ?? "none";
+        const ghBorderLine = "1px solid #ccc";
         elements.push(
           <div
             key={`gh-${i}`}
@@ -943,6 +1006,9 @@ function PageContentRenderer({
               fontSize: mm(2.8),
               background: "#e6ebf5",
               color: "#333",
+              borderBottom: ghBorders === "horizontal" || ghBorders === "grid" ? ghBorderLine : undefined,
+              borderLeft: ghBorders === "outer" || ghBorders === "grid" ? ghBorderLine : undefined,
+              borderRight: ghBorders === "outer" || ghBorders === "grid" ? ghBorderLine : undefined,
             }}
           >
             {item.label}
@@ -950,6 +1016,7 @@ function PageContentRenderer({
         );
         y += PDF_ROW_HEIGHT + 2;
         break;
+      }
 
       case "dataRow":
         elements.push(
@@ -960,6 +1027,8 @@ function PageContentRenderer({
             tableDef={tableDef}
             mm={mm}
             topMm={y}
+            isLastRow={item.isLastRow}
+            contentWidthMm={contentWidthMm}
           />,
         );
         y += PDF_ROW_HEIGHT;
@@ -1579,13 +1648,15 @@ function PreviewColumnHeaders({
   mm,
   topMm,
   setLayout,
+  contentWidthMm,
 }: {
   tableDef: ReportTableDef;
   mm: (v: number) => number;
   topMm: number;
   setLayout: React.Dispatch<React.SetStateAction<ReportLayout>>;
+  contentWidthMm: number;
 }) {
-  const visCols = getVisibleColumns(tableDef);
+  const visCols = getVisibleColumns(tableDef, contentWidthMm);
   const colGap = mm(1.5);
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -1631,6 +1702,9 @@ function PreviewColumnHeaders({
     }
   }, [resizing, visCols, tableDef.id, setLayout]);
 
+  const borders = tableDef.borderStyle ?? "none";
+  const borderLine = "1px solid #ccc";
+
   return (
     <div
       ref={containerRef}
@@ -1643,6 +1717,10 @@ function PreviewColumnHeaders({
         display: "flex",
         alignItems: "flex-end",
         background: "#f0f0f0",
+        borderBottom: borders !== "none" ? borderLine : undefined,
+        borderTop: borders === "outer" || borders === "grid" ? borderLine : undefined,
+        borderLeft: borders === "outer" || borders === "grid" ? borderLine : undefined,
+        borderRight: borders === "outer" || borders === "grid" ? borderLine : undefined,
       }}
       onPointerMove={resizing ? handleColResizeMove : undefined}
       onPointerUp={resizing ? () => setResizing(null) : undefined}
@@ -1659,6 +1737,7 @@ function PreviewColumnHeaders({
             fontSize: mm(3),
             position: "relative",
             flexShrink: 0,
+            borderRight: borders === "grid" && i < visCols.length - 1 ? borderLine : undefined,
           }}
         >
           {col.header}
@@ -1693,16 +1772,22 @@ function PreviewDataRow({
   tableDef,
   mm,
   topMm,
+  contentWidthMm,
+  isLastRow,
 }: {
   row: Record<string, string>;
   rowIndex: number;
   tableDef: ReportTableDef;
   mm: (v: number) => number;
   topMm: number;
+  contentWidthMm: number;
+  isLastRow?: boolean;
 }) {
-  const visCols = getVisibleColumns(tableDef);
+  const visCols = getVisibleColumns(tableDef, contentWidthMm);
   const colGap = mm(1.5);
   const isSubItem = row._isSubItem === "true";
+  const borders = tableDef.borderStyle ?? "none";
+  const borderLine = "1px solid #ccc";
 
   return (
     <div
@@ -1715,9 +1800,12 @@ function PreviewDataRow({
         display: "flex",
         alignItems: "center",
         background: rowIndex % 2 === 1 ? "#f8f8f8" : "transparent",
+        borderBottom: borders === "horizontal" || borders === "grid" || (borders === "outer" && isLastRow) ? borderLine : undefined,
+        borderLeft: borders === "outer" || borders === "grid" ? borderLine : undefined,
+        borderRight: borders === "outer" || borders === "grid" ? borderLine : undefined,
       }}
     >
-      {visCols.map((col) => {
+      {visCols.map((col, i) => {
         const indent = isSubItem && col.key !== "count" ? mm(4) : 0;
         return (
           <div
@@ -1732,6 +1820,7 @@ function PreviewDataRow({
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
               flexShrink: 0,
+              borderRight: borders === "grid" && i < visCols.length - 1 ? borderLine : undefined,
             }}
           >
             {row[col.key] ?? ""}

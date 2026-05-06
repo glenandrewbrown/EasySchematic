@@ -21,8 +21,22 @@ interface TemplateInput {
   powerDrawW?: number;
   powerCapacityW?: number;
   voltage?: string;
+  thermalBtuh?: number;
+  poeBudgetW?: number;
+  poeDrawW?: number;
+  unitCost?: number;
   isVenueProvided?: boolean;
+  heightMm?: number;
+  widthMm?: number;
+  depthMm?: number;
+  weightKg?: number;
+  auxiliaryData?: AuxRowInput[];
   sortOrder?: number;
+}
+
+interface AuxRowInput {
+  text: string;
+  position?: "header" | "footer";
 }
 
 interface PortInput {
@@ -38,8 +52,11 @@ type ValidationResult =
   | { ok: false; error: string };
 
 const MAX_STRING = 200;
-const MAX_PORTS = 200;
+const MAX_PORTS = 500;
+const MAX_SLOTS = 128;
 const MAX_SEARCH_TERMS = 20;
+const MAX_AUX_LINES = 10;
+const MAX_AUX_LINE_LENGTH = 120;
 const HEX_COLOR_RE = /^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/;
 
 function checkString(value: unknown, field: string, maxLen = MAX_STRING): string | null {
@@ -80,17 +97,17 @@ export function validateTemplate(body: unknown): ValidationResult {
     if (mnErr) return { ok: false, error: mnErr };
   }
 
-  // Reference URL — required unless manufacturer is "Generic", must be HTTPS
+  // Reference URL — required unless manufacturer is "Generic", must be http(s)
   if (!isGeneric) {
     const ruErr = checkString(obj.referenceUrl, "referenceUrl", 2000);
     if (ruErr) return { ok: false, error: ruErr };
-    if (!(obj.referenceUrl as string).startsWith("https://")) {
-      return { ok: false, error: "referenceUrl must start with https://" };
+    if (!/^https?:\/\//i.test(obj.referenceUrl as string)) {
+      return { ok: false, error: "referenceUrl must start with http:// or https://" };
     }
   } else if (obj.referenceUrl != null && typeof obj.referenceUrl === "string" && obj.referenceUrl.trim() !== "") {
     if (obj.referenceUrl.length > 2000) return { ok: false, error: "referenceUrl must be 2000 characters or fewer" };
-    if (!obj.referenceUrl.startsWith("https://")) {
-      return { ok: false, error: "referenceUrl must start with https://" };
+    if (!/^https?:\/\//i.test(obj.referenceUrl)) {
+      return { ok: false, error: "referenceUrl must start with http:// or https://" };
     }
   }
 
@@ -148,6 +165,49 @@ export function validateTemplate(body: unknown): ValidationResult {
         if (err) return { ok: false, error: err };
       }
     }
+    // Connector gender — optional, "male" or "female"
+    if (port.gender != null && port.gender !== "male" && port.gender !== "female") {
+      return { ok: false, error: `ports[${i}].gender must be 'male' or 'female'` };
+    }
+    // networkConfig — optional object with known fields only
+    if (port.networkConfig != null) {
+      if (typeof port.networkConfig !== "object" || Array.isArray(port.networkConfig)) {
+        return { ok: false, error: `ports[${i}].networkConfig must be an object` };
+      }
+      const nc = port.networkConfig as Record<string, unknown>;
+      for (const field of ["ip", "subnetMask", "gateway"] as const) {
+        if (nc[field] != null && typeof nc[field] !== "string") {
+          return { ok: false, error: `ports[${i}].networkConfig.${field} must be a string` };
+        }
+      }
+      if (nc.vlan != null && (typeof nc.vlan !== "number" || !Number.isInteger(nc.vlan) || nc.vlan < 0 || nc.vlan > 4094)) {
+        return { ok: false, error: `ports[${i}].networkConfig.vlan must be an integer 0–4094` };
+      }
+      if (nc.dhcp != null && typeof nc.dhcp !== "boolean") {
+        return { ok: false, error: `ports[${i}].networkConfig.dhcp must be a boolean` };
+      }
+    }
+    // capabilities — optional object with known fields only
+    if (port.capabilities != null) {
+      if (typeof port.capabilities !== "object" || Array.isArray(port.capabilities)) {
+        return { ok: false, error: `ports[${i}].capabilities must be an object` };
+      }
+      const cap = port.capabilities as Record<string, unknown>;
+      if (cap.maxResolution != null && typeof cap.maxResolution !== "string") {
+        return { ok: false, error: `ports[${i}].capabilities.maxResolution must be a string` };
+      }
+      if (cap.maxFrameRate != null && (typeof cap.maxFrameRate !== "number" || cap.maxFrameRate < 0)) {
+        return { ok: false, error: `ports[${i}].capabilities.maxFrameRate must be a non-negative number` };
+      }
+      if (cap.maxBitDepth != null && (typeof cap.maxBitDepth !== "number" || cap.maxBitDepth < 0)) {
+        return { ok: false, error: `ports[${i}].capabilities.maxBitDepth must be a non-negative number` };
+      }
+      if (cap.colorSpaces != null) {
+        if (!Array.isArray(cap.colorSpaces) || cap.colorSpaces.length > 20 || cap.colorSpaces.some((c) => typeof c !== "string")) {
+          return { ok: false, error: `ports[${i}].capabilities.colorSpaces must be an array of up to 20 strings` };
+        }
+      }
+    }
   }
 
   // Slot family — optional string for expansion card templates
@@ -161,8 +221,8 @@ export function validateTemplate(body: unknown): ValidationResult {
     if (!Array.isArray(obj.slots)) {
       return { ok: false, error: "slots must be an array" };
     }
-    if (obj.slots.length > 20) {
-      return { ok: false, error: "slots must have 20 or fewer entries" };
+    if (obj.slots.length > MAX_SLOTS) {
+      return { ok: false, error: `slots must have ${MAX_SLOTS} or fewer entries` };
     }
     for (let i = 0; i < obj.slots.length; i++) {
       const slot = obj.slots[i] as Record<string, unknown> | null;
@@ -197,6 +257,60 @@ export function validateTemplate(body: unknown): ValidationResult {
     const vErr = checkString(obj.voltage, "voltage", 50);
     if (vErr) return { ok: false, error: vErr };
   }
+  if (obj.thermalBtuh != null && (typeof obj.thermalBtuh !== "number" || obj.thermalBtuh < 0)) {
+    return { ok: false, error: "thermalBtuh must be a non-negative number" };
+  }
+
+  // PoE fields — optional non-negative numbers. Budget = PSE side, Draw = PD side.
+  if (obj.poeBudgetW != null && (typeof obj.poeBudgetW !== "number" || obj.poeBudgetW < 0)) {
+    return { ok: false, error: "poeBudgetW must be a non-negative number" };
+  }
+  if (obj.poeDrawW != null && (typeof obj.poeDrawW !== "number" || obj.poeDrawW < 0)) {
+    return { ok: false, error: "poeDrawW must be a non-negative number" };
+  }
+  if (obj.unitCost != null && (typeof obj.unitCost !== "number" || obj.unitCost < 0)) {
+    return { ok: false, error: "unitCost must be a non-negative number" };
+  }
+
+  // Physical dimension fields — optional positive numbers
+  if (obj.heightMm != null && (typeof obj.heightMm !== "number" || obj.heightMm < 0)) {
+    return { ok: false, error: "heightMm must be a non-negative number" };
+  }
+  if (obj.widthMm != null && (typeof obj.widthMm !== "number" || obj.widthMm < 0)) {
+    return { ok: false, error: "widthMm must be a non-negative number" };
+  }
+  if (obj.depthMm != null && (typeof obj.depthMm !== "number" || obj.depthMm < 0)) {
+    return { ok: false, error: "depthMm must be a non-negative number" };
+  }
+  if (obj.weightKg != null && (typeof obj.weightKg !== "number" || obj.weightKg < 0)) {
+    return { ok: false, error: "weightKg must be a non-negative number" };
+  }
+
+  // Auxiliary data — optional array of row objects. Each row has a text string and an
+  // optional header/footer slot. Blank text values allowed (they render as separators).
+  if (obj.auxiliaryData != null) {
+    if (!Array.isArray(obj.auxiliaryData)) {
+      return { ok: false, error: "auxiliaryData must be an array of row objects" };
+    }
+    if (obj.auxiliaryData.length > MAX_AUX_LINES) {
+      return { ok: false, error: `auxiliaryData must have ${MAX_AUX_LINES} or fewer entries` };
+    }
+    for (let i = 0; i < obj.auxiliaryData.length; i++) {
+      const row = obj.auxiliaryData[i] as Record<string, unknown> | null;
+      if (!row || typeof row !== "object") {
+        return { ok: false, error: `auxiliaryData[${i}] must be an object with { text, position? }` };
+      }
+      if (typeof row.text !== "string") {
+        return { ok: false, error: `auxiliaryData[${i}].text must be a string` };
+      }
+      if (row.text.length > MAX_AUX_LINE_LENGTH) {
+        return { ok: false, error: `auxiliaryData[${i}].text must be ${MAX_AUX_LINE_LENGTH} characters or fewer` };
+      }
+      if (row.position != null && row.position !== "header" && row.position !== "footer") {
+        return { ok: false, error: `auxiliaryData[${i}].position must be 'header' or 'footer'` };
+      }
+    }
+  }
 
   return {
     ok: true,
@@ -216,7 +330,16 @@ export function validateTemplate(body: unknown): ValidationResult {
       ...(obj.powerDrawW != null && { powerDrawW: obj.powerDrawW as number }),
       ...(obj.powerCapacityW != null && { powerCapacityW: obj.powerCapacityW as number }),
       ...(obj.voltage != null && { voltage: obj.voltage as string }),
+      ...(obj.thermalBtuh != null && { thermalBtuh: obj.thermalBtuh as number }),
+      ...(obj.poeBudgetW != null && { poeBudgetW: obj.poeBudgetW as number }),
+      ...(obj.poeDrawW != null && { poeDrawW: obj.poeDrawW as number }),
+      ...(obj.unitCost != null && { unitCost: obj.unitCost as number }),
       ...(obj.isVenueProvided != null && { isVenueProvided: obj.isVenueProvided as boolean }),
+      ...(obj.heightMm != null && { heightMm: obj.heightMm as number }),
+      ...(obj.widthMm != null && { widthMm: obj.widthMm as number }),
+      ...(obj.depthMm != null && { depthMm: obj.depthMm as number }),
+      ...(obj.weightKg != null && { weightKg: obj.weightKg as number }),
+      ...(obj.auxiliaryData != null && { auxiliaryData: obj.auxiliaryData as AuxRowInput[] }),
       ...(obj.sortOrder != null && { sortOrder: obj.sortOrder as number }),
     },
   };

@@ -71,9 +71,10 @@ export const authMiddleware = createMiddleware<Env>(async (c, next) => {
     }
   }
 
-  // Check session — admin role can write templates directly
+  // Session: admins and moderators can both write templates directly.
+  // Moderators use this for direct edits without re-approval.
   const user = c.get("user");
-  if (user && user.role === "admin") {
+  if (user && (user.role === "admin" || user.role === "moderator")) {
     return next();
   }
 
@@ -115,4 +116,18 @@ export function requireAdmin(c: Context<Env>): SessionUser | null {
   if (!user) return null;
   if (user.role !== "admin") return null;
   return user;
+}
+
+/** Require admin role OR valid ADMIN_TOKEN bearer (for scripted access like /check-support-emails) */
+export function requireAdminOrToken(c: Context<Env>): SessionUser | "token" | null {
+  const user = requireAdmin(c);
+  if (user) return user;
+
+  const header = c.req.header("Authorization");
+  if (header?.startsWith("Bearer ")) {
+    const token = header.slice(7);
+    if (token === c.env.ADMIN_TOKEN) return "token";
+  }
+
+  return null;
 }

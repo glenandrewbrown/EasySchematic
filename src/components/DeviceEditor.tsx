@@ -6,22 +6,29 @@ import {
   CONNECTOR_LABELS,
   type SignalType,
   type ConnectorType,
+  type Gender,
   type Port,
   type PortDirection,
   type PortNetworkConfig,
   type PortCapabilities,
+  type AuxRow,
   type DeviceData,
   type DeviceNode,
   type DhcpServerConfig,
   type SlotDefinition,
 } from "../types";
-import { DEFAULT_CONNECTOR, NETWORK_SIGNAL_TYPES, VIDEO_SIGNAL_TYPES } from "../connectorTypes";
+import { CONNECTORS_WITH_GENDER_VARIATION, DEFAULT_CONNECTOR, NETWORK_SIGNAL_TYPES, VIDEO_SIGNAL_TYPES, resolvePortGender } from "../connectorTypes";
 import { getBundledTemplates, getCardsByFamily, checkSession, createDraft, createHandoff } from "../templateApi";
+import { getTemplateDrift } from "../templateSync";
 import LoginDialog from "./LoginDialog";
+import CardCreatorDialog from "./CardCreatorDialog";
+import TemplateSyncDialog from "./TemplateSyncDialog";
 import { isValidIpv4, isValidSubnetMask, isValidVlan, findDuplicateIps } from "../networkValidation";
 import IpInput from "./IpInput";
 import FacePlateEditor from "./FacePlateEditor";
 import type { FacePlateLayout } from "../types";
+import { AUX_FIELD_GROUPS, normalizeAuxRows, resolveAuxiliaryLine, trimTrailingEmpty } from "../auxiliaryData";
+import { deriveThermalBtuh } from "../thermal";
 
 const ALL_SIGNAL_TYPES = (Object.keys(SIGNAL_LABELS) as SignalType[]).sort(
   (a, b) => SIGNAL_LABELS[a].localeCompare(SIGNAL_LABELS[b]),
@@ -37,6 +44,7 @@ interface PortDraft {
   direction: PortDirection;
   section?: string;
   connectorType?: ConnectorType;
+  gender?: Gender;
   networkConfig?: PortNetworkConfig;
   addressable?: boolean;
   capabilities?: PortCapabilities;
@@ -65,10 +73,16 @@ export default function DeviceEditor() {
   const editingNodeId = useSchematicStore((s) => s.editingNodeId);
   const nodes = useSchematicStore((s) => s.nodes);
   const updateDevice = useSchematicStore((s) => s.updateDevice);
+  const syncDeviceFromTemplate = useSchematicStore((s) => s.syncDeviceFromTemplate);
+  const edges = useSchematicStore((s) => s.edges);
   const setEditingNodeId = useSchematicStore((s) => s.setEditingNodeId);
+  const setCreatingNodeId = useSchematicStore((s) => s.setCreatingNodeId);
+  const undo = useSchematicStore((s) => s.undo);
   const addCustomTemplate = useSchematicStore((s) => s.addCustomTemplate);
+  const updateCustomTemplate = useSchematicStore((s) => s.updateCustomTemplate);
   const customTemplates = useSchematicStore((s) => s.customTemplates);
   const templateHiddenSignals = useSchematicStore((s) => s.templateHiddenSignals);
+  const currency = useSchematicStore((s) => s.currency);
   const setTemplateHiddenSignals = useSchematicStore((s) => s.setTemplateHiddenSignals);
   const templatePresets = useSchematicStore((s) => s.templatePresets);
   const setTemplatePreset = useSchematicStore((s) => s.setTemplatePreset);
@@ -79,6 +93,10 @@ export default function DeviceEditor() {
   const [label, setLabel] = useState("");
   const [hostname, setHostname] = useState("");
   const [deviceType, setDeviceType] = useState("");
+  const [manufacturer, setManufacturer] = useState("");
+  const [modelNumber, setModelNumber] = useState("");
+  const [referenceUrl, setReferenceUrl] = useState("");
+  const [category, setCategory] = useState("");
   const [color, setColor] = useState<string | undefined>(undefined);
   const [headerColor, setHeaderColor] = useState<string | undefined>(undefined);
   const [ports, setPorts] = useState<PortDraft[]>([]);
@@ -95,7 +113,12 @@ export default function DeviceEditor() {
   const [powerDrawW, setPowerDrawW] = useState<number | undefined>(undefined);
   const [powerCapacityW, setPowerCapacityW] = useState<number | undefined>(undefined);
   const [voltage, setVoltage] = useState<string | undefined>(undefined);
+  const [thermalBtuh, setThermalBtuh] = useState<number | undefined>(undefined);
   const [poeBudgetW, setPoeBudgetW] = useState<number | undefined>(undefined);
+  const [poeDrawW, setPoeDrawW] = useState<number | undefined>(undefined);
+
+  // Cost
+  const [unitCost, setUnitCost] = useState<number | undefined>(undefined);
 
   // Physical dimensions
   const [heightMm, setHeightMm] = useState<number | undefined>(undefined);
@@ -109,8 +132,27 @@ export default function DeviceEditor() {
   const [isVenueProvided, setIsVenueProvided] = useState(false);
   const [adapterVisibility, setAdapterVisibility] = useState<"default" | "force-show" | "force-hide">("default");
 
+  // Search terms — raw string kept as-is so commas can be typed freely; parsed to array at save
+  const [searchTermsRaw, setSearchTermsRaw] = useState("");
+
+  // Auxiliary data rows — each row carries its own header/footer slot.
+  const [auxiliaryData, setAuxiliaryData] = useState<AuxRow[]>([]);
+  const [auxFieldMenuIdx, setAuxFieldMenuIdx] = useState<number | null>(null);
+  const auxInputRefs = useRef<Array<HTMLInputElement | null>>([]);
+  const auxMenuRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (auxFieldMenuIdx === null) return;
+    const onDown = (e: MouseEvent) => {
+      if (!auxMenuRef.current) return;
+      if (!auxMenuRef.current.contains(e.target as Node)) setAuxFieldMenuIdx(null);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [auxFieldMenuIdx]);
+
   // Login dialog for community submission
   const [showLoginDialog, setShowLoginDialog] = useState(false);
+  const [showSyncDialog, setShowSyncDialog] = useState(false);
 
   // Face-plate editor
   const [showFacePlateEditor, setShowFacePlateEditor] = useState(false);
@@ -122,9 +164,16 @@ export default function DeviceEditor() {
   /* eslint-disable react-hooks/set-state-in-effect -- syncing props to local editor state */
   useEffect(() => {
     if (!node) return;
+    const tpl = node.data.templateId
+      ? getBundledTemplates().find((t) => t.id === node.data.templateId)
+      : undefined;
     setLabel(node.data.label);
     setHostname(node.data.hostname ?? "");
     setDeviceType(node.data.deviceType);
+    setManufacturer(node.data.manufacturer ?? "");
+    setModelNumber(node.data.modelNumber ?? "");
+    setReferenceUrl(node.data.referenceUrl ?? tpl?.referenceUrl ?? "");
+    setCategory(node.data.category ?? tpl?.category ?? "");
     setColor(node.data.color);
     setHeaderColor(node.data.headerColor);
     setPorts(
@@ -135,6 +184,7 @@ export default function DeviceEditor() {
         direction: p.direction,
         section: p.section,
         connectorType: p.connectorType,
+        gender: p.gender,
         networkConfig: p.networkConfig ? { ...p.networkConfig } : undefined,
         capabilities: p.capabilities ? { ...p.capabilities } : undefined,
         isMulticable: p.isMulticable,
@@ -154,7 +204,10 @@ export default function DeviceEditor() {
     setPowerDrawW(node.data.powerDrawW);
     setPowerCapacityW(node.data.powerCapacityW);
     setVoltage(node.data.voltage);
+    setThermalBtuh(node.data.thermalBtuh);
     setPoeBudgetW(node.data.poeBudgetW);
+    setPoeDrawW(node.data.poeDrawW);
+    setUnitCost(node.data.unitCost);
     setHeightMm(node.data.heightMm);
     setWidthMm(node.data.widthMm);
     setDepthMm(node.data.depthMm);
@@ -163,10 +216,23 @@ export default function DeviceEditor() {
     setIntegratedWithCable(node.data.integratedWithCable ?? false);
     setIsVenueProvided(node.data.isVenueProvided ?? false);
     setAdapterVisibility(node.data.adapterVisibility ?? "default");
+    setAuxiliaryData(normalizeAuxRows(node.data.auxiliaryData));
+    setSearchTermsRaw((node.data.searchTerms ?? []).join(", "));
   }, [node]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  const close = useCallback(() => setEditingNodeId(null), [setEditingNodeId]);
+  const close = useCallback(() => {
+    // Read live store state — a stale closure here would make handleSave
+    // (which clears creatingNodeId just before calling close) trigger the
+    // provisional-undo branch and revert the user's just-saved data.
+    const { editingNodeId: eId, creatingNodeId: cId } = useSchematicStore.getState();
+    if (eId && eId === cId) {
+      // Provisional node — user cancelled without saving, undo the addDevice
+      undo();
+      setCreatingNodeId(null);
+    }
+    setEditingNodeId(null);
+  }, [undo, setCreatingNodeId, setEditingNodeId]);
 
   const handleSave = useCallback(() => {
     if (!editingNodeId) return;
@@ -194,8 +260,10 @@ export default function DeviceEditor() {
       ...(hostname.trim() ? { hostname: hostname.trim() } : {}),
       deviceType: deviceType.trim() || "custom",
       ports: finalPorts,
-      ...(existing?.manufacturer ? { manufacturer: existing.manufacturer } : {}),
-      ...(existing?.modelNumber ? { modelNumber: existing.modelNumber } : {}),
+      ...(manufacturer.trim() ? { manufacturer: manufacturer.trim() } : {}),
+      ...(modelNumber.trim() ? { modelNumber: modelNumber.trim() } : {}),
+      ...(referenceUrl.trim() ? { referenceUrl: referenceUrl.trim() } : {}),
+      ...(category.trim() ? { category: category.trim() } : {}),
       ...(existing?.templateId ? { templateId: existing.templateId } : {}),
       ...(existing?.templateVersion ? { templateVersion: existing.templateVersion } : {}),
       ...(color ? { color } : {}),
@@ -208,21 +276,30 @@ export default function DeviceEditor() {
       ...(powerDrawW != null ? { powerDrawW } : {}),
       ...(powerCapacityW != null ? { powerCapacityW } : {}),
       ...(poeBudgetW != null ? { poeBudgetW } : {}),
+      ...(poeDrawW != null ? { poeDrawW } : {}),
       ...(voltage ? { voltage } : {}),
+      ...(thermalBtuh != null ? { thermalBtuh } : {}),
+      ...(unitCost != null ? { unitCost } : {}),
+      ...(heightMm != null ? { heightMm } : {}),
+      ...(widthMm != null ? { widthMm } : {}),
+      ...(depthMm != null ? { depthMm } : {}),
+      ...(weightKg != null ? { weightKg } : {}),
       ...(isCableAccessory ? { isCableAccessory: true } : {}),
       ...(integratedWithCable ? { integratedWithCable: true } : {}),
       ...(isVenueProvided ? { isVenueProvided: true } : {}),
       ...(adapterVisibility !== "default" ? { adapterVisibility } : {}),
       ...(existing?.baseLabel ? { baseLabel: existing.baseLabel } : {}),
       ...(existing?.slots ? { slots: existing.slots } : {}),
-      ...(heightMm != null ? { heightMm } : {}),
-      ...(widthMm != null ? { widthMm } : {}),
-      ...(depthMm != null ? { depthMm } : {}),
-      ...(weightKg != null ? { weightKg } : {}),
+      ...((() => {
+        const trimmed = trimTrailingEmpty(auxiliaryData);
+        return trimmed.some((r) => r.text.trim()) ? { auxiliaryData: trimmed } : {};
+      })()),
+      ...(() => { const t = searchTermsRaw.split(",").map((s) => s.trim()).filter(Boolean).slice(0, 20); return t.length > 0 ? { searchTerms: t } : {}; })(),
     };
     updateDevice(editingNodeId, data);
+    setCreatingNodeId(null); // commit the node — close won't undo it
     close();
-  }, [editingNodeId, ports, label, hostname, deviceType, color, headerColor, node, updateDevice, close, showAllPorts, hiddenPorts, dhcpServer, powerDrawW, powerCapacityW, voltage, poeBudgetW, isCableAccessory, integratedWithCable, isVenueProvided, adapterVisibility, heightMm, widthMm, depthMm, weightKg]);
+  }, [editingNodeId, ports, label, hostname, deviceType, manufacturer, modelNumber, referenceUrl, category, color, headerColor, node, updateDevice, close, setCreatingNodeId, showAllPorts, hiddenPorts, dhcpServer, powerDrawW, powerCapacityW, voltage, thermalBtuh, poeBudgetW, poeDrawW, unitCost, heightMm, widthMm, depthMm, weightKg, isCableAccessory, integratedWithCable, isVenueProvided, adapterVisibility, auxiliaryData, searchTermsRaw]);
 
   // Ctrl+Enter anywhere in the editor → Apply & Close
   const onCtrlEnter = useCallback((e: React.KeyboardEvent) => {
@@ -242,17 +319,100 @@ export default function DeviceEditor() {
         label: p.label.trim(),
       }));
 
+    const trimmedAux = trimTrailingEmpty(auxiliaryData);
     const existing = node?.data;
+
     addCustomTemplate({
-      deviceType: `custom-${Date.now()}`,
+      id: `custom-${Date.now()}`,
+      deviceType: deviceType.trim() || "custom",
       label: label.trim() || "Custom Device",
       ports: finalPorts,
-      ...(existing?.manufacturer ? { manufacturer: existing.manufacturer } : {}),
-      ...(existing?.modelNumber ? { modelNumber: existing.modelNumber } : {}),
+      ...(color ? { color } : {}),
+      ...(category.trim() ? { category: category.trim() } : {}),
+      ...(manufacturer.trim() ? { manufacturer: manufacturer.trim() } : {}),
+      ...(modelNumber.trim() ? { modelNumber: modelNumber.trim() } : {}),
+      ...(referenceUrl.trim() ? { referenceUrl: referenceUrl.trim() } : {}),
       ...(hostname.trim() ? { hostname: hostname.trim() } : {}),
+      ...(powerDrawW != null ? { powerDrawW } : {}),
+      ...(powerCapacityW != null ? { powerCapacityW } : {}),
+      ...(voltage ? { voltage } : {}),
+      ...(thermalBtuh != null ? { thermalBtuh } : {}),
       ...(poeBudgetW != null ? { poeBudgetW } : {}),
+      ...(poeDrawW != null ? { poeDrawW } : {}),
+      ...(unitCost != null ? { unitCost } : {}),
+      ...(heightMm != null ? { heightMm } : {}),
+      ...(widthMm != null ? { widthMm } : {}),
+      ...(depthMm != null ? { depthMm } : {}),
+      ...(weightKg != null ? { weightKg } : {}),
+      ...(isVenueProvided ? { isVenueProvided: true } : {}),
+      // Convert InstalledSlot[] back to the blueprint SlotDefinition[] that DeviceTemplate
+      // expects — card selections are per-placement, not part of the template spec.
+      ...(existing?.slots && existing.slots.length > 0
+        ? {
+            slots: existing.slots.map((s) => ({
+              id: s.slotId,
+              label: s.label,
+              slotFamily: s.slotFamily ?? "",
+              ...(s.cardTemplateId ? { defaultCardId: s.cardTemplateId } : {}),
+            })),
+          }
+        : {}),
+      ...(existing?.slotFamily ? { slotFamily: existing.slotFamily as string } : {}),
+      ...(trimmedAux.some((r) => r.text.trim()) ? { auxiliaryData: trimmedAux } : {}),
+      ...(() => { const t = searchTermsRaw.split(",").map((s) => s.trim()).filter(Boolean).slice(0, 20); return t.length > 0 ? { searchTerms: t } : {}; })(),
     });
-  }, [ports, label, hostname, node, addCustomTemplate, poeBudgetW]);
+  }, [ports, label, hostname, addCustomTemplate, node, powerDrawW, powerCapacityW, voltage, thermalBtuh, poeBudgetW, poeDrawW, unitCost, heightMm, widthMm, depthMm, weightKg, isVenueProvided, deviceType, color, manufacturer, modelNumber, referenceUrl, category, auxiliaryData, searchTermsRaw]);
+
+  const handleUpdateUserTemplate = useCallback(() => {
+    if (!node?.data.templateId) return;
+    const finalPorts: Port[] = ports
+      .filter((p) => p.label.trim())
+      .map((p, i) => ({
+        ...p,
+        id: `tpl-${i}`,
+        label: p.label.trim(),
+      }));
+    const trimmedAux = trimTrailingEmpty(auxiliaryData);
+    const existing = node.data;
+    updateCustomTemplate(node.data.templateId, {
+      id: node.data.templateId,
+      deviceType: deviceType.trim() || "custom",
+      label: label.trim() || "Custom Device",
+      ports: finalPorts,
+      ...(color ? { color } : {}),
+      ...(category.trim() ? { category: category.trim() } : {}),
+      ...(manufacturer.trim() ? { manufacturer: manufacturer.trim() } : {}),
+      ...(modelNumber.trim() ? { modelNumber: modelNumber.trim() } : {}),
+      ...(referenceUrl.trim() ? { referenceUrl: referenceUrl.trim() } : {}),
+      ...(hostname.trim() ? { hostname: hostname.trim() } : {}),
+      ...(powerDrawW != null ? { powerDrawW } : {}),
+      ...(powerCapacityW != null ? { powerCapacityW } : {}),
+      ...(voltage ? { voltage } : {}),
+      ...(thermalBtuh != null ? { thermalBtuh } : {}),
+      ...(poeBudgetW != null ? { poeBudgetW } : {}),
+      ...(poeDrawW != null ? { poeDrawW } : {}),
+      ...(unitCost != null ? { unitCost } : {}),
+      ...(heightMm != null ? { heightMm } : {}),
+      ...(widthMm != null ? { widthMm } : {}),
+      ...(depthMm != null ? { depthMm } : {}),
+      ...(weightKg != null ? { weightKg } : {}),
+      ...(isVenueProvided ? { isVenueProvided: true } : {}),
+      ...(existing.slots && existing.slots.length > 0
+        ? {
+            slots: existing.slots.map((s) => ({
+              id: s.slotId,
+              label: s.label,
+              slotFamily: s.slotFamily ?? "",
+              ...(s.cardTemplateId ? { defaultCardId: s.cardTemplateId } : {}),
+            })),
+          }
+        : {}),
+      ...(existing.slotFamily ? { slotFamily: existing.slotFamily as string } : {}),
+      ...(trimmedAux.some((r) => r.text.trim()) ? { auxiliaryData: trimmedAux } : {}),
+      ...(() => { const t = searchTermsRaw.split(",").map((s) => s.trim()).filter(Boolean).slice(0, 20); return t.length > 0 ? { searchTerms: t } : {}; })(),
+    });
+    handleSave();
+  }, [node, ports, label, hostname, updateCustomTemplate, powerDrawW, powerCapacityW, voltage, thermalBtuh, poeBudgetW, poeDrawW, unitCost, heightMm, widthMm, depthMm, weightKg, isVenueProvided, deviceType, color, manufacturer, modelNumber, referenceUrl, category, auxiliaryData, searchTermsRaw, handleSave]);
 
   const handleSubmitToCommunity = useCallback(async () => {
     const finalPorts: Port[] = ports
@@ -269,20 +429,34 @@ export default function DeviceEditor() {
     let dt = deviceType.trim() || "custom";
     if (dt.startsWith("custom-")) dt = "";
 
+    const trimmedAux = trimTrailingEmpty(auxiliaryData);
+
     const draftData: Record<string, unknown> = {
       label: label.trim() || "Custom Device",
       deviceType: dt,
       ports: finalPorts,
       ...(color ? { color } : {}),
-      // Carry over metadata from library devices
-      ...(existing?.manufacturer ? { manufacturer: existing.manufacturer } : {}),
-      ...(existing?.modelNumber ? { modelNumber: existing.modelNumber } : {}),
-      ...(existing?.referenceUrl ? { referenceUrl: existing.referenceUrl } : {}),
-      ...(existing?.category ? { category: existing.category } : {}),
+      ...(manufacturer.trim() ? { manufacturer: manufacturer.trim() } : {}),
+      ...(modelNumber.trim() ? { modelNumber: modelNumber.trim() } : {}),
+      ...(referenceUrl.trim() ? { referenceUrl: referenceUrl.trim() } : {}),
+      ...(category.trim() ? { category: category.trim() } : {}),
       ...(existing?.slots ? { slots: existing.slots } : {}),
       ...(existing?.slotFamily ? { slotFamily: existing.slotFamily } : {}),
       ...(hostname.trim() ? { hostname: hostname.trim() } : {}),
+      ...(powerDrawW != null ? { powerDrawW } : {}),
+      ...(powerCapacityW != null ? { powerCapacityW } : {}),
+      ...(voltage ? { voltage } : {}),
+      ...(thermalBtuh != null ? { thermalBtuh } : {}),
       ...(poeBudgetW != null ? { poeBudgetW } : {}),
+      ...(poeDrawW != null ? { poeDrawW } : {}),
+      ...(unitCost != null ? { unitCost } : {}),
+      ...(heightMm != null ? { heightMm } : {}),
+      ...(widthMm != null ? { widthMm } : {}),
+      ...(depthMm != null ? { depthMm } : {}),
+      ...(weightKg != null ? { weightKg } : {}),
+      ...(isVenueProvided ? { isVenueProvided: true } : {}),
+      ...(trimmedAux.some((r) => r.text.trim()) ? { auxiliaryData: trimmedAux } : {}),
+      ...(() => { const t = searchTermsRaw.split(",").map((s) => s.trim()).filter(Boolean).slice(0, 20); return t.length > 0 ? { searchTerms: t } : {}; })(),
     };
 
     const devicesUrl = import.meta.env.VITE_DEVICES_URL ?? "https://devices.easyschematic.live";
@@ -309,7 +483,7 @@ export default function DeviceEditor() {
     } catch (e) {
       console.error("Failed to create draft:", e);
     }
-  }, [ports, label, deviceType, color, node, hostname, poeBudgetW]);
+  }, [ports, label, deviceType, color, node, hostname, poeBudgetW, poeDrawW, unitCost, manufacturer, modelNumber, referenceUrl, category, powerDrawW, powerCapacityW, voltage, thermalBtuh, heightMm, widthMm, depthMm, weightKg, isVenueProvided, auxiliaryData, searchTermsRaw]);
 
   const handleSaveAsPreset = useCallback(() => {
     if (!editingNodeId || !node?.data.templateId) return;
@@ -353,6 +527,7 @@ export default function DeviceEditor() {
       direction: p.direction,
       section: p.section,
       connectorType: p.connectorType,
+      gender: p.gender,
       networkConfig: p.networkConfig ? { ...p.networkConfig } : undefined,
       capabilities: p.capabilities ? { ...p.capabilities } : undefined,
       directAttach: p.directAttach,
@@ -364,6 +539,30 @@ export default function DeviceEditor() {
     })));
     setHiddenPorts([]);
     setColor(tpl.color);
+
+    // For user templates, also revert all editable metadata fields
+    if (customTemplates.some((t) => t.id === templateId)) {
+      setLabel(tpl.label ?? "");
+      setManufacturer(tpl.manufacturer ?? "");
+      setModelNumber(tpl.modelNumber ?? "");
+      setReferenceUrl(tpl.referenceUrl ?? "");
+      setCategory(tpl.category ?? "");
+      setHostname(tpl.hostname ?? "");
+      setPowerDrawW(tpl.powerDrawW);
+      setPowerCapacityW(tpl.powerCapacityW);
+      setVoltage(tpl.voltage);
+      setThermalBtuh(tpl.thermalBtuh);
+      setPoeBudgetW(tpl.poeBudgetW);
+      setPoeDrawW(tpl.poeDrawW);
+      setUnitCost(tpl.unitCost);
+      setHeightMm(tpl.heightMm);
+      setWidthMm(tpl.widthMm);
+      setDepthMm(tpl.depthMm);
+      setWeightKg(tpl.weightKg);
+      setIsVenueProvided(tpl.isVenueProvided ?? false);
+      setAuxiliaryData(normalizeAuxRows(tpl.auxiliaryData));
+      setSearchTermsRaw((tpl.searchTerms ?? []).join(", "));
+    }
   }, [node, customTemplates]);
 
   const handleRevertToPreset = useCallback(() => {
@@ -378,6 +577,7 @@ export default function DeviceEditor() {
       direction: p.direction,
       section: p.section,
       connectorType: p.connectorType,
+      gender: p.gender,
       networkConfig: p.networkConfig ? { ...p.networkConfig } : undefined,
       capabilities: p.capabilities ? { ...p.capabilities } : undefined,
       directAttach: p.directAttach,
@@ -478,10 +678,33 @@ export default function DeviceEditor() {
       });
     };
 
+    const isUserTemplate = customTemplates.some((t) => t.id === templateId);
+
     const dirtyVsTemplate = !!tpl && (
       !portsMatch(ports, tpl.ports) ||
       hiddenPorts.length > 0 ||
-      (color ?? undefined) !== (tpl.color ?? undefined)
+      (color ?? undefined) !== (tpl.color ?? undefined) ||
+      // For user templates, also check all editable metadata fields
+      (isUserTemplate && (
+        label !== (tpl.label ?? "") ||
+        (manufacturer ?? "") !== (tpl.manufacturer ?? "") ||
+        (modelNumber ?? "") !== (tpl.modelNumber ?? "") ||
+        (referenceUrl ?? "") !== (tpl.referenceUrl ?? "") ||
+        (category ?? "") !== (tpl.category ?? "") ||
+        (hostname ?? "") !== (tpl.hostname ?? "") ||
+        powerDrawW !== tpl.powerDrawW ||
+        powerCapacityW !== tpl.powerCapacityW ||
+        (voltage ?? undefined) !== (tpl.voltage ?? undefined) ||
+        thermalBtuh !== tpl.thermalBtuh ||
+        poeBudgetW !== tpl.poeBudgetW ||
+        poeDrawW !== tpl.poeDrawW ||
+        unitCost !== tpl.unitCost ||
+        heightMm !== tpl.heightMm ||
+        widthMm !== tpl.widthMm ||
+        depthMm !== tpl.depthMm ||
+        weightKg !== tpl.weightKg ||
+        isVenueProvided !== (tpl.isVenueProvided ?? false)
+      ))
     );
 
     const dirtyVsPreset = !!preset && (
@@ -491,10 +714,11 @@ export default function DeviceEditor() {
     );
 
     return { dirtyVsPreset, dirtyVsTemplate };
-  }, [templateId, ports, hiddenPorts, color, templatePresets, customTemplates]);
+  }, [templateId, ports, hiddenPorts, color, templatePresets, customTemplates, label, manufacturer, modelNumber, referenceUrl, category, hostname, powerDrawW, powerCapacityW, voltage, thermalBtuh, poeBudgetW, poeDrawW, unitCost, heightMm, widthMm, depthMm, weightKg, isVenueProvided]);
 
   if (!editingNodeId || !node) return null;
 
+  const drift = getTemplateDrift(node.data, customTemplates);
   const hasPreset = !!(templateId && templatePresets[templateId]);
   const inputs = ports.filter((p) => p.direction === "input");
   const outputs = ports.filter((p) => p.direction === "output");
@@ -503,7 +727,7 @@ export default function DeviceEditor() {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onMouseDown={(e) => { if (e.target === e.currentTarget) close(); }} onKeyDownCapture={onCtrlEnter}>
       <div
-        className="bg-white border border-[var(--color-border)] rounded-lg shadow-2xl w-[560px] max-h-[85vh] flex flex-col"
+        className="bg-[var(--color-bg)] border border-[var(--color-border)] rounded-lg shadow-2xl w-[560px] max-h-[85vh] flex flex-col"
       >
         {/* Header */}
         <div className="px-4 py-3 border-b border-[var(--color-border)] flex items-center justify-between">
@@ -515,6 +739,21 @@ export default function DeviceEditor() {
             &times;
           </button>
         </div>
+
+        {/* Template-drift notice */}
+        {drift && (
+          <div className="px-4 py-2 border-b border-[var(--color-border)] bg-blue-50 dark:bg-blue-900/20 flex items-center justify-between gap-2">
+            <span className="text-xs text-blue-900 dark:text-blue-200">
+              Template updated — v{drift.deviceVersion} → v{drift.currentVersion} available
+            </span>
+            <button
+              onClick={() => setShowSyncDialog(true)}
+              className="px-2.5 py-1 text-xs rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors cursor-pointer"
+            >
+              Update
+            </button>
+          </div>
+        )}
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -540,6 +779,39 @@ export default function DeviceEditor() {
                 placeholder="e.g. camera"
               />
             </Field>
+            <Field label="Manufacturer">
+              <input
+                className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2 py-1.5 text-xs text-[var(--color-text-heading)] outline-none focus:border-blue-500"
+                value={manufacturer}
+                onChange={(e) => setManufacturer(e.target.value)}
+                placeholder="e.g. Sony"
+              />
+            </Field>
+            <Field label="Model Number">
+              <input
+                className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2 py-1.5 text-xs text-[var(--color-text-heading)] outline-none focus:border-blue-500"
+                value={modelNumber}
+                onChange={(e) => setModelNumber(e.target.value)}
+                placeholder="e.g. FX9"
+              />
+            </Field>
+            <Field label="Category">
+              <input
+                className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2 py-1.5 text-xs text-[var(--color-text-heading)] outline-none focus:border-blue-500"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                placeholder="e.g. video"
+              />
+            </Field>
+            <Field label="Reference URL">
+              <input
+                type="url"
+                className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2 py-1.5 text-xs text-[var(--color-text-heading)] outline-none focus:border-blue-500"
+                value={referenceUrl}
+                onChange={(e) => setReferenceUrl(e.target.value)}
+                placeholder="https://…"
+              />
+            </Field>
           </div>
 
           {/* Header color picker */}
@@ -561,37 +833,35 @@ export default function DeviceEditor() {
             )}
           </div>
 
-          {(node.data.manufacturer || node.data.modelNumber) && (() => {
+          {(() => {
             const tpl = node.data.templateId
               ? getBundledTemplates().find((t) => t.id === node.data.templateId)
               : undefined;
-            const url = tpl?.referenceUrl;
-            return (
+            const url = referenceUrl.trim() || tpl?.referenceUrl;
+            return url ? (
               <div className="text-[10px] text-[var(--color-text-muted)] -mt-2 flex items-center gap-1">
-                <span>{[node.data.manufacturer, node.data.modelNumber].filter(Boolean).join(" ")}</span>
-                {url && (
-                  <a
-                    href={url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-500 hover:text-blue-600 transition-colors"
-                    title="View manufacturer spec page"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <svg viewBox="0 0 16 16" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={1.5}>
-                      <path d="M6 3H3.5A1.5 1.5 0 0 0 2 4.5v8A1.5 1.5 0 0 0 3.5 14h8a1.5 1.5 0 0 0 1.5-1.5V10" />
-                      <path d="M9 2h5v5" />
-                      <path d="M14 2L7 9" />
-                    </svg>
-                  </a>
-                )}
+                <a
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-500 hover:text-blue-600 transition-colors flex items-center gap-1"
+                  title="View manufacturer spec page"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <svg viewBox="0 0 16 16" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={1.5}>
+                    <path d="M6 3H3.5A1.5 1.5 0 0 0 2 4.5v8A1.5 1.5 0 0 0 3.5 14h8a1.5 1.5 0 0 0 1.5-1.5V10" />
+                    <path d="M9 2h5v5" />
+                    <path d="M14 2L7 9" />
+                  </svg>
+                  <span>Spec sheet</span>
+                </a>
               </div>
-            );
+            ) : null;
           })()}
 
           {/* Preset indicator */}
           {hasPreset && templateId && (
-            <div className="text-[10px] text-[var(--color-text-muted)] bg-blue-50 border border-blue-200/60 rounded px-2 py-1 flex items-center justify-between -mt-1">
+            <div className="text-[10px] text-blue-700 dark:text-blue-200 bg-blue-50 dark:bg-blue-900/20 border border-blue-200/60 dark:border-blue-800/60 rounded px-2 py-1 flex items-center justify-between -mt-1">
               <span>Preset active for all &ldquo;{node.data.model || "this template"}&rdquo; devices</span>
               <button
                 onClick={() => setTemplatePreset(templateId, null)}
@@ -618,7 +888,7 @@ export default function DeviceEditor() {
           />
 
           <PortSection
-            title="Inputs"
+            title={deviceType === "patch-panel" ? "Rear" : "Inputs"}
             direction="input"
             deviceType={deviceType}
             ports={inputs}
@@ -636,7 +906,7 @@ export default function DeviceEditor() {
           />
 
           <PortSection
-            title="Outputs"
+            title={deviceType === "patch-panel" ? "Front" : "Outputs"}
             direction="output"
             deviceType={deviceType}
             ports={outputs}
@@ -653,27 +923,29 @@ export default function DeviceEditor() {
             setHiddenPorts={setHiddenPorts}
           />
 
-          <PortSection
-            title="Bidirectional"
-            direction="bidirectional"
-            deviceType={deviceType}
-            ports={bidir}
-            onAdd={() => addPort("bidirectional")}
-            onBulkAdd={bulkAddPorts}
-            onRemove={removePort}
-            onUpdate={updatePort}
-            draggedPortId={draggedPortId}
-            setDraggedPortId={setDraggedPortId}
-            dropTarget={dropTarget}
-            setDropTarget={setDropTarget}
-            onDragEnd={handleDragEnd}
-            hiddenPorts={hiddenPorts}
-            setHiddenPorts={setHiddenPorts}
-          />
+          {deviceType !== "patch-panel" && (
+            <PortSection
+              title="Bidirectional"
+              direction="bidirectional"
+              deviceType={deviceType}
+              ports={bidir}
+              onAdd={() => addPort("bidirectional")}
+              onBulkAdd={bulkAddPorts}
+              onRemove={removePort}
+              onUpdate={updatePort}
+              draggedPortId={draggedPortId}
+              setDraggedPortId={setDraggedPortId}
+              dropTarget={dropTarget}
+              setDropTarget={setDropTarget}
+              onDragEnd={handleDragEnd}
+              hiddenPorts={hiddenPorts}
+              setHiddenPorts={setHiddenPorts}
+            />
+          )}
 
           {/* Hostname */}
           <div className="flex items-center gap-2 mt-2">
-            <span className="text-[10px] text-[var(--color-text-muted)]">Hostname:</span>
+            <span className="text-[10px] text-[var(--color-text-muted)] shrink-0">Hostname:</span>
             <input
               className="flex-1 bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-1.5 py-0.5 text-xs outline-none focus:border-blue-500"
               value={hostname}
@@ -682,6 +954,75 @@ export default function DeviceEditor() {
               onKeyDown={(e) => e.stopPropagation()}
             />
           </div>
+
+          {/* Physical Dimensions */}
+          <details className="text-xs">
+            <summary className="cursor-pointer text-[var(--color-text-secondary)] hover:text-[var(--color-text)] select-none py-1">
+              Physical Dimensions
+            </summary>
+            <div className="pt-1 pl-2 grid grid-cols-4 gap-3">
+              <div>
+                <label className="block text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mb-0.5">
+                  Height (mm)
+                </label>
+                <input
+                  type="number"
+                  className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-1.5 py-1 text-xs outline-none focus:border-blue-500"
+                  value={heightMm ?? ""}
+                  onChange={(e) => setHeightMm(e.target.value ? Number(e.target.value) : undefined)}
+                  placeholder="e.g. 44"
+                  min={1}
+                  step={1}
+                  onKeyDown={(e) => e.stopPropagation()}
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mb-0.5">
+                  Width (mm)
+                </label>
+                <input
+                  type="number"
+                  className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-1.5 py-1 text-xs outline-none focus:border-blue-500"
+                  value={widthMm ?? ""}
+                  onChange={(e) => setWidthMm(e.target.value ? Number(e.target.value) : undefined)}
+                  placeholder="e.g. 482"
+                  min={1}
+                  step={1}
+                  onKeyDown={(e) => e.stopPropagation()}
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mb-0.5">
+                  Depth (mm)
+                </label>
+                <input
+                  type="number"
+                  className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-1.5 py-1 text-xs outline-none focus:border-blue-500"
+                  value={depthMm ?? ""}
+                  onChange={(e) => setDepthMm(e.target.value ? Number(e.target.value) : undefined)}
+                  placeholder="e.g. 350"
+                  min={1}
+                  step={1}
+                  onKeyDown={(e) => e.stopPropagation()}
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mb-0.5">
+                  Weight (kg)
+                </label>
+                <input
+                  type="number"
+                  className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-1.5 py-1 text-xs outline-none focus:border-blue-500"
+                  value={weightKg ?? ""}
+                  onChange={(e) => setWeightKg(e.target.value ? Number(e.target.value) : undefined)}
+                  placeholder="e.g. 2.5"
+                  min={0}
+                  step={0.1}
+                  onKeyDown={(e) => e.stopPropagation()}
+                />
+              </div>
+            </div>
+          </details>
 
           {ports.some((p) => p.connectorType === "rj45" || p.connectorType === "ethercon") && (
             <>
@@ -708,19 +1049,42 @@ export default function DeviceEditor() {
                   />
                 )}
               </div>
+              <div className="flex items-center gap-2">
+                <label className="flex items-center gap-1 text-[10px] text-[var(--color-text-muted)] cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={poeDrawW != null}
+                    onChange={(e) => setPoeDrawW(e.target.checked ? 0 : undefined)}
+                    className="cursor-pointer"
+                  />
+                  Powered by PoE
+                </label>
+                {poeDrawW != null && (
+                  <input
+                    className="w-20 bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-1.5 py-0.5 text-xs outline-none focus:border-blue-500"
+                    type="number"
+                    value={poeDrawW || ""}
+                    onChange={(e) => setPoeDrawW(e.target.value ? Number(e.target.value) : 0)}
+                    placeholder="Draw (W)"
+                    min={0}
+                    step={0.1}
+                    onKeyDown={(e) => e.stopPropagation()}
+                  />
+                )}
+              </div>
             </>
           )}
 
           {/* Expansion Slots */}
-          {node.data.slots && node.data.slots.length > 0 && (() => {
+          {(() => {
             const templateDef = node.data.templateId
               ? getBundledTemplates().find((t) => t.id === node.data.templateId)
               : undefined;
             const slotDefs = templateDef?.slots ?? [];
             return (
-              <SlotSwapSection
+              <SlotEditSection
                 nodeId={node.id}
-                installedSlots={node.data.slots}
+                installedSlots={node.data.slots ?? []}
                 slotDefs={slotDefs}
               />
             );
@@ -756,6 +1120,25 @@ export default function DeviceEditor() {
                     value={voltage ?? ""}
                     onChange={(e) => setVoltage(e.target.value || undefined)}
                     placeholder="100-240V"
+                    onKeyDown={(e) => e.stopPropagation()}
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label
+                    className="block text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mb-0.5"
+                    title="Thermal load for HVAC sizing. Auto-derived from Power Draw × 3.412 if left blank."
+                  >
+                    Thermal (BTU/h)
+                  </label>
+                  <input
+                    type="number"
+                    className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2 py-1 text-xs outline-none focus:border-blue-500"
+                    value={thermalBtuh ?? ""}
+                    onChange={(e) => setThermalBtuh(e.target.value ? Number(e.target.value) : undefined)}
+                    placeholder={(() => {
+                      const auto = deriveThermalBtuh(powerDrawW);
+                      return auto != null ? `auto: ${auto}` : "0";
+                    })()}
                     onKeyDown={(e) => e.stopPropagation()}
                   />
                 </div>
@@ -854,6 +1237,172 @@ export default function DeviceEditor() {
             </div>
           </details>
 
+
+          {/* Search Terms */}
+          <details className="text-xs">
+            <summary className="cursor-pointer text-[var(--color-text-secondary)] hover:text-[var(--color-text)] select-none py-1">
+              {(() => { const n = searchTermsRaw.split(",").map((s) => s.trim()).filter(Boolean).length; return `Search Terms${n > 0 ? ` (${n})` : ""}`; })()}
+            </summary>
+            <div className="pt-1 pl-2">
+              <p className="text-[10px] text-[var(--color-text-muted)] mb-1">
+                Comma-separated keywords used to find this device in the library. Edit here and "Submit to Community" to contribute improvements back.
+              </p>
+              <input
+                type="text"
+                className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2 py-1 text-xs outline-none focus:border-blue-500"
+                value={searchTermsRaw}
+                onChange={(e) => setSearchTermsRaw(e.target.value)}
+                placeholder="e.g. matrix, router, video switcher"
+                onKeyDown={(e) => e.stopPropagation()}
+              />
+            </div>
+          </details>
+
+          {/* Cost */}
+          <details className="text-xs">
+            <summary className="cursor-pointer text-[var(--color-text-secondary)] hover:text-[var(--color-text)] select-none py-1">
+              Cost
+            </summary>
+            <div className="pt-1 pl-2" style={{ maxWidth: "50%" }}>
+              <label className="block text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mb-0.5">
+                Unit Cost ({currency})
+              </label>
+              <input
+                type="number"
+                className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2 py-1 text-xs outline-none focus:border-blue-500"
+                value={unitCost ?? ""}
+                onChange={(e) => setUnitCost(e.target.value ? Number(e.target.value) : undefined)}
+                placeholder="0.00"
+                min={0}
+                step={0.01}
+                onKeyDown={(e) => e.stopPropagation()}
+              />
+            </div>
+          </details>
+
+          {/* Auxiliary Data */}
+          <details className="text-xs">
+            <summary className="cursor-pointer text-[var(--color-text-secondary)] hover:text-[var(--color-text)] select-none py-1">
+              Auxiliary Data
+            </summary>
+            <div className="flex flex-col gap-1.5 pt-1 pl-2">
+              <p className="text-[10px] text-[var(--color-text-muted)] -mb-0.5">
+                Up to 5 custom lines. Use the <span className="font-mono">+</span> button to insert a device field. Leave a line blank to add a separator. Toggle <span className="font-mono">H</span>/<span className="font-mono">F</span> to pin a row to the header or footer of the device.
+              </p>
+              {(() => {
+                const previewDevice = {
+                  label,
+                  hostname,
+                  manufacturer,
+                  modelNumber: node?.data.modelNumber,
+                  deviceType,
+                  powerDrawW,
+                  powerCapacityW,
+                  poeBudgetW,
+                  poeDrawW,
+                  voltage,
+                  thermalBtuh,
+                  weightKg,
+                  widthMm,
+                  heightMm,
+                  depthMm,
+                  unitCost,
+                  ports,
+                } as unknown as DeviceData;
+                return [0, 1, 2, 3, 4].map((i) => {
+                  const row = auxiliaryData[i] ?? { text: "", position: "footer" as const };
+                  const text = row.text;
+                  const position = row.position ?? "footer";
+                  const hasToken = text.indexOf("{{") !== -1;
+                  const preview = hasToken ? resolveAuxiliaryLine(text, previewDevice) : "";
+                  const setRow = (next: Partial<AuxRow>) => {
+                    const newData = [...auxiliaryData];
+                    while (newData.length <= i) newData.push({ text: "", position: "footer" });
+                    newData[i] = { ...newData[i], ...next };
+                    setAuxiliaryData(newData);
+                  };
+                  return (
+                    <div key={i} className="relative">
+                      <div className="flex gap-1">
+                        <input
+                          ref={(el) => { auxInputRefs.current[i] = el; }}
+                          type="text"
+                          className="flex-1 min-w-0 bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2 py-1 text-xs outline-none focus:border-blue-500"
+                          value={text}
+                          onChange={(e) => setRow({ text: e.target.value })}
+                          placeholder="Auxiliary Data"
+                          onKeyDown={(e) => e.stopPropagation()}
+                        />
+                        <button
+                          type="button"
+                          title="Insert device field"
+                          className="px-2 py-1 text-xs rounded bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-[var(--color-text)] cursor-pointer shrink-0"
+                          onClick={() => setAuxFieldMenuIdx(auxFieldMenuIdx === i ? null : i)}
+                        >
+                          +
+                        </button>
+                        <button
+                          type="button"
+                          title={position === "header" ? "Pinned to header — click to move to footer" : "Pinned to footer — click to move to header"}
+                          className={`px-2 py-1 text-[10px] font-semibold rounded border cursor-pointer shrink-0 w-7 ${position === "header" ? "bg-blue-500 border-blue-500 text-white" : "bg-[var(--color-surface)] border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-[var(--color-text)]"}`}
+                          onClick={() => setRow({ position: position === "header" ? "footer" : "header" })}
+                        >
+                          {position === "header" ? "H" : "F"}
+                        </button>
+                      </div>
+                      {hasToken && (
+                        <div className="text-[10px] text-[var(--color-text-muted)] pl-1 truncate" title={preview}>
+                          → {preview || <span className="italic">(empty)</span>}
+                        </div>
+                      )}
+                      {auxFieldMenuIdx === i && (
+                        <div
+                          ref={auxMenuRef}
+                          className="absolute right-0 z-20 mt-1 w-56 max-h-64 overflow-y-auto bg-[var(--color-surface)] border border-[var(--color-border)] rounded shadow-lg"
+                        >
+                          {AUX_FIELD_GROUPS.map(({ group, fields }) => (
+                            <div key={group} className="py-1">
+                              <div className="px-2 text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">
+                                {group}
+                              </div>
+                              {fields.map((f) => (
+                                <button
+                                  key={f.token}
+                                  type="button"
+                                  className="block w-full text-left px-2 py-1 text-xs text-[var(--color-text)] hover:bg-[var(--color-bg)] cursor-pointer"
+                                  onClick={() => {
+                                    const input = auxInputRefs.current[i];
+                                    const token = `{{${f.token}}}`;
+                                    const start = input?.selectionStart ?? text.length;
+                                    const end = input?.selectionEnd ?? text.length;
+                                    const nextText = text.slice(0, start) + token + text.slice(end);
+                                    setRow({ text: nextText });
+                                    setAuxFieldMenuIdx(null);
+                                    // Restore focus + caret after the inserted token
+                                    requestAnimationFrame(() => {
+                                      const el = auxInputRefs.current[i];
+                                      if (el) {
+                                        el.focus();
+                                        const pos = start + token.length;
+                                        el.setSelectionRange(pos, pos);
+                                      }
+                                    });
+                                  }}
+                                >
+                                  {f.label}
+                                </button>
+                              ))}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                });
+              })()}
+            </div>
+          </details>
+
           {/* Flags */}
           <details className="text-xs">
             <summary className="cursor-pointer text-[var(--color-text-secondary)] hover:text-[var(--color-text)] select-none py-1">
@@ -889,7 +1438,7 @@ export default function DeviceEditor() {
                   <select
                     value={adapterVisibility}
                     onChange={(e) => setAdapterVisibility(e.target.value as "default" | "force-show" | "force-hide")}
-                    className="text-xs border border-[var(--color-border)] rounded px-1.5 py-0.5 bg-white cursor-pointer"
+                    className="text-xs border border-[var(--color-border)] rounded px-1.5 py-0.5 bg-[var(--color-surface)] text-[var(--color-text)] cursor-pointer"
                   >
                     <option value="default">Default</option>
                     <option value="force-show">Always Show</option>
@@ -919,7 +1468,7 @@ export default function DeviceEditor() {
           >
             Save as User Template
           </button>
-          {(!templateId || dirtyVsTemplate) && ports.some((p) => p.label.trim()) && (
+          {(!templateId || dirtyVsTemplate || customTemplates.some((t) => t.id === templateId)) && ports.some((p) => p.label.trim()) && (
             <button
               onClick={handleSubmitToCommunity}
               className="px-3 py-1.5 text-xs rounded bg-[var(--color-surface)] text-[var(--color-text)] hover:text-[var(--color-text-heading)] border border-[var(--color-border)] transition-colors cursor-pointer"
@@ -928,7 +1477,15 @@ export default function DeviceEditor() {
               Submit to Community
             </button>
           )}
-          {templateId && (
+          {templateId && customTemplates.some((t) => t.id === templateId) ? (
+            <button
+              onClick={handleUpdateUserTemplate}
+              className="px-3 py-1.5 text-xs rounded bg-[var(--color-surface)] text-[var(--color-text)] hover:text-[var(--color-text-heading)] border border-[var(--color-border)] transition-colors cursor-pointer"
+              title="Overwrite the saved user template with this configuration"
+            >
+              Update User Template
+            </button>
+          ) : templateId ? (
             <button
               onClick={handleSaveAsPreset}
               className="px-3 py-1.5 text-xs rounded bg-[var(--color-surface)] text-[var(--color-text)] hover:text-[var(--color-text-heading)] border border-[var(--color-border)] transition-colors cursor-pointer"
@@ -936,7 +1493,7 @@ export default function DeviceEditor() {
             >
               Save as Preset
             </button>
-          )}
+          ) : null}
           {hasPreset && dirtyVsPreset && (
             <button
               onClick={handleRevertToPreset}
@@ -981,6 +1538,19 @@ export default function DeviceEditor() {
           onClose={() => setShowFacePlateEditor(false)}
         />
       )}
+      {showSyncDialog && drift && editingNodeId && (
+        <TemplateSyncDialog
+          deviceId={editingNodeId}
+          device={node.data}
+          template={drift.template}
+          edges={edges}
+          onConfirm={() => {
+            syncDeviceFromTemplate(editingNodeId);
+            setShowSyncDialog(false);
+          }}
+          onCancel={() => setShowSyncDialog(false)}
+        />
+      )}
     </div>
   );
 }
@@ -1022,7 +1592,7 @@ function BulkAddForm({
     <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded p-2 space-y-2 mb-2">
       <div className="flex items-center gap-1.5 flex-wrap">
         <input
-          className="w-20 bg-white border border-[var(--color-border)] rounded px-1.5 py-1 text-xs outline-none focus:border-blue-500"
+          className="w-20 bg-[var(--color-surface)] text-[var(--color-text-heading)] border border-[var(--color-border)] rounded px-1.5 py-1 text-xs outline-none focus:border-blue-500"
           value={prefix}
           onChange={(e) => setPrefix(e.target.value)}
           placeholder="Prefix"
@@ -1032,7 +1602,7 @@ function BulkAddForm({
           <span className="text-[10px] text-[var(--color-text-muted)]">from</span>
           <input
             type="number"
-            className="w-12 bg-white border border-[var(--color-border)] rounded px-1.5 py-1 text-xs outline-none focus:border-blue-500"
+            className="w-12 bg-[var(--color-surface)] text-[var(--color-text-heading)] border border-[var(--color-border)] rounded px-1.5 py-1 text-xs outline-none focus:border-blue-500"
             value={start}
             onChange={(e) => setStart(parseInt(e.target.value) || 1)}
             min={0}
@@ -1043,7 +1613,7 @@ function BulkAddForm({
           <span className="text-[10px] text-[var(--color-text-muted)]">to</span>
           <input
             type="number"
-            className="w-12 bg-white border border-[var(--color-border)] rounded px-1.5 py-1 text-xs outline-none focus:border-blue-500"
+            className="w-12 bg-[var(--color-surface)] text-[var(--color-text-heading)] border border-[var(--color-border)] rounded px-1.5 py-1 text-xs outline-none focus:border-blue-500"
             value={end}
             onChange={(e) => setEnd(parseInt(e.target.value) || 1)}
             min={start}
@@ -1052,7 +1622,7 @@ function BulkAddForm({
           />
         </div>
         <select
-          className="bg-white border border-[var(--color-border)] rounded px-1 py-1 text-xs outline-none focus:border-blue-500 cursor-pointer"
+          className="bg-[var(--color-surface)] text-[var(--color-text)] border border-[var(--color-border)] rounded px-1 py-1 text-xs outline-none focus:border-blue-500 cursor-pointer"
           value={signalType}
           onChange={(e) => setSignalType(e.target.value as SignalType)}
         >
@@ -1064,7 +1634,7 @@ function BulkAddForm({
       <div className="flex items-center gap-1.5">
         <span className="text-[10px] text-[var(--color-text-muted)]">Section:</span>
         <input
-          className="flex-1 bg-white border border-[var(--color-border)] rounded px-1.5 py-1 text-xs outline-none focus:border-blue-500"
+          className="flex-1 bg-[var(--color-surface)] text-[var(--color-text-heading)] border border-[var(--color-border)] rounded px-1.5 py-1 text-xs outline-none focus:border-blue-500"
           value={section}
           onChange={(e) => setSection(e.target.value)}
           placeholder="(optional)"
@@ -1529,6 +2099,40 @@ function PortRow({
           ))}
         </select>
 
+        {/* Connector gender — only shown for connectors where M/F genuinely varies */}
+        {(() => {
+          const ct = port.connectorType ?? DEFAULT_CONNECTOR[port.signalType];
+          if (!CONNECTORS_WITH_GENDER_VARIATION.has(ct)) return null;
+          const resolved = resolvePortGender({
+            id: port.id,
+            label: port.label,
+            signalType: port.signalType,
+            direction: port.direction,
+            connectorType: ct,
+            gender: port.gender,
+          });
+          const isOverride = port.gender != null;
+          return (
+            <select
+              className={`border border-[var(--color-border)] rounded px-1 py-1 text-[10px] outline-none focus:border-blue-500 cursor-pointer shrink-0 ${
+                isOverride
+                  ? "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
+                  : "bg-[var(--color-surface)] text-[var(--color-text-muted)]"
+              }`}
+              value={port.gender ?? ""}
+              onChange={(e) => {
+                const v = e.target.value;
+                onUpdate({ gender: v === "" ? undefined : (v as Gender) });
+              }}
+              title={`Connector gender${isOverride ? " (overridden)" : ` (auto: ${resolved ?? "—"})`}`}
+            >
+              <option value="">{resolved ? `${resolved === "male" ? "M" : "F"} (auto)` : "—"}</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+            </select>
+          );
+        })()}
+
         {/* Multicable trunk toggle */}
         <label
           className={`text-[9px] px-1 py-0.5 rounded cursor-pointer transition-colors shrink-0 select-none ${
@@ -1932,25 +2536,62 @@ function DhcpServerSection({
   );
 }
 
-function SlotSwapSection({
+function SlotEditSection({
   nodeId,
   installedSlots,
   slotDefs,
 }: {
   nodeId: string;
-  installedSlots: DeviceData["slots"] & object;
+  installedSlots: NonNullable<DeviceData["slots"]>;
   slotDefs: SlotDefinition[];
 }) {
   const swapCard = useSchematicStore((s) => s.swapCard);
+  const addSlot = useSchematicStore((s) => s.addSlot);
+  const updateSlot = useSchematicStore((s) => s.updateSlot);
+  const removeSlot = useSchematicStore((s) => s.removeSlot);
   const edges = useSchematicStore((s) => s.edges);
+  const customTemplates = useSchematicStore((s) => s.customTemplates);
+
+  const [creatingCardForSlot, setCreatingCardForSlot] = useState<string | null>(null);
+
+  const knownFamilies = useMemo(
+    () => [
+      ...new Set([
+        ...getBundledTemplates().map((t) => t.slotFamily),
+        ...customTemplates.map((t) => t.slotFamily),
+      ].filter((f): f is string => !!f)),
+    ],
+    [customTemplates],
+  );
+
+  const creatingSlot = creatingCardForSlot ? installedSlots.find((s) => s.slotId === creatingCardForSlot) : undefined;
 
   return (
     <div className="space-y-2">
-      <div className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] font-medium">Expansion Slots</div>
+      <div className="flex items-center justify-between">
+        <div className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] font-medium">
+          Expansion Slots{installedSlots.length > 0 ? ` (${installedSlots.filter((s) => !s.parentSlotId).length})` : ""}
+        </div>
+        <button
+          type="button"
+          onClick={() => addSlot(nodeId, { label: `Slot ${installedSlots.filter((s) => !s.parentSlotId).length + 1}`, slotFamily: "" })}
+          className="text-[10px] text-blue-600 hover:text-blue-700 cursor-pointer"
+        >
+          + Add Slot
+        </button>
+      </div>
+      {installedSlots.length === 0 && (
+        <div className="text-[10px] text-[var(--color-text-muted)] italic">
+          No expansion slots. Add a slot for devices with modular card bays.
+        </div>
+      )}
+      <datalist id={`slot-families-${nodeId}`}>
+        {knownFamilies.map((f) => <option key={f} value={f} />)}
+      </datalist>
       {installedSlots.map((slot) => {
         // Use slotFamily from the slot itself (works for both top-level and nested)
         const family = slot.slotFamily ?? slotDefs.find((d) => d.id === slot.slotId)?.slotFamily;
-        const familyCards = family ? getCardsByFamily(family) : [];
+        const familyCards = family ? getCardsByFamily(family, customTemplates) : [];
         const isNested = !!slot.parentSlotId;
 
         // Count connections to this slot's ports (including descendant ports for parent slots)
@@ -1971,7 +2612,40 @@ function SlotSwapSection({
             key={slot.slotId}
             className={`bg-[var(--color-surface)] rounded px-2 py-1.5 border border-[var(--color-border)] ${isNested ? "ml-3 border-dashed" : ""}`}
           >
-            <div className="text-[10px] text-[var(--color-text-muted)] mb-1">{slot.label}</div>
+            {isNested ? (
+              <div className="text-[10px] text-[var(--color-text-muted)] mb-1">{slot.label}</div>
+            ) : (
+              <div className="flex items-center gap-1 mb-1">
+                <input
+                  value={slot.label}
+                  onChange={(e) => updateSlot(nodeId, slot.slotId, { label: e.target.value })}
+                  onKeyDown={(e) => e.stopPropagation()}
+                  placeholder="Slot label"
+                  className="flex-1 min-w-0 bg-[var(--color-surface)] text-[var(--color-text-heading)] border border-[var(--color-border)] rounded px-1.5 py-0.5 text-[11px] outline-none focus:border-blue-500"
+                />
+                <input
+                  value={slot.slotFamily ?? ""}
+                  onChange={(e) => updateSlot(nodeId, slot.slotId, { slotFamily: e.target.value })}
+                  onKeyDown={(e) => e.stopPropagation()}
+                  list={`slot-families-${nodeId}`}
+                  placeholder="family"
+                  className="w-24 bg-[var(--color-surface)] text-[var(--color-text-heading)] border border-[var(--color-border)] rounded px-1.5 py-0.5 text-[10px] outline-none focus:border-blue-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const warnConn = connCount > 0 ? `This slot has ${connCount} connection(s) that will be disconnected. ` : "";
+                    const warnCard = slot.cardTemplateId ? "The installed card and its ports will be removed. " : "";
+                    if ((warnConn || warnCard) && !confirm(`${warnConn}${warnCard}Remove slot "${slot.label}"?`)) return;
+                    removeSlot(nodeId, slot.slotId);
+                  }}
+                  className="text-red-400 hover:text-red-500 text-xs cursor-pointer px-1 leading-none"
+                  title="Remove slot"
+                >
+                  &times;
+                </button>
+              </div>
+            )}
             <select
               value={slot.cardTemplateId ?? ""}
               onChange={(e) => {
@@ -1982,9 +2656,10 @@ function SlotSwapSection({
                 }
                 swapCard(nodeId, slot.slotId, newCardId);
               }}
-              className="w-full bg-white border border-[var(--color-border)] rounded px-1.5 py-1 text-xs outline-none focus:border-blue-500"
+              disabled={!isNested && !slot.slotFamily}
+              className="w-full bg-[var(--color-surface)] text-[var(--color-text)] border border-[var(--color-border)] rounded px-1.5 py-1 text-xs outline-none focus:border-blue-500 disabled:opacity-50"
             >
-              <option value="">(empty)</option>
+              <option value="">{!isNested && !slot.slotFamily ? "(set slot family to enable)" : "(empty)"}</option>
               {familyCards.map((card) => (
                 <option key={card.id} value={card.id!}>
                   {card.label}
@@ -1996,9 +2671,34 @@ function SlotSwapSection({
                 {[slot.cardManufacturer, slot.cardModelNumber].filter(Boolean).join(" ")}
               </div>
             )}
+            {!isNested && (
+              <button
+                type="button"
+                onClick={() => setCreatingCardForSlot(slot.slotId)}
+                className="text-[10px] text-blue-500 hover:text-blue-600 cursor-pointer mt-1"
+              >
+                + Create custom card...
+              </button>
+            )}
           </div>
         );
       })}
+      {creatingSlot && (
+        <CardCreatorDialog
+          open
+          initialFamily={creatingSlot.slotFamily ?? ""}
+          familySuggestions={knownFamilies}
+          onClose={() => setCreatingCardForSlot(null)}
+          onCreated={(cardId, finalFamily) => {
+            // If the slot's family was empty or differs, update it so swapCard resolves the card correctly.
+            if ((creatingSlot.slotFamily ?? "") !== finalFamily) {
+              updateSlot(nodeId, creatingSlot.slotId, { slotFamily: finalFamily });
+            }
+            swapCard(nodeId, creatingSlot.slotId, cardId);
+            setCreatingCardForSlot(null);
+          }}
+        />
+      )}
     </div>
   );
 }

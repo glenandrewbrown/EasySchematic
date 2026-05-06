@@ -6,7 +6,11 @@ export const DEFAULT_SIGNAL_COLORS: Record<SignalType, string> = {
   hdmi: "#dc2626",
   ndi: "#16a34a",
   dante: "#ea580c",
+  avb: "#65a30d",
   "analog-audio": "#854d0e",
+  "speaker-level": "#9f1239",
+  bluetooth: "#0082fc",
+  digilink: "#9a3412",
   aes: "#7c3aed",
   dmx: "#b91c1c",
   madi: "#059669",
@@ -18,10 +22,12 @@ export const DEFAULT_SIGNAL_COLORS: Record<SignalType, string> = {
   srt: "#15803d",
   genlock: "#475569",
   gpio: "#78716c",
+  "contact-closure": "#57534e",
   rs422: "#6d28d9",
   serial: "#525252",
   thunderbolt: "#4f46e5",
   composite: "#ca8a04",
+  "component-video": "#92700c",
   "s-video": "#b45309",
   vga: "#0369a1",
   dvi: "#1e40af",
@@ -45,6 +51,27 @@ export const DEFAULT_SIGNAL_COLORS: Record<SignalType, string> = {
   st2110: "#3730a3",
   artnet: "#f59e0b",
   sacn: "#eab308",
+  ir: "#f97316",
+  timecode: "#06b6d4",
+  gigaace: "#7c3aed",
+  dx5: "#8b5cf6",
+  slink: "#a78bfa",
+  soundgrid: "#6d28d9",
+  fibreace: "#9333ea",
+  dsnake: "#d946ef",
+  dxlink: "#7e22ce",
+  gps: "#475569",
+  dars: "#06b6d4",
+  rtmp: "#16a34a",
+  rtsp: "#15803d",
+  "mpeg-ts": "#0891b2",
+  ebus: "#0c4a6e",
+  "control-voltage": "#92400e",
+  "extron-exp": "#7e22ce",
+  pots: "#3f3f46",
+  "blu-link": "#0284c7",
+  cresnet: "#a21caf",
+  sensor: "#71717a",
   custom: "#64748b",
 };
 
@@ -52,6 +79,7 @@ const STORAGE_KEY = "easyschematic-signal-colors";
 
 /** Apply signal colors to CSS custom properties. */
 export function applySignalColors(colors: Partial<Record<SignalType, string>>) {
+  if (typeof document === "undefined") return;
   const root = document.documentElement;
   // Start from defaults, overlay with provided colors
   const merged = { ...DEFAULT_SIGNAL_COLORS, ...colors };
@@ -62,6 +90,7 @@ export function applySignalColors(colors: Partial<Record<SignalType, string>>) {
 
 /** Load saved signal colors from localStorage. */
 export function loadSignalColors(): Record<SignalType, string> {
+  if (typeof localStorage === "undefined") return { ...DEFAULT_SIGNAL_COLORS };
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) return { ...DEFAULT_SIGNAL_COLORS, ...JSON.parse(raw) };

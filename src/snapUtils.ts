@@ -1,6 +1,7 @@
 import type { DeviceData, SchematicNode } from "./types";
 
 import { GRID_SIZE } from "./store";
+import { totalAuxHeight } from "./auxiliaryData";
 
 // Must be >= half the grid size so alignment snapping works with grid-snapped positions.
 // React Flow's snapToGrid moves nodes in GRID_SIZE increments, so we need to catch
@@ -30,13 +31,15 @@ interface Rect {
 }
 
 function estimateDeviceHeight(node: SchematicNode): number {
-  const ports = (node.data as DeviceData).ports ?? [];
+  const data = node.data as DeviceData;
+  const ports = data.ports ?? [];
   const left = ports.filter((p) => p.direction !== "bidirectional" && (p.direction === "input" ? !p.flipped : !!p.flipped)).length;
   const right = ports.filter((p) => p.direction !== "bidirectional" && (p.direction === "output" ? !p.flipped : !!p.flipped)).length;
   const bidirs = ports.filter((p) => p.direction === "bidirectional").length;
   const portRows = Math.max(left, right) + bidirs;
-  // Device height = 1px border + 40px header + 9px pad + rows×20 + 9px pad + 1px border = 60 + rows×20
-  return 60 + portRows * 20;
+  // Base: 1px border + 40px header band (min) + 9px pad + rows×20 + 9px pad + 1px border = 60 + rows×20.
+  // totalAuxHeight adds (a) header band surplus above the 40-px baseline and (b) footer block height.
+  return 60 + portRows * 20 + totalAuxHeight(data.auxiliaryData);
 }
 
 function nodeRect(node: SchematicNode): Rect {
@@ -405,6 +408,9 @@ export function enforceMinSpacing(
   snapResult?: SnapResult,
 ): { x: number; y: number } | null {
   if (draggedNode.type === "room") return null;
+  // Stub labels are visual annotations, not routing obstacles. They also center-snap
+  // to the grid — the final round-to-grid below would clobber that offset.
+  if (draggedNode.type === "stub-label") return null;
 
   const dragged = nodeRect(draggedNode);
   const dw = dragged.right - dragged.left;
@@ -423,7 +429,7 @@ export function enforceMinSpacing(
 
   const neighbors = allNodes.filter((n) => {
     if (n.id === draggedNode.id) return false;
-    if (n.type === "room" || n.type === "note") return false;
+    if (n.type === "room" || n.type === "note" || n.type === "stub-label") return false;
     if (n.parentId !== draggedNode.parentId) return false;
     if (hiddenNodeIds?.has(n.id)) return false;
     return true;
@@ -572,13 +578,15 @@ export function speculativeReparent(
   node: SchematicNode,
   allNodes: SchematicNode[],
 ): SchematicNode {
-  if (node.parentId || node.type === "room") return node;
+  if (node.parentId) return node;
 
   const nodeW = node.measured?.width ?? 180;
   const nodeH = node.measured?.height ?? estimateDeviceHeight(node);
   const centerX = node.position.x + nodeW / 2;
   const centerY = node.position.y + nodeH / 2;
 
+  let bestRoom: SchematicNode | undefined;
+  let bestArea = Infinity;
   for (const room of allNodes) {
     if (room.type !== "room") continue;
     const rw = room.measured?.width ?? (room.style?.width as number) ?? (room.width as number) ?? 400;
@@ -587,15 +595,22 @@ export function speculativeReparent(
       centerX >= room.position.x && centerX <= room.position.x + rw &&
       centerY >= room.position.y && centerY <= room.position.y + rh
     ) {
-      return {
-        ...node,
-        parentId: room.id,
-        position: {
-          x: node.position.x - room.position.x,
-          y: node.position.y - room.position.y,
-        },
-      };
+      const area = rw * rh;
+      if (area < bestArea) {
+        bestRoom = room;
+        bestArea = area;
+      }
     }
+  }
+  if (bestRoom) {
+    return {
+      ...node,
+      parentId: bestRoom.id,
+      position: {
+        x: node.position.x - bestRoom.position.x,
+        y: node.position.y - bestRoom.position.y,
+      },
+    };
   }
   return node;
 }

@@ -1,7 +1,9 @@
-import type { SchematicNode, DeviceData, RoomData, ConnectionEdge } from "./types";
+import type { SchematicNode, DeviceData, ConnectionEdge } from "./types";
 import { SIGNAL_LABELS } from "./types";
 import { NETWORK_SIGNAL_TYPES } from "./connectorTypes";
 import { findReachableDhcpServers } from "./networkValidation";
+import { getRoomLabel } from "./packList";
+import { transformLabelNow } from "./labelCaseUtils";
 import type { ReportLayout } from "./reportLayout";
 import type { ReportTableData } from "./reportPdf";
 
@@ -25,15 +27,7 @@ export interface NetworkReportRow {
   poeDrawW: string;
 }
 
-function getRoomLabel(
-  nodes: SchematicNode[],
-  parentId: string | undefined,
-): string {
-  if (!parentId) return "Unassigned";
-  const room = nodes.find((n) => n.id === parentId);
-  if (!room || room.type !== "room") return "Unassigned";
-  return (room.data as RoomData).label || "Unassigned";
-}
+
 
 /**
  * Build a flat list of all addressable ports with their network config.
@@ -58,8 +52,8 @@ export function computeNetworkReport(nodes: SchematicNode[], edges: ConnectionEd
       rows.push({
         nodeId: node.id,
         portId: port.id,
-        deviceLabel: data.label,
-        portLabel: port.label,
+        deviceLabel: transformLabelNow(data.label),
+        portLabel: transformLabelNow(port.label),
         room,
         signalType: SIGNAL_LABELS[port.signalType] ?? port.signalType,
         hostname: data.hostname ?? "",
@@ -113,7 +107,7 @@ export function computeDhcpServerSummary(nodes: SchematicNode[]): DhcpServerSumm
     if (!data.dhcpServer?.enabled) continue;
     rows.push({
       nodeId: node.id,
-      deviceLabel: data.label,
+      deviceLabel: transformLabelNow(data.label),
       rangeStart: data.dhcpServer.rangeStart ?? "",
       rangeEnd: data.dhcpServer.rangeEnd ?? "",
       subnetMask: data.dhcpServer.subnetMask ?? "",
@@ -173,7 +167,7 @@ export function computePoeBudget(nodes: SchematicNode[], edges: ConnectionEdge[]
 
     rows.push({
       nodeId: node.id,
-      deviceLabel: data.label,
+      deviceLabel: transformLabelNow(data.label),
       room,
       budgetW: data.poeBudgetW,
       loadW,

@@ -17,11 +17,22 @@ try {
 } catch { /* not a git repo or git not available */ }
 
 export default defineConfig({
+  // Resolve TypeScript sources before .js so stale emitted .js shadows can't silently win.
+  resolve: {
+    extensions: ['.mjs', '.mts', '.ts', '.tsx', '.js', '.jsx', '.json'],
+  },
   plugins: [
     react(),
     VitePWA({
       registerType: 'autoUpdate',
       workbox: {
+        // Force a freshly-installed SW to activate and claim all open tabs
+        // immediately, instead of waiting for every client to close. Without
+        // these, users who keep the app open for days run stale code (e.g.
+        // pre-Apr-27 export pipeline at 144 DPI instead of 480).
+        skipWaiting: true,
+        clientsClaim: true,
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         globPatterns: ['**/*.{js,css,html,svg,png,ttf,json}'],
         globIgnores: [
           '**/deviceLibrary.fallback.json',

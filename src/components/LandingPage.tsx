@@ -1,15 +1,16 @@
 import { useEffect } from "react";
+import { sponsors } from "../sponsors";
 
 const features = [
   {
     title: "Drag-and-Drop Device Library",
     description:
-      "500+ professional AV device templates — cameras, switchers, routers, audio consoles, media servers, displays, and more. Drag devices onto the canvas and connect them in seconds.",
+      "2,000+ professional AV device templates — cameras, switchers, routers, audio consoles, media servers, displays, and more. Drag devices onto the canvas and connect them in seconds.",
   },
   {
     title: "Color-Coded Signal Types",
     description:
-      "35+ signal types including SDI, HDMI, NDI, Dante, AES67, MADI, DMX, Analog Audio, HDBaseT, ST 2110, and more — each with a distinct color so signal paths are instantly readable.",
+      "68 signal types including SDI, HDMI, NDI, Dante, AVB, AES67, MADI, DMX, Analog Audio, HDBaseT, ST 2110, and more — each with a distinct color so signal paths are instantly readable.",
   },
   {
     title: "Smart Connection Routing",
@@ -97,7 +98,7 @@ export default function LandingPage() {
             broadcast, live production, and AV integration. Free and browser-based.
           </p>
           <p className="text-slate-500 mb-8">
-            500+ device templates &middot; 35+ signal types &middot;
+            2,000+ device templates &middot; 68 signal types &middot;
             Smart edge routing &middot; DXF/PDF/PNG export
           </p>
           <button
@@ -121,6 +122,45 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Supported by */}
+      <section className="border-b border-slate-200">
+        <div className="max-w-5xl mx-auto px-6 py-8 text-center">
+          <p className="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-4">
+            Supported by
+          </p>
+          <div className="flex justify-center gap-8 mb-6">
+            {sponsors.filter((s) => s.kind === "organization").map((s) => (
+              <a
+                key={s.name}
+                href={s.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={s.name}
+              >
+                <img
+                  src={s.logo}
+                  alt={s.name}
+                  className="h-16 rounded-lg"
+                />
+              </a>
+            ))}
+          </div>
+          {sponsors.some((s) => s.kind === "individual") && (
+            <div>
+              <p className="text-xs uppercase tracking-widest text-slate-400 mb-2">
+                Individual supporters
+              </p>
+              <p className="text-sm text-slate-500">
+                {sponsors
+                  .filter((s) => s.kind === "individual")
+                  .map((s) => s.name)
+                  .join(" · ")}
+              </p>
+            </div>
+          )}
+        </div>
+      </section>
+
       {/* Signal type badges */}
       <section className="border-b border-slate-200">
         <div className="max-w-5xl mx-auto px-6 py-10">
@@ -131,7 +171,7 @@ export default function LandingPage() {
             {signalSamples.map((s) => (
               <span
                 key={s.name}
-                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-50 border border-slate-200 text-sm font-medium text-gray-700"
+                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-50 border border-slate-200 text-sm font-medium text-black"
               >
                 <span
                   className="w-3 h-3 rounded-full shrink-0"

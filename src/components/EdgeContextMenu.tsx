@@ -3,6 +3,8 @@ import { useReactFlow } from "@xyflow/react";
 import { useSchematicStore } from "../store";
 import { resolvePort } from "../packList";
 import { LINE_STYLE_LABELS, LINE_STYLE_DASHARRAY, type DeviceData, type LineStyle } from "../types";
+import { useContextMenuPosition } from "../hooks/useContextMenuPosition";
+import MenuSubmenu from "./MenuSubmenu";
 
 /** Project a point onto the nearest segment and return the projected point. */
 function projectOntoSegments(
@@ -222,6 +224,12 @@ export default function EdgeContextMenu() {
   const [editingLabel, setEditingLabel] = useState<false | "label" | "multicable">(false);
   const [labelValue, setLabelValue] = useState("");
 
+  const { ref: menuRef, pos: menuPos } = useContextMenuPosition(
+    menu?.screenX ?? 0,
+    menu?.screenY ?? 0,
+    [editingLabel],
+  );
+
   const setConnectionLabel = useCallback(() => {
     if (!menu) return;
     const store = useSchematicStore.getState();
@@ -260,17 +268,49 @@ export default function EdgeContextMenu() {
     if (!menu) return;
     const store = useSchematicStore.getState();
     const edge = store.edges.find((e) => e.id === menu.edgeId);
-    const current = edge?.data?.stubbed === true;
-    store.patchEdgeData(menu.edgeId, { stubbed: current ? undefined : true });
+    if (edge?.data?.linkedConnectionId) {
+      store.collapseStubsForEdge(menu.edgeId);
+    } else {
+      store.convertEdgeToStubs(menu.edgeId);
+    }
     useSchematicStore.setState({ edgeContextMenu: null });
   }, [menu]);
 
-  const toggleHideLabel = useCallback(() => {
+  const toggleHideCableId = useCallback(() => {
     if (!menu) return;
     const store = useSchematicStore.getState();
     const edge = store.edges.find((e) => e.id === menu.edgeId);
-    const current = edge?.data?.hideLabel === true;
-    store.patchEdgeData(menu.edgeId, { hideLabel: current ? undefined : true });
+    const current = edge?.data?.hideCableId === true;
+    store.patchEdgeData(menu.edgeId, { hideCableId: current ? undefined : true });
+    useSchematicStore.setState({ edgeContextMenu: null });
+  }, [menu]);
+
+  const toggleHideCustomLabel = useCallback(() => {
+    if (!menu) return;
+    const store = useSchematicStore.getState();
+    const edge = store.edges.find((e) => e.id === menu.edgeId);
+    const current = edge?.data?.hideCustomLabel === true;
+    store.patchEdgeData(menu.edgeId, { hideCustomLabel: current ? undefined : true });
+    useSchematicStore.setState({ edgeContextMenu: null });
+  }, [menu]);
+
+  const toggleEdgeCableIdMode = useCallback(() => {
+    if (!menu) return;
+    const store = useSchematicStore.getState();
+    const edge = store.edges.find((e) => e.id === menu.edgeId);
+    const current = (edge?.data?.cableIdLabelMode as string) ?? store.cableIdLabelMode;
+    const next = current === "endpoint" ? "midpoint" : "endpoint";
+    store.patchEdgeData(menu.edgeId, { cableIdLabelMode: next });
+    useSchematicStore.setState({ edgeContextMenu: null });
+  }, [menu]);
+
+  const toggleEdgeCustomLabelMode = useCallback(() => {
+    if (!menu) return;
+    const store = useSchematicStore.getState();
+    const edge = store.edges.find((e) => e.id === menu.edgeId);
+    const current = (edge?.data?.customLabelMode as string) ?? store.customLabelMode;
+    const next = current === "endpoint" ? "midpoint" : "endpoint";
+    store.patchEdgeData(menu.edgeId, { customLabelMode: next });
     useSchematicStore.setState({ edgeContextMenu: null });
   }, [menu]);
 
@@ -324,8 +364,15 @@ export default function EdgeContextMenu() {
   const store = useSchematicStore.getState();
   const edge = store.edges.find((e) => e.id === menu.edgeId);
   const hasManual = !!(edge?.data?.manualWaypoints?.length);
-  const isStubbed = edge?.data?.stubbed === true;
-  const isLabelHidden = edge?.data?.hideLabel === true;
+  const isStubbed = !!edge?.data?.linkedConnectionId;
+  const isCableIdHidden = edge?.data?.hideCableId === true;
+  const isCustomLabelHidden = edge?.data?.hideCustomLabel === true;
+  const hasCustomLabel = !!(edge?.data?.label);
+  const edgeCableIdMode = (edge?.data?.cableIdLabelMode as string) ?? useSchematicStore.getState().cableIdLabelMode;
+  const edgeCustomLabelMode = (edge?.data?.customLabelMode as string) ?? useSchematicStore.getState().customLabelMode;
+  // NOTE: Stub label show-port / page-mode overrides moved to StubLabelNode.data
+  // (per-stub, not per-edge). Right-click on a stub label node will surface these
+  // options in a future menu; for now they fall back to the global setting.
   const currentLineStyle: LineStyle = (edge?.data?.lineStyle as LineStyle) ?? "solid";
   const hasMismatch = edge?.data?.connectorMismatch === true;
   const allowIncompatible = edge?.data?.allowIncompatible === true;
@@ -355,15 +402,19 @@ export default function EdgeContextMenu() {
     return false;
   };
   if (hasManual) nearWaypoint = checkNear(edge!.data!.manualWaypoints!);
-  if (isStubbed) {
-    nearWaypoint = nearWaypoint || checkNear(edge?.data?.stubSourceWaypoints ?? []) || checkNear(edge?.data?.stubTargetWaypoints ?? []);
-  }
 
   if (editingLabel) {
     return (
       <div
+        ref={menuRef}
         className="fixed z-50 bg-white border border-gray-300 rounded shadow-lg p-2 min-w-[200px]"
-        style={{ left: menu.screenX, top: menu.screenY }}
+        style={{
+          left: menuPos.x,
+          top: menuPos.y,
+          maxHeight: menuPos.maxHeight,
+          overflowY: menuPos.maxHeight ? "auto" : undefined,
+          visibility: menuPos.ready ? "visible" : "hidden",
+        }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="text-xs text-gray-500 mb-1">
@@ -404,8 +455,15 @@ export default function EdgeContextMenu() {
 
   return (
     <div
+      ref={menuRef}
       className="fixed z-50 bg-white border border-gray-300 rounded shadow-lg py-1 min-w-[160px]"
-      style={{ left: menu.screenX, top: menu.screenY }}
+      style={{
+        left: menuPos.x,
+        top: menuPos.y,
+        maxHeight: menuPos.maxHeight,
+        overflowY: menuPos.maxHeight ? "auto" : undefined,
+        visibility: menuPos.ready ? "visible" : "hidden",
+      }}
       onClick={(e) => e.stopPropagation()}
     >
       <MenuItem label="Add Handle" onClick={addHandle} />
@@ -424,9 +482,25 @@ export default function EdgeContextMenu() {
         <MenuItem label="Set Cable Label..." onClick={setCableLabel} />
       )}
       <MenuItem
-        label={isLabelHidden ? "Show Label" : "Hide Label"}
-        onClick={toggleHideLabel}
+        label={isCableIdHidden ? "Show Cable ID" : "Hide Cable ID"}
+        onClick={toggleHideCableId}
       />
+      <MenuItem
+        label={edgeCableIdMode === "endpoint" ? "Cable ID at Midpoint" : "Cable ID at Endpoints"}
+        onClick={toggleEdgeCableIdMode}
+      />
+      {hasCustomLabel && (
+        <MenuItem
+          label={isCustomLabelHidden ? "Show Custom Label" : "Hide Custom Label"}
+          onClick={toggleHideCustomLabel}
+        />
+      )}
+      {hasCustomLabel && (
+        <MenuItem
+          label={edgeCustomLabelMode === "endpoint" ? "Label at Midpoint" : "Label at Endpoints"}
+          onClick={toggleEdgeCustomLabelMode}
+        />
+      )}
       <MenuItem
         label={isStubbed ? "Show Full Connection" : "Stub Connection"}
         onClick={toggleStubbed}
@@ -444,28 +518,29 @@ export default function EdgeContextMenu() {
         />
       )}
       <div className="h-px bg-gray-200 my-1" />
-      <div className="px-3 py-1 text-[10px] text-gray-400 uppercase tracking-wider">Line Style</div>
-      {(["solid", "dashed", "dotted", "dash-dot"] as LineStyle[]).map((ls) => (
-        <button
-          key={ls}
-          className={`w-full text-left px-3 py-1.5 text-xs flex items-center gap-2 cursor-pointer ${
-            currentLineStyle === ls
-              ? "text-blue-700 bg-blue-50"
-              : "text-gray-700 hover:bg-blue-50 hover:text-blue-700"
-          }`}
-          onClick={() => setLineStyle(ls)}
-        >
-          <svg width="24" height="8" className="shrink-0">
-            <line
-              x1="0" y1="4" x2="24" y2="4"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeDasharray={LINE_STYLE_DASHARRAY[ls] ?? "none"}
-            />
-          </svg>
-          <span>{LINE_STYLE_LABELS[ls]}</span>
-        </button>
-      ))}
+      <MenuSubmenu label={`Line Style: ${LINE_STYLE_LABELS[currentLineStyle]}`} minWidth={180}>
+        {(["solid", "dashed", "dotted", "dash-dot"] as LineStyle[]).map((ls) => (
+          <button
+            key={ls}
+            className={`w-full text-left px-3 py-1.5 text-xs flex items-center gap-2 cursor-pointer ${
+              currentLineStyle === ls
+                ? "text-blue-700 bg-blue-50"
+                : "text-gray-700 hover:bg-blue-50 hover:text-blue-700"
+            }`}
+            onClick={() => setLineStyle(ls)}
+          >
+            <svg width="24" height="8" className="shrink-0">
+              <line
+                x1="0" y1="4" x2="24" y2="4"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeDasharray={LINE_STYLE_DASHARRAY[ls] ?? "none"}
+              />
+            </svg>
+            <span>{LINE_STYLE_LABELS[ls]}</span>
+          </button>
+        ))}
+      </MenuSubmenu>
       <div className="h-px bg-gray-200 my-1" />
       <MenuItem label="Go to Source" onClick={() => goToNode(edge?.source)} />
       <MenuItem label="Go to Destination" onClick={() => goToNode(edge?.target)} />

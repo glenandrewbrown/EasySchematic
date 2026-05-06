@@ -10,16 +10,16 @@ export function getBundledTemplates(): DeviceTemplate[] {
   return fallbackData as DeviceTemplate[];
 }
 
-/** Look up a card template by ID from cached API data or bundled fallback. */
-export function getTemplateById(id: string): DeviceTemplate | undefined {
+/** Look up a card template by ID from cached API data, bundled fallback, or caller-supplied extras (user's custom templates). */
+export function getTemplateById(id: string, extra: DeviceTemplate[] = []): DeviceTemplate | undefined {
   const source = cached ?? fallbackData as DeviceTemplate[];
-  return source.find((t) => t.id === id);
+  return source.find((t) => t.id === id) ?? extra.find((t) => t.id === id);
 }
 
-/** Return all card templates that belong to a given slot family. */
-export function getCardsByFamily(family: string): DeviceTemplate[] {
+/** Return all card templates that belong to a given slot family, merging bundled and caller-supplied extras. */
+export function getCardsByFamily(family: string, extra: DeviceTemplate[] = []): DeviceTemplate[] {
   const source = cached ?? (fallbackData as DeviceTemplate[]);
-  return source.filter((t) => t.slotFamily === family);
+  return [...source.filter((t) => t.slotFamily === family), ...extra.filter((t) => t.slotFamily === family)];
 }
 
 // ==================== AUTH & DRAFTS ====================
@@ -222,6 +222,43 @@ export async function loadSchematicTemplate(): Promise<unknown | null> {
 }
 
 // ==================== TEMPLATES ====================
+
+/** Submit a single device template to the community review queue. */
+export async function createSubmission(
+  action: "create" | "update",
+  data: Omit<DeviceTemplate, "id" | "version">,
+  templateId?: string,
+  submitterNote?: string,
+  source?: "manual" | "bulk-json" | "bulk-csv",
+): Promise<{ id: string }> {
+  const res = await fetch(`${API_URL}/submissions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({
+      action,
+      data,
+      templateId,
+      ...(submitterNote && { submitterNote }),
+      ...(source && { source }),
+    }),
+  });
+  if (res.status === 401) throw new Error("Sign in to submit to the community library");
+  if (res.status === 403) throw new Error("Account suspended");
+  if (res.status === 429) {
+    const err = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(err.error || "Too many submissions — try again later");
+  }
+  if (res.status === 409) {
+    const err = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(err.error || "Duplicate submission");
+  }
+  if (!res.ok) {
+    const err = (await res.json()) as { error?: string };
+    throw new Error(err.error || `Submission failed: ${res.status}`);
+  }
+  return res.json();
+}
 
 export async function fetchTemplates(): Promise<DeviceTemplate[]> {
   if (cached) return cached;

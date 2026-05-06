@@ -1,6 +1,8 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { useSchematicStore } from "../store";
-import type { RoomData, RoomNode } from "../types";
+import { DEFAULT_DISTANCE_SETTINGS } from "../types";
+import type { DistanceSettings, RoomData, RoomNode, SchematicNode } from "../types";
+import { getTopLevelRoomId, isTopLevelRoom, listTopLevelRooms, pairKey } from "../roomDistance";
 
 const BORDER_STYLES: { value: RoomData["borderStyle"]; label: string }[] = [
   { value: "dashed", label: "Dashed" },
@@ -21,6 +23,9 @@ export default function RoomEditor() {
   const updateRoom = useSchematicStore((s) => s.updateRoom);
   const toggleRoomLock = useSchematicStore((s) => s.toggleRoomLock);
   const setEditingNodeId = useSchematicStore((s) => s.setEditingNodeId);
+  const roomDistances = useSchematicStore((s) => s.roomDistances);
+  const distanceSettings = useSchematicStore((s) => s.distanceSettings);
+  const setRoomDistance = useSchematicStore((s) => s.setRoomDistance);
 
   const node = nodes.find((n) => n.id === editingNodeId && n.type === "room") as RoomNode | undefined;
 
@@ -30,6 +35,7 @@ export default function RoomEditor() {
   const [borderStyle, setBorderStyle] = useState<RoomData["borderStyle"]>("dashed");
   const [labelSize, setLabelSize] = useState(12);
   const [locked, setLocked] = useState(false);
+  const [isEquipmentRack, setIsEquipmentRack] = useState(false);
 
   /* eslint-disable react-hooks/set-state-in-effect -- syncing props to local editor state */
   useEffect(() => {
@@ -40,6 +46,7 @@ export default function RoomEditor() {
     setBorderStyle(node.data.borderStyle ?? "dashed");
     setLabelSize(node.data.labelSize ?? 12);
     setLocked(node.data.locked ?? false);
+    setIsEquipmentRack(node.data.isEquipmentRack ?? false);
   }, [node]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
@@ -53,10 +60,11 @@ export default function RoomEditor() {
       ...(borderColor ? { borderColor } : {}),
       ...(borderStyle && borderStyle !== "dashed" ? { borderStyle } : {}),
       ...(labelSize !== 12 ? { labelSize } : {}),
+      ...(isEquipmentRack ? { isEquipmentRack: true } : {}),
     };
     updateRoom(editingNodeId, data);
     close();
-  }, [editingNodeId, label, color, borderColor, borderStyle, labelSize, updateRoom, close]);
+  }, [editingNodeId, label, color, borderColor, borderStyle, labelSize, isEquipmentRack, updateRoom, close]);
 
   if (!editingNodeId || !node) return null;
 
@@ -114,6 +122,34 @@ export default function RoomEditor() {
               {locked ? "Locked" : "Unlocked"}
             </button>
           </div>
+
+          {/* Equipment Rack — only for nested rooms */}
+          {node.parentId && (
+            <div>
+              <label className="block text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mb-1">
+                Equipment Rack
+              </label>
+              <button
+                onClick={() => setIsEquipmentRack(!isEquipmentRack)}
+                className={`px-3 py-1 text-xs rounded border cursor-pointer transition-colors ${
+                  isEquipmentRack
+                    ? "bg-blue-50 border-blue-400 text-blue-700"
+                    : "bg-[var(--color-surface)] border-[var(--color-border)] text-[var(--color-text)] hover:text-[var(--color-text-heading)]"
+                }`}
+              >
+                {isEquipmentRack ? "Yes" : "No"}
+              </button>
+            </div>
+          )}
+
+          {/* Distances to other rooms (#146) */}
+          <RoomDistancesSection
+            roomId={node.id}
+            nodes={nodes}
+            roomDistances={roomDistances}
+            unit={(distanceSettings ?? DEFAULT_DISTANCE_SETTINGS).unit}
+            setRoomDistance={setRoomDistance}
+          />
 
           {/* Label Size */}
           <div>
@@ -223,6 +259,95 @@ export default function RoomEditor() {
             Apply
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function RoomDistancesSection({
+  roomId,
+  nodes,
+  roomDistances,
+  unit,
+  setRoomDistance,
+}: {
+  roomId: string;
+  nodes: SchematicNode[];
+  roomDistances: Record<string, number> | undefined;
+  unit: DistanceSettings["unit"];
+  setRoomDistance: (a: string, b: string, distance: number | undefined) => void;
+}) {
+  const topLevel = isTopLevelRoom(roomId, nodes);
+  const ancestorId = useMemo(() => getTopLevelRoomId(roomId, nodes), [roomId, nodes]);
+  const others = useMemo(
+    () => listTopLevelRooms(nodes).filter((r) => r.id !== (topLevel ? roomId : ancestorId)),
+    [nodes, roomId, topLevel, ancestorId],
+  );
+
+  if (!topLevel) {
+    const ancestorLabel =
+      ancestorId
+        ? (nodes.find((n) => n.id === ancestorId)?.data as RoomData | undefined)?.label ?? "parent room"
+        : "parent room";
+    return (
+      <div>
+        <label className="block text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mb-1">
+          Distances
+        </label>
+        <p className="text-[11px] text-[var(--color-text-muted)]">
+          Inherited from the top-level room ({ancestorLabel}). Edit distances on that room or in Reports &rsaquo; Room Distances.
+        </p>
+      </div>
+    );
+  }
+
+  if (others.length === 0) {
+    return (
+      <div>
+        <label className="block text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mb-1">
+          Distances
+        </label>
+        <p className="text-[11px] text-[var(--color-text-muted)]">
+          Add another top-level room to set a distance.
+        </p>
+      </div>
+    );
+  }
+
+  const inputClass =
+    "bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2 py-1 text-xs text-[var(--color-text-heading)] outline-none focus:border-blue-500 w-20 text-right";
+
+  return (
+    <div>
+      <label className="block text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mb-1">
+        Distances ({unit})
+      </label>
+      <div className="space-y-1 max-h-[160px] overflow-y-auto pr-1">
+        {others.map((r) => {
+          const key = pairKey(roomId, r.id);
+          const current = roomDistances?.[key];
+          return (
+            <div key={r.id} className="flex items-center justify-between gap-2 py-0.5">
+              <span className="text-xs text-[var(--color-text)] flex-1 truncate" title={r.label}>
+                {r.label}
+              </span>
+              <input
+                type="number"
+                min={0}
+                step={0.5}
+                value={current ?? ""}
+                placeholder="—"
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  const value = raw === "" ? undefined : Number(raw);
+                  setRoomDistance(roomId, r.id, value);
+                }}
+                className={inputClass}
+                onKeyDown={(e) => e.stopPropagation()}
+              />
+            </div>
+          );
+        })}
       </div>
     </div>
   );

@@ -12,10 +12,18 @@ import type { RoutedEdge } from "./edgeRouter";
 import { computeCellRects, normalizeSizes, getFieldValue } from "./titleBlockLayout";
 import { useSchematicStore } from "./store";
 import { DEFAULT_SIGNAL_COLORS } from "./signalColors";
+import { transformLabelNow } from "./labelCaseUtils";
 import { collectColorKeyEntries, layoutColorKey, type ColorKeyEntry } from "./colorKeyLayout";
 
 const DPI = 96;
-const PIXEL_RATIO = 1.5;
+// 5 × 96 = 480 DPI — well above the 300 DPI print standard, sharp even at high
+// zoom in PDF viewers. Bumped from 1.5 to fix soft/pixelated printed output.
+// The "FAST" deflate compression on addImage below keeps PDF sizes in check
+// independently of pixelRatio — see commit 38ce285.
+const TARGET_PIXEL_RATIO = 5;
+// Cap raster dimension to stay under browser canvas limits (~16384px in Chrome)
+// on huge custom paper sizes. Falls back to a lower effective DPI on those.
+const MAX_RASTER_DIMENSION_PX = 12000;
 
 // ─── Inter font embedding for jsPDF ───
 
@@ -51,6 +59,16 @@ async function loadInterFont(doc: jsPDF) {
   doc.addFileToVFS("Inter-Bold.ttf", interBoldB64!);
   doc.addFont("Inter-Regular.ttf", "Inter", "normal");
   doc.addFont("Inter-Bold.ttf", "Inter", "bold");
+}
+
+/** Build @font-face CSS with base64-embedded Inter for html-to-image.
+ *  Bypasses html-to-image's flaky auto font-embedding so glyphs like → survive. */
+function getInterFontEmbedCSS(): string {
+  if (!interRegularB64 || !interBoldB64) return "";
+  return [
+    `@font-face { font-family: 'Inter'; font-weight: 400; font-style: normal; src: url(data:font/truetype;base64,${interRegularB64}) format('truetype'); }`,
+    `@font-face { font-family: 'Inter'; font-weight: 700; font-style: normal; src: url(data:font/truetype;base64,${interBoldB64}) format('truetype'); }`,
+  ].join("\n");
 }
 
 /** Wait for rendering to settle (edge routing debounce, etc.) */
@@ -334,7 +352,10 @@ function computePdfCrossingLabels(
 
   const marginPx = page.contentX - page.x;
 
-  // Build node info lookup
+  // Build node info lookup. Devices use their own label/room. Stub-label nodes
+  // proxy to the FAR device of their logical connection (the device on the other
+  // side of the linkedConnectionId pair) — so cross-page indicators on a stub-leg
+  // edge still point the reader toward the actual destination.
   const nodeInfo = new Map<string, { label: string; room?: string }>();
   for (const n of nodes) {
     if (n.type !== "device") continue;
@@ -344,7 +365,25 @@ function computePdfCrossingLabels(
       const parent = nodes.find((p) => p.id === n.parentId);
       if (parent) room = (parent.data as { label?: string }).label;
     }
-    nodeInfo.set(n.id, { label: data.label, room });
+    nodeInfo.set(n.id, { label: transformLabelNow(data.label), room });
+  }
+  for (const n of nodes) {
+    if (n.type !== "stub-label") continue;
+    const stubData = n.data as { linkedConnectionId?: string; side?: "source" | "target" };
+    if (!stubData.linkedConnectionId) continue;
+    // Find the partner leg (the OTHER edge with the same linkedConnectionId)
+    const myEdge = edges.find((e) =>
+      e.data?.linkedConnectionId === stubData.linkedConnectionId &&
+      (stubData.side === "source" ? e.target === n.id : e.source === n.id),
+    );
+    if (!myEdge) continue;
+    const partnerEdge = edges.find((e) =>
+      e.data?.linkedConnectionId === stubData.linkedConnectionId && e.id !== myEdge.id,
+    );
+    if (!partnerEdge) continue;
+    const farDeviceId = stubData.side === "source" ? partnerEdge.target : partnerEdge.source;
+    const farInfo = nodeInfo.get(farDeviceId);
+    if (farInfo) nodeInfo.set(n.id, farInfo);
   }
 
   const edgeMap = new Map(edges.map((e) => [e.id, e]));
@@ -365,7 +404,6 @@ function computePdfCrossingLabels(
   for (const [edgeId, route] of Object.entries(routedEdges)) {
     const edge = edgeMap.get(edgeId);
     if (!edge) continue;
-    if (edge.data?.stubbed) continue;
     const sourceInfo = nodeInfo.get(edge.source);
     const targetInfo = nodeInfo.get(edge.target);
     if (!sourceInfo || !targetInfo) continue;
@@ -688,13 +726,19 @@ export async function exportPdf(
       CSSStyleDeclaration.prototype.getPropertyValue = function (prop) {
         return origGetPropertyValue.call(this, prop) ?? '';
       };
+      const longestSidePx = Math.max(contentWPx, contentHPx);
+      const pixelRatio = Math.max(
+        1,
+        Math.min(TARGET_PIXEL_RATIO, MAX_RASTER_DIMENSION_PX / longestSidePx),
+      );
       let dataUrl: string;
       try {
         dataUrl = await toPng(viewportEl, {
           backgroundColor: "#ffffff",
           width: contentWPx,
           height: contentHPx,
-          pixelRatio: PIXEL_RATIO,
+          pixelRatio,
+          fontEmbedCSS: getInterFontEmbedCSS(),
           style: {
             width: `${contentWPx}px`,
             height: `${contentHPx}px`,

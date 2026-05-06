@@ -17,15 +17,31 @@ const LINE_STYLE_TIPS: Record<LineStyle, string> = {
 export default function ViewOptionsPanel({ mobile, onClose }: { mobile?: boolean; onClose?: () => void } = {}) {
   const [collapsed, setCollapsed] = useState(true);
   const hiddenSignalTypesStr = useSchematicStore((s) => s.hiddenSignalTypes);
-  const hideDeviceTypes = useSchematicStore((s) => s.hideDeviceTypes);
+  const hiddenPinSignalTypesStr = useSchematicStore((s) => s.hiddenPinSignalTypes);
   const hideUnconnectedPorts = useSchematicStore((s) => s.hideUnconnectedPorts);
+  const showPortCounts = useSchematicStore((s) => s.showPortCounts);
+  const setShowPortCounts = useSchematicStore((s) => s.setShowPortCounts);
   const toggleSignalTypeVisibility = useSchematicStore((s) => s.toggleSignalTypeVisibility);
-  const setHideDeviceTypes = useSchematicStore((s) => s.setHideDeviceTypes);
+  const togglePinSignalTypeVisibility = useSchematicStore((s) => s.togglePinSignalTypeVisibility);
   const setHideUnconnectedPorts = useSchematicStore((s) => s.setHideUnconnectedPorts);
   const showLineJumps = useSchematicStore((s) => s.showLineJumps);
   const setShowLineJumps = useSchematicStore((s) => s.setShowLineJumps);
-  const showConnectionLabels = useSchematicStore((s) => s.showConnectionLabels);
-  const setShowConnectionLabels = useSchematicStore((s) => s.setShowConnectionLabels);
+  const showCableIdLabels = useSchematicStore((s) => s.showCableIdLabels);
+  const setShowCableIdLabels = useSchematicStore((s) => s.setShowCableIdLabels);
+  const showCustomLabels = useSchematicStore((s) => s.showCustomLabels);
+  const setShowCustomLabels = useSchematicStore((s) => s.setShowCustomLabels);
+  const cableIdGap = useSchematicStore((s) => s.cableIdGap);
+  const setCableIdGap = useSchematicStore((s) => s.setCableIdGap);
+  const customLabelGap = useSchematicStore((s) => s.customLabelGap);
+  const setCustomLabelGap = useSchematicStore((s) => s.setCustomLabelGap);
+  const cableIdMidOffset = useSchematicStore((s) => s.cableIdMidOffset);
+  const setCableIdMidOffset = useSchematicStore((s) => s.setCableIdMidOffset);
+  const customLabelMidOffset = useSchematicStore((s) => s.customLabelMidOffset);
+  const setCustomLabelMidOffset = useSchematicStore((s) => s.setCustomLabelMidOffset);
+  const cableIdLabelMode = useSchematicStore((s) => s.cableIdLabelMode);
+  const setCableIdLabelMode = useSchematicStore((s) => s.setCableIdLabelMode);
+  const customLabelMode = useSchematicStore((s) => s.customLabelMode);
+  const setCustomLabelMode = useSchematicStore((s) => s.setCustomLabelMode);
   const hideAdapters = useSchematicStore((s) => s.hideAdapters);
   const setHideAdapters = useSchematicStore((s) => s.setHideAdapters);
   const showAllSignalTypes = useSchematicStore((s) => s.showAllSignalTypes);
@@ -70,7 +86,12 @@ export default function ViewOptionsPanel({ mobile, onClose }: { mobile?: boolean
     [hiddenSignalTypesStr],
   );
 
-  const anyHidden = hiddenSet.size > 0;
+  const hiddenPinSet = useMemo(
+    () => (hiddenPinSignalTypesStr ? new Set(hiddenPinSignalTypesStr.split(",")) : new Set<string>()),
+    [hiddenPinSignalTypesStr],
+  );
+
+  const anyHidden = hiddenSet.size > 0 || hiddenPinSet.size > 0;
   const hasCustomizations = !!(signalColors && Object.keys(signalColors).length > 0) ||
     !!(signalLineStyles && Object.keys(signalLineStyles).length > 0);
 
@@ -175,6 +196,15 @@ export default function ViewOptionsPanel({ mobile, onClose }: { mobile?: boolean
           />
           <span className="text-xs text-[var(--color-text)]">Hide unconnected ports</span>
         </label>
+        <label className="flex items-center gap-2 px-1 py-0.5 rounded hover:bg-[var(--color-surface-hover)] cursor-pointer">
+          <input
+            type="checkbox"
+            checked={showPortCounts}
+            onChange={(e) => setShowPortCounts(e.target.checked)}
+            className="w-3 h-3 accent-blue-500 cursor-pointer"
+          />
+          <span className="text-xs text-[var(--color-text)]">Show IO counts</span>
+        </label>
 
         {/* Divider */}
         <div className="border-t border-[var(--color-border)] my-2" />
@@ -213,17 +243,46 @@ export default function ViewOptionsPanel({ mobile, onClose }: { mobile?: boolean
         ) : (
           displayedSignalTypes.map((type) => {
             const ls = signalLineStyles?.[type] ?? "solid";
+            const wireHidden = hiddenSet.has(type);
+            const pinHidden = hiddenPinSet.has(type);
             return (
               <div
                 key={type}
-                className="flex items-center gap-1.5 px-1 py-0.5 rounded hover:bg-[var(--color-surface-hover)]"
+                className="flex items-center gap-1 px-1 py-0.5 rounded hover:bg-[var(--color-surface-hover)]"
               >
-                <input
-                  type="checkbox"
-                  checked={!hiddenSet.has(type)}
-                  onChange={() => toggleSignalTypeVisibility(type)}
-                  className="w-3 h-3 accent-blue-500 cursor-pointer shrink-0"
-                />
+                {/* Wire visibility toggle */}
+                <button
+                  className="shrink-0 cursor-pointer rounded hover:bg-[var(--color-surface)] p-0.5 transition-colors"
+                  onClick={() => toggleSignalTypeVisibility(type)}
+                  title={wireHidden ? "Show wires" : "Hide wires"}
+                >
+                  <svg width="14" height="10" viewBox="0 0 14 10" className="block">
+                    <path
+                      d="M1 5 L5 5 L9 5 L13 5"
+                      fill="none"
+                      stroke={wireHidden ? "var(--color-text-muted)" : SIGNAL_COLORS[type]}
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      opacity={wireHidden ? 0.3 : 1}
+                    />
+                  </svg>
+                </button>
+                {/* Pin visibility toggle */}
+                <button
+                  className="shrink-0 cursor-pointer rounded hover:bg-[var(--color-surface)] p-0.5 transition-colors"
+                  onClick={() => togglePinSignalTypeVisibility(type)}
+                  title={pinHidden ? "Show pins" : "Hide pins"}
+                >
+                  <svg width="12" height="12" viewBox="0 0 12 12" className="block">
+                    <rect
+                      x="2" y="2" width="8" height="8" rx="1.5"
+                      fill={pinHidden ? "none" : SIGNAL_COLORS[type]}
+                      stroke={pinHidden ? "var(--color-text-muted)" : SIGNAL_COLORS[type]}
+                      strokeWidth="1.5"
+                      opacity={pinHidden ? 0.3 : 1}
+                    />
+                  </svg>
+                </button>
                 <button
                   className="w-2.5 h-2.5 rounded-full shrink-0 cursor-pointer border border-transparent hover:border-[var(--color-text-muted)] transition-colors"
                   style={{ background: SIGNAL_COLORS[type] }}
@@ -255,23 +314,6 @@ export default function ViewOptionsPanel({ mobile, onClose }: { mobile?: boolean
         {/* Divider */}
         <div className="border-t border-[var(--color-border)] my-2" />
 
-        {/* Labels section */}
-        <div className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mb-1">
-          Labels
-        </div>
-        <label className="flex items-center gap-2 px-1 py-0.5 rounded hover:bg-[var(--color-surface-hover)] cursor-pointer">
-          <input
-            type="checkbox"
-            checked={!hideDeviceTypes}
-            onChange={(e) => setHideDeviceTypes(!e.target.checked)}
-            className="w-3 h-3 accent-blue-500 cursor-pointer"
-          />
-          <span className="text-xs text-[var(--color-text)]">Show device types</span>
-        </label>
-
-        {/* Divider */}
-        <div className="border-t border-[var(--color-border)] my-2" />
-
         {/* Connections */}
         <div className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mb-1">
           Connections
@@ -288,12 +330,83 @@ export default function ViewOptionsPanel({ mobile, onClose }: { mobile?: boolean
         <label className="flex items-center gap-2 px-1 py-0.5 rounded hover:bg-[var(--color-surface-hover)] cursor-pointer">
           <input
             type="checkbox"
-            checked={showConnectionLabels}
-            onChange={(e) => setShowConnectionLabels(e.target.checked)}
+            checked={showCableIdLabels}
+            onChange={(e) => setShowCableIdLabels(e.target.checked)}
             className="w-3 h-3 accent-blue-500 cursor-pointer"
           />
-          <span className="text-xs text-[var(--color-text)]">Show cable IDs on connections</span>
+          <span className="text-xs text-[var(--color-text)]">Show cable IDs</span>
         </label>
+        <label className="flex items-center gap-2 px-1 py-0.5 rounded hover:bg-[var(--color-surface-hover)] cursor-pointer">
+          <input
+            type="checkbox"
+            checked={showCustomLabels}
+            onChange={(e) => setShowCustomLabels(e.target.checked)}
+            className="w-3 h-3 accent-blue-500 cursor-pointer"
+          />
+          <span className="text-xs text-[var(--color-text)]">Show custom labels</span>
+        </label>
+        <div className="flex items-center gap-2 px-1 py-0.5">
+          <span className="text-xs text-[var(--color-text)]">Cable ID position</span>
+          <select
+            value={cableIdLabelMode}
+            onChange={(e) => setCableIdLabelMode(e.target.value as "endpoint" | "midpoint")}
+            className="text-xs bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-1 py-0.5 text-[var(--color-text)] cursor-pointer"
+          >
+            <option value="endpoint">At endpoints</option>
+            <option value="midpoint">At midpoint</option>
+          </select>
+        </div>
+        <div className="flex items-center gap-2 px-1 py-0.5">
+          <span className="text-xs text-[var(--color-text)]">
+            {cableIdLabelMode === "endpoint" ? "Cable ID spacing" : "Cable ID offset"}
+          </span>
+          <input
+            type="range"
+            min={cableIdLabelMode === "endpoint" ? 1 : -100}
+            max={cableIdLabelMode === "endpoint" ? 40 : 100}
+            step={1}
+            value={cableIdLabelMode === "endpoint" ? cableIdGap : cableIdMidOffset}
+            onChange={(e) => cableIdLabelMode === "endpoint"
+              ? setCableIdGap(Number(e.target.value))
+              : setCableIdMidOffset(Number(e.target.value))
+            }
+            className="w-16 h-3 accent-blue-500 cursor-pointer"
+          />
+          <span className="text-[10px] text-[var(--color-text-muted)] w-5 text-right">
+            {cableIdLabelMode === "endpoint" ? cableIdGap : cableIdMidOffset}
+          </span>
+        </div>
+        <div className="flex items-center gap-2 px-1 py-0.5">
+          <span className="text-xs text-[var(--color-text)]">Custom label position</span>
+          <select
+            value={customLabelMode}
+            onChange={(e) => setCustomLabelMode(e.target.value as "endpoint" | "midpoint")}
+            className="text-xs bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-1 py-0.5 text-[var(--color-text)] cursor-pointer"
+          >
+            <option value="endpoint">At endpoints</option>
+            <option value="midpoint">At midpoint</option>
+          </select>
+        </div>
+        <div className="flex items-center gap-2 px-1 py-0.5">
+          <span className="text-xs text-[var(--color-text)]">
+            {customLabelMode === "endpoint" ? "Custom label spacing" : "Custom label offset"}
+          </span>
+          <input
+            type="range"
+            min={customLabelMode === "endpoint" ? 1 : -100}
+            max={customLabelMode === "endpoint" ? 40 : 100}
+            step={1}
+            value={customLabelMode === "endpoint" ? customLabelGap : customLabelMidOffset}
+            onChange={(e) => customLabelMode === "endpoint"
+              ? setCustomLabelGap(Number(e.target.value))
+              : setCustomLabelMidOffset(Number(e.target.value))
+            }
+            className="w-16 h-3 accent-blue-500 cursor-pointer"
+          />
+          <span className="text-[10px] text-[var(--color-text-muted)] w-5 text-right">
+            {customLabelMode === "endpoint" ? customLabelGap : customLabelMidOffset}
+          </span>
+        </div>
 
         {/* Divider */}
         <div className="border-t border-[var(--color-border)] my-2" />

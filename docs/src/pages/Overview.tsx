@@ -21,7 +21,7 @@ export default function OverviewPage() {
       <h2>Key features</h2>
       <ul>
         <li>
-          <strong>Devices</strong> with typed input/output ports (SDI, HDMI, NDI, Dante, DMX, MADI, and 40 signal types)
+          <strong>Devices</strong> with typed input/output ports (SDI, HDMI, NDI, Dante, AVB, DMX, MADI, and 68 signal types in total)
         </li>
         <li>
           <strong>Signal-type coloring</strong> — connections are color-coded by signal type, with customizable colors
@@ -42,8 +42,9 @@ export default function OverviewPage() {
           <strong>Line jump arcs</strong> — arc markers at connection crossings for visual clarity
         </li>
         <li>
-          <strong>Device library</strong> — 500+ real-world device templates across cameras, switchers, audio, lighting,
-          LED video, and more
+          <strong>Device library</strong> — 2,000+ real-world device templates from the community library — cameras,
+          switchers, audio consoles, lighting consoles, LED processors, media servers, and more — fetched live with a
+          bundled offline fallback
         </li>
         <li>
           <strong>Expansion slots</strong> — devices with swappable card bays; right-click a slot to swap I/O cards in or out
@@ -67,6 +68,9 @@ export default function OverviewPage() {
           <strong>Sharing</strong> — generate a link to share any cloud-saved schematic with anyone
         </li>
         <li>
+          <strong>Dark mode</strong> — toggle between light and dark themes from the menu bar; preference is saved automatically and respects your OS setting on first visit
+        </li>
+        <li>
           <strong>Trackpad support</strong> — pinch-to-zoom and two-finger pan with configurable sensitivity
         </li>
         <li>
@@ -85,6 +89,40 @@ export default function OverviewPage() {
           <strong>Network &amp; power reports</strong> — IP address schedules, VLAN assignments, PoE budgets, and power distribution analysis
         </li>
         <li>
+          <strong>Patch panel schedule</strong> — per-port report of every patch panel in the schematic, including
+          unconnected ports, with occupancy badges and group-by Panel / Room / Signal / Face
+        </li>
+        <li>
+          <strong>Connector gender</strong> — auto-derived per port, with M-M / F-F suffixes on cables that need
+          like-gendered plugs so the pack list matches what you actually buy
+        </li>
+        <li>
+          <strong>Estimated cable length</strong> — auto-populated from room-to-room distances when both endpoints
+          live in placed rooms
+        </li>
+        <li>
+          <strong>Owned Gear library</strong> — maintain an inventory of gear you own; the pack list reports used vs.
+          needed counts so you know what to pull and what to rent
+        </li>
+        <li>
+          <strong>Bulk device-template import</strong> — import many user templates at once from a JSON or CSV file
+          (e.g. a vendor catalog dump)
+        </li>
+        <li>
+          <strong>Label case</strong> — display preference (As-typed / UPPERCASE / lowercase / Capitalize Words),
+          saved with the schematic
+        </li>
+        <li>
+          <strong>Signal type filter</strong> — narrow device search to templates exposing a chosen signal type
+        </li>
+        <li>
+          <strong>IO counts</strong> — optional badges on devices showing connected vs. total ports per direction
+        </li>
+        <li>
+          <strong>Custom label expansion</strong> — embed <code>{"{{cableId}}"}</code> and other tokens in device
+          labels for inline cable references
+        </li>
+        <li>
           <strong>CSV import</strong> — import cable schedule spreadsheets to auto-generate schematics
         </li>
         <li>
@@ -92,6 +130,52 @@ export default function OverviewPage() {
         </li>
         <li>
           <strong>Quick-create routers</strong> — generate matrix routers with configurable input/output counts and signal type
+        </li>
+        <li>
+          <strong>Adapters</strong> — automatic adapter insertion between incompatible ports, with direct-attach,
+          barrels, gender labels, and per-adapter show/hide controls
+        </li>
+        <li>
+          <strong>Connection line styles</strong> — solid, dashed, dotted, or dash-dot per connection or per signal type
+        </li>
+        <li>
+          <strong>Subrooms</strong> — nested room containers for locations within locations
+        </li>
+        <li>
+          <strong>Equipment racks</strong> — mark rooms as equipment racks for rack-style rendering
+        </li>
+        <li>
+          <strong>BOM cost tracking</strong> — unit cost fields on devices and cables for budgeting
+        </li>
+        <li>
+          <strong>Mobile support</strong> — mobile detection with hamburger menu and touch-friendly controls
+        </li>
+        <li>
+          <strong>Google OAuth</strong> — sign in with Google or magic-link email
+        </li>
+        <li>
+          <strong>Offline cloud cache</strong> — cloud schematics cached to IndexedDB for offline access
+        </li>
+        <li>
+          <strong>Physical dimensions</strong> — device height, width, depth (mm) and weight (kg)
+        </li>
+        <li>
+          <strong>Hostname</strong> — per-device hostname field feeding into the network report
+        </li>
+        <li>
+          <strong>Auxiliary data</strong> — customizable text lines at the bottom of device nodes
+        </li>
+        <li>
+          <strong>Venue-provided gear</strong> — flag devices as venue-provided for pack list distinction
+        </li>
+        <li>
+          <strong>Nested slots</strong> — expansion cards with sub-slots (e.g., SFP transceivers in network cards)
+        </li>
+        <li>
+          <strong>Port flipping</strong> — move any port to the opposite side of the device
+        </li>
+        <li>
+          <strong>Port notes</strong> — per-port notes field for documentation
         </li>
       </ul>
     </>

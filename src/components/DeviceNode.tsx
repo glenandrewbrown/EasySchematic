@@ -3,6 +3,15 @@ import { Handle, Position, type NodeProps } from "@xyflow/react";
 import type { DeviceNode as DeviceNodeType, Port } from "../types";
 import { SIGNAL_COLORS, SIGNAL_LABELS, portSide } from "../types";
 import { useSchematicStore } from "../store";
+import {
+  resolveAuxiliaryLine,
+  auxRowHeight,
+  rowsInSlot,
+  headerBandHeight,
+  HEADER_LABEL_ZONE_PX,
+} from "../auxiliaryData";
+import type { AuxRow } from "../types";
+import { useDisplayLabel } from "../labelCaseUtils";
 
 type ColumnItem =
   | { type: "port"; port: Port }
@@ -24,17 +33,19 @@ function buildColumnItems(ports: Port[]): ColumnItem[] {
 
 function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) {
   const setEditingNodeId = useSchematicStore((s) => s.setEditingNodeId);
-  const hiddenSignalTypesStr = useSchematicStore((s) => s.hiddenSignalTypes);
-  const hideDeviceTypes = useSchematicStore((s) => s.hideDeviceTypes);
+  const displayLabel = useDisplayLabel();
+  const hiddenPinSignalTypesStr = useSchematicStore((s) => s.hiddenPinSignalTypes);
   const isHiddenAdapter = useSchematicStore((s) => s.hiddenAdapterNodeIds.has(id));
   const isOverlapping = useSchematicStore((s) => s.overlapNodeId === id);
 
-  const hiddenSignalTypes = useMemo(
-    () => (hiddenSignalTypesStr ? new Set(hiddenSignalTypesStr.split(",")) : null),
-    [hiddenSignalTypesStr],
+  const hiddenPinSignalTypes = useMemo(
+    () => (hiddenPinSignalTypesStr ? new Set(hiddenPinSignalTypesStr.split(",")) : null),
+    [hiddenPinSignalTypesStr],
   );
 
   const hideUnconnectedPorts = useSchematicStore((s) => s.hideUnconnectedPorts);
+  const showPortCounts = useSchematicStore((s) => s.showPortCounts);
+  const currency = useSchematicStore((s) => s.currency);
   const templateHiddenStr = useSchematicStore((s) => {
     if (!data.templateId) return "";
     const arr = s.templateHiddenSignals[data.templateId];
@@ -56,8 +67,8 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
 
   const visiblePorts = useMemo(() => {
     if (data.showAllPorts) {
-      return hiddenSignalTypes
-        ? data.ports.filter((p) => !hiddenSignalTypes.has(p.signalType))
+      return hiddenPinSignalTypes
+        ? data.ports.filter((p) => !hiddenPinSignalTypes.has(p.signalType))
         : data.ports;
     }
 
@@ -65,7 +76,7 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
     const devHiddenPorts = data.hiddenPorts?.length ? new Set(data.hiddenPorts) : null;
 
     return data.ports.filter((p) => {
-      if (hiddenSignalTypes?.has(p.signalType)) return false;
+      if (hiddenPinSignalTypes?.has(p.signalType)) return false;
       if (tplHidden?.has(p.signalType)) return false;
       if (devHiddenPorts?.has(p.id)) return false;
       if (hideUnconnectedPorts) {
@@ -77,7 +88,31 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
       return true;
     });
   }, [data.ports, data.showAllPorts, data.hiddenPorts,
-      hiddenSignalTypes, templateHiddenStr, hideUnconnectedPorts, connectedHandles]);
+      hiddenPinSignalTypes, templateHiddenStr, hideUnconnectedPorts, connectedHandles]);
+
+  const headerAuxRows = useMemo(
+    () => rowsInSlot(data.auxiliaryData, "header"),
+    [data.auxiliaryData],
+  );
+  const footerAuxRows = useMemo(
+    () => rowsInSlot(data.auxiliaryData, "footer"),
+    [data.auxiliaryData],
+  );
+
+  const portCountInfo = useMemo(() => {
+    if (!showPortCounts) return null;
+    const total = data.ports.length;
+    if (total === 0) return null;
+    let connected = 0;
+    for (const p of data.ports) {
+      if (p.direction === "bidirectional") {
+        if (connectedHandles.has(`${p.id}-in`) || connectedHandles.has(`${p.id}-out`)) connected++;
+      } else {
+        if (connectedHandles.has(p.id)) connected++;
+      }
+    }
+    return { connected, total };
+  }, [showPortCounts, data.ports, connectedHandles]);
 
   const openPortMenu = useCallback((e: React.MouseEvent, port: Port) => {
     e.preventDefault();
@@ -91,40 +126,46 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
   // Split ports by visual side (respects flip), not semantic direction.
   // When hideUnconnectedPorts is on, bidir ports with only one side connected
   // collapse into the appropriate column so the device gets smaller.
-  const collapsedBidir = new Map<string, "in" | "out">(); // port ID → which side is connected
-  const leftPorts: Port[] = [];
-  const rightPorts: Port[] = [];
-  const bidirectional: Port[] = [];
-  for (const p of visiblePorts) {
-    if (p.direction === "bidirectional") {
-      if (hideUnconnectedPorts) {
-        const inConn = connectedHandles.has(`${p.id}-in`);
-        const outConn = connectedHandles.has(`${p.id}-out`);
-        if (inConn && !outConn) {
-          (p.flipped ? rightPorts : leftPorts).push(p);
-          collapsedBidir.set(p.id, "in");
-          continue;
+  const { leftPorts, rightPorts, bidirectional, collapsedBidir } = useMemo(() => {
+    const collapsedBidir = new Map<string, "in" | "out">();
+    const leftPorts: Port[] = [];
+    const rightPorts: Port[] = [];
+    const bidirectional: Port[] = [];
+    for (const p of visiblePorts) {
+      if (p.direction === "bidirectional") {
+        if (hideUnconnectedPorts) {
+          const inConn = connectedHandles.has(`${p.id}-in`);
+          const outConn = connectedHandles.has(`${p.id}-out`);
+          if (inConn && !outConn) {
+            (p.flipped ? rightPorts : leftPorts).push(p);
+            collapsedBidir.set(p.id, "in");
+            continue;
+          }
+          if (outConn && !inConn) {
+            (p.flipped ? leftPorts : rightPorts).push(p);
+            collapsedBidir.set(p.id, "out");
+            continue;
+          }
         }
-        if (outConn && !inConn) {
-          (p.flipped ? leftPorts : rightPorts).push(p);
-          collapsedBidir.set(p.id, "out");
-          continue;
-        }
+        bidirectional.push(p);
+      } else if (portSide(p) === "left") {
+        leftPorts.push(p);
+      } else {
+        rightPorts.push(p);
       }
-      bidirectional.push(p);
-    } else if (portSide(p) === "left") {
-      leftPorts.push(p);
-    } else {
-      rightPorts.push(p);
     }
-  }
+    return { leftPorts, rightPorts, bidirectional, collapsedBidir };
+  }, [visiblePorts, hideUnconnectedPorts, connectedHandles]);
 
-  /** Get handle ID and type for a port in a column, accounting for collapsed bidir ports. */
+  /** Get handle ID and type for a port in a column, accounting for collapsed bidir ports.
+   *  All bidirectional handles use type="source" so React Flow always includes them in
+   *  handleBounds.source — its getEdgePosition only searches source bounds for sourceHandle,
+   *  even in ConnectionMode.Loose. Our isValidConnection handles real direction checks. */
   const handleProps = (port: Port, _side: "left" | "right") => {
     const connSide = collapsedBidir.get(port.id);
     if (connSide) {
       return connSide === "in"
-        ? { handleId: `${port.id}-in`, handleType: "target" as const }
+        ? { handleId: `${port.id}-in`, handleType: "source" as const }
         : { handleId: `${port.id}-out`, handleType: "source" as const };
     }
     return {
@@ -133,8 +174,22 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
     };
   };
 
-  const leftItems = useMemo(() => buildColumnItems(leftPorts), [leftPorts]);
-  const rightItems = useMemo(() => buildColumnItems(rightPorts), [rightPorts]);
+  const isPatchPanel = data.deviceType === "patch-panel";
+
+  const leftItems = useMemo(() => {
+    const items = buildColumnItems(leftPorts);
+    if (isPatchPanel && leftPorts.length > 0) {
+      return [{ type: "section" as const, name: "Rear" }, ...items];
+    }
+    return items;
+  }, [leftPorts, isPatchPanel]);
+  const rightItems = useMemo(() => {
+    const items = buildColumnItems(rightPorts);
+    if (isPatchPanel && rightPorts.length > 0) {
+      return [{ type: "section" as const, name: "Front" }, ...items];
+    }
+    return items;
+  }, [rightPorts, isPatchPanel]);
 
   const hasSections = leftItems.some((i) => i.type === "section") ||
     rightItems.some((i) => i.type === "section");
@@ -165,9 +220,9 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
         <span
           className="text-[10px] leading-5 truncate"
           style={{ color: SIGNAL_COLORS[port.signalType] }}
-          title={`${port.label} (${SIGNAL_LABELS[port.signalType]})`}
+          title={`${displayLabel(port.label)} (${SIGNAL_LABELS[port.signalType]})`}
         >
-          {port.label}
+          {displayLabel(port.label)}
         </span>
         {!isLeft && (
           <Handle
@@ -212,6 +267,75 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
     );
   }
 
+  /** Footer aux block — rows below the port area. Grid-rounded (20-multiple) so device
+   *  bottom stays on the snap grid. Blank rows render as 6-px separator gaps. */
+  function renderFooterAuxBlock(rows: AuxRow[]) {
+    if (rows.length === 0) return null;
+    const raw = 1 + rows.reduce((sum, r) => sum + auxRowHeight(r), 0);
+    const totalPad = Math.ceil(raw / 20) * 20 - raw;
+    const pt = Math.floor(totalPad / 2);
+    const pb = totalPad - pt;
+    return (
+      <div
+        className="auxiliaryData px-3 border-t border-[var(--color-border)]"
+        style={{ paddingTop: pt, paddingBottom: pb }}
+      >
+        {rows.map((row, i) => renderAuxRow(row, i))}
+      </div>
+    );
+  }
+
+  /** Individual aux row markup shared between header band and footer block. */
+  function renderAuxRow(row: AuxRow, key: number) {
+    if (!row.text.trim()) {
+      return <div key={key} aria-hidden style={{ height: 6 }} />;
+    }
+    const resolved = displayLabel(resolveAuxiliaryLine(row.text, data, { connectedCount: portCountInfo?.connected, currency }));
+    return (
+      <div
+        key={key}
+        className="text-[9px] text-[var(--color-text-muted)] leading-3 truncate whitespace-nowrap text-center"
+        title={resolved}
+      >
+        {resolved}
+      </div>
+    );
+  }
+
+  /** Header band — label zone + header aux rows, centered together in a 20-multiple band.
+   *  Replaces the old separate 40-px name strip + header aux block: eliminates the ~14-px
+   *  wasted whitespace between the label and the first aux row.
+   *
+   *  Keep the band-height formula in sync with `headerBandHeight()` in auxiliaryData.ts —
+   *  snapUtils uses it to estimate device height before React Flow measures it. */
+  function renderHeaderBand(rows: AuxRow[]) {
+    const bandH = headerBandHeight(data.auxiliaryData);
+    const content = HEADER_LABEL_ZONE_PX + rows.reduce((sum, r) => sum + auxRowHeight(r), 0);
+    const totalPad = bandH - content;
+    const pt = Math.floor(totalPad / 2);
+    const pb = totalPad - pt;
+    return (
+      <div
+        className="px-3 border-b border-[var(--color-border)] rounded-t-lg flex flex-col"
+        style={{
+          backgroundColor: data.headerColor || "var(--color-surface)",
+          paddingTop: pt,
+          paddingBottom: pb,
+        }}
+      >
+        <div
+          className="flex items-center justify-center"
+          style={{ height: HEADER_LABEL_ZONE_PX }}
+        >
+          <span className="text-xs font-semibold text-[var(--color-text-heading)] truncate leading-tight">
+            {displayLabel(data.label)}
+          </span>
+        </div>
+        {rows.map((row, i) => renderAuxRow(row, i))}
+      </div>
+    );
+  }
+
   return (
     <div
       onDoubleClick={() => setEditingNodeId(id)}
@@ -221,24 +345,12 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
       `}
       style={{ width: 180 }}
     >
-      {/* Header */}
-      <div
-        className="px-3 h-10 flex flex-col justify-center border-b border-[var(--color-border)] rounded-t-lg"
-        style={{ backgroundColor: data.headerColor || "var(--color-surface)" }}
-      >
-        <div className="text-xs font-semibold text-[var(--color-text-heading)] truncate leading-tight">
-          {data.label}
-        </div>
-        {!hideDeviceTypes && (
-          <div className="text-[10px] text-[var(--color-text-muted)] capitalize leading-tight">
-            {data.deviceType.replace(/-/g, " ")}
-          </div>
-        )}
-      </div>
+      {/* Header band — merged name strip + header aux rows. Height is always a 20-multiple
+           (min 40) so the first port below stays on the pathfinding grid. */}
+      {renderHeaderBand(headerAuxRows)}
 
       {/* Port area — 9px top padding aligns handle centers to the 20px grid.
-           Math: 1px (border) + 40px (header) + 9px (pad) + 10px (half row) = 60px ≡ 0 mod 20
-           9px bottom padding makes total height a multiple of 20 (60 + rows×20). */}
+           Math: 1px (border) + headerBand(20-mult) + 9px (pad) + 10px (half row) ≡ 0 mod 20. */}
       <div className="pt-[9px] pb-[9px]">
       {/* Input/Output Ports — two independent columns */}
       {(leftPorts.length > 0 || rightPorts.length > 0) && (
@@ -295,9 +407,9 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
                         <span
                           className="text-[10px] leading-5 truncate"
                           style={{ color: SIGNAL_COLORS[left.signalType] }}
-                          title={`${left.label} (${SIGNAL_LABELS[left.signalType]})`}
+                          title={`${displayLabel(left.label)} (${SIGNAL_LABELS[left.signalType]})`}
                         >
-                          {left.label}
+                          {displayLabel(left.label)}
                         </span>
                       </>
                     )}
@@ -308,9 +420,9 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
                         <span
                           className="text-[10px] leading-5 truncate"
                           style={{ color: SIGNAL_COLORS[right.signalType] }}
-                          title={`${right.label} (${SIGNAL_LABELS[right.signalType]})`}
+                          title={`${displayLabel(right.label)} (${SIGNAL_LABELS[right.signalType]})`}
                         >
-                          {right.label}
+                          {displayLabel(right.label)}
                         </span>
                         <Handle
                           type={rh.handleType}
@@ -336,7 +448,7 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
           {data.slots.filter((s) => !s.cardTemplateId).map((slot) => (
             <div key={slot.slotId} className="flex justify-center items-center h-5 mx-1">
               <span className="text-[9px] text-[var(--color-text-muted)] opacity-40 truncate text-center italic">
-                {slot.label} (empty)
+                {displayLabel(slot.label)} (empty)
               </span>
             </div>
           ))}
@@ -368,7 +480,7 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
             return (
               <div key={port.id} className="flex justify-center items-center relative h-5">
                 <Handle
-                  type="target"
+                  type="source"
                   position={Position.Left}
                   id={inId}
                   data-connected={connectedHandles.has(inId) || undefined}
@@ -382,9 +494,9 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
                 <span
                   className="text-[10px] leading-5 truncate"
                   style={{ color: SIGNAL_COLORS[port.signalType] }}
-                  title={`${port.label} (${SIGNAL_LABELS[port.signalType]}) — bidirectional`}
+                  title={`${displayLabel(port.label)} (${SIGNAL_LABELS[port.signalType]}) — bidirectional`}
                 >
-                  ↔ {port.label}
+                  ↔ {displayLabel(port.label)}
                 </span>
                 <Handle
                   type="source"
@@ -403,6 +515,14 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
           })}
         </div>
       )}
+      {portCountInfo && (
+        <div className="text-center h-5 flex items-center justify-center">
+          <span className="text-[9px] text-[var(--color-text-muted)]">
+            {portCountInfo.connected} / {portCountInfo.total} IOs connected
+          </span>
+        </div>
+      )}
+      {renderFooterAuxBlock(footerAuxRows)}
       </div>
     </div>
   );

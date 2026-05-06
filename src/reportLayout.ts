@@ -11,6 +11,8 @@ export interface ReportColumnDef {
   visible: boolean;
 }
 
+export type TableBorderStyle = "none" | "horizontal" | "grid" | "outer";
+
 export interface ReportTableDef {
   id: string;
   label: string;
@@ -19,6 +21,7 @@ export interface ReportTableDef {
   groupByOptions: { key: string; label: string }[];
   sortBy: string | null;
   sortDir: "asc" | "desc";
+  borderStyle?: TableBorderStyle;
 }
 
 export type PaperSize = "letter" | "legal" | "a4" | "tabloid";
@@ -190,14 +193,19 @@ export function createDefaultPackListLayout(): ReportLayout {
         columns: [
           { key: "count", header: "Qty", widthMm: 12, visible: true },
           { key: "model", header: "Device", widthMm: 60, visible: true },
+          { key: "manufacturer", header: "Manufacturer", widthMm: 30, visible: false },
+          { key: "modelNumber", header: "Model #", widthMm: 30, visible: false },
           { key: "deviceType", header: "Type", widthMm: 40, visible: true },
           { key: "room", header: "Room", widthMm: 50, visible: true },
           { key: "powerDrawW", header: "Power (W)", widthMm: 22, visible: false },
+          { key: "unitCost", header: "Unit Cost", widthMm: 22, visible: false },
+          { key: "extCost", header: "Ext. Cost", widthMm: 22, visible: false },
         ],
         groupBy: null,
         groupByOptions: [
           { key: "", label: "None" },
           { key: "room", label: "Room" },
+          { key: "deviceType", label: "Device Category" },
         ],
         sortBy: null,
         sortDir: "asc",
@@ -211,6 +219,8 @@ export function createDefaultPackListLayout(): ReportLayout {
           { key: "signalType", header: "Signal", widthMm: 28, visible: true },
           { key: "cableLength", header: "Length", widthMm: 18, visible: true },
           { key: "route", header: "Route", widthMm: 52, visible: true },
+          { key: "unitCost", header: "Unit Cost", widthMm: 22, visible: false },
+          { key: "extCost", header: "Ext. Cost", widthMm: 22, visible: false },
         ],
         groupBy: null,
         groupByOptions: [
@@ -282,6 +292,7 @@ export function createDefaultCableScheduleLayout(): ReportLayout {
           { key: "cableType",       header: "Cable Type",  widthMm: 22, visible: true },
           { key: "signalType",      header: "Signal",      widthMm: 20, visible: true },
           { key: "cableLength",     header: "Length",      widthMm: 16, visible: true },
+          { key: "computedLength",  header: "Est. Length", widthMm: 18, visible: true },
           { key: "sourceRoom",      header: "Src Room",    widthMm: 24, visible: true },
           { key: "targetRoom",      header: "Tgt Room",    widthMm: 24, visible: true },
           { key: "multicableLabel", header: "Snake",       widthMm: 24, visible: true },
@@ -295,6 +306,67 @@ export function createDefaultCableScheduleLayout(): ReportLayout {
           { key: "multicableLabel", label: "Snake" },
         ],
         sortBy: "cableId",
+        sortDir: "asc",
+      },
+    ],
+    orientation: "landscape",
+    paperSize: "letter",
+  };
+}
+
+// ─── Patch Panel Schedule Defaults ───
+
+export function createDefaultPatchPanelScheduleHeaderLayout(): TitleBlockLayout {
+  return {
+    columns: normalizeSizes([0.6, 0.4]),
+    rows: normalizeSizes([0.55, 0.45]),
+    widthIn: 8,
+    heightIn: 0.8,
+    cells: [
+      layoutCell(0, 0, { type: "static", text: "Patch Panel Schedule" }, { fontSize: 14, fontWeight: "bold" }),
+      layoutCell(0, 1, { type: "logo" }, { align: "right" }),
+      layoutCell(1, 0, { type: "field", field: "showName" }, { fontSize: 8 }),
+      layoutCell(1, 1, { type: "field", field: "date" }, { fontSize: 8, align: "right", color: "#666666" }),
+    ],
+  };
+}
+
+export function createDefaultPatchPanelScheduleLayout(): ReportLayout {
+  return {
+    headerLayout: createDefaultPatchPanelScheduleHeaderLayout(),
+    headerHeightMm: 22,
+    footerLayout: createDefaultPackListFooterLayout(),
+    footerHeightMm: 8,
+    tables: [
+      {
+        id: "patchPanelSchedule",
+        label: "Patch Panel Schedule",
+        columns: [
+          { key: "panel",           header: "Panel",         widthMm: 30, visible: true },
+          { key: "panelRoom",       header: "Panel Room",    widthMm: 24, visible: true },
+          { key: "face",            header: "Face",          widthMm: 14, visible: true },
+          { key: "position",        header: "Position",      widthMm: 20, visible: true },
+          { key: "connector",       header: "Connector",     widthMm: 18, visible: true },
+          { key: "gender",          header: "M/F",           widthMm: 10, visible: true },
+          { key: "remoteDevice",    header: "Remote Device", widthMm: 30, visible: true },
+          { key: "remotePort",      header: "Remote Port",   widthMm: 22, visible: true },
+          { key: "remoteRoom",      header: "Remote Room",   widthMm: 24, visible: true },
+          { key: "cableId",         header: "Cable ID",      widthMm: 18, visible: true },
+          { key: "cableType",       header: "Cable Type",    widthMm: 22, visible: true },
+          { key: "signalType",      header: "Signal",        widthMm: 20, visible: true },
+          { key: "cableLength",     header: "Length",        widthMm: 16, visible: true },
+          { key: "computedLength",  header: "Est. Length",   widthMm: 18, visible: true },
+          { key: "multicableLabel", header: "Snake",         widthMm: 20, visible: false },
+        ],
+        groupBy: "panel",
+        groupByOptions: [
+          { key: "",           label: "None" },
+          { key: "panel",      label: "Panel" },
+          { key: "panelRoom",  label: "Panel Room" },
+          { key: "signalType", label: "Signal Type" },
+          { key: "face",       label: "Face" },
+        ],
+        sortBy: "position",
         sortDir: "asc",
       },
     ],
@@ -332,12 +404,14 @@ export function createDefaultPowerReportLayout(): ReportLayout {
         label: "Device Power Draw",
         columns: [
           { key: "count", header: "Qty", widthMm: 12, visible: true },
-          { key: "model", header: "Device", widthMm: 50, visible: true },
-          { key: "deviceType", header: "Type", widthMm: 35, visible: true },
-          { key: "room", header: "Room", widthMm: 35, visible: true },
-          { key: "powerDrawW", header: "Power (W)", widthMm: 22, visible: true },
-          { key: "totalPowerW", header: "Total (W)", widthMm: 22, visible: true },
-          { key: "voltage", header: "Voltage", widthMm: 25, visible: true },
+          { key: "model", header: "Device", widthMm: 42, visible: true },
+          { key: "deviceType", header: "Type", widthMm: 30, visible: true },
+          { key: "room", header: "Room", widthMm: 30, visible: true },
+          { key: "powerDrawW", header: "Power (W)", widthMm: 20, visible: true },
+          { key: "totalPowerW", header: "Total (W)", widthMm: 20, visible: true },
+          { key: "thermalBtuh", header: "Thermal (BTU/h)", widthMm: 22, visible: true },
+          { key: "totalThermalBtuh", header: "Total (BTU/h)", widthMm: 22, visible: true },
+          { key: "voltage", header: "Voltage", widthMm: 22, visible: true },
         ],
         groupBy: null,
         groupByOptions: [
@@ -374,8 +448,21 @@ export function createDefaultPowerReportLayout(): ReportLayout {
 
 // ─── Helpers ───
 
-export function getVisibleColumns(table: ReportTableDef): ReportColumnDef[] {
-  return table.columns.filter((c) => c.visible);
+/**
+ * Get visible columns, optionally scaled to fill the available page width.
+ * When availableWidthMm is provided, column widths are proportionally scaled
+ * so they fill the space — hiding a column lets others expand automatically.
+ */
+export function getVisibleColumns(table: ReportTableDef, availableWidthMm?: number, colGap = 0): ReportColumnDef[] {
+  const visible = table.columns.filter((c) => c.visible);
+  if (!availableWidthMm || visible.length === 0) return visible;
+  const totalW = visible.reduce((s, c) => s + c.widthMm, 0);
+  if (totalW <= 0) return visible;
+  // Subtract inter-column gaps from available space so columns + gaps fit exactly
+  const usableW = availableWidthMm - colGap * Math.max(0, visible.length - 1);
+  const scale = usableW / totalW;
+  if (Math.abs(scale - 1) < 0.001) return visible; // already fills
+  return visible.map((c) => ({ ...c, widthMm: c.widthMm * scale }));
 }
 
 // Re-export titleBlockLayout helpers for convenience

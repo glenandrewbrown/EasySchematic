@@ -9,10 +9,13 @@ import EdgeRoutingPage from "./pages/EdgeRouting";
 import RoomsAndGroupingPage from "./pages/RoomsAndGrouping";
 import DeviceLibraryPage from "./pages/DeviceLibrary";
 import ImportExportPage from "./pages/ImportExport";
+import DeviceTemplateSchemaPage from "./pages/DeviceTemplateSchema";
+import ImportDevicesPage from "./pages/ImportDevices";
 import NotesPage from "./pages/Notes";
 import PrintingPage from "./pages/Printing";
 import PackListPage from "./pages/PackList";
 import ApiPage from "./pages/Api";
+import SelfHostingPage from "./pages/SelfHosting";
 
 const routes: Record<string, { title: string; component: React.FC }> = {
   "": { title: "Overview", component: OverviewPage },
@@ -26,7 +29,10 @@ const routes: Record<string, { title: string; component: React.FC }> = {
   "device-library": { title: "Device Library", component: DeviceLibraryPage },
   "pack-list": { title: "Pack List & Reports", component: PackListPage },
   printing: { title: "Printing & Title Block", component: PrintingPage },
-  "import-export": { title: "Import / Export", component: ImportExportPage },
+  "import-export": { title: "Files & Exports", component: ImportExportPage },
+  "import-devices": { title: "Import Devices", component: ImportDevicesPage },
+  "device-template-schema": { title: "Device Template Schema", component: DeviceTemplateSchemaPage },
+  "self-hosting": { title: "Self-Hosting", component: SelfHostingPage },
   api: { title: "Public API", component: ApiPage },
 };
 
@@ -71,7 +77,7 @@ export default function DocsApp() {
       document.head.appendChild(script);
     }
     script.textContent = JSON.stringify(jsonLd);
-  }, [path]);
+  }, [path, route.title]);
 
   return (
     <Layout>

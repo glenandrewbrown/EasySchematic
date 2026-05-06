@@ -13,6 +13,7 @@ import type {
   SchematicNode,
   ConnectionEdge,
   DeviceTemplate,
+  OwnedGearItem,
   Port,
   SchematicFile,
   SchematicPage,
@@ -28,21 +29,44 @@ import type {
   CustomTemplateMeta,
 } from "./types";
 import type { ReactFlowInstance } from "@xyflow/react";
-import type { SignalType, ScrollConfig, LineStyle } from "./types";
-import { DEFAULT_SCROLL_CONFIG } from "./types";
+import type { SignalType, ScrollConfig, LineStyle, LabelCaseMode, DistanceSettings, PanMode, StubLabelPageMode } from "./types";
+import { defaultStubPlacement } from "./stubPlacement";
+import { DEFAULT_SCROLL_CONFIG, DEFAULT_LABEL_CASE, DEFAULT_DISTANCE_SETTINGS, DEFAULT_PAN_MODE, DEFAULT_STUB_LABEL_SHOW_PORT, DEFAULT_STUB_LABEL_SHOW_ROOM, DEFAULT_STUB_LABEL_PAGE_MODE } from "./types";
+import { pairKey } from "./roomDistance";
 import type { Orientation } from "./printConfig";
-import { computeAlignment, type AlignOperation } from "./alignUtils";
+import { computeAlignment, resolveAlignmentOverlaps, type AlignOperation } from "./alignUtils";
 import { CURRENT_SCHEMA_VERSION, migrateSchematic } from "./migrations";
-import { routeAllEdges, orthogonalize, extractSegments, type RoutedEdge } from "./edgeRouter";
-import { simplifyWaypoints, waypointsToSvgPath } from "./pathfinding";
-import { areConnectorsCompatible, needsAdapter, findAdaptersForConnectorBridge, findAdaptersForSignalBridge, NETWORK_SIGNAL_TYPES } from "./connectorTypes";
+import { reconcileWaypointNodes, syncEdgesFromWaypointNodes, spliceWaypointsForRemovedNodes } from "./waypointSync";
+import { routeAllEdges, orthogonalize, extractSegments, segmentsCross, type RoutedEdge, type CrossingPoint } from "./edgeRouter";
+import { simplifyWaypoints, waypointsToSvgPath, waypointsToSvgPathWithHops } from "./pathfinding";
+import { areConnectorsCompatible, needsAdapter, findAdaptersForConnectorBridge, findAdaptersForSignalBridge, NETWORK_SIGNAL_TYPES, BARE_WIRE_CONNECTORS, areSignalsCompatibleViaConnector } from "./connectorTypes";
 import { inferRackHeightU } from "./rackUtils";
 import { DEVICE_TEMPLATES } from "./deviceLibrary";
 import { createDefaultLayout } from "./titleBlockLayout";
 import { sanitizeNoteHtml } from "./sanitizeHtml";
 import { getTemplateById } from "./templateApi";
+import { syncDeviceWithTemplate, type SyncResult } from "./templateSync";
 import { getSignalColorOverrides, applySignalColors, loadSignalColors, saveSignalColors } from "./signalColors";
 import { computeCableSchedule } from "./cableSchedule";
+
+/** Fix UTF-8 → Windows-1252 double-encoding in string values (e.g. → becomes â†').
+ *  Applied on import so old/corrupted saves display correctly. */
+function repairMojibake(obj: unknown): unknown {
+  if (typeof obj === "string") {
+    return obj
+      .replace(/\u00e2\u2020\u2019/g, "\u2192")  // â†' → →
+      .replace(/\u00e2\u2020\u2018/g, "\u2191")  // â†' → ↑
+      .replace(/\u00e2\u2020\u201c/g, "\u2193")  // â†" → ↓
+      .replace(/\u00e2\u2020\u201d/g, "\u2194");  // â†" → ↔
+  }
+  if (Array.isArray(obj)) return obj.map(repairMojibake);
+  if (obj && typeof obj === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(obj)) out[k] = repairMojibake(v);
+    return out;
+  }
+  return obj;
+}
 
 const STORAGE_KEY = "easyschematic-autosave";
 const TEMPLATES_KEY = "easyschematic-custom-templates";
@@ -55,11 +79,14 @@ export const CATEGORY_ORDER_DEFAULT: string[] = [
   "Switching",
   "Processing",
   "Distribution",
-  "Monitoring",
+  "Displays",
   "Projection",
   "Recording",
   "Mixing Consoles",
+  "Powered Mixers",
   "Audio",
+  "Audio I/O",
+  "Microphones",
   "Speakers",
   "Amplifiers",
   "Networking",
@@ -70,7 +97,13 @@ export const CATEGORY_ORDER_DEFAULT: string[] = [
   "Media Servers",
   "Lighting",
   "Control",
+  "Audio Expansion",
+  "Expansion Cards",
+  "Storage",
   "Infrastructure",
+  "Intercom",
+  "Monitoring",
+  "Cloud Services",
   "Cable Accessories",
 ];
 
@@ -91,6 +124,13 @@ function isDefaultScrollConfig(c: ScrollConfig): boolean {
     && c.trackpadEnabled === DEFAULT_SCROLL_CONFIG.trackpadEnabled;
 }
 
+/** Coerce a persisted labelCase value to a known mode. Anything unrecognized falls back to default. */
+function resolveLabelCase(v: unknown): LabelCaseMode {
+  return v === "uppercase" || v === "lowercase" || v === "capitalize" || v === "as-typed"
+    ? v
+    : DEFAULT_LABEL_CASE;
+}
+
 /** Guard: don't persist empty state before initial load completes */
 let hydrated = false;
 
@@ -106,11 +146,22 @@ function snapNodesToGrid(nodes: SchematicNode[]): SchematicNode[] {
   return nodes;
 }
 
-/** Ensure `draggable: false` is set on any room with `data.locked`. Mutates in place. */
+/** Apply interaction flags on rooms based on lock state. Mutates in place.
+ *  Ensures flags are always consistent, even for old save files that may
+ *  be missing className/selectable/draggable. */
 function applyRoomLockState(nodes: SchematicNode[]): void {
   for (const n of nodes) {
-    if (n.type === "room" && (n.data as import("./types").RoomData).locked) {
-      n.draggable = false;
+    if (n.type === "room") {
+      const locked = (n.data as import("./types").RoomData).locked;
+      if (locked) {
+        n.draggable = false;
+        n.selectable = false;
+        n.className = "locked";
+      } else {
+        n.draggable = undefined;
+        n.selectable = true;
+        n.className = undefined;
+      }
     }
   }
 }
@@ -132,8 +183,14 @@ interface SchematicState {
   nodes: SchematicNode[];
   edges: ConnectionEdge[];
   schematicName: string;
+  /** Bumped when a new schematic is wholesale-loaded (import, share link, demo, autosave hydrate). Canvas refits its viewport when this changes. */
+  loadSeq: number;
   editingNodeId: string | null;
+  creatingNodeId: string | null;
   customTemplates: DeviceTemplate[];
+  ownedGear: OwnedGearItem[];
+  showOwnedGearPane: boolean;
+  libraryActiveTab: "devices" | "owned";
 
   // React Flow handlers
   onNodesChange: OnNodesChange<SchematicNode>;
@@ -143,6 +200,8 @@ interface SchematicState {
   // Actions
   addDevice: (template: DeviceTemplate, position: { x: number; y: number }) => void;
   removeSelected: () => void;
+  deleteNode: (nodeId: string) => void;
+  deleteNodeAndChildren: (nodeId: string) => void;
   copySelected: () => void;
   pasteClipboard: () => void;
   alignSelectedNodes: (op: AlignOperation) => void;
@@ -152,21 +211,41 @@ interface SchematicState {
   updateDevice: (nodeId: string, data: DeviceData) => void;
   /** Patch device data without clearing baseLabel (for spreadsheet edits). */
   patchDeviceData: (nodeId: string, patch: Partial<DeviceData>) => void;
+  /** Reconcile a placed device against the latest version of its source template. */
+  syncDeviceFromTemplate: (nodeId: string) => SyncResult | null;
   /** Swap or remove a card in a modular slot. Pass null cardTemplateId to empty the slot. */
   swapCard: (nodeId: string, slotId: string, cardTemplateId: string | null) => void;
+  /** Add a new empty expansion slot to a device. */
+  addSlot: (nodeId: string, slot: { label: string; slotFamily: string }) => void;
+  /** Update label / slotFamily on an existing installed slot. */
+  updateSlot: (nodeId: string, slotId: string, patch: { label?: string; slotFamily?: string }) => void;
+  /** Remove a slot, its ports, descendant slots, and any edges connected to their ports. */
+  removeSlot: (nodeId: string, slotId: string) => void;
   setEditingNodeId: (id: string | null) => void;
+  setCreatingNodeId: (id: string | null) => void;
+  createAndEditDevice: (template: DeviceTemplate, position: { x: number; y: number }) => void;
   addRoom: (label: string, position: { x: number; y: number }) => void;
   updateRoomLabel: (nodeId: string, label: string) => void;
   updateRoom: (nodeId: string, data: import("./types").RoomData) => void;
+  updateAnnotation: (nodeId: string, data: Partial<import("./types").AnnotationData>) => void;
   toggleRoomLock: (nodeId: string) => void;
+  toggleEquipmentRack: (nodeId: string) => void;
   addNote: (position: { x: number; y: number }) => void;
   updateNoteHtml: (nodeId: string, html: string) => void;
-  reparentNode: (nodeId: string, absolutePosition: { x: number; y: number }) => void;
+  reparentNode: (nodeId: string, absolutePosition: { x: number; y: number }, options?: { skipUndo?: boolean }) => void;
+  /** Re-evaluate room membership for every non-room node. Used after a room is
+   *  created, resized, or moved so devices get parented/unparented to match
+   *  the new layout. */
+  reparentAllDevices: (options?: { skipUndo?: boolean }) => void;
+  /** Called when a room's NodeResizer finishes. Snapshots undo and reconciles
+   *  device membership against the new bounds. */
+  onRoomResizeEnd: (nodeId: string) => void;
 
   // Undo/Redo
   pushSnapshot: () => void;
   setPendingUndoSnapshot: () => void;
   clearPendingUndoSnapshot: () => void;
+  flushPendingSnapshot: () => void;
   undo: () => void;
   redo: () => void;
   canUndo: () => boolean;
@@ -179,7 +258,15 @@ interface SchematicState {
 
   // Custom templates
   addCustomTemplate: (template: DeviceTemplate) => void;
+  updateCustomTemplate: (id: string, template: DeviceTemplate) => void;
   removeCustomTemplate: (deviceType: string) => void;
+  clearAllCustomTemplates: () => void;
+  addOwnedGear: (template: DeviceTemplate, quantity?: number) => void;
+  setOwnedGear: (items: OwnedGearItem[]) => void;
+  updateOwnedGearQuantity: (templateKey: string, quantity: number) => void;
+  removeOwnedGear: (templateKey: string) => void;
+  setShowOwnedGearPane: (show: boolean) => void;
+  setLibraryActiveTab: (tab: "devices" | "owned") => void;
 
   // Custom template organization (#62)
   customTemplateGroups: CustomTemplateGroup[];
@@ -202,6 +289,10 @@ interface SchematicState {
   patchEdgeData: (edgeId: string, patch: Partial<import("./types").ConnectionData>) => void;
   batchPatchEdgeData: (changes: { edgeId: string; patch: Partial<import("./types").ConnectionData> }[]) => void;
 
+  // Stub conversion (real React Flow nodes for the labels)
+  convertEdgeToStubs: (edgeId: string) => void;
+  collapseStubsForEdge: (edgeId: string) => void;
+
   // Manual edge routing
   setManualWaypoints: (edgeId: string, waypoints: { x: number; y: number }[]) => void;
   clearManualWaypoints: (edgeId: string) => void;
@@ -209,6 +300,7 @@ interface SchematicState {
   setDeviceContextMenu: (menu: { nodeId: string; screenX: number; screenY: number } | null) => void;
   edgeContextMenu: { edgeId: string; screenX: number; screenY: number; flowX: number; flowY: number } | null;
   roomContextMenu: { nodeId: string; screenX: number; screenY: number } | null;
+  stubLabelContextMenu: { nodeId: string; screenX: number; screenY: number } | null;
   portContextMenu: { nodeId: string; portId: string; screenX: number; screenY: number } | null;
 
   // Centralized edge routing
@@ -221,6 +313,16 @@ interface SchematicState {
   // Auto-route toggle
   autoRoute: boolean;
   toggleAutoRoute: () => void;
+  /** Transient stash of per-edge waypoint state captured when toggling auto-route ON.
+   *  Consumed (and cleared) when toggling back OFF so edges revert to their pre-toggle appearance.
+   *  null = had no waypoints (L-shape), object = had waypoints. Not persisted/exported. */
+  _edgeWaypointStash: Record<string, { manualWaypoints: { x: number; y: number }[]; autoRouteWaypoints?: boolean } | null> | null;
+  /** When true, the auto-route-off confirmation dialog is shown */
+  autoRouteConfirmPending: boolean;
+  /** Complete the pending toggle-off with the user's choice (true = keep A* routes, false = restore previous) */
+  confirmAutoRouteOff: (preserve: boolean) => void;
+  /** Cancel the pending toggle-off (dismiss dialog, auto-route stays ON) */
+  cancelAutoRouteOff: () => void;
 
   // Edge interaction hitbox width (pixels)
   edgeHitboxSize: number;
@@ -264,6 +366,14 @@ interface SchematicState {
   colorKeyColumns: number;
   colorKeyPage: "first" | "last" | "all";
   colorKeyOverrides: Partial<Record<SignalType, boolean>> | undefined;
+  cableCosts: Record<string, number> | undefined;
+  setCableCost: (key: string, cost: number | undefined) => void;
+  // Room distance + cable-length estimation (#146)
+  roomDistances: Record<string, number> | undefined;
+  distanceSettings: DistanceSettings | undefined;
+  setRoomDistance: (roomIdA: string, roomIdB: string, distance: number | undefined) => void;
+  clearRoomDistance: (roomIdA: string, roomIdB: string) => void;
+  setDistanceSettings: (partial: Partial<DistanceSettings>) => void;
   setColorKeyEnabled: (v: boolean) => void;
   setColorKeyCorner: (c: "top-left" | "top-right" | "bottom-left" | "bottom-right") => void;
   setColorKeyColumns: (n: number) => void;
@@ -299,12 +409,14 @@ interface SchematicState {
 
   // View options
   hiddenSignalTypes: string;
-  hideDeviceTypes: boolean;
+  hiddenPinSignalTypes: string;
   hideUnconnectedPorts: boolean;
   templateHiddenSignals: Record<string, SignalType[]>;
   toggleSignalTypeVisibility: (type: SignalType) => void;
-  setHideDeviceTypes: (hide: boolean) => void;
+  togglePinSignalTypeVisibility: (type: SignalType) => void;
   setHideUnconnectedPorts: (hide: boolean) => void;
+  showPortCounts: boolean;
+  setShowPortCounts: (show: boolean) => void;
   setTemplateHiddenSignals: (templateId: string, hidden: SignalType[]) => void;
   showAllSignalTypes: () => void;
 
@@ -323,6 +435,18 @@ interface SchematicState {
   // Cable naming scheme (#1)
   cableNamingScheme: "sequential" | "type-prefix";
   setCableNamingScheme: (v: "sequential" | "type-prefix") => void;
+
+  // Label case preference — purely a display-time transform; data is never mutated.
+  labelCase: LabelCaseMode;
+  setLabelCase: (mode: LabelCaseMode) => void;
+
+  // Left-drag canvas behavior: select box (default) or pan viewport.
+  panMode: PanMode;
+  setPanMode: (mode: PanMode) => void;
+
+  // ISO 4217 currency code for cost display in reports (#158).
+  currency: string;
+  setCurrency: (code: string) => void;
 
   // Incompatible connection dialog (#6)
   pendingIncompatibleConnection: {
@@ -349,9 +473,33 @@ interface SchematicState {
   showLineJumps: boolean;
   setShowLineJumps: (show: boolean) => void;
 
-  // Connection labels (#5)
+  // Connection labels (#5, #61)
+  /** @deprecated Use showCableIdLabels instead */
   showConnectionLabels: boolean;
   setShowConnectionLabels: (show: boolean) => void;
+  showCableIdLabels: boolean;
+  setShowCableIdLabels: (show: boolean) => void;
+  showCustomLabels: boolean;
+  setShowCustomLabels: (show: boolean) => void;
+  cableIdGap: number;
+  setCableIdGap: (gap: number) => void;
+  customLabelGap: number;
+  setCustomLabelGap: (gap: number) => void;
+  cableIdMidOffset: number;
+  setCableIdMidOffset: (offset: number) => void;
+  customLabelMidOffset: number;
+  setCustomLabelMidOffset: (offset: number) => void;
+  cableIdLabelMode: "endpoint" | "midpoint";
+  setCableIdLabelMode: (mode: "endpoint" | "midpoint") => void;
+  customLabelMode: "endpoint" | "midpoint";
+  setCustomLabelMode: (mode: "endpoint" | "midpoint") => void;
+  stubLabelShowPort: boolean;
+  setStubLabelShowPort: (show: boolean) => void;
+  stubLabelShowRoom: boolean;
+  setStubLabelShowRoom: (show: boolean) => void;
+  stubLabelPageMode: StubLabelPageMode;
+  setStubLabelPageMode: (mode: StubLabelPageMode) => void;
+  patchStubLabelData: (nodeId: string, patch: Partial<import("./types").StubLabelData>) => void;
   cableIdMap: Record<string, string>;
   recomputeCableIds: () => void;
 
@@ -491,6 +639,7 @@ interface Snapshot {
   nodes: SchematicNode[];
   edges: ConnectionEdge[];
   pages: SchematicPage[];
+  autoRoute?: boolean;
 }
 const MAX_HISTORY = 50;
 const undoStack: Snapshot[] = [];
@@ -505,17 +654,15 @@ export function setReconnectingEdgeId(id: string | null) {
   _reconnectingEdgeId = id;
 }
 
-/** Push an undo snapshot. Pages are captured automatically from the store. */
-function pushUndo(partial: { nodes: SchematicNode[]; edges: ConnectionEdge[] }) {
-  if (pendingUndoSnapshot) {
-    undoStack.push(pendingUndoSnapshot);
-  } else {
-    const pages = useSchematicStore?.getState?.()?.pages ?? [];
-    undoStack.push({ ...partial, pages });
-  }
+function pushUndo(partial: { nodes: SchematicNode[]; edges: ConnectionEdge[]; autoRoute?: boolean }) {
+  const pages = useSchematicStore?.getState?.()?.pages ?? [];
+  const snapshot: Snapshot = { ...partial, pages };
+  undoStack.push(structuredClone(pendingUndoSnapshot ?? snapshot));
   pendingUndoSnapshot = null;
   if (undoStack.length > MAX_HISTORY) undoStack.shift();
   redoStack.length = 0; // clear redo on new action
+  // Sync reactive counters so undo/redo buttons stay in sync
+  useSchematicStore.setState({ undoSize: undoStack.length, redoSize: 0 });
 }
 
 function clonePorts(ports: Port[]): Port[] {
@@ -637,15 +784,83 @@ function renumberNodes(nodes: SchematicNode[]): SchematicNode[] {
   });
 }
 
-/** Ensure parent (room) nodes appear before their children in the array. */
+/** Ensure parent nodes appear before their children in the array (topological sort). */
 function sortNodesParentFirst(nodes: SchematicNode[]): SchematicNode[] {
-  const rooms: SchematicNode[] = [];
-  const others: SchematicNode[] = [];
-  for (const n of nodes) {
-    if (n.type === "room") rooms.push(n);
-    else others.push(n);
+  const nodeMap = new Map(nodes.map((n) => [n.id, n]));
+  const result: SchematicNode[] = [];
+  const visited = new Set<string>();
+
+  function visit(n: SchematicNode) {
+    if (visited.has(n.id)) return;
+    if (n.parentId && nodeMap.has(n.parentId)) visit(nodeMap.get(n.parentId)!);
+    visited.add(n.id);
+    result.push(n);
   }
-  return [...rooms, ...others];
+
+  // Visit rooms first so all rooms precede non-room nodes
+  for (const n of nodes) if (n.type === "room") visit(n);
+  for (const n of nodes) if (n.type !== "room") visit(n);
+  return result;
+}
+
+/** Walk parent chain to compute a node's absolute canvas position. */
+function getAbsolutePosition(
+  nodeId: string,
+  nodeMap: Map<string, SchematicNode>,
+): { x: number; y: number } {
+  const n = nodeMap.get(nodeId);
+  if (!n) return { x: 0, y: 0 };
+  if (!n.parentId) return n.position;
+  const p = getAbsolutePosition(n.parentId, nodeMap);
+  return { x: n.position.x + p.x, y: n.position.y + p.y };
+}
+
+/** True if ancestorId is an ancestor of childId (prevents circular nesting). */
+function isAncestorOf(
+  ancestorId: string,
+  childId: string,
+  nodeMap: Map<string, SchematicNode>,
+): boolean {
+  let cur = nodeMap.get(childId);
+  while (cur?.parentId) {
+    if (cur.parentId === ancestorId) return true;
+    cur = nodeMap.get(cur.parentId);
+  }
+  return false;
+}
+
+/** Find the smallest-area room whose bounds enclose (centerX, centerY). Skips
+ *  self and any descendant (for rooms being reparented). Returns undefined if
+ *  no room contains the point. */
+function findBestEnclosingRoom(
+  candidateId: string,
+  candidateIsRoom: boolean,
+  centerX: number,
+  centerY: number,
+  nodes: SchematicNode[],
+  nodeMap: Map<string, SchematicNode>,
+): SchematicNode | undefined {
+  let best: SchematicNode | undefined;
+  let bestArea = Infinity;
+  for (const n of nodes) {
+    if (n.type !== "room") continue;
+    if (n.id === candidateId) continue;
+    if (candidateIsRoom && isAncestorOf(candidateId, n.id, nodeMap)) continue;
+    const rw = n.measured?.width ?? (n.style?.width as number) ?? (n.width as number) ?? 400;
+    const rh = n.measured?.height ?? (n.style?.height as number) ?? (n.height as number) ?? 300;
+    const absPos = getAbsolutePosition(n.id, nodeMap);
+    if (
+      centerX >= absPos.x && centerX <= absPos.x + rw &&
+      centerY >= absPos.y && centerY <= absPos.y + rh
+    ) {
+      const area = rw * rh;
+      if (area < bestArea) {
+        best = n;
+        bestArea = area;
+      }
+    }
+  }
+  return best;
 }
 
 function getPortFromHandle(
@@ -676,10 +891,23 @@ function removeOrphanedEdges(nodes: SchematicNode[], edges: ConnectionEdge[]): C
   });
 }
 
+/** Unique key for custom template management (order, groups, deletion). */
+function templateKey(t: DeviceTemplate): string {
+  return t.id ?? t.deviceType;
+}
+
 function loadCustomTemplates(): DeviceTemplate[] {
   try {
     const raw = localStorage.getItem(TEMPLATES_KEY);
-    return raw ? (JSON.parse(raw) as DeviceTemplate[]) : [];
+    if (!raw) return [];
+    const templates = JSON.parse(raw) as DeviceTemplate[];
+    // Migrate legacy custom templates: move unique key from deviceType to id
+    for (const t of templates) {
+      if (!t.id && t.deviceType.startsWith("custom-")) {
+        t.id = t.deviceType;
+      }
+    }
+    return templates;
   } catch {
     return [];
   }
@@ -699,7 +927,7 @@ function loadCustomTemplateMeta(templates: DeviceTemplate[]): CustomTemplateMeta
     if (raw) return JSON.parse(raw) as CustomTemplateMeta;
   } catch { /* fall through */ }
   // First load: initialize from current template order
-  return { groups: [], order: templates.map((t) => t.deviceType), groupAssignments: {} };
+  return { groups: [], order: templates.map((t) => templateKey(t)), groupAssignments: {} };
 }
 
 function saveCustomTemplateMeta(meta: CustomTemplateMeta) {
@@ -731,8 +959,13 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
   nodes: [],
   edges: [],
   schematicName: "Untitled Schematic",
+  loadSeq: 0,
   editingNodeId: null,
+  creatingNodeId: null,
   customTemplates: _initCustomTemplates,
+  ownedGear: [],
+  showOwnedGearPane: false,
+  libraryActiveTab: "devices",
   customTemplateGroups: _initCustomMeta.groups,
   customTemplateOrder: _initCustomMeta.order,
   customTemplateGroupAssignments: _initCustomMeta.groupAssignments,
@@ -743,9 +976,13 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
   setDeviceContextMenu: (menu) => set({ deviceContextMenu: menu }),
   edgeContextMenu: null,
   roomContextMenu: null,
+  stubLabelContextMenu: null,
   portContextMenu: null,
   autoRoute: true,
+  _edgeWaypointStash: null,
+  autoRouteConfirmPending: false,
   edgeHitboxSize: 10,
+  panMode: DEFAULT_PAN_MODE,
   debugEdges: false,
   debugShowLabels: true,
   debugShowObstacles: true,
@@ -773,6 +1010,9 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
   colorKeyColumns: 1,
   colorKeyPage: "all" as "first" | "last" | "all",
   colorKeyOverrides: undefined,
+  cableCosts: undefined,
+  roomDistances: undefined,
+  distanceSettings: undefined,
   titleBlock: { showName: "", venue: "", designer: "", engineer: "", date: "", drawingTitle: "", company: "", revision: "", logo: "", customFields: [] },
   titleBlockLayout: createDefaultLayout(),
   signalColors: undefined,
@@ -781,15 +1021,29 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
   globalReportHeaderLayout: null,
   globalReportFooterLayout: null,
   hiddenSignalTypes: "",
-  hideDeviceTypes: false,
+  hiddenPinSignalTypes: "",
   hideUnconnectedPorts: false,
+  showPortCounts: false,
   templateHiddenSignals: {},
   templatePresets: {},
   favoriteTemplates: [],
   scrollConfig: { ...DEFAULT_SCROLL_CONFIG },
   cableNamingScheme: "type-prefix" as "sequential" | "type-prefix",
+  labelCase: DEFAULT_LABEL_CASE,
+  currency: "USD",
   showLineJumps: true,
   showConnectionLabels: true,
+  showCableIdLabels: true,
+  showCustomLabels: true,
+  cableIdGap: 4,
+  customLabelGap: 4,
+  cableIdMidOffset: 0,
+  customLabelMidOffset: 0,
+  cableIdLabelMode: "endpoint" as "endpoint" | "midpoint",
+  customLabelMode: "endpoint" as "endpoint" | "midpoint",
+  stubLabelShowPort: DEFAULT_STUB_LABEL_SHOW_PORT,
+  stubLabelShowRoom: DEFAULT_STUB_LABEL_SHOW_ROOM,
+  stubLabelPageMode: DEFAULT_STUB_LABEL_PAGE_MODE,
   cableIdMap: {},
   cloudSchematicId: null,
   cloudSavedAt: null,
@@ -824,20 +1078,40 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
   onNodesChange: (changes) => {
     const updated = applyNodeChanges(changes, get().nodes) as SchematicNode[];
     // Keep room zIndex pinned low (React Flow may reset it)
-    set({
-      nodes: updated.map((n) =>
-        n.type === "room" ? { ...n, zIndex: -1, selectable: false } : n,
-      ),
+    const normalized = updated.map((n) => {
+      if (n.type !== "room") return n;
+      const locked = (n.data as import("./types").RoomData).locked;
+      return {
+        ...n,
+        zIndex: -1,
+        selectable: !locked,
+        className: locked ? "locked" : undefined,
+      };
     });
+    // Mirror waypoint node positions back to canonical edge.data.manualWaypoints
+    // so the router and persistence see drag/multi-select-drag results.
+    const hasPositionChange = changes.some((c) => c.type === "position");
+    const oldEdges = get().edges;
+    const newEdges = hasPositionChange
+      ? syncEdgesFromWaypointNodes(oldEdges, normalized)
+      : oldEdges;
+    set({ nodes: normalized, ...(newEdges !== oldEdges ? { edges: newEdges } : {}) });
     get().saveToLocalStorage();
   },
 
   onEdgesChange: (changes) => {
-    if (changes.some((c) => c.type === "remove")) {
+    const hasRemove = changes.some((c) => c.type === "remove");
+    if (hasRemove) {
       const state = get();
       pushUndo({ nodes: state.nodes, edges: state.edges });
     }
-    set({ edges: applyEdgeChanges(changes, get().edges) as ConnectionEdge[] });
+    const newEdges = applyEdgeChanges(changes, get().edges) as ConnectionEdge[];
+    if (hasRemove) {
+      // Removed edges may have had waypoint nodes — reconcile them away.
+      set({ edges: newEdges, nodes: reconcileWaypointNodes(get().nodes, newEdges) });
+    } else {
+      set({ edges: newEdges });
+    }
     get().saveToLocalStorage();
   },
 
@@ -856,7 +1130,6 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
           const allTemplates = [...DEVICE_TEMPLATES, ...state.customTemplates];
           const adapterMatches = findAdaptersForSignalBridge(srcPort.signalType, tgtPort.signalType, allTemplates);
           if (adapterMatches.length === 1) {
-            pushUndo({ nodes: state.nodes, edges: state.edges });
             set({ pendingIncompatibleConnection: { connection, sourcePort: srcPort, targetPort: tgtPort, reason: "signal-mismatch" } });
             get().insertAdapterBetween(adapterMatches[0]);
             return;
@@ -894,8 +1167,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
       );
 
       if (adapterMatches.length === 1) {
-        // Auto-insert the single matching adapter
-        pushUndo({ nodes: state.nodes, edges: state.edges });
+        // Auto-insert the single matching adapter (insertAdapterBetween handles its own undo)
         set({ pendingIncompatibleConnection: { connection, sourcePort, targetPort, reason: "connector-mismatch" } });
         get().insertAdapterBetween(adapterMatches[0]);
         return;
@@ -917,7 +1189,6 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
       );
 
       if (adapterMatches.length === 1) {
-        pushUndo({ nodes: state.nodes, edges: state.edges });
         set({ pendingIncompatibleConnection: { connection, sourcePort, targetPort, reason: "connector-mismatch" } });
         get().insertAdapterBetween(adapterMatches[0]);
         return;
@@ -973,12 +1244,18 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
       // Clone preset ports, then map preset hiddenPorts through old→new ID mapping
       const cloned = clonePorts(preset.ports);
       const idMap = new Map<string, string>();
-      preset.ports.forEach((p, i) => { idMap.set(p.id, cloned[i].id); });
+      preset.ports.forEach((p, i) => {
+        idMap.set(p.id, cloned[i].id);
+        // Preserve templatePortId across the preset → placement clone.
+        if (p.templatePortId) cloned[i].templatePortId = p.templatePortId;
+      });
       ports = cloned;
       hiddenPorts = preset.hiddenPorts?.map((id) => idMap.get(id) ?? id).filter((id) => cloned.some((p) => p.id === id));
       color = preset.color ?? template.color;
     } else {
       ports = clonePorts(template.ports);
+      // Stamp templatePortId so sync can reconcile even if port IDs drift.
+      ports.forEach((p, i) => { p.templatePortId = template.ports[i].id; });
     }
 
     // Initialize expansion slots from template (recursively handles sub-slots)
@@ -1004,10 +1281,20 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
         ...(template.version ? { templateVersion: template.version } : {}),
         ...(template.manufacturer ? { manufacturer: template.manufacturer } : {}),
         ...(template.modelNumber ? { modelNumber: template.modelNumber } : {}),
+        ...(template.referenceUrl ? { referenceUrl: template.referenceUrl } : {}),
+        ...(template.category ? { category: template.category } : {}),
         ...(template.powerDrawW != null ? { powerDrawW: template.powerDrawW } : {}),
         ...(template.powerCapacityW != null ? { powerCapacityW: template.powerCapacityW } : {}),
         ...(template.voltage ? { voltage: template.voltage } : {}),
         ...(template.poeBudgetW != null ? { poeBudgetW: template.poeBudgetW } : {}),
+        ...(template.poeDrawW != null ? { poeDrawW: template.poeDrawW } : {}),
+        ...(template.unitCost != null ? { unitCost: template.unitCost } : {}),
+        ...(template.thermalBtuh != null ? { thermalBtuh: template.thermalBtuh } : {}),
+        ...(template.searchTerms?.length ? { searchTerms: [...template.searchTerms] } : {}),
+        ...(template.heightMm != null ? { heightMm: template.heightMm } : {}),
+        ...(template.widthMm != null ? { widthMm: template.widthMm } : {}),
+        ...(template.depthMm != null ? { depthMm: template.depthMm } : {}),
+        ...(template.weightKg != null ? { weightKg: template.weightKg } : {}),
         ...(template.hostname ? { hostname: template.hostname } : {}),
         ...(hiddenPorts && hiddenPorts.length > 0 ? { hiddenPorts } : {}),
         ...(template.isVenueProvided ? { isVenueProvided: true } : {}),
@@ -1017,6 +1304,11 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
           ? { integratedWithCable: true }
           : {}),
         ...(installedSlots && installedSlots.length > 0 ? { slots: installedSlots } : {}),
+        // Aux data: carry template's rows, or seed a default {{deviceType}} header row so
+        // new placements match the unified aux-data model from schema v27.
+        ...(template.auxiliaryData?.length
+          ? { auxiliaryData: template.auxiliaryData.map((r) => ({ ...r })) }
+          : { auxiliaryData: [{ text: "{{deviceType}}", position: "header" as const }] }),
       },
     };
     set({ nodes: renumberNodes([...get().nodes, newNode]) });
@@ -1040,27 +1332,52 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
         .map((n) => n.id),
     );
 
-    // Also remove edges connected to deleted nodes
-    const newEdges = state.edges.filter(
+    // Capture selected waypoint nodes — their indices will be spliced out of the
+    // owning edge's manualWaypoints below before reconciliation re-spawns the rest.
+    const selectedWaypoints = state.nodes.filter(
+      (n) => n.type === "waypoint" && n.selected,
+    ) as import("./types").WaypointNode[];
+
+    // Build a map for absolute position resolution (needed for multi-level nesting)
+    const nodeMap = new Map(state.nodes.map((n) => [n.id, n]));
+    function computeAbsolutePos(nId: string): { x: number; y: number } {
+      const n = nodeMap.get(nId);
+      if (!n) return { x: 0, y: 0 };
+      if (!n.parentId) return n.position;
+      const p = computeAbsolutePos(n.parentId);
+      return { x: n.position.x + p.x, y: n.position.y + p.y };
+    }
+
+    // Also remove edges connected to deleted nodes (excluding waypoint nodes —
+    // a waypoint's source/target relationship doesn't exist; they're floating).
+    const deletedConnectingNodes = new Set(
+      [...selectedNodeIds].filter((id) => {
+        const n = nodeMap.get(id);
+        return n && n.type !== "waypoint";
+      }),
+    );
+    const survivingEdges = state.edges.filter(
       (e) =>
         !selectedEdgeIds.has(e.id) &&
-        !selectedNodeIds.has(e.source) &&
-        !selectedNodeIds.has(e.target),
+        !deletedConnectingNodes.has(e.source) &&
+        !deletedConnectingNodes.has(e.target),
     );
+
+    // Splice manualWaypoints entries for each selected waypoint node so their
+    // indices vanish from the canonical store. Waypoints belonging to deleted
+    // edges are dropped wholesale by reconcileWaypointNodes below.
+    const edgesAfterSplice = spliceWaypointsForRemovedNodes(survivingEdges, selectedWaypoints);
 
     const remainingNodes = state.nodes
       .filter((n) => !n.selected)
       .map((n) => {
         if (n.parentId && deletedRoomIds.has(n.parentId)) {
-          // Convert to absolute position
-          const room = state.nodes.find((r) => r.id === n.parentId);
+          // Convert to absolute position — walk the full parent chain
           return {
             ...n,
             parentId: undefined,
             extent: undefined,
-            position: room
-              ? { x: n.position.x + room.position.x, y: n.position.y + room.position.y }
-              : n.position,
+            position: computeAbsolutePos(n.id),
           };
         }
         return n;
@@ -1083,17 +1400,68 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
       }
     }
 
+    // After deleting nodes/edges, waypoint node ids may be stale (indices shifted
+    // or owning edges removed). Reconcile against the new canonical edges.
+    const reconciledNodes = reconcileWaypointNodes(remainingNodes, edgesAfterSplice);
+
+    // Purge any pairwise distances referencing a deleted room (#146).
+    let nextDistances = state.roomDistances;
+    if (state.roomDistances && deletedRoomIds.size > 0) {
+      const filtered: Record<string, number> = {};
+      for (const [key, value] of Object.entries(state.roomDistances)) {
+        const [a, b] = key.split("|");
+        if (!deletedRoomIds.has(a) && !deletedRoomIds.has(b)) {
+          filtered[key] = value;
+        }
+      }
+      nextDistances = Object.keys(filtered).length > 0 ? filtered : undefined;
+    }
+
     set({
-      nodes: renumberNodes(remainingNodes),
-      edges: newEdges,
+      nodes: renumberNodes(reconciledNodes),
+      edges: edgesAfterSplice,
       pages,
+      ...(nextDistances !== state.roomDistances ? { roomDistances: nextDistances } : {}),
     });
     get().saveToLocalStorage();
   },
 
+  deleteNode: (nodeId: string) => {
+    // Select only this node, deselect everything else, then removeSelected
+    set({
+      nodes: get().nodes.map((n) => ({ ...n, selected: n.id === nodeId })),
+      edges: get().edges.map((e) => ({ ...e, selected: false })),
+    });
+    get().removeSelected();
+  },
+
+  deleteNodeAndChildren: (nodeId: string) => {
+    // Collect all descendants recursively (handles nested subrooms)
+    const nodes = get().nodes;
+    const toDelete = new Set<string>([nodeId]);
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const n of nodes) {
+        if (!toDelete.has(n.id) && n.parentId && toDelete.has(n.parentId)) {
+          toDelete.add(n.id);
+          changed = true;
+        }
+      }
+    }
+    set({
+      nodes: nodes.map((n) => ({ ...n, selected: toDelete.has(n.id) })),
+      edges: get().edges.map((e) => ({ ...e, selected: false })),
+    });
+    get().removeSelected();
+  },
+
   copySelected: () => {
     const state = get();
-    const selectedNodes = state.nodes.filter((n) => n.selected);
+    // Waypoint nodes are derived from edge.data.manualWaypoints. Excluding them
+    // here keeps the clipboard small and lets paste re-spawn waypoints fresh
+    // (with re-keyed ids) via reconcileWaypointNodes.
+    const selectedNodes = state.nodes.filter((n) => n.selected && n.type !== "waypoint");
     if (selectedNodes.length === 0) return;
 
     const selectedNodeIds = new Set(selectedNodes.map((n) => n.id));
@@ -1164,15 +1532,18 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
 
     // Deselect existing nodes/edges, add pasted ones as selected
     const current = get();
+    const mergedNodes = [
+      ...current.nodes.map((n) => (n.selected ? { ...n, selected: false } : n)),
+      ...newNodes,
+    ];
+    const mergedEdges = [
+      ...current.edges.map((e) => (e.selected ? { ...e, selected: false } : e)),
+      ...newEdges,
+    ];
+    // Pasted edges may carry manualWaypoints; spawn fresh waypoint nodes for them.
     set({
-      nodes: renumberNodes([
-        ...current.nodes.map((n) => (n.selected ? { ...n, selected: false } : n)),
-        ...newNodes,
-      ]),
-      edges: [
-        ...current.edges.map((e) => (e.selected ? { ...e, selected: false } : e)),
-        ...newEdges,
-      ],
+      nodes: renumberNodes(reconcileWaypointNodes(mergedNodes, mergedEdges)),
+      edges: mergedEdges,
     });
 
     // Update clipboard positions so repeated paste keeps offsetting
@@ -1191,8 +1562,33 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
   alignSelectedNodes: (op) => {
     const state = get();
     const selected = state.nodes.filter((n) => n.selected);
-    const updates = computeAlignment(selected, op);
-    if (updates.size === 0) return;
+
+    // Convert to absolute coordinates so alignment works across rooms
+    const parentOffsets = new Map<string, { dx: number; dy: number }>();
+    const absSelected = selected.map((n) => {
+      if (!n.parentId) {
+        parentOffsets.set(n.id, { dx: 0, dy: 0 });
+        return n;
+      }
+      const parent = state.nodes.find((p) => p.id === n.parentId);
+      const dx = parent?.position.x ?? 0;
+      const dy = parent?.position.y ?? 0;
+      parentOffsets.set(n.id, { dx, dy });
+      return { ...n, position: { x: n.position.x + dx, y: n.position.y + dy } };
+    });
+
+    const raw = computeAlignment(absSelected, op);
+    if (raw.size === 0) return;
+    const resolved = resolveAlignmentOverlaps(absSelected, raw, op);
+    if (resolved.size === 0) return;
+
+    // Convert back to parent-relative coordinates
+    const updates = new Map<string, { x: number; y: number }>();
+    for (const [id, pos] of resolved) {
+      const off = parentOffsets.get(id)!;
+      updates.set(id, { x: pos.x - off.dx, y: pos.y - off.dy });
+    }
+
     pushUndo({ nodes: state.nodes, edges: state.edges });
     set({
       nodes: state.nodes.map((n) => {
@@ -1219,12 +1615,20 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
     if (!sourcePort || !targetPort) return false;
     // Network signal types (ethernet, dante, etc.) can connect in any direction
     const networkBypass = NETWORK_SIGNAL_TYPES.has(sourcePort.signalType) && NETWORK_SIGNAL_TYPES.has(targetPort.signalType);
-    if (!networkBypass) {
+    // Bare-wire connectors (phoenix/terminal-block) bypass signal type checks — if you're
+    // screwing bare wire into screw terminals, you presumably know what signal you're carrying
+    const bareWireBypass = !!sourcePort.connectorType && !!targetPort.connectorType &&
+      BARE_WIRE_CONNECTORS.has(sourcePort.connectorType) && BARE_WIRE_CONNECTORS.has(targetPort.connectorType);
+    const signalBypass = areSignalsCompatibleViaConnector(
+      sourcePort.signalType, sourcePort.connectorType,
+      targetPort.signalType, targetPort.connectorType,
+    );
+    if (!networkBypass && !bareWireBypass) {
       const canSource = sourcePort.direction === "output" || sourcePort.direction === "bidirectional";
       const canTarget = targetPort.direction === "input" || targetPort.direction === "bidirectional";
       if (!canSource || !canTarget) return false;
     }
-    if (sourcePort.signalType !== targetPort.signalType) return false;
+    if (sourcePort.signalType !== targetPort.signalType && !networkBypass && !bareWireBypass && !signalBypass) return false;
 
     // Multicable ports can only connect to other multicable ports
     const srcIsMulticable = sourcePort.isMulticable ?? false;
@@ -1390,6 +1794,27 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
     get().saveToLocalStorage();
   },
 
+  syncDeviceFromTemplate: (nodeId) => {
+    const state = get();
+    const node = state.nodes.find((n) => n.id === nodeId && n.type === "device") as DeviceNode | undefined;
+    if (!node?.data.templateId) return null;
+    const template = getTemplateById(node.data.templateId, state.customTemplates);
+    if (!template || template.version == null) return null;
+
+    const result = syncDeviceWithTemplate(node.data, template, nodeId, state.edges);
+
+    pushUndo({ nodes: state.nodes, edges: state.edges });
+    set({
+      nodes: state.nodes.map((n) =>
+        n.id === nodeId && n.type === "device"
+          ? ({ ...n, data: result.updatedData } as DeviceNode)
+          : n,
+      ),
+    });
+    get().saveToLocalStorage();
+    return result;
+  },
+
   swapCard: (nodeId, slotId, cardTemplateId) => {
     const state = get();
     pushUndo({ nodes: state.nodes, edges: state.edges });
@@ -1435,7 +1860,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
     let newSlot: InstalledSlot;
     let childSlots: InstalledSlot[] = [];
     if (cardTemplateId) {
-      const cardTpl = getTemplateById(cardTemplateId);
+      const cardTpl = getTemplateById(cardTemplateId, state.customTemplates);
       if (!cardTpl) return;
 
       // Determine display label for port sections
@@ -1491,8 +1916,115 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
     get().saveToLocalStorage();
   },
 
+  addSlot: (nodeId, { label, slotFamily }) => {
+    const state = get();
+    pushUndo({ nodes: state.nodes, edges: state.edges });
+
+    const nodeIdx = state.nodes.findIndex((n) => n.id === nodeId && n.type === "device");
+    if (nodeIdx === -1) return;
+    const node = state.nodes[nodeIdx] as DeviceNode;
+    const data = node.data;
+    const slots = data.slots ?? [];
+
+    const newSlot: InstalledSlot = {
+      slotId: `slot-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      label,
+      slotFamily,
+      portIds: [],
+    };
+
+    const newNode = {
+      ...node,
+      data: { ...data, slots: [...slots, newSlot] },
+    } as DeviceNode;
+
+    set({ nodes: state.nodes.map((n, i) => (i === nodeIdx ? newNode : n)) });
+    get().saveToLocalStorage();
+  },
+
+  updateSlot: (nodeId, slotId, patch) => {
+    const state = get();
+    pushUndo({ nodes: state.nodes, edges: state.edges });
+
+    const nodeIdx = state.nodes.findIndex((n) => n.id === nodeId && n.type === "device");
+    if (nodeIdx === -1) return;
+    const node = state.nodes[nodeIdx] as DeviceNode;
+    const data = node.data;
+    const slots = data.slots ?? [];
+    if (!slots.some((s) => s.slotId === slotId)) return;
+
+    const newSlots = slots.map((s) =>
+      s.slotId === slotId
+        ? {
+            ...s,
+            ...(patch.label !== undefined ? { label: patch.label } : {}),
+            ...(patch.slotFamily !== undefined ? { slotFamily: patch.slotFamily } : {}),
+          }
+        : s,
+    );
+
+    const newNode = { ...node, data: { ...data, slots: newSlots } } as DeviceNode;
+    set({ nodes: state.nodes.map((n, i) => (i === nodeIdx ? newNode : n)) });
+    get().saveToLocalStorage();
+  },
+
+  removeSlot: (nodeId, slotId) => {
+    const state = get();
+    pushUndo({ nodes: state.nodes, edges: state.edges });
+
+    const nodeIdx = state.nodes.findIndex((n) => n.id === nodeId && n.type === "device");
+    if (nodeIdx === -1) return;
+    const node = state.nodes[nodeIdx] as DeviceNode;
+    const data = node.data;
+    const slots = data.slots ?? [];
+    const target = slots.find((s) => s.slotId === slotId);
+    if (!target) return;
+
+    // Slot and all descendants (nested cards)
+    const descendants = slots.filter((s) => s.parentSlotId && s.parentSlotId.startsWith(slotId));
+    const removedSlotIds = new Set<string>([slotId, ...descendants.map((s) => s.slotId)]);
+    const removedPortIds = new Set<string>([
+      ...target.portIds,
+      ...descendants.flatMap((s) => s.portIds),
+    ]);
+
+    const newPorts = data.ports.filter((p) => !removedPortIds.has(p.id));
+    const newSlots = slots.filter((s) => !removedSlotIds.has(s.slotId));
+
+    const newEdges = removedPortIds.size > 0
+      ? state.edges.filter((e) => {
+          const srcHandle = e.sourceHandle ?? "";
+          const tgtHandle = e.targetHandle ?? "";
+          if (e.source === nodeId && removedPortIds.has(srcHandle)) return false;
+          if (e.target === nodeId && removedPortIds.has(tgtHandle)) return false;
+          if (e.source === nodeId && removedPortIds.has(srcHandle.replace(/-(in|out)$/, ""))) return false;
+          if (e.target === nodeId && removedPortIds.has(tgtHandle.replace(/-(in|out)$/, ""))) return false;
+          return true;
+        })
+      : state.edges;
+
+    const newNode = {
+      ...node,
+      data: { ...data, ports: newPorts, slots: newSlots },
+    } as DeviceNode;
+
+    set({ nodes: state.nodes.map((n, i) => (i === nodeIdx ? newNode : n)), edges: newEdges });
+    get().saveToLocalStorage();
+  },
+
   setEditingNodeId: (id) => {
     set({ editingNodeId: id });
+  },
+
+  setCreatingNodeId: (id) => {
+    set({ creatingNodeId: id });
+  },
+
+  createAndEditDevice: (template, position) => {
+    get().addDevice(template, position);
+    const nodes = get().nodes;
+    const newNodeId = nodes[nodes.length - 1].id;
+    set({ editingNodeId: newNodeId, creatingNodeId: newNodeId });
   },
 
   addRoom: (label, position) => {
@@ -1504,11 +2036,15 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
       position,
       data: { label },
       style: { width: 400, height: 300 },
-      selectable: false,
+      selected: true,
       zIndex: -1,
     };
     // Rooms must appear before their potential children in the array
-    set({ nodes: [newRoom, ...state.nodes] });
+    // Deselect everything else so the new room is the sole selection
+    const deselected = state.nodes.map((n) => (n.selected ? { ...n, selected: false } : n));
+    set({ nodes: [newRoom, ...deselected] });
+    // Capture any existing devices that now fall inside the new room's bounds
+    get().reparentAllDevices({ skipUndo: true });
     get().saveToLocalStorage();
   },
 
@@ -1539,6 +2075,18 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
     get().saveToLocalStorage();
   },
 
+  updateAnnotation: (nodeId, data) => {
+    const state = get();
+    pushUndo({ nodes: state.nodes, edges: state.edges });
+    set({
+      nodes: state.nodes.map((n) => {
+        if (n.id !== nodeId || n.type !== "annotation") return n;
+        return { ...n, data: { ...n.data, ...data } } as SchematicNode;
+      }),
+    });
+    get().saveToLocalStorage();
+  },
+
   toggleRoomLock: (nodeId) => {
     const state = get();
     pushUndo({ nodes: state.nodes, edges: state.edges });
@@ -1550,9 +2098,30 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
         return {
           ...n,
           draggable: locked ? false : undefined,
+          selectable: !locked,
+          className: locked ? "locked" : undefined,
           data: {
             ...n.data,
             locked: locked || undefined, // keep JSON clean
+          },
+        } as SchematicNode;
+      }),
+    });
+    get().saveToLocalStorage();
+  },
+
+  toggleEquipmentRack: (nodeId) => {
+    const state = get();
+    pushUndo({ nodes: state.nodes, edges: state.edges });
+    set({
+      nodes: state.nodes.map((n) => {
+        if (n.id !== nodeId || n.type !== "room") return n;
+        const wasRack = (n.data as import("./types").RoomData).isEquipmentRack;
+        return {
+          ...n,
+          data: {
+            ...n.data,
+            isEquipmentRack: wasRack ? undefined : true,
           },
         } as SchematicNode;
       }),
@@ -1585,52 +2154,42 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
     get().saveToLocalStorage();
   },
 
-  reparentNode: (nodeId, absolutePosition) => {
+  reparentNode: (nodeId, absolutePosition, options) => {
     const state = get();
     const node = state.nodes.find((n) => n.id === nodeId);
-    if (!node || node.type === "room") return;
+    if (!node) return;
 
-    // Find which room (if any) the node's center falls inside
-    const nodeW = node.measured?.width ?? 180;
-    const nodeH = node.measured?.height ?? 60;
+    const nodeMap = new Map(state.nodes.map((n) => [n.id, n]));
+    const isRoom = node.type === "room";
+    const nodeW = node.measured?.width ?? (isRoom ? 400 : 180);
+    const nodeH = node.measured?.height ?? (isRoom ? 300 : 60);
     const centerX = absolutePosition.x + nodeW / 2;
     const centerY = absolutePosition.y + nodeH / 2;
 
-    let targetRoom: SchematicNode | undefined;
-    for (const n of state.nodes) {
-      if (n.type !== "room") continue;
-      const rw = n.measured?.width ?? (n.style?.width as number) ?? (n.width as number) ?? 400;
-      const rh = n.measured?.height ?? (n.style?.height as number) ?? (n.height as number) ?? 300;
-      if (
-        centerX >= n.position.x && centerX <= n.position.x + rw &&
-        centerY >= n.position.y && centerY <= n.position.y + rh
-      ) {
-        targetRoom = n;
-        break;
-      }
-    }
+    const targetRoom = findBestEnclosingRoom(nodeId, isRoom, centerX, centerY, state.nodes, nodeMap);
 
     const currentParent = node.parentId;
     const newParent = targetRoom?.id;
 
     if (currentParent === newParent) return; // no change
 
-    pushUndo({ nodes: state.nodes, edges: state.edges });
+    if (!options?.skipUndo) {
+      pushUndo({ nodes: state.nodes, edges: state.edges });
+    }
 
     let updated = state.nodes.map((n) => {
       if (n.id !== nodeId) return n;
       if (newParent && targetRoom) {
-        // Reparent into room — convert to relative position
+        const targetAbsPos = getAbsolutePosition(targetRoom.id, nodeMap);
         return {
           ...n,
           parentId: newParent,
           position: {
-            x: absolutePosition.x - targetRoom.position.x,
-            y: absolutePosition.y - targetRoom.position.y,
+            x: absolutePosition.x - targetAbsPos.x,
+            y: absolutePosition.y - targetAbsPos.y,
           },
         };
       } else {
-        // Un-parent — use absolute position
         return {
           ...n,
           parentId: undefined,
@@ -1639,35 +2198,92 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
       }
     });
 
-    // Ensure parent nodes come before children in the array
     updated = sortNodesParentFirst(updated);
 
     set({ nodes: updated });
     get().saveToLocalStorage();
   },
 
+  reparentAllDevices: (options) => {
+    const state = get();
+    const nodeMap = new Map(state.nodes.map((n) => [n.id, n]));
+    const updates = new Map<string, { parentId: string | undefined; position: { x: number; y: number } }>();
+
+    for (const node of state.nodes) {
+      if (node.type === "room") continue;
+
+      const absPos = getAbsolutePosition(node.id, nodeMap);
+      const nodeW = node.measured?.width ?? 180;
+      const nodeH = node.measured?.height ?? 60;
+      const centerX = absPos.x + nodeW / 2;
+      const centerY = absPos.y + nodeH / 2;
+
+      const targetRoom = findBestEnclosingRoom(node.id, false, centerX, centerY, state.nodes, nodeMap);
+      const newParent = targetRoom?.id;
+      if (node.parentId === newParent) continue;
+
+      if (targetRoom) {
+        const targetAbs = getAbsolutePosition(targetRoom.id, nodeMap);
+        updates.set(node.id, {
+          parentId: targetRoom.id,
+          position: { x: absPos.x - targetAbs.x, y: absPos.y - targetAbs.y },
+        });
+      } else {
+        updates.set(node.id, { parentId: undefined, position: absPos });
+      }
+    }
+
+    if (updates.size === 0) return;
+
+    if (!options?.skipUndo) {
+      pushUndo({ nodes: state.nodes, edges: state.edges });
+    }
+
+    let updated = state.nodes.map((n) => {
+      const u = updates.get(n.id);
+      if (!u) return n;
+      return { ...n, parentId: u.parentId, position: u.position };
+    });
+    updated = sortNodesParentFirst(updated);
+    set({ nodes: updated });
+    get().saveToLocalStorage();
+  },
+
+  onRoomResizeEnd: (_nodeId) => {
+    const state = get();
+    pushUndo({ nodes: state.nodes, edges: state.edges });
+    get().reparentAllDevices({ skipUndo: true });
+  },
+
   pushSnapshot: () => {
     const state = get();
     pushUndo({ nodes: state.nodes, edges: state.edges });
-    set({ undoSize: undoStack.length, redoSize: 0 });
   },
 
   setPendingUndoSnapshot: () => {
     const state = get();
-    pendingUndoSnapshot = { nodes: state.nodes, edges: state.edges, pages: state.pages };
+    pendingUndoSnapshot = structuredClone({ nodes: state.nodes, edges: state.edges, pages: state.pages });
   },
 
   clearPendingUndoSnapshot: () => {
     pendingUndoSnapshot = null;
   },
 
+  flushPendingSnapshot: () => {
+    if (pendingUndoSnapshot) {
+      // pushUndo consumes pendingUndoSnapshot automatically
+      pushUndo({ nodes: get().nodes, edges: get().edges });
+    }
+  },
+
   undo: () => {
     const prev = undoStack.pop();
     if (!prev) return;
     const state = get();
-    redoStack.push({ nodes: state.nodes, edges: state.edges, pages: state.pages });
+    redoStack.push(structuredClone({ nodes: state.nodes, edges: state.edges, pages: state.pages, autoRoute: state.autoRoute }));
     const edges = prev.edges.map(({ zIndex: _, selected: _s, ...rest }) => ({ ...rest, zIndex: 0 })) as typeof prev.edges;
-    set({ nodes: prev.nodes, edges, pages: prev.pages, undoSize: undoStack.length, redoSize: redoStack.length });
+    const restoreAutoRoute = prev.autoRoute !== undefined ? { autoRoute: prev.autoRoute } : {};
+    set({ nodes: prev.nodes, edges, pages: prev.pages ?? state.pages, ...restoreAutoRoute, undoSize: undoStack.length, redoSize: redoStack.length });
     get().saveToLocalStorage();
   },
 
@@ -1675,9 +2291,10 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
     const next = redoStack.pop();
     if (!next) return;
     const state = get();
-    undoStack.push({ nodes: state.nodes, edges: state.edges, pages: state.pages });
+    undoStack.push(structuredClone({ nodes: state.nodes, edges: state.edges, pages: state.pages, autoRoute: state.autoRoute }));
     const edges = next.edges.map(({ zIndex: _, selected: _s, ...rest }) => ({ ...rest, zIndex: 0 })) as typeof next.edges;
-    set({ nodes: next.nodes, edges, pages: next.pages, undoSize: undoStack.length, redoSize: redoStack.length });
+    const restoreAutoRoute = next.autoRoute !== undefined ? { autoRoute: next.autoRoute } : {};
+    set({ nodes: next.nodes, edges, pages: next.pages ?? state.pages, ...restoreAutoRoute, undoSize: undoStack.length, redoSize: redoStack.length });
     get().saveToLocalStorage();
   },
 
@@ -1694,35 +2311,108 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
 
   addCustomTemplate: (template) => {
     const updated = [...get().customTemplates, template];
-    const order = [...get().customTemplateOrder, template.deviceType];
+    const order = [...get().customTemplateOrder, templateKey(template)];
     set({ customTemplates: updated, customTemplateOrder: order });
     saveCustomTemplates(updated);
     saveCustomTemplateMeta({ groups: get().customTemplateGroups, order, groupAssignments: get().customTemplateGroupAssignments });
   },
 
-  removeCustomTemplate: (deviceType) => {
-    const updated = get().customTemplates.filter((t) => t.deviceType !== deviceType);
-    const order = get().customTemplateOrder.filter((dt) => dt !== deviceType);
-    const { [deviceType]: _, ...groupAssignments } = get().customTemplateGroupAssignments;
+  updateCustomTemplate: (id, template) => {
+    const updated = get().customTemplates.map((t) => (t.id === id ? template : t));
+    set({ customTemplates: updated });
+    saveCustomTemplates(updated);
+  },
+
+  addOwnedGear: (template, quantity = 1) => {
+    const normalizedQuantity = Math.max(1, Math.floor(quantity));
+    const key = templateKey(template);
+    const ownedGear = [...get().ownedGear];
+    const existing = ownedGear.find((item) => templateKey(item.template) === key);
+    if (existing) {
+      existing.quantity += normalizedQuantity;
+    } else {
+      ownedGear.push({ template: structuredClone(template), quantity: normalizedQuantity });
+    }
+    set({ ownedGear, showOwnedGearPane: true });
+    get().saveToLocalStorage();
+  },
+
+  setOwnedGear: (items) => {
+    const ownedGear = items
+      .map((item) => ({
+        template: structuredClone(item.template),
+        quantity: Math.max(1, Math.floor(item.quantity)),
+      }))
+      .filter((item) => item.template && item.quantity > 0);
+    set({ ownedGear, showOwnedGearPane: true });
+    get().saveToLocalStorage();
+  },
+
+  updateOwnedGearQuantity: (key, quantity) => {
+    const nextQuantity = Math.max(0, Math.floor(quantity));
+    const ownedGear = nextQuantity === 0
+      ? get().ownedGear.filter((item) => templateKey(item.template) !== key)
+      : get().ownedGear.map((item) =>
+          templateKey(item.template) === key
+            ? { ...item, quantity: nextQuantity }
+            : item,
+        );
+    set({ ownedGear });
+    get().saveToLocalStorage();
+  },
+
+  removeOwnedGear: (key) => {
+    set({ ownedGear: get().ownedGear.filter((item) => templateKey(item.template) !== key) });
+    get().saveToLocalStorage();
+  },
+
+  setShowOwnedGearPane: (show) => {
+    set({
+      showOwnedGearPane: show,
+      libraryActiveTab: show ? get().libraryActiveTab : "devices",
+    });
+    get().saveToLocalStorage();
+  },
+
+  setLibraryActiveTab: (tab) => {
+    set({ libraryActiveTab: tab });
+    get().saveToLocalStorage();
+  },
+
+  removeCustomTemplate: (key) => {
+    const updated = get().customTemplates.filter((t) => templateKey(t) !== key);
+    const order = get().customTemplateOrder.filter((k) => k !== key);
+    const { [key]: _, ...groupAssignments } = get().customTemplateGroupAssignments;
     set({ customTemplates: updated, customTemplateOrder: order, customTemplateGroupAssignments: groupAssignments });
     saveCustomTemplates(updated);
     saveCustomTemplateMeta({ groups: get().customTemplateGroups, order, groupAssignments });
   },
 
+  clearAllCustomTemplates: () => {
+    set({
+      customTemplates: [],
+      customTemplateOrder: [],
+      customTemplateGroups: [],
+      customTemplateGroupAssignments: {},
+    });
+    saveCustomTemplates([]);
+    saveCustomTemplateMeta({ groups: [], order: [], groupAssignments: {} });
+  },
+
   // Custom template organization (#62)
-  reorderCustomTemplate: (deviceType, targetIndex) => {
-    const order = get().customTemplateOrder.filter((dt) => dt !== deviceType);
-    order.splice(targetIndex, 0, deviceType);
+  reorderCustomTemplate: (key, targetIndex) => {
+    const order = get().customTemplateOrder.filter((k) => k !== key);
+    order.splice(targetIndex, 0, key);
     set({ customTemplateOrder: order });
     saveCustomTemplateMeta({ groups: get().customTemplateGroups, order, groupAssignments: get().customTemplateGroupAssignments });
   },
 
-  moveCustomTemplateToGroup: (deviceType, groupId) => {
+  moveCustomTemplateToGroup: (key, groupId) => {
     const groupAssignments = { ...get().customTemplateGroupAssignments };
     if (groupId) {
-      groupAssignments[deviceType] = groupId;
+      groupAssignments[key] = groupId;
     } else {
-      delete groupAssignments[deviceType];
+      delete groupAssignments[key];
     }
     set({ customTemplateGroupAssignments: groupAssignments });
     saveCustomTemplateMeta({ groups: get().customTemplateGroups, order: get().customTemplateOrder, groupAssignments });
@@ -1906,6 +2596,8 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
         ...(template.version ? { templateVersion: template.version } : {}),
         ...(template.manufacturer ? { manufacturer: template.manufacturer } : {}),
         ...(template.modelNumber ? { modelNumber: template.modelNumber } : {}),
+        ...(template.referenceUrl ? { referenceUrl: template.referenceUrl } : {}),
+        ...(template.category ? { category: template.category } : {}),
         ...(hiddenPorts && hiddenPorts.length > 0 ? { hiddenPorts } : {}),
       },
     };
@@ -2009,6 +2701,39 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
   setColorKeyColumns: (n) => { set({ colorKeyColumns: Math.max(1, Math.min(4, n)) }); get().saveToLocalStorage(); },
   setColorKeyPage: (p) => { set({ colorKeyPage: p }); get().saveToLocalStorage(); },
   setColorKeyOverrides: (o) => { set({ colorKeyOverrides: o && Object.keys(o).length > 0 ? o : undefined }); get().saveToLocalStorage(); },
+  setCableCost: (key, cost) => {
+    const current = { ...get().cableCosts };
+    if (cost == null || cost <= 0) { delete current[key]; } else { current[key] = cost; }
+    set({ cableCosts: Object.keys(current).length > 0 ? current : undefined });
+    get().saveToLocalStorage();
+  },
+  setRoomDistance: (roomIdA, roomIdB, distance) => {
+    if (roomIdA === roomIdB) return;
+    const current = { ...(get().roomDistances ?? {}) };
+    const key = pairKey(roomIdA, roomIdB);
+    if (distance == null || !Number.isFinite(distance) || distance <= 0) {
+      delete current[key];
+    } else {
+      current[key] = distance;
+    }
+    set({ roomDistances: Object.keys(current).length > 0 ? current : undefined });
+    get().saveToLocalStorage();
+  },
+  clearRoomDistance: (roomIdA, roomIdB) => {
+    get().setRoomDistance(roomIdA, roomIdB, undefined);
+  },
+  setDistanceSettings: (partial) => {
+    const merged: DistanceSettings = {
+      ...DEFAULT_DISTANCE_SETTINGS,
+      ...(get().distanceSettings ?? {}),
+      ...partial,
+    };
+    // Clamp slack values so UI-typed garbage never propagates.
+    if (!Number.isFinite(merged.slackPercent) || merged.slackPercent < 0) merged.slackPercent = 0;
+    if (!Number.isFinite(merged.slackFixed) || merged.slackFixed < 0) merged.slackFixed = 0;
+    set({ distanceSettings: merged });
+    get().saveToLocalStorage();
+  },
   setTitleBlock: (tb) => { set({ titleBlock: tb }); get().saveToLocalStorage(); },
   setTitleBlockLayout: (layout) => { set({ titleBlockLayout: layout }); get().saveToLocalStorage(); },
 
@@ -2040,13 +2765,23 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
     get().saveToLocalStorage();
   },
 
-  setHideDeviceTypes: (hide) => {
-    set({ hideDeviceTypes: hide });
+  togglePinSignalTypeVisibility: (type) => {
+    const current = get().hiddenPinSignalTypes;
+    const set_ = new Set(current ? current.split(",").filter(Boolean) : []);
+    if (set_.has(type)) set_.delete(type);
+    else set_.add(type);
+    const next = [...set_].sort().join(",");
+    set({ hiddenPinSignalTypes: next });
     get().saveToLocalStorage();
   },
 
   setHideUnconnectedPorts: (hide) => {
     set({ hideUnconnectedPorts: hide });
+    get().saveToLocalStorage();
+  },
+
+  setShowPortCounts: (show) => {
+    set({ showPortCounts: show });
     get().saveToLocalStorage();
   },
 
@@ -2081,7 +2816,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
   },
 
   showAllSignalTypes: () => {
-    set({ hiddenSignalTypes: "" });
+    set({ hiddenSignalTypes: "", hiddenPinSignalTypes: "" });
     get().saveToLocalStorage();
   },
 
@@ -2115,13 +2850,83 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
     get().saveToLocalStorage();
   },
 
+  setLabelCase: (mode) => {
+    set({ labelCase: mode });
+    get().saveToLocalStorage();
+  },
+
+  setPanMode: (mode) => {
+    set({ panMode: mode });
+    get().saveToLocalStorage();
+  },
+
+  setCurrency: (code) => {
+    set({ currency: code });
+    get().saveToLocalStorage();
+  },
+
   setShowLineJumps: (show) => {
     set({ showLineJumps: show });
     get().saveToLocalStorage();
   },
 
   setShowConnectionLabels: (show) => {
-    set({ showConnectionLabels: show });
+    set({ showConnectionLabels: show, showCableIdLabels: show });
+    get().saveToLocalStorage();
+  },
+
+  setShowCableIdLabels: (show) => {
+    set({ showCableIdLabels: show, showConnectionLabels: show });
+    get().saveToLocalStorage();
+  },
+
+  setShowCustomLabels: (show) => {
+    set({ showCustomLabels: show });
+    get().saveToLocalStorage();
+  },
+
+  setCableIdGap: (gap) => {
+    set({ cableIdGap: gap });
+    get().saveToLocalStorage();
+  },
+
+  setCustomLabelGap: (gap) => {
+    set({ customLabelGap: gap });
+    get().saveToLocalStorage();
+  },
+
+  setCableIdMidOffset: (offset) => {
+    set({ cableIdMidOffset: offset });
+    get().saveToLocalStorage();
+  },
+
+  setCustomLabelMidOffset: (offset) => {
+    set({ customLabelMidOffset: offset });
+    get().saveToLocalStorage();
+  },
+
+  setCableIdLabelMode: (mode) => {
+    set({ cableIdLabelMode: mode });
+    get().saveToLocalStorage();
+  },
+
+  setCustomLabelMode: (mode) => {
+    set({ customLabelMode: mode });
+    get().saveToLocalStorage();
+  },
+
+  setStubLabelShowPort: (show) => {
+    set({ stubLabelShowPort: show });
+    get().saveToLocalStorage();
+  },
+
+  setStubLabelShowRoom: (show) => {
+    set({ stubLabelShowRoom: show });
+    get().saveToLocalStorage();
+  },
+
+  setStubLabelPageMode: (mode) => {
+    set({ stubLabelPageMode: mode });
     get().saveToLocalStorage();
   },
 
@@ -2130,6 +2935,28 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
     const rows = computeCableSchedule(state.nodes, state.edges, state.cableNamingScheme);
     const map: Record<string, string> = {};
     for (const r of rows) map[r.edgeId] = r.cableId;
+    // Mirror cable IDs to the partner stub-leg edge so both halves render the same
+    // cable label. The schedule emits one row per logical connection (source-side leg);
+    // the target-side leg shares the same cable ID via linkedConnectionId.
+    const linkById = new Map<string, string>();
+    const idsByLink = new Map<string, string[]>();
+    for (const e of state.edges) {
+      const link = e.data?.linkedConnectionId;
+      if (!link) continue;
+      linkById.set(e.id, link);
+      const list = idsByLink.get(link) ?? [];
+      list.push(e.id);
+      idsByLink.set(link, list);
+    }
+    for (const e of state.edges) {
+      if (map[e.id]) continue;
+      const link = linkById.get(e.id);
+      if (!link) continue;
+      const partners = idsByLink.get(link) ?? [];
+      for (const pid of partners) {
+        if (map[pid]) { map[e.id] = map[pid]; break; }
+      }
+    }
     set({ cableIdMap: map });
   },
 
@@ -2139,11 +2966,11 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
 
   importCustomTemplates: (templates) => {
     const existing = get().customTemplates;
-    const existingTypes = new Set(existing.map((t) => t.deviceType));
-    const newTemplates = templates.filter((t) => !existingTypes.has(t.deviceType));
+    const existingKeys = new Set(existing.map((t) => templateKey(t)));
+    const newTemplates = templates.filter((t) => !existingKeys.has(templateKey(t)));
     if (newTemplates.length > 0) {
       const merged = [...existing, ...newTemplates];
-      const order = [...get().customTemplateOrder, ...newTemplates.map((t) => t.deviceType)];
+      const order = [...get().customTemplateOrder, ...newTemplates.map((t) => templateKey(t))];
       set({ customTemplates: merged, customTemplateOrder: order });
       saveCustomTemplates(merged);
       saveCustomTemplateMeta({ groups: get().customTemplateGroups, order, groupAssignments: get().customTemplateGroupAssignments });
@@ -2345,6 +3172,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
       name: state.schematicName,
       nodes: state.nodes,
       edges: state.edges.map(({ zIndex: _, selected: _s, ...rest }) => rest) as ConnectionEdge[],
+      ownedGear: state.ownedGear.length > 0 ? state.ownedGear : undefined,
       signalColors: state.signalColors,
       signalLineStyles: state.signalLineStyles,
       printPaperId: state.printPaperId,
@@ -2357,8 +3185,9 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
       titleBlock: state.titleBlock,
       titleBlockLayout: state.titleBlockLayout,
       hiddenSignalTypes: state.hiddenSignalTypes ? state.hiddenSignalTypes.split(",") as SignalType[] : undefined,
-      hideDeviceTypes: state.hideDeviceTypes || undefined,
+      hiddenPinSignalTypes: state.hiddenPinSignalTypes ? state.hiddenPinSignalTypes.split(",") as SignalType[] : undefined,
       hideUnconnectedPorts: state.hideUnconnectedPorts || undefined,
+      showPortCounts: state.showPortCounts || undefined,
       templateHiddenSignals: Object.keys(state.templateHiddenSignals).length > 0 ? state.templateHiddenSignals : undefined,
       templatePresets: Object.keys(state.templatePresets).length > 0 ? state.templatePresets : undefined,
       favoriteTemplates: state.favoriteTemplates.length > 0 ? state.favoriteTemplates : undefined,
@@ -2367,18 +3196,36 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
       globalReportFooterLayout: state.globalReportFooterLayout ?? undefined,
       scrollConfig: isDefaultScrollConfig(state.scrollConfig) ? undefined : state.scrollConfig,
       cableNamingScheme: state.cableNamingScheme !== "type-prefix" ? state.cableNamingScheme : undefined,
+      labelCase: state.labelCase !== "as-typed" ? state.labelCase : undefined,
+      currency: state.currency !== "USD" ? state.currency : undefined,
+      panMode: state.panMode !== "select-first" ? state.panMode : undefined,
       showLineJumps: !state.showLineJumps ? false : undefined,
-      showConnectionLabels: !state.showConnectionLabels ? false : undefined,
+      showCableIdLabels: !state.showCableIdLabels ? false : undefined,
+      showCustomLabels: !state.showCustomLabels ? false : undefined,
+      cableIdGap: state.cableIdGap !== 4 ? state.cableIdGap : undefined,
+      customLabelGap: state.customLabelGap !== 4 ? state.customLabelGap : undefined,
+      cableIdMidOffset: state.cableIdMidOffset !== 0 ? state.cableIdMidOffset : undefined,
+      customLabelMidOffset: state.customLabelMidOffset !== 0 ? state.customLabelMidOffset : undefined,
+      cableIdLabelMode: state.cableIdLabelMode !== "endpoint" ? state.cableIdLabelMode : undefined,
+      customLabelMode: state.customLabelMode !== "endpoint" ? state.customLabelMode : undefined,
+      stubLabelShowPort: state.stubLabelShowPort !== DEFAULT_STUB_LABEL_SHOW_PORT ? state.stubLabelShowPort : undefined,
+      stubLabelShowRoom: state.stubLabelShowRoom !== DEFAULT_STUB_LABEL_SHOW_ROOM ? state.stubLabelShowRoom : undefined,
+      stubLabelPageMode: state.stubLabelPageMode !== DEFAULT_STUB_LABEL_PAGE_MODE ? state.stubLabelPageMode : undefined,
       hideAdapters: state.hideAdapters || undefined,
       autoRoute: state.autoRoute === false ? false : undefined,
       edgeHitboxSize: state.edgeHitboxSize !== 10 ? state.edgeHitboxSize : undefined,
       categoryOrder: state.categoryOrder ?? undefined,
+      showOwnedGearPane: state.showOwnedGearPane || undefined,
+      libraryActiveTab: state.libraryActiveTab !== "devices" ? state.libraryActiveTab : undefined,
       colorKeyEnabled: state.colorKeyEnabled || undefined,
       colorKeyCorner: state.colorKeyCorner !== "bottom-left" ? state.colorKeyCorner : undefined,
       colorKeyColumns: state.colorKeyColumns !== 1 ? state.colorKeyColumns : undefined,
       colorKeyPage: state.colorKeyPage !== "all" ? state.colorKeyPage : undefined,
       colorKeyOverrides: state.colorKeyOverrides && Object.keys(state.colorKeyOverrides).length > 0 ? state.colorKeyOverrides : undefined,
       pages: state.pages.length > 0 ? state.pages : undefined,
+      cableCosts: state.cableCosts && Object.keys(state.cableCosts).length > 0 ? state.cableCosts : undefined,
+      roomDistances: state.roomDistances && Object.keys(state.roomDistances).length > 0 ? state.roomDistances : undefined,
+      distanceSettings: state.distanceSettings,
     };
     // Persist cloud identity alongside autosave (not part of SchematicFile export)
     const blob: Record<string, unknown> = { ...data };
@@ -2415,6 +3262,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
             edges: data.edges,
             isDemo: true,
             schematicName: data.name ?? "Demo Schematic",
+            ownedGear: data.ownedGear ?? [],
             signalColors: data.signalColors,
             signalLineStyles: data.signalLineStyles,
             printPaperId: data.printPaperId ?? "arch-d",
@@ -2427,8 +3275,9 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
             titleBlock: data.titleBlock ?? { showName: "", venue: "", designer: "", engineer: "", date: "", drawingTitle: "", company: "", revision: "", logo: "", customFields: [] },
             titleBlockLayout: data.titleBlockLayout ?? createDefaultLayout(),
             hiddenSignalTypes: data.hiddenSignalTypes?.length ? [...data.hiddenSignalTypes].sort().join(",") : "",
-            hideDeviceTypes: data.hideDeviceTypes ?? false,
+            hiddenPinSignalTypes: data.hiddenPinSignalTypes?.length ? [...data.hiddenPinSignalTypes].sort().join(",") : "",
             hideUnconnectedPorts: data.hideUnconnectedPorts ?? false,
+            showPortCounts: data.showPortCounts ?? false,
             templateHiddenSignals: data.templateHiddenSignals ?? {},
             templatePresets: data.templatePresets ?? {},
             favoriteTemplates: data.favoriteTemplates ?? [],
@@ -2437,18 +3286,38 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
             globalReportFooterLayout: data.globalReportFooterLayout ?? null,
             scrollConfig: resolveScrollConfig(data),
             cableNamingScheme: data.cableNamingScheme ?? "type-prefix",
+            labelCase: resolveLabelCase(data.labelCase),
+            currency: data.currency ?? "USD",
+            panMode: (data.panMode === "pan-first" ? "pan-first" : "select-first") as PanMode,
             showLineJumps: data.showLineJumps ?? true,
             autoRoute: data.autoRoute ?? true,
             edgeHitboxSize: data.edgeHitboxSize ?? 10,
-            showConnectionLabels: data.showConnectionLabels ?? true,
+            showCableIdLabels: data.showCableIdLabels ?? data.showConnectionLabels ?? true,
+            showConnectionLabels: data.showCableIdLabels ?? data.showConnectionLabels ?? true,
+            showCustomLabels: data.showCustomLabels ?? true,
+            cableIdGap: data.cableIdGap ?? 4,
+            customLabelGap: data.customLabelGap ?? 4,
+            cableIdMidOffset: data.cableIdMidOffset ?? 0,
+            customLabelMidOffset: data.customLabelMidOffset ?? 0,
+            cableIdLabelMode: data.cableIdLabelMode ?? "endpoint",
+            customLabelMode: data.customLabelMode ?? "endpoint",
+            stubLabelShowPort: data.stubLabelShowPort ?? DEFAULT_STUB_LABEL_SHOW_PORT,
+            stubLabelShowRoom: data.stubLabelShowRoom ?? DEFAULT_STUB_LABEL_SHOW_ROOM,
+            stubLabelPageMode: data.stubLabelPageMode ?? DEFAULT_STUB_LABEL_PAGE_MODE,
             hideAdapters: data.hideAdapters ?? false,
             categoryOrder: data.categoryOrder ?? null,
+            showOwnedGearPane: data.showOwnedGearPane ?? false,
+            libraryActiveTab: data.showOwnedGearPane ? (data.libraryActiveTab ?? "devices") : "devices",
             colorKeyEnabled: data.colorKeyEnabled ?? false,
             colorKeyCorner: data.colorKeyCorner ?? "bottom-left",
             colorKeyColumns: data.colorKeyColumns ?? 1,
             colorKeyPage: data.colorKeyPage ?? "all",
             colorKeyOverrides: data.colorKeyOverrides ?? undefined,
             pages: data.pages ?? [],
+            cableCosts: data.cableCosts ?? undefined,
+            roomDistances: data.roomDistances ?? undefined,
+            distanceSettings: data.distanceSettings ?? undefined,
+            loadSeq: get().loadSeq + 1,
           });
           if (data.pages?.length) syncRackCounters(data.pages);
           hydrated = true;
@@ -2470,6 +3339,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
         nodes: data.nodes,
         edges: data.edges,
         schematicName: data.name ?? "Untitled Schematic",
+        ownedGear: data.ownedGear ?? [],
         signalColors: data.signalColors,
         signalLineStyles: data.signalLineStyles,
         printPaperId: data.printPaperId ?? "arch-d",
@@ -2482,8 +3352,9 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
         titleBlock: data.titleBlock ?? { showName: "", venue: "", designer: "", engineer: "", date: "", drawingTitle: "", company: "", revision: "", logo: "", customFields: [] },
         titleBlockLayout: data.titleBlockLayout ?? createDefaultLayout(),
         hiddenSignalTypes: data.hiddenSignalTypes?.length ? [...data.hiddenSignalTypes].sort().join(",") : "",
-        hideDeviceTypes: data.hideDeviceTypes ?? false,
+        hiddenPinSignalTypes: data.hiddenPinSignalTypes?.length ? [...data.hiddenPinSignalTypes].sort().join(",") : "",
         hideUnconnectedPorts: data.hideUnconnectedPorts ?? false,
+        showPortCounts: data.showPortCounts ?? false,
         templateHiddenSignals: data.templateHiddenSignals ?? {},
         templatePresets: data.templatePresets ?? {},
         favoriteTemplates: data.favoriteTemplates ?? [],
@@ -2492,21 +3363,41 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
         globalReportFooterLayout: data.globalReportFooterLayout ?? null,
         scrollConfig: resolveScrollConfig(data),
         cableNamingScheme: data.cableNamingScheme ?? "type-prefix",
+        labelCase: resolveLabelCase(data.labelCase),
+        currency: data.currency ?? "USD",
+        panMode: (data.panMode === "pan-first" ? "pan-first" : "select-first") as PanMode,
         showLineJumps: data.showLineJumps ?? true,
-        showConnectionLabels: data.showConnectionLabels ?? true,
+        showCableIdLabels: data.showCableIdLabels ?? data.showConnectionLabels ?? true,
+        showConnectionLabels: data.showCableIdLabels ?? data.showConnectionLabels ?? true,
+        showCustomLabels: data.showCustomLabels ?? true,
+        cableIdGap: data.cableIdGap ?? 4,
+        customLabelGap: data.customLabelGap ?? 4,
+        cableIdMidOffset: data.cableIdMidOffset ?? 0,
+        customLabelMidOffset: data.customLabelMidOffset ?? 0,
+        cableIdLabelMode: data.cableIdLabelMode ?? "endpoint",
+        customLabelMode: data.customLabelMode ?? "endpoint",
+        stubLabelShowPort: data.stubLabelShowPort ?? DEFAULT_STUB_LABEL_SHOW_PORT,
+        stubLabelShowRoom: data.stubLabelShowRoom ?? DEFAULT_STUB_LABEL_SHOW_ROOM,
+        stubLabelPageMode: data.stubLabelPageMode ?? DEFAULT_STUB_LABEL_PAGE_MODE,
         hideAdapters: data.hideAdapters ?? false,
         autoRoute: data.autoRoute ?? true,
         edgeHitboxSize: data.edgeHitboxSize ?? 10,
         categoryOrder: data.categoryOrder ?? null,
+        showOwnedGearPane: data.showOwnedGearPane ?? false,
+        libraryActiveTab: data.showOwnedGearPane ? (data.libraryActiveTab ?? "devices") : "devices",
         colorKeyEnabled: data.colorKeyEnabled ?? false,
         colorKeyCorner: data.colorKeyCorner ?? "bottom-left",
         colorKeyColumns: data.colorKeyColumns ?? 1,
         colorKeyPage: data.colorKeyPage ?? "all",
         colorKeyOverrides: data.colorKeyOverrides ?? undefined,
         pages: data.pages ?? [],
+        cableCosts: data.cableCosts ?? undefined,
+        roomDistances: data.roomDistances ?? undefined,
+        distanceSettings: data.distanceSettings ?? undefined,
         // Restore cloud identity from autosave (not part of SchematicFile)
         cloudSchematicId: parsed.cloudSchematicId ?? null,
         cloudSavedAt: parsed.cloudSavedAt ?? null,
+        loadSeq: get().loadSeq + 1,
       });
       if (data.pages?.length) syncRackCounters(data.pages);
       hydrated = true;
@@ -2525,6 +3416,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
       nodes: state.nodes,
       edges: state.edges.map(({ zIndex: _, selected: _s, ...rest }) => rest) as ConnectionEdge[],
       customTemplates: state.customTemplates.length > 0 ? state.customTemplates : undefined,
+      ownedGear: state.ownedGear.length > 0 ? state.ownedGear : undefined,
       signalColors: state.signalColors,
       signalLineStyles: state.signalLineStyles,
       printPaperId: state.printPaperId,
@@ -2537,8 +3429,9 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
       titleBlock: state.titleBlock,
       titleBlockLayout: state.titleBlockLayout,
       hiddenSignalTypes: state.hiddenSignalTypes ? state.hiddenSignalTypes.split(",") as SignalType[] : undefined,
-      hideDeviceTypes: state.hideDeviceTypes || undefined,
+      hiddenPinSignalTypes: state.hiddenPinSignalTypes ? state.hiddenPinSignalTypes.split(",") as SignalType[] : undefined,
       hideUnconnectedPorts: state.hideUnconnectedPorts || undefined,
+      showPortCounts: state.showPortCounts || undefined,
       templateHiddenSignals: Object.keys(state.templateHiddenSignals).length > 0 ? state.templateHiddenSignals : undefined,
       templatePresets: Object.keys(state.templatePresets).length > 0 ? state.templatePresets : undefined,
       favoriteTemplates: state.favoriteTemplates.length > 0 ? state.favoriteTemplates : undefined,
@@ -2547,20 +3440,41 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
       globalReportFooterLayout: state.globalReportFooterLayout ?? undefined,
       scrollConfig: isDefaultScrollConfig(state.scrollConfig) ? undefined : state.scrollConfig,
       cableNamingScheme: state.cableNamingScheme !== "type-prefix" ? state.cableNamingScheme : undefined,
+      labelCase: state.labelCase !== "as-typed" ? state.labelCase : undefined,
+      currency: state.currency !== "USD" ? state.currency : undefined,
+      panMode: state.panMode !== "select-first" ? state.panMode : undefined,
       showLineJumps: !state.showLineJumps ? false : undefined,
-      showConnectionLabels: !state.showConnectionLabels ? false : undefined,
+      showCableIdLabels: !state.showCableIdLabels ? false : undefined,
+      showCustomLabels: !state.showCustomLabels ? false : undefined,
+      cableIdGap: state.cableIdGap !== 4 ? state.cableIdGap : undefined,
+      customLabelGap: state.customLabelGap !== 4 ? state.customLabelGap : undefined,
+      cableIdMidOffset: state.cableIdMidOffset !== 0 ? state.cableIdMidOffset : undefined,
+      customLabelMidOffset: state.customLabelMidOffset !== 0 ? state.customLabelMidOffset : undefined,
+      cableIdLabelMode: state.cableIdLabelMode !== "endpoint" ? state.cableIdLabelMode : undefined,
+      customLabelMode: state.customLabelMode !== "endpoint" ? state.customLabelMode : undefined,
+      stubLabelShowPort: state.stubLabelShowPort !== DEFAULT_STUB_LABEL_SHOW_PORT ? state.stubLabelShowPort : undefined,
+      stubLabelShowRoom: state.stubLabelShowRoom !== DEFAULT_STUB_LABEL_SHOW_ROOM ? state.stubLabelShowRoom : undefined,
+      stubLabelPageMode: state.stubLabelPageMode !== DEFAULT_STUB_LABEL_PAGE_MODE ? state.stubLabelPageMode : undefined,
       hideAdapters: state.hideAdapters || undefined,
+      autoRoute: state.autoRoute === false ? false : undefined,
+      edgeHitboxSize: state.edgeHitboxSize !== 10 ? state.edgeHitboxSize : undefined,
       categoryOrder: state.categoryOrder ?? undefined,
+      showOwnedGearPane: state.showOwnedGearPane || undefined,
+      libraryActiveTab: state.libraryActiveTab !== "devices" ? state.libraryActiveTab : undefined,
       colorKeyEnabled: state.colorKeyEnabled || undefined,
       colorKeyCorner: state.colorKeyCorner !== "bottom-left" ? state.colorKeyCorner : undefined,
       colorKeyColumns: state.colorKeyColumns !== 1 ? state.colorKeyColumns : undefined,
       colorKeyPage: state.colorKeyPage !== "all" ? state.colorKeyPage : undefined,
       colorKeyOverrides: state.colorKeyOverrides && Object.keys(state.colorKeyOverrides).length > 0 ? state.colorKeyOverrides : undefined,
       pages: state.pages.length > 0 ? state.pages : undefined,
+      cableCosts: state.cableCosts && Object.keys(state.cableCosts).length > 0 ? state.cableCosts : undefined,
+      roomDistances: state.roomDistances && Object.keys(state.roomDistances).length > 0 ? state.roomDistances : undefined,
+      distanceSettings: state.distanceSettings,
     };
   },
 
   importFromJSON: (rawData) => {
+    rawData = repairMojibake(rawData) as SchematicFile;
     const data = migrateSchematic(rawData) as SchematicFile;
     const nodes = data.nodes ?? [];
     let edges = data.edges ?? [];
@@ -2574,11 +3488,11 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
     applyRoomLockState(nodes);
     syncCounters(nodes, edges);
     edges = removeOrphanedEdges(nodes, edges);
-    // Merge imported custom templates with existing ones (avoid duplicates by deviceType)
+    // Merge imported custom templates with existing ones (avoid duplicates by template key)
     if (data.customTemplates?.length) {
       const existing = get().customTemplates;
-      const existingTypes = new Set(existing.map((t) => t.deviceType));
-      const newTemplates = data.customTemplates.filter((t) => !existingTypes.has(t.deviceType));
+      const existingKeys = new Set(existing.map((t) => templateKey(t)));
+      const newTemplates = data.customTemplates.filter((t) => !existingKeys.has(templateKey(t)));
       if (newTemplates.length > 0) {
         const merged = [...existing, ...newTemplates];
         set({ customTemplates: merged });
@@ -2594,6 +3508,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
       edges,
       schematicName: data.name ?? "Imported Schematic",
       isDemo: false,
+      ownedGear: data.ownedGear ?? [],
       signalColors: data.signalColors,
       signalLineStyles: data.signalLineStyles,
       printPaperId: data.printPaperId ?? "arch-d",
@@ -2606,8 +3521,9 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
       titleBlock: data.titleBlock ?? { showName: "", venue: "", designer: "", engineer: "", date: "", drawingTitle: "", company: "", revision: "", logo: "", customFields: [] },
       titleBlockLayout: data.titleBlockLayout ?? createDefaultLayout(),
       hiddenSignalTypes: data.hiddenSignalTypes?.length ? [...data.hiddenSignalTypes].sort().join(",") : "",
-      hideDeviceTypes: data.hideDeviceTypes ?? false,
+      hiddenPinSignalTypes: data.hiddenPinSignalTypes?.length ? [...data.hiddenPinSignalTypes].sort().join(",") : "",
       hideUnconnectedPorts: data.hideUnconnectedPorts ?? false,
+      showPortCounts: data.showPortCounts ?? false,
       templateHiddenSignals: data.templateHiddenSignals ?? {},
       templatePresets: data.templatePresets ?? {},
       favoriteTemplates: data.favoriteTemplates ?? [],
@@ -2616,12 +3532,27 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
       globalReportFooterLayout: data.globalReportFooterLayout ?? null,
       scrollConfig: resolveScrollConfig(data),
       cableNamingScheme: data.cableNamingScheme ?? "type-prefix",
+      labelCase: resolveLabelCase(data.labelCase),
+      currency: data.currency ?? "USD",
+      panMode: (data.panMode === "pan-first" ? "pan-first" : "select-first") as PanMode,
       showLineJumps: data.showLineJumps ?? true,
-      showConnectionLabels: data.showConnectionLabels ?? true,
+      showCableIdLabels: data.showCableIdLabels ?? data.showConnectionLabels ?? true,
+      showConnectionLabels: data.showCableIdLabels ?? data.showConnectionLabels ?? true,
+      showCustomLabels: data.showCustomLabels ?? true,
+      cableIdGap: data.cableIdGap ?? 4,
+      customLabelGap: data.customLabelGap ?? 4,
+      cableIdMidOffset: data.cableIdMidOffset ?? 0,
+      customLabelMidOffset: data.customLabelMidOffset ?? 0,
+      cableIdLabelMode: data.cableIdLabelMode ?? "endpoint",
+      customLabelMode: data.customLabelMode ?? "endpoint",
+      stubLabelShowPort: data.stubLabelShowPort ?? DEFAULT_STUB_LABEL_SHOW_PORT,
+      stubLabelPageMode: data.stubLabelPageMode ?? DEFAULT_STUB_LABEL_PAGE_MODE,
       hideAdapters: data.hideAdapters ?? false,
       autoRoute: data.autoRoute ?? true,
       edgeHitboxSize: data.edgeHitboxSize ?? 10,
       categoryOrder: data.categoryOrder ?? null,
+      showOwnedGearPane: data.showOwnedGearPane ?? false,
+      libraryActiveTab: data.showOwnedGearPane ? (data.libraryActiveTab ?? "devices") : "devices",
       colorKeyEnabled: data.colorKeyEnabled ?? false,
       colorKeyCorner: data.colorKeyCorner ?? "bottom-left",
       colorKeyColumns: data.colorKeyColumns ?? 1,
@@ -2629,10 +3560,14 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
       colorKeyOverrides: data.colorKeyOverrides ?? undefined,
       pages: data.pages ?? [],
       activePage: "schematic",
+      cableCosts: data.cableCosts ?? undefined,
+      roomDistances: data.roomDistances ?? undefined,
+      distanceSettings: data.distanceSettings ?? undefined,
       // File imports and shared schematics always start as local-only
       cloudSchematicId: null,
       cloudSavedAt: null,
       fileHandle: null,
+      loadSeq: get().loadSeq + 1,
     });
     if (data.pages?.length) syncRackCounters(data.pages);
     saveCategoryOrder(data.categoryOrder ?? null);
@@ -2677,14 +3612,16 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
         edges: [],
         schematicName: "Untitled Schematic",
         isDemo: false,
+        ownedGear: [],
         cloudSchematicId: null,
         cloudSavedAt: null,
         fileHandle: null,
         titleBlock: { showName: "", venue: "", designer: "", engineer: "", date: "", drawingTitle: "", company: "", revision: "", logo: "", customFields: [] },
         titleBlockLayout: createDefaultLayout(),
         hiddenSignalTypes: "",
-        hideDeviceTypes: false,
+        hiddenPinSignalTypes: "",
         hideUnconnectedPorts: false,
+        showPortCounts: false,
         templateHiddenSignals: {},
         templatePresets: {},
         favoriteTemplates: [],
@@ -2695,12 +3632,27 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
         cableNamingScheme: "type-prefix",
         showLineJumps: true,
         showConnectionLabels: true,
+        showCableIdLabels: true,
+        showCustomLabels: true,
+        cableIdGap: 4,
+        customLabelGap: 4,
+        cableIdMidOffset: 0,
+        customLabelMidOffset: 0,
+        cableIdLabelMode: "endpoint" as "endpoint" | "midpoint",
+        customLabelMode: "endpoint" as "endpoint" | "midpoint",
+        stubLabelShowPort: DEFAULT_STUB_LABEL_SHOW_PORT,
+        stubLabelShowRoom: DEFAULT_STUB_LABEL_SHOW_ROOM,
+        stubLabelPageMode: DEFAULT_STUB_LABEL_PAGE_MODE,
         autoRoute: true,
         edgeHitboxSize: 10,
+        panMode: DEFAULT_PAN_MODE,
+        showOwnedGearPane: false,
+        libraryActiveTab: "devices" as "devices" | "owned",
         undoSize: 0,
         redoSize: 0,
         pages: [],
         activePage: "schematic",
+        loadSeq: get().loadSeq + 1,
       });
     }
     get().saveToLocalStorage();
@@ -2728,6 +3680,201 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
     get().saveToLocalStorage();
   },
 
+  patchStubLabelData: (nodeId, patch) => {
+    const state = get();
+    pushUndo({ nodes: state.nodes, edges: state.edges });
+    set({
+      nodes: state.nodes.map((n) => {
+        if (n.id !== nodeId || n.type !== "stub-label") return n;
+        const merged = { ...(n.data as Record<string, unknown>), ...patch } as typeof n.data;
+        for (const k of Object.keys(patch) as (keyof typeof patch)[]) {
+          if (patch[k] === undefined) delete (merged as Record<string, unknown>)[k];
+        }
+        return { ...n, data: merged };
+      }),
+    });
+    get().saveToLocalStorage();
+  },
+
+  convertEdgeToStubs: (edgeId) => {
+    const state = get();
+    const edge = state.edges.find((e) => e.id === edgeId);
+    if (!edge) return;
+    if (edge.data?.linkedConnectionId) return; // already a stub leg
+
+    const srcDevice = state.nodes.find((n) => n.id === edge.source);
+    const tgtDevice = state.nodes.find((n) => n.id === edge.target);
+    if (!srcDevice || !tgtDevice) return;
+
+    const absPos = (n: typeof state.nodes[number]): { x: number; y: number } => {
+      let x = n.position.x;
+      let y = n.position.y;
+      let pid = n.parentId;
+      while (pid) {
+        const p = state.nodes.find((nn) => nn.id === pid);
+        if (!p) break;
+        x += p.position.x;
+        y += p.position.y;
+        pid = p.parentId;
+      }
+      return { x, y };
+    };
+
+    const findPort = (deviceNode: typeof state.nodes[number] | undefined, handleId: string | null | undefined) => {
+      if (!deviceNode || !handleId || deviceNode.type !== "device") return null;
+      const ports = (deviceNode.data as { ports?: Port[] }).ports ?? [];
+      const baseId = handleId.replace(/-(in|out)$/, "");
+      const p = ports.find((pp) => pp.id === baseId);
+      if (!p) return null;
+      const side: "left" | "right" =
+        p.direction === "input" ? (p.flipped ? "right" : "left")
+        : p.direction === "output" ? (p.flipped ? "left" : "right")
+        : (p.flipped ? "right" : "left");
+      return { side };
+    };
+
+    const approxHandlePos = (deviceNode: typeof state.nodes[number], handleId: string | null | undefined) => {
+      const dPos = absPos(deviceNode);
+      const portInfo = findPort(deviceNode, handleId);
+      const w = (deviceNode.measured?.width as number | undefined) ?? 180;
+      const h = (deviceNode.measured?.height as number | undefined) ?? 60;
+      const x = portInfo?.side === "right" ? dPos.x + w : dPos.x;
+      return { x, y: dPos.y + h / 2 };
+    };
+
+    const srcHandlePos = approxHandlePos(srcDevice, edge.sourceHandle);
+    const tgtHandlePos = approxHandlePos(tgtDevice, edge.targetHandle);
+    const srcPortInfo = findPort(srcDevice, edge.sourceHandle);
+    const tgtPortInfo = findPort(tgtDevice, edge.targetHandle);
+
+    const srcPlace = defaultStubPlacement(srcHandlePos, srcPortInfo?.side ?? "right");
+    const tgtPlace = defaultStubPlacement(tgtHandlePos, tgtPortInfo?.side ?? "left");
+    const srcStubAbs = srcPlace.pos;
+    const tgtStubAbs = tgtPlace.pos;
+    const srcSide = srcPlace.handle;
+    const tgtSide = tgtPlace.handle;
+
+    const srcParentId = srcDevice.parentId;
+    const tgtParentId = tgtDevice.parentId;
+    const srcParentAbs = srcParentId
+      ? absPos(state.nodes.find((n) => n.id === srcParentId)!)
+      : { x: 0, y: 0 };
+    const tgtParentAbs = tgtParentId
+      ? absPos(state.nodes.find((n) => n.id === tgtParentId)!)
+      : { x: 0, y: 0 };
+
+    const linkedConnectionId =
+      typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : `link-${edge.id}-${Date.now()}`;
+    const stubNodeIdSrc = `stub-${edge.id}-src`;
+    const stubNodeIdTgt = `stub-${edge.id}-tgt`;
+    const sigType = edge.data!.signalType;
+
+    const srcStubNode: SchematicNode = {
+      id: stubNodeIdSrc,
+      type: "stub-label",
+      position: { x: srcStubAbs.x - srcParentAbs.x, y: srcStubAbs.y - srcParentAbs.y },
+      ...(srcParentId ? { parentId: srcParentId } : {}),
+      data: { signalType: sigType, linkedConnectionId, side: "source" },
+    } as SchematicNode;
+    const tgtStubNode: SchematicNode = {
+      id: stubNodeIdTgt,
+      type: "stub-label",
+      position: { x: tgtStubAbs.x - tgtParentAbs.x, y: tgtStubAbs.y - tgtParentAbs.y },
+      ...(tgtParentId ? { parentId: tgtParentId } : {}),
+      data: { signalType: sigType, linkedConnectionId, side: "target" },
+    } as SchematicNode;
+
+    const baseData = { ...edge.data! };
+    delete (baseData as Record<string, unknown>).manualWaypoints;
+    delete (baseData as Record<string, unknown>).autoRouteWaypoints;
+
+    const srcLeg: ConnectionEdge = {
+      ...edge,
+      id: `${edge.id}-src`,
+      source: edge.source,
+      sourceHandle: edge.sourceHandle,
+      target: stubNodeIdSrc,
+      targetHandle: srcSide,
+      data: { ...baseData, linkedConnectionId },
+    };
+    const tgtLegData = { ...baseData, linkedConnectionId } as ConnectionEdge["data"];
+    delete (tgtLegData as Record<string, unknown>).cableId;
+    delete (tgtLegData as Record<string, unknown>).label;
+    delete (tgtLegData as Record<string, unknown>).cableLength;
+    delete (tgtLegData as Record<string, unknown>).multicableLabel;
+    const tgtLeg: ConnectionEdge = {
+      ...edge,
+      id: `${edge.id}-tgt`,
+      source: stubNodeIdTgt,
+      sourceHandle: tgtSide,
+      target: edge.target,
+      targetHandle: edge.targetHandle,
+      data: tgtLegData,
+    };
+
+    pushUndo({ nodes: state.nodes, edges: state.edges });
+    const newEdges = [...state.edges.filter((e) => e.id !== edgeId), srcLeg, tgtLeg];
+    set({
+      nodes: reconcileWaypointNodes([...state.nodes, srcStubNode, tgtStubNode], newEdges),
+      edges: newEdges,
+    });
+    get().saveToLocalStorage();
+  },
+
+  collapseStubsForEdge: (edgeId) => {
+    const state = get();
+    const edge = state.edges.find((e) => e.id === edgeId);
+    if (!edge) return;
+    const linkedId = edge.data?.linkedConnectionId;
+    if (!linkedId) return;
+
+    const linkedEdges = state.edges.filter((e) => e.data?.linkedConnectionId === linkedId);
+    if (linkedEdges.length < 2) return;
+    const srcLeg = linkedEdges.find((e) => {
+      const src = state.nodes.find((n) => n.id === e.source);
+      return src?.type !== "stub-label";
+    });
+    const tgtLeg = linkedEdges.find((e) => {
+      const tgt = state.nodes.find((n) => n.id === e.target);
+      return tgt?.type !== "stub-label";
+    });
+    if (!srcLeg || !tgtLeg) return;
+
+    const stubIds = new Set<string>();
+    for (const e of linkedEdges) {
+      const src = state.nodes.find((n) => n.id === e.source);
+      const tgt = state.nodes.find((n) => n.id === e.target);
+      if (src?.type === "stub-label") stubIds.add(src.id);
+      if (tgt?.type === "stub-label") stubIds.add(tgt.id);
+    }
+
+    // Reconstruct a single direct edge. Use srcLeg as the metadata canonical
+    // (it's where cableId/label live after migration/conversion).
+    const mergedData = { ...srcLeg.data! };
+    delete (mergedData as Record<string, unknown>).linkedConnectionId;
+
+    const directId = srcLeg.id.endsWith("-src") ? srcLeg.id.slice(0, -4) : `merged-${srcLeg.id}`;
+    const directEdge: ConnectionEdge = {
+      ...srcLeg,
+      id: directId,
+      source: srcLeg.source,
+      sourceHandle: srcLeg.sourceHandle,
+      target: tgtLeg.target,
+      targetHandle: tgtLeg.targetHandle,
+      data: mergedData,
+    };
+
+    pushUndo({ nodes: state.nodes, edges: state.edges });
+    const newEdges = [...state.edges.filter((e) => e.data?.linkedConnectionId !== linkedId), directEdge];
+    set({
+      nodes: reconcileWaypointNodes(state.nodes.filter((n) => !stubIds.has(n.id)), newEdges),
+      edges: newEdges,
+    });
+    get().saveToLocalStorage();
+  },
+
   batchPatchEdgeData: (changes) => {
     const state = get();
     pushUndo({ nodes: state.nodes, edges: state.edges });
@@ -2749,12 +3896,14 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
   setManualWaypoints: (edgeId, waypoints) => {
     const state = get();
     pushUndo({ nodes: state.nodes, edges: state.edges });
+    const newEdges = state.edges.map((e) =>
+      e.id === edgeId
+        ? { ...e, data: { ...e.data!, manualWaypoints: waypoints, autoRouteWaypoints: undefined } }
+        : e,
+    );
     set({
-      edges: state.edges.map((e) =>
-        e.id === edgeId
-          ? { ...e, data: { ...e.data!, manualWaypoints: waypoints } }
-          : e,
-      ),
+      edges: newEdges,
+      nodes: reconcileWaypointNodes(state.nodes, newEdges),
     });
     get().saveToLocalStorage();
   },
@@ -2765,12 +3914,14 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
     if (!edge?.data?.manualWaypoints) return;
     pushUndo({ nodes: state.nodes, edges: state.edges });
     const { manualWaypoints: _, ...restData } = edge.data;
+    const newEdges = state.edges.map((e) =>
+      e.id === edgeId
+        ? { ...e, data: restData as ConnectionEdge["data"] }
+        : e,
+    );
     set({
-      edges: state.edges.map((e) =>
-        e.id === edgeId
-          ? { ...e, data: restData as ConnectionEdge["data"] }
-          : e,
-      ),
+      edges: newEdges,
+      nodes: reconcileWaypointNodes(state.nodes, newEdges),
     });
     get().saveToLocalStorage();
   },
@@ -2832,6 +3983,51 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
         crossingPoints: [],
       };
     }
+
+    // Detect crossings so line hops render in manual mode too.
+    const stubbedIds = new Set(state.edges.filter((e) => e.data?.stubbed).map((e) => e.id));
+    const entries = Object.values(results).filter((r) => !stubbedIds.has(r.edgeId));
+    const segCount = entries.reduce((n, r) => n + r.segments.length, 0);
+    const overBudget = entries.length > 400 || segCount * segCount > 250_000;
+    if (!overBudget) {
+      const arcMap = new Map<string, CrossingPoint[]>();
+      const gapMap = new Map<string, CrossingPoint[]>();
+      for (const r of entries) {
+        arcMap.set(r.edgeId, []);
+        gapMap.set(r.edgeId, []);
+      }
+      for (let i = 0; i < entries.length; i++) {
+        for (let j = i + 1; j < entries.length; j++) {
+          const a = entries[i];
+          const b = entries[j];
+          for (const sa of a.segments) {
+            for (const sb of b.segments) {
+              if (segmentsCross(sa, sb)) {
+                const h = sa.axis === "h" ? sa : sb;
+                const v = sa.axis === "v" ? sa : sb;
+                const pt: CrossingPoint = { x: v.x1, y: h.y1 };
+                if (sa.axis === "h") {
+                  arcMap.get(a.edgeId)!.push(pt);
+                  gapMap.get(b.edgeId)!.push(pt);
+                } else {
+                  arcMap.get(b.edgeId)!.push(pt);
+                  gapMap.get(a.edgeId)!.push(pt);
+                }
+              }
+            }
+          }
+        }
+      }
+      for (const r of entries) {
+        const arcs = arcMap.get(r.edgeId)!;
+        const gaps = gapMap.get(r.edgeId)!;
+        if (arcs.length || gaps.length) {
+          r.crossingPoints = [...arcs, ...gaps];
+          r.svgPathWithHops = waypointsToSvgPathWithHops(r.waypoints, arcs, gaps);
+        }
+      }
+    }
+
     set({ routedEdges: results });
   },
 
@@ -2965,34 +4161,116 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
 
   toggleAutoRoute: () => {
     const state = get();
-    const newAutoRoute = !state.autoRoute;
+    if (state.autoRouteConfirmPending) return; // Dialog already open
 
-    if (!newAutoRoute) {
-      // Toggling OFF — freeze current routed paths as temporary manual waypoints
+    if (state.autoRoute) {
+      // Toggling OFF — check if we need to show the confirmation dialog
+      const stash = state._edgeWaypointStash;
+      if (!stash) {
+        // No stash (file opened with auto-route ON) — just freeze routes, no dialog
+        pushUndo({ nodes: state.nodes, edges: state.edges, autoRoute: state.autoRoute });
+        get().confirmAutoRouteOff(true);
+        return;
+      }
+      const pref = localStorage.getItem("easyschematic-autoroute-pref");
+      if (pref === "keep") {
+        pushUndo({ nodes: state.nodes, edges: state.edges, autoRoute: state.autoRoute });
+        get().confirmAutoRouteOff(true);
+      } else if (pref === "revert") {
+        pushUndo({ nodes: state.nodes, edges: state.edges, autoRoute: state.autoRoute });
+        get().confirmAutoRouteOff(false);
+      } else {
+        // "ask" (default) — show dialog, don't push undo yet
+        set({ autoRouteConfirmPending: true });
+      }
+    } else {
+      // Toggling ON — stash current waypoint state, then clear auto-generated waypoints
+      pushUndo({ nodes: state.nodes, edges: state.edges, autoRoute: state.autoRoute });
+      const stash: Record<string, { manualWaypoints: { x: number; y: number }[]; autoRouteWaypoints?: boolean } | null> = {};
+      for (const e of state.edges) {
+        stash[e.id] = e.data?.manualWaypoints?.length
+          ? { manualWaypoints: e.data.manualWaypoints, autoRouteWaypoints: e.data.autoRouteWaypoints }
+          : null;
+      }
+      const updatedEdges = state.edges.map((e) => {
+        if (!e.data?.autoRouteWaypoints) return e;
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { manualWaypoints, autoRouteWaypoints, ...restData } = e.data;
+        return { ...e, data: restData };
+      }) as typeof state.edges;
+      set({
+        autoRoute: true,
+        edges: updatedEdges,
+        nodes: reconcileWaypointNodes(state.nodes, updatedEdges),
+        _edgeWaypointStash: stash,
+      });
+    }
+  },
+
+  confirmAutoRouteOff: (preserve) => {
+    const state = get();
+    // Push undo if called from dialog (pending = true means undo wasn't pushed yet)
+    if (state.autoRouteConfirmPending) {
+      pushUndo({ nodes: state.nodes, edges: state.edges, autoRoute: true });
+    }
+
+    if (preserve) {
+      // Keep A* routes — freeze as manual waypoints
       const updatedEdges = state.edges.map((e) => {
         const route = state.routedEdges[e.id];
         if (!route || route.waypoints.length <= 2) return e;
-        // Already has user-placed manual waypoints — don't overwrite
         if (e.data?.manualWaypoints?.length && !e.data.autoRouteWaypoints) return e;
-        // Extract interior waypoints (skip first/last = handle endpoints)
         const interior = route.waypoints.slice(1, -1);
         if (interior.length === 0) return e;
         return {
           ...e,
           data: { ...e.data!, manualWaypoints: interior, autoRouteWaypoints: true },
         };
+      }) as typeof state.edges;
+      set({
+        autoRoute: false,
+        edges: updatedEdges,
+        nodes: reconcileWaypointNodes(state.nodes, updatedEdges),
+        _edgeWaypointStash: null,
+        autoRouteConfirmPending: false,
       });
-      set({ autoRoute: false, edges: updatedEdges as typeof state.edges });
     } else {
-      // Toggling ON — clear auto-generated waypoints, keep user-placed ones
+      // Restore previous — use stash
+      const stash = state._edgeWaypointStash;
       const updatedEdges = state.edges.map((e) => {
-        if (!e.data?.autoRouteWaypoints) return e;
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { manualWaypoints, autoRouteWaypoints, ...restData } = e.data;
-        return { ...e, data: restData };
+        if (stash && e.id in stash) {
+          const saved = stash[e.id];
+          if (saved === null) {
+            if (!e.data) return e;
+            const { manualWaypoints: _, autoRouteWaypoints: _a, ...restData } = e.data;
+            return { ...e, data: restData as typeof e.data };
+          }
+          return { ...e, data: { ...e.data!, manualWaypoints: saved.manualWaypoints, autoRouteWaypoints: saved.autoRouteWaypoints } };
+        }
+        // Edge not in stash — freeze A* route
+        const route = state.routedEdges[e.id];
+        if (!route || route.waypoints.length <= 2) return e;
+        if (e.data?.manualWaypoints?.length && !e.data.autoRouteWaypoints) return e;
+        const interior = route.waypoints.slice(1, -1);
+        if (interior.length === 0) return e;
+        return {
+          ...e,
+          data: { ...e.data!, manualWaypoints: interior, autoRouteWaypoints: true },
+        };
+      }) as typeof state.edges;
+      set({
+        autoRoute: false,
+        edges: updatedEdges,
+        nodes: reconcileWaypointNodes(state.nodes, updatedEdges),
+        _edgeWaypointStash: null,
+        autoRouteConfirmPending: false,
+        routedEdges: {},
       });
-      set({ autoRoute: true, edges: updatedEdges as typeof state.edges });
     }
+  },
+
+  cancelAutoRouteOff: () => {
+    set({ autoRouteConfirmPending: false });
   },
 
   toggleDebugEdges: () => {

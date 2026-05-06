@@ -1,19 +1,20 @@
 import { useState, useCallback, useMemo } from "react";
 import type { Port, SignalType, PortDirection, ConnectorType } from "../../../src/types";
-import { SIGNAL_LABELS, CONNECTOR_LABELS } from "../../../src/types";
+import { SIGNAL_LABELS, CONNECTOR_LABELS, SIGNAL_GROUPS, CONNECTOR_GROUPS } from "../../../src/types";
+import { DEFAULT_CONNECTOR } from "../../../src/connectorTypes";
 
-const NETWORK_SIGNAL_TYPES = new Set(["ethernet", "ndi", "dante", "srt", "hdbaset"]);
+const NETWORK_SIGNAL_TYPES = new Set(["ethernet", "ndi", "dante", "avb", "srt", "hdbaset"]);
 import PortRow from "./PortRow";
-
-const SIGNAL_TYPES = Object.keys(SIGNAL_LABELS) as SignalType[];
-const CONNECTOR_TYPES = Object.keys(CONNECTOR_LABELS) as ConnectorType[];
+import SearchableSelect from "./SearchableSelect";
 
 interface PortEditorProps {
   ports: Port[];
   onChange: (ports: Port[]) => void;
+  deviceType?: string;
 }
 
-export default function PortEditor({ ports, onChange }: PortEditorProps) {
+export default function PortEditor({ ports, onChange, deviceType }: PortEditorProps) {
+  const isPatchPanel = deviceType === "patch-panel";
   const [bulkOpen, setBulkOpen] = useState<PortDirection | null>(null);
   const [bulkPrefix, setBulkPrefix] = useState("IN");
   const [bulkStart, setBulkStart] = useState(1);
@@ -125,6 +126,7 @@ export default function PortEditor({ ports, onChange }: PortEditorProps) {
       id,
       label: `${dirLabel} ${count}`,
       signalType: "sdi",
+      connectorType: DEFAULT_CONNECTOR["sdi"],
       direction,
     }]);
   };
@@ -159,14 +161,14 @@ export default function PortEditor({ ports, onChange }: PortEditorProps) {
   const renderSection = (direction: PortDirection, label: string) => (
     <div className="mb-6">
       <div className="flex items-center justify-between mb-2">
-        <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wider">{label}</h3>
+        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">{label}</h3>
         <div className="flex gap-2">
           <button
             onClick={() => {
               if (bulkOpen === direction) { setBulkOpen(null); }
               else { setBulkPrefix(direction === "input" ? "IN" : direction === "output" ? "OUT" : "IO"); setBulkOpen(direction); }
             }}
-            className="text-xs text-slate-500 hover:text-slate-700 transition-colors"
+            className="text-xs text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
           >
             Bulk Add
           </button>
@@ -194,36 +196,46 @@ export default function PortEditor({ ports, onChange }: PortEditorProps) {
         </div>
       </div>
       {bulkOpen === direction && (
-        <div className="mb-3 p-3 bg-slate-50 rounded-lg border border-slate-200 flex flex-wrap gap-3 items-end">
+        <div className="mb-3 p-3 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 flex flex-wrap gap-3 items-end">
           <label className="text-xs">
-            <span className="block text-slate-500 mb-1">Prefix</span>
-            <input value={bulkPrefix} onChange={(e) => setBulkPrefix(e.target.value)} className="w-full sm:w-20 px-2 py-1 rounded border border-slate-300 text-sm" />
+            <span className="block text-slate-500 dark:text-slate-400 mb-1">Prefix</span>
+            <input value={bulkPrefix} onChange={(e) => setBulkPrefix(e.target.value)} className="w-full sm:w-20 px-2 py-1 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-sm" />
           </label>
           <label className="text-xs">
-            <span className="block text-slate-500 mb-1">Start #</span>
-            <input type="number" value={bulkStart} onChange={(e) => setBulkStart(+e.target.value)} className="w-full sm:w-16 px-2 py-1 rounded border border-slate-300 text-sm" />
+            <span className="block text-slate-500 dark:text-slate-400 mb-1">Start #</span>
+            <input type="number" value={bulkStart} onChange={(e) => setBulkStart(+e.target.value)} className="w-full sm:w-16 px-2 py-1 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-sm" />
           </label>
           <label className="text-xs">
-            <span className="block text-slate-500 mb-1">Count</span>
-            <input type="number" value={bulkCount} onChange={(e) => setBulkCount(+e.target.value)} className="w-full sm:w-16 px-2 py-1 rounded border border-slate-300 text-sm" />
+            <span className="block text-slate-500 dark:text-slate-400 mb-1">Count</span>
+            <input type="number" value={bulkCount} onChange={(e) => setBulkCount(+e.target.value)} className="w-full sm:w-16 px-2 py-1 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-sm" />
           </label>
           <label className="text-xs">
-            <span className="block text-slate-500 mb-1">Signal</span>
-            <select value={bulkSignal} onChange={(e) => setBulkSignal(e.target.value as SignalType)} className="w-full sm:w-auto px-2 py-1 rounded border border-slate-300 text-sm">
-              {SIGNAL_TYPES.map((s) => <option key={s} value={s}>{SIGNAL_LABELS[s]}</option>)}
-            </select>
+            <span className="block text-slate-500 dark:text-slate-400 mb-1">Signal</span>
+            <SearchableSelect<SignalType>
+              value={bulkSignal}
+              onChange={(v) => { setBulkSignal(v); setBulkConnector(DEFAULT_CONNECTOR[v]); }}
+              groups={SIGNAL_GROUPS}
+              labels={SIGNAL_LABELS}
+              className="px-2 py-1 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-sm min-w-[120px]"
+            />
           </label>
           <label className="text-xs">
-            <span className="block text-slate-500 mb-1">Connector</span>
-            <select value={bulkConnector} onChange={(e) => setBulkConnector(e.target.value as ConnectorType)} className="w-full sm:w-auto px-2 py-1 rounded border border-slate-300 text-sm">
-              {CONNECTOR_TYPES.map((c) => <option key={c} value={c}>{CONNECTOR_LABELS[c]}</option>)}
-            </select>
+            <span className="block text-slate-500 dark:text-slate-400 mb-1">Connector</span>
+            <SearchableSelect<ConnectorType>
+              value={bulkConnector}
+              onChange={setBulkConnector}
+              groups={CONNECTOR_GROUPS}
+              labels={CONNECTOR_LABELS}
+              recommended={DEFAULT_CONNECTOR[bulkSignal]}
+              recommendedLabel={`Default for ${SIGNAL_LABELS[bulkSignal]}`}
+              className="px-2 py-1 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-sm min-w-[120px]"
+            />
           </label>
           <button onClick={() => addBulk(direction)} className="w-full sm:w-auto px-3 py-1 rounded bg-blue-600 text-white text-sm hover:bg-blue-700 transition-colors">Add</button>
         </div>
       )}
       {grouped[direction].length === 0 ? (
-        <p className="text-sm text-slate-400 italic">No {label.toLowerCase()}</p>
+        <p className="text-sm text-slate-400 dark:text-slate-500 italic">No {label.toLowerCase()}</p>
       ) : (
         <div className="space-y-1">
           {grouped[direction].map((port) => (
@@ -245,26 +257,26 @@ export default function PortEditor({ ports, onChange }: PortEditorProps) {
 
   return (
     <div>
-      <h2 className="text-base font-semibold text-slate-900 mb-1">Ports</h2>
-      <p className="text-xs text-slate-400 mb-4">Click to select, Ctrl+click to toggle, Shift+click for range</p>
+      <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100 mb-1">Ports</h2>
+      <p className="text-xs text-slate-400 dark:text-slate-500 mb-4">Click to select, Ctrl+click to toggle, Shift+click for range</p>
 
       {/* Selection toolbar */}
       {selectedCount > 0 && (
-        <div className="mb-4 p-3 bg-indigo-50 border border-indigo-200 rounded-lg">
+        <div className="mb-4 p-3 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 rounded-lg">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-sm font-medium text-indigo-700">{selectedCount} port{selectedCount > 1 ? "s" : ""} selected</span>
-            <button onClick={clearSelection} className="text-xs text-indigo-500 hover:text-indigo-700">Deselect all</button>
+            <span className="text-sm font-medium text-indigo-700 dark:text-indigo-300">{selectedCount} port{selectedCount > 1 ? "s" : ""} selected</span>
+            <button onClick={clearSelection} className="text-xs text-indigo-500 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-200">Deselect all</button>
           </div>
 
           {/* Find & Replace */}
           <div className="flex flex-wrap items-end gap-2 mb-3">
             <label className="text-xs">
-              <span className="block text-indigo-600 mb-1">Find in labels</span>
-              <input value={findText} onChange={(e) => setFindText(e.target.value)} className="w-full sm:w-32 px-2 py-1 rounded border border-indigo-200 text-sm" placeholder="IN" />
+              <span className="block text-indigo-600 dark:text-indigo-300 mb-1">Find in labels</span>
+              <input value={findText} onChange={(e) => setFindText(e.target.value)} className="w-full sm:w-32 px-2 py-1 rounded border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-sm" placeholder="IN" />
             </label>
             <label className="text-xs">
-              <span className="block text-indigo-600 mb-1">Replace with</span>
-              <input value={replaceText} onChange={(e) => setReplaceText(e.target.value)} className="w-full sm:w-32 px-2 py-1 rounded border border-indigo-200 text-sm" placeholder="XLR IN" />
+              <span className="block text-indigo-600 dark:text-indigo-300 mb-1">Replace with</span>
+              <input value={replaceText} onChange={(e) => setReplaceText(e.target.value)} className="w-full sm:w-32 px-2 py-1 rounded border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-sm" placeholder="XLR IN" />
             </label>
             <button onClick={applyFindReplace} disabled={!findText} className="px-3 py-1 rounded bg-indigo-600 text-white text-sm hover:bg-indigo-700 disabled:opacity-50 transition-colors">Replace</button>
           </div>
@@ -272,22 +284,30 @@ export default function PortEditor({ ports, onChange }: PortEditorProps) {
           {/* Bulk property changes */}
           <div className="flex flex-wrap items-end gap-2">
             <label className="text-xs">
-              <span className="block text-indigo-600 mb-1">Signal</span>
-              <select defaultValue="" onChange={(e) => { if (e.target.value) { const st = e.target.value as SignalType; const updates: Partial<Port> = { signalType: st }; if (!NETWORK_SIGNAL_TYPES.has(st)) updates.addressable = undefined; applyToSelected(updates); e.target.value = ""; } }} className="px-2 py-1 rounded border border-indigo-200 text-sm">
-                <option value="" disabled>Change...</option>
-                {SIGNAL_TYPES.map((s) => <option key={s} value={s}>{SIGNAL_LABELS[s]}</option>)}
-              </select>
+              <span className="block text-indigo-600 dark:text-indigo-300 mb-1">Signal</span>
+              <SearchableSelect<SignalType>
+                value={"" as SignalType}
+                onChange={(st) => { const updates: Partial<Port> = { signalType: st, connectorType: DEFAULT_CONNECTOR[st] }; if (!NETWORK_SIGNAL_TYPES.has(st)) updates.addressable = undefined; applyToSelected(updates); }}
+                groups={SIGNAL_GROUPS}
+                labels={SIGNAL_LABELS}
+                placeholder="Change..."
+                className="px-2 py-1 rounded border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-sm min-w-[100px]"
+              />
             </label>
             <label className="text-xs">
-              <span className="block text-indigo-600 mb-1">Connector</span>
-              <select defaultValue="" onChange={(e) => { if (e.target.value) { applyToSelected({ connectorType: e.target.value as ConnectorType }); e.target.value = ""; } }} className="px-2 py-1 rounded border border-indigo-200 text-sm">
-                <option value="" disabled>Change...</option>
-                {CONNECTOR_TYPES.map((c) => <option key={c} value={c}>{CONNECTOR_LABELS[c]}</option>)}
-              </select>
+              <span className="block text-indigo-600 dark:text-indigo-300 mb-1">Connector</span>
+              <SearchableSelect<ConnectorType>
+                value={"" as ConnectorType}
+                onChange={(ct) => applyToSelected({ connectorType: ct })}
+                groups={CONNECTOR_GROUPS}
+                labels={CONNECTOR_LABELS}
+                placeholder="Change..."
+                className="px-2 py-1 rounded border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-sm min-w-[100px]"
+              />
             </label>
             <label className="text-xs">
-              <span className="block text-indigo-600 mb-1">Direction</span>
-              <select defaultValue="" onChange={(e) => { if (e.target.value) { applyToSelected({ direction: e.target.value as PortDirection }); e.target.value = ""; } }} className="px-2 py-1 rounded border border-indigo-200 text-sm">
+              <span className="block text-indigo-600 dark:text-indigo-300 mb-1">Direction</span>
+              <select defaultValue="" onChange={(e) => { if (e.target.value) { applyToSelected({ direction: e.target.value as PortDirection }); e.target.value = ""; } }} className="px-2 py-1 rounded border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-sm">
                 <option value="" disabled>Change...</option>
                 <option value="input">Input</option>
                 <option value="output">Output</option>
@@ -299,9 +319,9 @@ export default function PortEditor({ ports, onChange }: PortEditorProps) {
         </div>
       )}
 
-      {renderSection("input", "Inputs")}
-      {renderSection("output", "Outputs")}
-      {renderSection("bidirectional", "Bidirectional")}
+      {renderSection("input", isPatchPanel ? "Rear" : "Inputs")}
+      {renderSection("output", isPatchPanel ? "Front" : "Outputs")}
+      {!isPatchPanel && renderSection("bidirectional", "Bidirectional")}
     </div>
   );
 }

@@ -41,22 +41,32 @@ edge-debug.log
 
 # Generated seed data
 api/seed/seed-data.sql
+api/seed/import-*.sql
+src/deviceLibrary.fallback.json
+docs/src/searchIndex.json
 
 # DB backups
 api/backup-*.sql
+backups/
 
 # Wrangler local state
 .wrangler/
 .dev.vars
 
+# Vite cache
+.vite/
+
 # Internal notes
 internal/
 
-# Docs build output (source is .tsx)
+# Shadow .js emissions next to TypeScript sources — Vite resolves .js before .ts,
+# so any stray compiled .js will silently override the real source.
 docs/src/**/*.js
+src/**/*.js
+devices/src/**/*.js
 
-# One-off scripts
-scripts/
+# One-off scripts at repo root (anchor so nested scripts/ dirs aren't swept up)
+/scripts/
 
 # Local dev
 start-dev.sh

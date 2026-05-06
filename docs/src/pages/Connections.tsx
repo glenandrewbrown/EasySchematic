@@ -31,7 +31,7 @@ export default function ConnectionsPage() {
           <strong>Bidirectional</strong> ports connect on one side at a time — connecting one side disables the other
         </li>
         <li>
-          <strong>Network signal types</strong> (Ethernet, Dante, NDI, SRT, HDBaseT, AES67, ST 2110) can connect
+          <strong>Network signal types</strong> (Ethernet, Dante, AVB, NDI, SRT, HDBaseT, AES67, ST 2110) can connect
           in <strong>any direction</strong> — input-to-input, output-to-output, or any combination
         </li>
       </ul>
@@ -56,6 +56,25 @@ export default function ConnectionsPage() {
         Each connection has an optional <strong>cable length</strong> field. Set it in the cable schedule
         report — lengths are stored per-connection and appear in both the cable schedule and pack list.
         The pack list groups cables by length when summarizing.
+      </p>
+
+      <h3>Estimated cable length</h3>
+      <p>
+        When both endpoints of a connection live inside <strong>placed rooms</strong>, EasySchematic estimates a cable
+        length from the geometry between the two rooms (room-to-room distance, plus a small slack allowance). The
+        estimate appears in a separate <strong>Est. Length</strong> column in both the cable schedule and the patch
+        panel schedule, so you can compare it against the manual <strong>Cable Length</strong> column or use it as a
+        starting point when filling in your final lengths. Devices outside any room don't get an estimate — the tool
+        needs both endpoints anchored in real space to do the math.
+      </p>
+
+      <h2>Line styles</h2>
+      <p>
+        Each connection can have a custom <strong>line style</strong> — solid (default),
+        dashed, dotted, or dash-dot. Set it per-connection by right-clicking the connection
+        and hovering the <strong>Line Style</strong> submenu, which previews each option as a
+        swatch before you commit. Or set a default line style per signal type in the{" "}
+        <strong>Signal Colors</strong> panel.
       </p>
 
       <h2>Multicable connections</h2>
@@ -209,6 +228,34 @@ export default function ConnectionsPage() {
         jump arcs on or off from the <strong>View</strong> menu.
       </p>
 
+      <h2>Bulk editing connections</h2>
+      <p>
+        Select multiple connections and edit their properties all at once. Use box-select or Shift+click to build up
+        a selection — crossing-select (right-to-left drag) picks up any connection whose path crosses the box,
+        not just those with both endpoints inside.
+      </p>
+      <p>
+        Whenever 2 or more items are selected, a <strong>selection bar</strong> appears at the bottom center of the
+        canvas showing a chip for each kind of entity in your selection. Click a chip to <strong>solo</strong> that
+        kind (keep only those items selected). Ctrl/⌘+click to <strong>deselect</strong> that kind instead.
+      </p>
+      <p>
+        When connections are among the selected items, an <strong>Edit N connections…</strong> button appears in the
+        selection bar. Click it to open the bulk edit panel, which lets you apply changes to all selected connections
+        in one undo step:
+      </p>
+      <ul>
+        <li><strong>Label</strong> — overwrite all labels with new text, or append text to each existing label. Use the Clear button to remove labels from all selected connections.</li>
+        <li><strong>Line style</strong> — set solid, dashed, dotted, or dash-dot across the whole selection. A highlighted button shows the current style when all connections match; shows "(mixed)" when they differ.</li>
+        <li><strong>Direct Attach</strong> — toggle the direct-attach flag (thin gray line, excluded from cable schedule).</li>
+        <li><strong>Hide Cable ID</strong> — hide or show the auto-generated cable ID label.</li>
+        <li><strong>Hide Custom Label</strong> — hide or show the custom label independently of the cable ID.</li>
+      </ul>
+      <p>
+        The panel stays open even if you accidentally click the canvas and deselect everything — re-select
+        connections and the controls become active again.
+      </p>
+
       <h2>Stubbed connections</h2>
       <p>
         Connections can be rendered as short <strong>stubs</strong> from each port instead of full routed lines. This
@@ -226,6 +273,29 @@ export default function ConnectionsPage() {
         <li>Stubbed connections are excluded from <strong>line jump</strong> detection — they won't cause arc markers on other connections</li>
         <li>Stubbed connections don't generate <strong>page-break crossing labels</strong></li>
       </ul>
+
+      <h3>Customizing stub labels</h3>
+      <p>
+        Two options in <strong>Preferences → Display → Stub labels</strong> control what appears on stub labels
+        across the whole schematic:
+      </p>
+      <ul>
+        <li>
+          <strong>Show port name on stub labels</strong> — adds the destination port in brackets after the device,
+          e.g. <code>→ Projector [HDMI In 1] (Main Hall) Pg 3</code>. Useful when a device has many ports of the
+          same signal type.
+        </li>
+        <li>
+          <strong>Page number on stub labels</strong> — choose <em>Cross-page only</em> (default), <em>Always</em>,
+          or <em>Never</em>. Cross-page only suppresses the <code>Pg N</code> tag when both ends of a stub
+          happen to land on the same printed page, which is usually noise.
+        </li>
+      </ul>
+      <p>
+        Both settings can also be overridden on a single connection. Right-click a stubbed connection and use
+        <strong>Stub Port</strong> or <strong>Stub Page</strong> — each cycles through <em>Default</em>
+        (use the global setting) and explicit values, so an individual stub can opt in or out independently.
+      </p>
 
       <h2>Connector compatibility</h2>
       <p>

@@ -1,10 +1,9 @@
-import type { Port, SignalType, ConnectorType } from "../../../src/types";
-import { SIGNAL_LABELS, CONNECTOR_LABELS } from "../../../src/types";
+import type { Gender, Port, SignalType, ConnectorType } from "../../../src/types";
+import { SIGNAL_LABELS, CONNECTOR_LABELS, SIGNAL_GROUPS, CONNECTOR_GROUPS } from "../../../src/types";
+import { CONNECTORS_WITH_GENDER_VARIATION, DEFAULT_CONNECTOR, resolvePortGender } from "../../../src/connectorTypes";
+import SearchableSelect from "./SearchableSelect";
 
-const NETWORK_SIGNAL_TYPES = new Set(["ethernet", "ndi", "dante", "srt", "hdbaset"]);
-
-const SIGNAL_TYPES = Object.keys(SIGNAL_LABELS) as SignalType[];
-const CONNECTOR_TYPES = Object.keys(CONNECTOR_LABELS) as ConnectorType[];
+const NETWORK_SIGNAL_TYPES = new Set(["ethernet", "ndi", "dante", "avb", "srt", "hdbaset"]);
 
 interface PortRowProps {
   port: Port;
@@ -17,13 +16,27 @@ interface PortRowProps {
 }
 
 export default function PortRow({ port, selected, onSelect, onChange, onRemove, onMoveUp, onMoveDown }: PortRowProps) {
+  const handleSignalChange = (newSignal: SignalType) => {
+    const updates: Partial<Port> = { signalType: newSignal };
+    // Auto-update connector if current connector is the default for old signal or unset
+    const currentDefault = DEFAULT_CONNECTOR[port.signalType];
+    const isConnectorDefault = !port.connectorType || port.connectorType === "none" || port.connectorType === currentDefault;
+    if (isConnectorDefault) {
+      updates.connectorType = DEFAULT_CONNECTOR[newSignal];
+    }
+    if (!NETWORK_SIGNAL_TYPES.has(newSignal)) {
+      updates.addressable = undefined;
+    }
+    onChange(updates);
+  };
+
   return (
     <div
       onClick={onSelect}
       className={`flex items-center gap-2 p-2 rounded-lg border transition-colors cursor-pointer ${
         selected
-          ? "bg-indigo-50 border-indigo-300 ring-1 ring-indigo-300"
-          : "bg-white border-slate-200 hover:border-slate-300"
+          ? "bg-indigo-50 dark:bg-indigo-950/40 border-indigo-300 dark:border-indigo-700 ring-1 ring-indigo-300 dark:ring-indigo-700"
+          : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600"
       }`}
     >
       <span
@@ -35,32 +48,56 @@ export default function PortRow({ port, selected, onSelect, onChange, onRemove, 
           type="text"
           value={port.label}
           onChange={(e) => onChange({ label: e.target.value })}
-          className="w-full sm:flex-1 sm:w-auto min-w-0 px-2 py-1 rounded border border-slate-200 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+          className="w-full sm:flex-1 sm:w-auto min-w-0 px-2 py-1 rounded border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
           placeholder="Label"
         />
-        <select
+        <SearchableSelect<SignalType>
           value={port.signalType}
-          onChange={(e) => onChange({ signalType: e.target.value as SignalType })}
-          className="px-2 py-1 rounded border border-slate-200 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-        >
-          {SIGNAL_TYPES.map((s) => <option key={s} value={s}>{SIGNAL_LABELS[s]}</option>)}
-        </select>
-        <select
-          value={port.connectorType ?? "none"}
-          onChange={(e) => onChange({ connectorType: e.target.value as ConnectorType })}
-          className="px-2 py-1 rounded border border-slate-200 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-        >
-          {CONNECTOR_TYPES.map((c) => <option key={c} value={c}>{CONNECTOR_LABELS[c]}</option>)}
-        </select>
+          onChange={handleSignalChange}
+          groups={SIGNAL_GROUPS}
+          labels={SIGNAL_LABELS}
+          className="px-2 py-1 rounded border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 min-w-[100px]"
+        />
+        <SearchableSelect<ConnectorType>
+          value={(port.connectorType ?? "none") as ConnectorType}
+          onChange={(v) => onChange({ connectorType: v })}
+          groups={CONNECTOR_GROUPS}
+          labels={CONNECTOR_LABELS}
+          recommended={DEFAULT_CONNECTOR[port.signalType]}
+          recommendedLabel={`Default for ${SIGNAL_LABELS[port.signalType]}`}
+          className="px-2 py-1 rounded border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 min-w-[100px]"
+        />
+        {port.connectorType && CONNECTORS_WITH_GENDER_VARIATION.has(port.connectorType) && (() => {
+          const resolved = resolvePortGender(port);
+          return (
+            <select
+              value={port.gender ?? ""}
+              onChange={(e) => {
+                const v = e.target.value;
+                onChange({ gender: v === "" ? undefined : (v as Gender) });
+              }}
+              className={`px-2 py-1 rounded border text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                port.gender
+                  ? "border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
+                  : "border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400"
+              }`}
+              title={port.gender ? "Connector gender (overridden)" : `Connector gender (auto: ${resolved ?? "—"})`}
+            >
+              <option value="">{resolved ? `${resolved === "male" ? "M" : "F"} (auto)` : "Gender"}</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+            </select>
+          );
+        })()}
         <input
           type="text"
           value={port.section ?? ""}
           onChange={(e) => onChange({ section: e.target.value || undefined })}
-          className="w-full sm:w-24 px-2 py-1 rounded border border-slate-200 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+          className="w-full sm:w-24 px-2 py-1 rounded border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
           placeholder="Section"
         />
         {NETWORK_SIGNAL_TYPES.has(port.signalType) && (
-          <label className="flex items-center gap-1 text-xs text-slate-500 whitespace-nowrap" title="Port has an IP address / network stack">
+          <label className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap" title="Port has an IP address / network stack">
             <input
               type="checkbox"
               checked={port.addressable !== false}
@@ -71,8 +108,8 @@ export default function PortRow({ port, selected, onSelect, onChange, onRemove, 
           </label>
         )}
         <div className="flex flex-col">
-          <button onClick={onMoveUp} className="text-slate-400 hover:text-slate-600 text-xs leading-none" title="Move up">&#9650;</button>
-          <button onClick={onMoveDown} className="text-slate-400 hover:text-slate-600 text-xs leading-none" title="Move down">&#9660;</button>
+          <button onClick={onMoveUp} className="text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 text-xs leading-none" title="Move up">&#9650;</button>
+          <button onClick={onMoveDown} className="text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 text-xs leading-none" title="Move down">&#9660;</button>
         </div>
         <button
           onClick={onRemove}

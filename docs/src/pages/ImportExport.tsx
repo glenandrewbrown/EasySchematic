@@ -1,7 +1,7 @@
 export default function ImportExportPage() {
   return (
     <>
-      <h1>Import / Export</h1>
+      <h1>Files & Exports</h1>
 
       <h2>Cloud storage</h2>
       <p>
@@ -9,9 +9,10 @@ export default function ImportExportPage() {
         can access it from any browser.
       </p>
       <ul>
-        <li>Create a free account via magic-link email login (no password needed)</li>
+        <li>Create a free account via magic-link email or Google sign-in (no password needed)</li>
         <li>Save via <strong>File → Save to Cloud</strong> or manage all saved schematics via <strong>File → My Schematics</strong></li>
         <li>Up to 10 schematics per account</li>
+        <li>Cloud schematics are cached to IndexedDB for <strong>offline access</strong> — recently opened cloud files are available even without internet</li>
         <li>Toggle sharing on any saved schematic in My Schematics to generate a link anyone can open</li>
       </ul>
 
@@ -74,6 +75,10 @@ export default function ImportExportPage() {
         This is separate from schematic <strong>Save / Open</strong>, which handles full schematics
         (devices, connections, rooms, and all configuration).
       </p>
+      <p>
+        Looking to bulk-import devices from a vendor catalog, spreadsheet, or other external source?
+        See <a href="/import-devices">Import Devices</a> for the JSON / CSV import workflow.
+      </p>
 
       <h2>CSV import (cable schedule)</h2>
       <p>
@@ -109,7 +114,9 @@ export default function ImportExportPage() {
 
       <h2>DXF (CAD export)</h2>
       <p>
-        <strong>Export DXF</strong> generates an AutoCAD R12 DXF file compatible with:
+        <strong>Export DXF</strong> generates an AutoCAD R2000 (AC1015) DXF file with canvas-faithful visuals —
+        device shapes, port handles, signal-colored connections, line styles, and labels all carry over to your CAD
+        tool with the geometry that was on screen. Compatible with:
       </p>
       <ul>
         <li><strong>Vectorworks</strong> (primary target)</li>

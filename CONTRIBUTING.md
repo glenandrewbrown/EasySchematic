@@ -8,6 +8,7 @@ Thanks for your interest in contributing! EasySchematic is an open-source AV sig
 
 - Node.js 20+
 - npm 10+
+- Docker (optional — for running the built app in a container)
 
 ### Local Development
 
@@ -55,6 +56,10 @@ The easiest way to contribute — add devices to the community database:
 4. Submit for moderation
 
 No code required. Templates are reviewed and merged into the shared library.
+
+Each port has a label, direction (input / output / bidirectional), signal type, and connector type. For connectors where gender genuinely varies in real gear (XLR, powerCON, IEC, Cam-Lok, speakON, banana, BNC, TRS) the editor shows an optional **Gender** override — leave it on "auto" unless the device's physical hardware deviates from convention (e.g. a gender-bent XLR input).
+
+For **patch panels**, set `deviceType` to `patch-panel` — the editor will relabel input/output as Rear/Front and the device renders with rear/front column headers on the canvas.
 
 ### Bug Reports
 

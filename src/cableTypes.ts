@@ -1,19 +1,24 @@
 import type { Port, SignalType } from "./types";
 import { SIGNAL_LABELS, CONNECTOR_LABELS } from "./types";
-import { CONNECTOR_TO_CABLE, CONNECTOR_ACCEPTS, needsAdapter } from "./connectorTypes";
+import { CONNECTOR_TO_CABLE, CONNECTOR_ACCEPTS, needsAdapter, resolvePortGender } from "./connectorTypes";
 
 /** Maps each signal type to a physical cable type label for pack lists (legacy fallback) */
 export const SIGNAL_TO_CABLE: Record<SignalType, string> = {
   sdi: "SDI",
   genlock: "SDI",
   composite: "Composite",
+  "component-video": "Component Video",
   "s-video": "S-Video",
   ndi: "Ethernet",
   dante: "Ethernet",
+  avb: "Ethernet",
   ethernet: "Ethernet",
   srt: "Ethernet",
   hdbaset: "Ethernet",
   "analog-audio": "Analog Audio",
+  "speaker-level": "Speaker",
+  bluetooth: "Wireless",
+  digilink: "DigiLink",
   aes: "AES",
   rs422: "DB9",
   serial: "DB9",
@@ -31,6 +36,7 @@ export const SIGNAL_TO_CABLE: Record<SignalType, string> = {
   "power-neutral": "Cam-Lok",
   "power-ground": "Cam-Lok",
   gpio: "GPIO",
+  "contact-closure": "Phoenix",
   dmx: "DMX",
   madi: "MADI",
   midi: "MIDI",
@@ -47,6 +53,27 @@ export const SIGNAL_TO_CABLE: Record<SignalType, string> = {
   st2110: "Ethernet",
   artnet: "Ethernet",
   sacn: "Ethernet",
+  ir: "IR Emitter Cable",
+  timecode: "BNC",
+  gigaace: "Ethercon",
+  dx5: "Ethercon",
+  slink: "Ethercon",
+  soundgrid: "Ethercon",
+  fibreace: "Fiber - opticalCON",
+  dsnake: "Ethercon",
+  dxlink: "Ethercon",
+  gps: "BNC",
+  dars: "BNC",
+  rtmp: "Ethernet",
+  rtsp: "Ethernet",
+  "mpeg-ts": "Ethernet",
+  ebus: "Phoenix",
+  "control-voltage": "Phoenix",
+  "extron-exp": "Cat6",
+  pots: "Phone (RJ11)",
+  "blu-link": "BLU link",
+  cresnet: "Cresnet",
+  sensor: "Sensor",
   custom: "Other",
 };
 
@@ -93,7 +120,25 @@ export function getCableType(
   const connector = src ?? tgt;
   if (connector) {
     const cable = CONNECTOR_TO_CABLE[connector];
-    if (cable) return cable;
+    if (cable) {
+      const suffix = sameGenderSuffix(sourcePort, targetPort);
+      return suffix ? `${cable} ${suffix}` : cable;
+    }
   }
   return SIGNAL_TO_CABLE[signalType];
+}
+
+/**
+ * Returns the cable's own gender suffix ("M-M" or "F-F") when both endpoints share a gender
+ * — the case where a standard M-F cable won't work. A cable plug is always the opposite
+ * gender of the port it mates with (male plug → female socket), so two female ports demand
+ * an M-M cable and two male ports demand an F-F cable. Returns undefined for normal M-F
+ * runs, for mismatched or genderless connectors, or when gender can't be confidently resolved.
+ */
+function sameGenderSuffix(sourcePort: Port | undefined, targetPort: Port | undefined): string | undefined {
+  const srcG = resolvePortGender(sourcePort);
+  const tgtG = resolvePortGender(targetPort);
+  if (!srcG || !tgtG || srcG !== tgtG) return undefined;
+  // Cable ends are opposite gender to the ports they plug into.
+  return srcG === "male" ? "F-F" : "M-M";
 }

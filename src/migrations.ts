@@ -12,8 +12,9 @@
 
 import { createDefaultLayout } from "./titleBlockLayout";
 import { DEFAULT_CONNECTOR } from "./connectorTypes";
+import { defaultStubPlacement } from "./stubPlacement";
 
-export const CURRENT_SCHEMA_VERSION = 24;
+export const CURRENT_SCHEMA_VERSION = 32;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Migration = (data: any) => any;
@@ -148,7 +149,7 @@ const migrations: Record<number, Migration> = {
   12: (data) => {
     // v12 → v13: add addressable flag to ports
     // Network switch ports are pass-through (non-addressable)
-    const NET_SIGNALS = new Set(["ethernet", "ndi", "dante", "srt", "hdbaset"]);
+    const NET_SIGNALS = new Set(["ethernet", "ndi", "dante", "avb", "srt", "hdbaset"]);
     for (const node of data.nodes ?? []) {
       if (node.type === "device" && node.data?.deviceType === "network-switch") {
         for (const p of node.data.ports ?? []) {
@@ -256,11 +257,354 @@ const migrations: Record<number, Migration> = {
     return data;
   },
   23: (data) => {
-    // v23 → v24: rack builder pages — optional field, no transform needed
+    // v23 → v24: nested subrooms — rooms may now have a parentId pointing to
+    // another room. No data transform needed; parentId is already a valid
+    // React Flow node field and existing rooms simply have none.
     data.version = 24;
     return data;
   },
+
+  24: (data) => {
+    // v24 → v25: Split label visibility into cable ID / custom label controls (#61)
+    // Migrate top-level showConnectionLabels → showCableIdLabels
+    if (data.showConnectionLabels !== undefined) {
+      data.showCableIdLabels = data.showConnectionLabels;
+      delete data.showConnectionLabels;
+    }
+    // Migrate per-edge hideLabel → hideCableId + hideCustomLabel
+    if (data.edges) {
+      for (const edge of data.edges) {
+        if (edge.data?.hideLabel !== undefined) {
+          edge.data.hideCableId = edge.data.hideLabel;
+          edge.data.hideCustomLabel = edge.data.hideLabel;
+          delete edge.data.hideLabel;
+        }
+      }
+    }
+    data.version = 25;
+    return data;
+  },
+  25: (data) => {
+    // v25 → v26: introduce "avb" signal type. Historical templates (L'Acoustics LA7.16,
+    // LA-RAK II AVB) carried AVB ports mislabeled as "dante". Convert any port whose
+    // label starts with "AVB" and signalType is "dante" to the new "avb" type.
+    for (const node of data.nodes ?? []) {
+      if (node.type === "device") {
+        for (const p of node.data?.ports ?? []) {
+          if (p.signalType === "dante" && typeof p.label === "string" && /^avb\b/i.test(p.label)) {
+            p.signalType = "avb";
+          }
+        }
+      }
+    }
+    data.version = 26;
+    return data;
+  },
+  26: (data) => {
+    // v26 → v27: unify the hardcoded deviceType line under the device name into the
+    // auxiliaryData pipeline and switch each row to carrying its own header/footer slot.
+    //
+    // Migration steps per device:
+    //   1. If auxiliaryData is already a string[] (pre-v27 shape), convert each entry to
+    //      an AuxRow using the device's top-level auxPosition (if any) as the default slot.
+    //      Empty auxPosition falls back to "footer" — matches today's rendering.
+    //   2. Remove the now-stale top-level auxPosition field.
+    //   3. If the device has no aux data and wasn't explicitly suppressed via the legacy
+    //      top-level hideDeviceTypes flag, seed a single header row with {{deviceType}}
+    //      so new and old schematics look identical after the hardcoded line goes away.
+    const legacySuppressed = data.hideDeviceTypes === true;
+    for (const node of data.nodes ?? []) {
+      if (node.type !== "device" || !node.data) continue;
+      const raw = node.data.auxiliaryData;
+      const legacySlot: "header" | "footer" =
+        node.data.auxPosition === "header" ? "header" : "footer";
+      if (Array.isArray(raw) && raw.length > 0) {
+        node.data.auxiliaryData = raw.map((line: unknown) =>
+          typeof line === "string"
+            ? { text: line, position: legacySlot }
+            : (line as { text: string; position?: "header" | "footer" }),
+        );
+      } else if (!legacySuppressed) {
+        node.data.auxiliaryData = [{ text: "{{deviceType}}", position: "header" }];
+      }
+      delete node.data.auxPosition;
+    }
+    delete data.hideDeviceTypes;
+    data.version = 27;
+    return data;
+  },
+  27: (data) => {
+    // v27 → v28: add optional roomDistances + distanceSettings for inter-room
+    // cable-length estimation (#146). No data transform needed — fields default
+    // to undefined and are populated on-demand when the user opens the new
+    // Room Distances dialog.
+    data.version = 28;
+    return data;
+  },
+  28: (data) => {
+    // v28 → v29: add optional currency field for multi-currency cost reports (#158).
+    // No data transform needed — field defaults to "USD" on load.
+    data.version = 29;
+    return data;
+  },
+  29: (data) => {
+    // v29 → v30: add stub label customization (port name + page-mode controls).
+    // Behavior change: same-page stubs in print view stop showing "Pg N" by default
+    // (new pageMode default is "cross-page"). Old saves get the new default.
+    data.stubLabelShowPort ??= false;
+    data.stubLabelPageMode ??= "cross-page";
+    data.version = 30;
+    return data;
+  },
+  30: (data) => {
+    // v30 → v31: stub labels become first-class React Flow nodes. Each stubbed edge is
+    // replaced by 2 stub-label nodes + 2 stub-leg edges sharing a linkedConnectionId.
+    // Removes the parallel "stub renderer" infrastructure — stub legs are now routed
+    // by the same A* the rest of the system uses.
+    if (Array.isArray(data.edges) && Array.isArray(data.nodes)) {
+      migrateStubsToNodes(data);
+    }
+    data.version = 31;
+    return data;
+  },
+  31: (data) => {
+    // v31 → v32: manual edge waypoints become first-class React Flow nodes (selectable,
+    // box-drag-able alongside devices). The edge's manualWaypoints array stays as the
+    // canonical position store; waypoint nodes mirror it 1:1 and a sync layer keeps
+    // the two in step. This migration spawns the initial waypoint nodes.
+    if (Array.isArray(data.edges) && Array.isArray(data.nodes)) {
+      spawnWaypointNodes(data);
+    }
+    data.version = 32;
+    return data;
+  },
 };
+
+// ---------- v31 → v32 helpers ----------
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+function spawnWaypointNodes(data: any): void {
+  const newNodes: any[] = [];
+  for (const edge of data.edges) {
+    const wps = edge.data?.manualWaypoints;
+    if (!Array.isArray(wps) || wps.length === 0) continue;
+    for (let i = 0; i < wps.length; i++) {
+      const p = wps[i];
+      newNodes.push({
+        id: `wp-${edge.id}-${i}`,
+        type: "waypoint",
+        position: { x: p.x, y: p.y },
+        data: { edgeId: edge.id, index: i },
+      });
+    }
+  }
+  if (newNodes.length > 0) data.nodes = [...data.nodes, ...newNodes];
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
+// ---------- v30 → v31 helpers ----------
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+function migrateStubsToNodes(data: any): void {
+  const nodes: any[] = data.nodes;
+  const edges: any[] = data.edges;
+  const nodeMap = new Map<string, any>(nodes.map((n) => [n.id, n]));
+
+  const newNodes: any[] = [];
+  const newEdges: any[] = [];
+
+  // Approximate absolute position by walking parent chain.
+  const absPos = (n: any): { x: number; y: number } => {
+    let x = n.position?.x ?? 0;
+    let y = n.position?.y ?? 0;
+    let parentId = n.parentId;
+    while (parentId) {
+      const parent = nodeMap.get(parentId);
+      if (!parent) break;
+      x += parent.position?.x ?? 0;
+      y += parent.position?.y ?? 0;
+      parentId = parent.parentId;
+    }
+    return { x, y };
+  };
+
+  // Find a port on a device by handle id, return { side, indexInSide }.
+  const findPort = (deviceNode: any, handleId: string | undefined) => {
+    if (!deviceNode || !handleId) return null;
+    const ports = deviceNode.data?.ports ?? [];
+    // Strip "-in"/"-out" suffix used for bidirectional handles
+    const baseId = handleId.replace(/-(in|out)$/, "");
+    const idx = ports.findIndex((p: any) => p.id === baseId);
+    if (idx < 0) return null;
+    const port = ports[idx];
+    // Side defaults: input on left, output on right (flipped reverses)
+    let side: "left" | "right";
+    if (port.direction === "input") side = port.flipped ? "right" : "left";
+    else if (port.direction === "output") side = port.flipped ? "left" : "right";
+    else side = port.flipped ? "right" : "left";
+    return { side, port };
+  };
+
+  // Approximate handle absolute position. Devices are 180px wide; rough estimate is fine
+  // for picking which side of the stub label faces the device — React Flow re-measures on render.
+  const approxHandlePos = (deviceNode: any, handleId: string | undefined) => {
+    const dPos = absPos(deviceNode);
+    const portInfo = findPort(deviceNode, handleId);
+    const w = deviceNode.measured?.width ?? deviceNode.width ?? 180;
+    const h = deviceNode.measured?.height ?? deviceNode.height ?? 60;
+    const x = portInfo?.side === "right" ? dPos.x + w : dPos.x;
+    return { x, y: dPos.y + h / 2 };
+  };
+
+  // Stubs always connect via left or right — top/bottom would produce visually awkward
+  // perpendicular runs into the label box. Pick whichever side faces the device.
+  const pickStubSide = (stubAbs: { x: number; y: number }, deviceHandleAbs: { x: number; y: number }): "l" | "r" => {
+    return deviceHandleAbs.x >= stubAbs.x ? "r" : "l";
+  };
+
+  let nextStubSeq = 0;
+  const newStubId = (edgeId: string, side: "src" | "tgt") => `stub-${edgeId}-${side}-${nextStubSeq++}`;
+
+  for (const edge of edges) {
+    if (!edge.data?.stubbed) {
+      newEdges.push(edge);
+      continue;
+    }
+
+    const srcDevice = nodeMap.get(edge.source);
+    const tgtDevice = nodeMap.get(edge.target);
+    if (!srcDevice || !tgtDevice) {
+      // Dangling edge — skip stubification, drop the stubbed flag
+      const cleaned = { ...edge, data: { ...edge.data } };
+      delete cleaned.data.stubbed;
+      delete cleaned.data.stubSourceEnd;
+      delete cleaned.data.stubTargetEnd;
+      delete cleaned.data.stubSourceWaypoints;
+      delete cleaned.data.stubTargetWaypoints;
+      delete cleaned.data.stubLabelShowPort;
+      delete cleaned.data.stubLabelPageMode;
+      newEdges.push(cleaned);
+      continue;
+    }
+
+    const linkedConnectionId =
+      typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : `link-${edge.id}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+    const srcHandlePos = approxHandlePos(srcDevice, edge.sourceHandle);
+    const tgtHandlePos = approxHandlePos(tgtDevice, edge.targetHandle);
+    const srcPortInfo = findPort(srcDevice, edge.sourceHandle);
+    const tgtPortInfo = findPort(tgtDevice, edge.targetHandle);
+
+    let srcStubAbs: { x: number; y: number };
+    let srcSide: "t" | "r" | "b" | "l";
+    if (edge.data.stubSourceEnd) {
+      // Legacy file: keep the user's saved position and pick handle from geometry.
+      srcStubAbs = { x: edge.data.stubSourceEnd.x, y: edge.data.stubSourceEnd.y };
+      srcSide = pickStubSide(srcStubAbs, srcHandlePos);
+    } else {
+      const place = defaultStubPlacement(srcHandlePos, srcPortInfo?.side ?? "right");
+      srcStubAbs = place.pos;
+      srcSide = place.handle;
+    }
+
+    let tgtStubAbs: { x: number; y: number };
+    let tgtSide: "t" | "r" | "b" | "l";
+    if (edge.data.stubTargetEnd) {
+      tgtStubAbs = { x: edge.data.stubTargetEnd.x, y: edge.data.stubTargetEnd.y };
+      tgtSide = pickStubSide(tgtStubAbs, tgtHandlePos);
+    } else {
+      const place = defaultStubPlacement(tgtHandlePos, tgtPortInfo?.side ?? "left");
+      tgtStubAbs = place.pos;
+      tgtSide = place.handle;
+    }
+
+    const srcParentId = srcDevice.parentId;
+    const tgtParentId = tgtDevice.parentId;
+    const srcParentAbs = srcParentId
+      ? absPos(nodeMap.get(srcParentId))
+      : { x: 0, y: 0 };
+    const tgtParentAbs = tgtParentId
+      ? absPos(nodeMap.get(tgtParentId))
+      : { x: 0, y: 0 };
+
+    const srcStubId = newStubId(edge.id, "src");
+    const tgtStubId = newStubId(edge.id, "tgt");
+
+    const stubData = {
+      signalType: edge.data.signalType,
+      linkedConnectionId,
+      showPort: edge.data.stubLabelShowPort,
+      pageMode: edge.data.stubLabelPageMode,
+    };
+
+    newNodes.push({
+      id: srcStubId,
+      type: "stub-label",
+      position: { x: srcStubAbs.x - srcParentAbs.x, y: srcStubAbs.y - srcParentAbs.y },
+      ...(srcParentId ? { parentId: srcParentId } : {}),
+      data: { ...stubData, side: "source" },
+    });
+    newNodes.push({
+      id: tgtStubId,
+      type: "stub-label",
+      position: { x: tgtStubAbs.x - tgtParentAbs.x, y: tgtStubAbs.y - tgtParentAbs.y },
+      ...(tgtParentId ? { parentId: tgtParentId } : {}),
+      data: { ...stubData, side: "target" },
+    });
+
+    // Carry-over edge data, dropping the stub-specific fields and keeping cable ID
+    // on the source-leg edge only (so cableSchedule sees one canonical record).
+    const baseData: any = { ...edge.data };
+    delete baseData.stubbed;
+    delete baseData.stubSourceEnd;
+    delete baseData.stubTargetEnd;
+    delete baseData.stubSourceWaypoints;
+    delete baseData.stubTargetWaypoints;
+    delete baseData.stubLabelShowPort;
+    delete baseData.stubLabelPageMode;
+    // manualWaypoints on a stubbed edge applied to the unused full path — discard.
+    delete baseData.manualWaypoints;
+    delete baseData.autoRouteWaypoints;
+
+    const srcLegData: any = { ...baseData, linkedConnectionId };
+    if (Array.isArray(edge.data.stubSourceWaypoints) && edge.data.stubSourceWaypoints.length > 0) {
+      srcLegData.manualWaypoints = edge.data.stubSourceWaypoints.map((p: any) => ({ x: p.x, y: p.y }));
+    }
+    const tgtLegData: any = { ...baseData, linkedConnectionId };
+    delete tgtLegData.cableId;
+    delete tgtLegData.label;
+    delete tgtLegData.cableLength;
+    delete tgtLegData.multicableLabel;
+    if (Array.isArray(edge.data.stubTargetWaypoints) && edge.data.stubTargetWaypoints.length > 0) {
+      tgtLegData.manualWaypoints = edge.data.stubTargetWaypoints.map((p: any) => ({ x: p.x, y: p.y }));
+    }
+
+    newEdges.push({
+      id: `${edge.id}-src`,
+      source: edge.source,
+      target: srcStubId,
+      sourceHandle: edge.sourceHandle,
+      targetHandle: srcSide,
+      data: srcLegData,
+      style: edge.style,
+    });
+    newEdges.push({
+      id: `${edge.id}-tgt`,
+      source: tgtStubId,
+      target: edge.target,
+      sourceHandle: tgtSide,
+      targetHandle: edge.targetHandle,
+      data: tgtLegData,
+      style: edge.style,
+    });
+  }
+
+  data.nodes = [...nodes, ...newNodes];
+  data.edges = newEdges;
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */
 
 /**
  * Migrate a schematic file from its current version to CURRENT_SCHEMA_VERSION.

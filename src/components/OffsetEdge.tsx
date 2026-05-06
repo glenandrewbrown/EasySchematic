@@ -1,86 +1,11 @@
-import { memo, useMemo, useState, useRef, useEffect, useCallback } from "react";
+import { memo, useState, useRef, useEffect } from "react";
 import {
   BaseEdge,
   EdgeLabelRenderer,
-  useReactFlow,
   type EdgeProps,
 } from "@xyflow/react";
 import { useSchematicStore } from "../store";
-import { GRID_SIZE } from "../store";
 import { LINE_STYLE_DASHARRAY, type ConnectionEdge, type LineStyle } from "../types";
-import { extractSegments, orthogonalize } from "../edgeRouter";
-import { waypointsToSvgPath, simplifyWaypoints } from "../pathfinding";
-import { computePageGrid } from "../printPageGrid";
-import { getPaperSize } from "../printConfig";
-
-/** Snap a value to the nearest grid increment. */
-function snapToGrid(v: number): number {
-  return Math.round(v / GRID_SIZE) * GRID_SIZE;
-}
-
-/** Draggable stub end label — shows destination device name and acts as the drag handle.
- *  The stub line terminates at this label. Drag to reposition. */
-function StubEndLabel({ x, y, dx, dy, text, color, edgeId, field }: {
-  x: number; y: number; dx: number; dy: number; text: string; color: string;
-  edgeId: string; field: "stubSourceEnd" | "stubTargetEnd";
-}) {
-  const rfInstance = useReactFlow();
-  const [dragPos, setDragPos] = useState<{ x: number; y: number } | null>(null);
-  const pos = dragPos ?? { x, y };
-
-  const onMouseDown = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
-    const onMove = (me: MouseEvent) => {
-      const fp = rfInstance.screenToFlowPosition({ x: me.clientX, y: me.clientY });
-      setDragPos({ x: snapToGrid(fp.x), y: snapToGrid(fp.y) });
-    };
-    const onUp = (me: MouseEvent) => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-      const fp = rfInstance.screenToFlowPosition({ x: me.clientX, y: me.clientY });
-      const final = { x: snapToGrid(fp.x), y: snapToGrid(fp.y) };
-      setDragPos(null);
-      useSchematicStore.getState().patchEdgeData(edgeId, { [field]: final });
-    };
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-  }, [edgeId, field, rfInstance]);
-
-  // Anchor the label so the line flows into its center from the approach direction
-  // Horizontal stubs: anchor left/right edge, always center vertically
-  // Vertical stubs: anchor top/bottom edge, always center horizontally
-  const anchorX = dx > 0 ? "0%" : dx < 0 ? "-100%" : "-50%";
-  const anchorY = dx !== 0 ? "-50%" : (dy > 0 ? "0%" : dy < 0 ? "-100%" : "-50%");
-
-  return (
-    <div
-      style={{
-        position: "absolute",
-        left: 0,
-        top: 0,
-        transform: `translate(${pos.x}px, ${pos.y}px) translate(${anchorX}, ${anchorY})`,
-        fontSize: 9,
-        lineHeight: 1,
-        fontFamily: "'Inter', system-ui, sans-serif",
-        fontWeight: 500,
-        whiteSpace: "nowrap",
-        pointerEvents: "all",
-        cursor: "grab",
-        padding: "1.5px 4px",
-        borderRadius: 2,
-        border: `1px solid ${color}`,
-        backgroundColor: "white",
-        color: "#374151",
-        display: "flex",
-        alignItems: "center",
-      }}
-      onMouseDown={onMouseDown}
-    >
-      {text}
-    </div>
-  );
-}
 
 function OffsetEdgeComponent({
   id,
@@ -95,7 +20,6 @@ function OffsetEdgeComponent({
 }: EdgeProps<ConnectionEdge>) {
   const debugEdges = useSchematicStore((s) => s.debugEdges);
   const debugShowLabels = useSchematicStore((s) => s.debugShowLabels);
-  const rfInstance = useReactFlow();
 
   // Hover state for showing visual reconnect indicators in HTML layer
   const [isHovered, setIsHovered] = useState(false);
@@ -180,81 +104,61 @@ function OffsetEdgeComponent({
   });
 
   // Cable ID label from pre-computed map
-  const showConnectionLabels = useSchematicStore((s) => s.showConnectionLabels);
+  const showCableIdLabels = useSchematicStore((s) => s.showCableIdLabels);
+  const showCustomLabels = useSchematicStore((s) => s.showCustomLabels);
+  const globalCableIdGap = useSchematicStore((s) => s.cableIdGap);
+  const globalCustomLabelGap = useSchematicStore((s) => s.customLabelGap);
+  const globalCableIdMidOffset = useSchematicStore((s) => s.cableIdMidOffset);
+  const globalCustomLabelMidOffset = useSchematicStore((s) => s.customLabelMidOffset);
+  const globalCableIdLabelMode = useSchematicStore((s) => s.cableIdLabelMode);
+  const globalCustomLabelMode = useSchematicStore((s) => s.customLabelMode);
   const cableId = useSchematicStore((s) => s.cableIdMap[id] ?? "");
-  const hideLabel = useSchematicStore((s) => {
+  const hideCableId = useSchematicStore((s) => {
     const edge = s.edges.find((e) => e.id === id);
-    return edge?.data?.hideLabel === true;
+    return edge?.data?.hideCableId === true || edge?.data?.hideLabel === true;
+  });
+  const hideCustomLabel = useSchematicStore((s) => {
+    const edge = s.edges.find((e) => e.id === id);
+    return edge?.data?.hideCustomLabel === true;
+  });
+  const edgeCableIdGap = useSchematicStore((s) => {
+    const edge = s.edges.find((e) => e.id === id);
+    return edge?.data?.cableIdGap as number | undefined;
+  });
+  const edgeCustomLabelGap = useSchematicStore((s) => {
+    const edge = s.edges.find((e) => e.id === id);
+    return edge?.data?.customLabelGap as number | undefined;
+  });
+  const edgeCableIdMidOffset = useSchematicStore((s) => {
+    const edge = s.edges.find((e) => e.id === id);
+    return edge?.data?.cableIdMidOffset as number | undefined;
+  });
+  const edgeCustomLabelMidOffset = useSchematicStore((s) => {
+    const edge = s.edges.find((e) => e.id === id);
+    return edge?.data?.customLabelMidOffset as number | undefined;
+  });
+  const edgeCableIdLabelMode = useSchematicStore((s) => {
+    const edge = s.edges.find((e) => e.id === id);
+    return edge?.data?.cableIdLabelMode as "endpoint" | "midpoint" | undefined;
+  });
+  const edgeCustomLabelMode = useSchematicStore((s) => {
+    const edge = s.edges.find((e) => e.id === id);
+    return edge?.data?.customLabelMode as "endpoint" | "midpoint" | undefined;
   });
 
-  // Read stubbed flag and custom endpoints (stable primitive selectors)
-  const stubbed = useSchematicStore((s) => {
+  // Endpoint cable-ID labels are suppressed at any stub-label endpoint — the stub box
+  // itself already identifies the connection there; printing the cable ID at both the
+  // device port AND the stub label would yield 4 IDs per logical cable instead of 2.
+  const sourceIsStub = useSchematicStore((s) => {
     const edge = s.edges.find((e) => e.id === id);
-    return edge?.data?.stubbed === true;
+    if (!edge) return false;
+    return s.nodes.find((n) => n.id === edge.source)?.type === "stub-label";
   });
-  const stubSourceEndStr = useSchematicStore((s) => {
+  const targetIsStub = useSchematicStore((s) => {
     const edge = s.edges.find((e) => e.id === id);
-    const p = edge?.data?.stubSourceEnd;
-    return p ? `${p.x},${p.y}` : "";
+    if (!edge) return false;
+    return s.nodes.find((n) => n.id === edge.target)?.type === "stub-label";
   });
-  const stubSrcWpStr = useSchematicStore((s) => {
-    const edge = s.edges.find((e) => e.id === id);
-    return edge?.data?.stubSourceWaypoints?.map((p) => `${p.x},${p.y}`).join("|") ?? "";
-  });
-  const stubTgtWpStr = useSchematicStore((s) => {
-    const edge = s.edges.find((e) => e.id === id);
-    return edge?.data?.stubTargetWaypoints?.map((p) => `${p.x},${p.y}`).join("|") ?? "";
-  });
-  const stubTargetEndStr = useSchematicStore((s) => {
-    const edge = s.edges.find((e) => e.id === id);
-    const p = edge?.data?.stubTargetEnd;
-    return p ? `${p.x},${p.y}` : "";
-  });
-  // Device info for stub end labels (serialized to string for stable selector)
-  const stubLabelStr = useSchematicStore((s) => {
-    if (!stubbed) return "";
-    const edge = s.edges.find((e) => e.id === id);
-    if (!edge) return "";
-    const srcNode = s.nodes.find((n) => n.id === edge.source);
-    const tgtNode = s.nodes.find((n) => n.id === edge.target);
-    const srcRoom = srcNode?.parentId ? s.nodes.find((n) => n.id === srcNode.parentId) : null;
-    const tgtRoom = tgtNode?.parentId ? s.nodes.find((n) => n.id === tgtNode.parentId) : null;
-    const sl = (srcNode?.data as Record<string, unknown>)?.label as string ?? "";
-    const tl = (tgtNode?.data as Record<string, unknown>)?.label as string ?? "";
-    const sr = (srcRoom?.data as Record<string, unknown>)?.label as string ?? "";
-    const tr = (tgtRoom?.data as Record<string, unknown>)?.label as string ?? "";
-    // Compute page numbers inline if in print view
-    let sp = "", tp = "";
-    if (s.printView && srcNode && tgtNode) {
-      const paperSize = getPaperSize(s.printPaperId, s.printCustomWidthIn, s.printCustomHeightIn);
-      const pages = computePageGrid(paperSize, s.printOrientation, s.printScale, s.nodes, s.titleBlockLayout?.heightIn ?? 1, s.printOriginOffsetX, s.printOriginOffsetY);
-      if (pages.length > 1) {
-        const findPage = (x: number, y: number) => {
-          for (const p of pages) {
-            if (x >= p.x && x < p.x + p.widthPx && y >= p.y && y < p.y + p.heightPx)
-              return p.index + 1;
-          }
-          return 0;
-        };
-        const srcAbs = srcNode.parentId
-          ? { x: srcNode.position.x + (s.nodes.find((n) => n.id === srcNode.parentId)?.position.x ?? 0), y: srcNode.position.y + (s.nodes.find((n) => n.id === srcNode.parentId)?.position.y ?? 0) }
-          : srcNode.position;
-        const tgtAbs = tgtNode.parentId
-          ? { x: tgtNode.position.x + (s.nodes.find((n) => n.id === tgtNode.parentId)?.position.x ?? 0), y: tgtNode.position.y + (s.nodes.find((n) => n.id === tgtNode.parentId)?.position.y ?? 0) }
-          : tgtNode.position;
-        const spi = findPage(srcAbs.x, srcAbs.y);
-        const tpi = findPage(tgtAbs.x, tgtAbs.y);
-        if (spi > 0) sp = String(spi);
-        if (tpi > 0) tp = String(tpi);
-      }
-    }
-    return `${sl}\0${tl}\0${sr}\0${tr}\0${sp}\0${tp}`;
-  });
-  const stubLabelInfo = useMemo(() => {
-    if (!stubLabelStr) return null;
-    const [srcLabel, tgtLabel, srcRoom, tgtRoom, srcPage, tgtPage] = stubLabelStr.split("\0");
-    return { srcLabel, tgtLabel, srcRoom, tgtRoom, srcPage, tgtPage };
-  }, [stubLabelStr]);
 
   // Read effective line style: per-connection override > per-signal-type default > solid
   const lineStyle = useSchematicStore((s) => {
@@ -344,224 +248,6 @@ function OffsetEdgeComponent({
       }
     : { ...style, strokeWidth: 0, opacity: 0 };
 
-  // --- Waypoint dragging ---
-  const dragStateRef = useRef<{
-    wpIdx: number;
-    startFlowPos: { x: number; y: number };
-    originalWaypoints: { x: number; y: number }[];
-    originalPos: { x: number; y: number };
-  } | null>(null);
-
-  // Parse manual waypoints for rendering drag handles
-  const manualWaypoints = manualWpStr
-    ? manualWpStr.split("|").map((s) => {
-        const [x, y] = s.split(",");
-        return { x: Number(x), y: Number(y) };
-      })
-    : [];
-
-  /**
-   * Write manual waypoints to edge data AND immediately update routedEdges
-   * so the visual reflects the new path without waiting for the recompute timer.
-   */
-  function applyManualWaypoints(newManualWps: { x: number; y: number }[]) {
-    const store = useSchematicStore.getState();
-
-    // Build full visual path: source + user-placed points + target
-    // Orthogonalize to maintain horizontal/vertical segments with smooth corners
-    const fullWp = simplifyWaypoints(orthogonalize([
-      { x: sourceX, y: sourceY },
-      ...newManualWps,
-      { x: targetX, y: targetY },
-    ]));
-
-    const svgPath = waypointsToSvgPath(fullWp);
-
-    const segs = extractSegments(fullWp);
-    const midIdx = Math.floor(fullWp.length / 2);
-
-    useSchematicStore.setState({
-      edges: store.edges.map((edge) =>
-        edge.id === id
-          ? { ...edge, data: { ...edge.data!, manualWaypoints: newManualWps, autoRouteWaypoints: undefined } }
-          : edge,
-      ),
-      routedEdges: {
-        ...store.routedEdges,
-        [id]: {
-          edgeId: id,
-          svgPath,
-          waypoints: fullWp,
-          segments: segs,
-          labelX: fullWp[midIdx]?.x ?? sourceX,
-          labelY: fullWp[midIdx]?.y ?? sourceY,
-          turns: "manual",
-        },
-      },
-    });
-  }
-
-  const onHandleMouseDown = useCallback(
-    (e: React.MouseEvent, wpIdx: number) => {
-      e.stopPropagation();
-      e.preventDefault();
-
-      const store = useSchematicStore.getState();
-      store.pushSnapshot();
-
-      const currentWps = manualWaypoints.map((p) => ({ ...p }));
-      if (wpIdx < 0 || wpIdx >= currentWps.length) return;
-
-      const flowPos = rfInstance.screenToFlowPosition({
-        x: e.clientX,
-        y: e.clientY,
-      });
-
-      dragStateRef.current = {
-        wpIdx,
-        startFlowPos: flowPos,
-        originalWaypoints: currentWps,
-        originalPos: { ...currentWps[wpIdx] },
-      };
-
-      useSchematicStore.setState({ isDragging: true });
-
-      const onMouseMove = (me: MouseEvent) => {
-        const ds = dragStateRef.current;
-        if (!ds) return;
-
-        const currentFlowPos = rfInstance.screenToFlowPosition({
-          x: me.clientX,
-          y: me.clientY,
-        });
-
-        const newWaypoints = ds.originalWaypoints.map((p) => ({ ...p }));
-        newWaypoints[ds.wpIdx] = {
-          x: snapToGrid(ds.originalPos.x + (currentFlowPos.x - ds.startFlowPos.x)),
-          y: snapToGrid(ds.originalPos.y + (currentFlowPos.y - ds.startFlowPos.y)),
-        };
-
-        applyManualWaypoints(newWaypoints);
-      };
-
-      const onMouseUp = () => {
-        dragStateRef.current = null;
-        document.removeEventListener("mousemove", onMouseMove);
-        document.removeEventListener("mouseup", onMouseUp);
-
-        useSchematicStore.setState({ isDragging: false });
-        useSchematicStore.getState().saveToLocalStorage();
-      };
-
-      document.addEventListener("mousemove", onMouseMove);
-      document.addEventListener("mouseup", onMouseUp);
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [id, manualWpStr, sourceX, sourceY, targetX, targetY],
-  );
-
-  // Keep applyManualWaypoints accessible from native event listeners via ref
-  const applyManualWaypointsRef = useRef(applyManualWaypoints);
-  applyManualWaypointsRef.current = applyManualWaypoints;
-
-  // Intercept edge updater mousedown in capture phase when a manual waypoint
-  // is nearby, so waypoint drag wins over React Flow's reconnect/disconnect.
-  useEffect(() => {
-    if (!selected || !isManual) return;
-
-    const el = document.querySelector(`.react-flow__edge[data-id="${id}"]`);
-    if (!el) return;
-
-    const updaters = el.querySelectorAll('.react-flow__edgeupdater');
-    if (!updaters.length) return;
-
-    const handler = (e: Event) => {
-      const me = e as MouseEvent;
-      if (me.button !== 0) return;
-      const wps = manualWaypoints;
-      if (!wps.length) return;
-
-      const flowPos = rfInstance.screenToFlowPosition({ x: me.clientX, y: me.clientY });
-
-      let nearestIdx = -1;
-      let nearestDistSq = Infinity;
-      for (let i = 0; i < wps.length; i++) {
-        const dx = wps[i].x - flowPos.x;
-        const dy = wps[i].y - flowPos.y;
-        const distSq = dx * dx + dy * dy;
-        if (distSq < nearestDistSq) { nearestDistSq = distSq; nearestIdx = i; }
-      }
-
-      if (nearestIdx < 0 || nearestDistSq >= 30 * 30) return;
-
-      // Block React Flow's reconnection handler
-      e.stopImmediatePropagation();
-      e.preventDefault();
-
-      // Start waypoint drag (mirrors onHandleMouseDown logic)
-      const store = useSchematicStore.getState();
-      store.pushSnapshot();
-      const currentWps = wps.map((p) => ({ ...p }));
-      const startFlowPos = flowPos;
-      const originalPos = { ...currentWps[nearestIdx] };
-      useSchematicStore.setState({ isDragging: true });
-
-      const onMouseMove = (moveEvt: MouseEvent) => {
-        const fp = rfInstance.screenToFlowPosition({ x: moveEvt.clientX, y: moveEvt.clientY });
-        const newWps = currentWps.map((p) => ({ ...p }));
-        newWps[nearestIdx] = {
-          x: snapToGrid(originalPos.x + (fp.x - startFlowPos.x)),
-          y: snapToGrid(originalPos.y + (fp.y - startFlowPos.y)),
-        };
-        applyManualWaypointsRef.current(newWps);
-      };
-
-      const onMouseUp = () => {
-        document.removeEventListener("mousemove", onMouseMove);
-        document.removeEventListener("mouseup", onMouseUp);
-        useSchematicStore.setState({ isDragging: false });
-        useSchematicStore.getState().saveToLocalStorage();
-      };
-
-      document.addEventListener("mousemove", onMouseMove);
-      document.addEventListener("mouseup", onMouseUp);
-    };
-
-    updaters.forEach((u) => u.addEventListener('mousedown', handler, true));
-    return () => { updaters.forEach((u) => u.removeEventListener('mousedown', handler, true)); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, selected, isManual, manualWpStr, sourceX, sourceY, targetX, targetY]);
-
-  // --- Render handles ---
-  // Only show draggable circles at manually-placed waypoints
-  const waypointHandles =
-    selected && isManual && manualWaypoints.length > 0
-      ? manualWaypoints.map((wp, i) => (
-          <g key={`wp-${i}`}>
-            <circle
-              cx={wp.x}
-              cy={wp.y}
-              r={5}
-              fill="white"
-              stroke="#1a73e8"
-              strokeWidth={2}
-              style={{ pointerEvents: "none" }}
-            />
-            {/* Fat invisible circle as hit target */}
-            <circle
-              cx={wp.x}
-              cy={wp.y}
-              r={10}
-              fill="rgba(0,0,0,0.001)"
-              stroke="rgba(0,0,0,0.001)"
-              strokeWidth={4}
-              style={{ cursor: "grab", pointerEvents: "all" }}
-              onMouseDown={(e) => onHandleMouseDown(e, i)}
-            />
-          </g>
-        ))
-      : null;
-
   // Show label at both source and target ends so it's visible even if the path goes behind a device
   const debugLabel = (debugEdges && debugShowLabels) ? (
     <>
@@ -633,84 +319,58 @@ function OffsetEdgeComponent({
     }
   }
 
-  // --- Stubbed connection rendering ---
-  // Stubs are always horizontal lines exiting the device handle in its natural direction.
-  // Source exits right (or left if flipped), target exits left (or right if flipped).
-  // If a custom endpoint is set, the line goes horizontal to the endpoint X, then vertical
-  // to the endpoint Y, always entering the label horizontally.
-  let stubPaths: { srcPath: string; tgtPath: string; srcEnd: {x:number;y:number;dx:number;dy:number}; tgtEnd: {x:number;y:number;dx:number;dy:number}; srcIntermediates: {x:number;y:number}[]; tgtIntermediates: {x:number;y:number}[] } | null = null;
-  if (stubbed) {
-    const STUB_LEN = 40;
-    // Exit direction: use routed direction if available, else assume right for source, left for target
-    const srcExitDx = srcDx !== 0 ? srcDx : 1;
-    const tgtExitDx = tgtDx !== 0 ? -tgtDx : -1; // tgtDx points INTO the handle, we want OUT
-
-    const buildStub = (hx: number, hy: number, exitDx: number, customEnd: string, wpStr: string) => {
-      const endX = customEnd ? Number(customEnd.split(",")[0]) : hx + exitDx * STUB_LEN;
-      const endY = customEnd ? Number(customEnd.split(",")[1]) : hy;
-      const intermediates = wpStr
-        ? wpStr.split("|").map((s) => { const [x, y] = s.split(","); return { x: Number(x), y: Number(y) }; })
-        : [];
-
-      // Build raw points: handle → intermediates → runway → endpoint
-      // The runway ensures a horizontal entry into the label (one grid unit back)
-      const runwayX = endX - exitDx * GRID_SIZE;
-      const needsRunway = endY !== hy || intermediates.length > 0;
-      const rawPts = [
-        { x: hx, y: hy },
-        ...intermediates,
-        ...(needsRunway ? [{ x: runwayX, y: endY }] : []),
-        { x: endX, y: endY },
-      ];
-      // Orthogonalize to ensure clean right-angle paths with proper routing
-      const pts = simplifyWaypoints(orthogonalize(rawPts));
-
-      return { path: pts, dx: exitDx, dy: 0, intermediates };
-    };
-
-    const srcStub = buildStub(sourceX, sourceY, srcExitDx, stubSourceEndStr, stubSrcWpStr);
-    const tgtStub = buildStub(targetX, targetY, tgtExitDx, stubTargetEndStr, stubTgtWpStr);
-
-    const srcEndPt = srcStub.path[srcStub.path.length - 1];
-    const tgtEndPt = tgtStub.path[tgtStub.path.length - 1];
-
-    stubPaths = {
-      srcPath: waypointsToSvgPath(srcStub.path),
-      tgtPath: waypointsToSvgPath(tgtStub.path),
-      srcEnd: { ...srcEndPt, dx: srcStub.dx, dy: srcStub.dy },
-      tgtEnd: { ...tgtEndPt, dx: tgtStub.dx, dy: tgtStub.dy },
-      srcIntermediates: srcStub.intermediates,
-      tgtIntermediates: tgtStub.intermediates,
-    };
-  }
-
-  // User-defined connection label rendered at the midpoint (via EdgeLabelRenderer)
-  const connectionLabel = edgeLabel && routeStr ? (
-    <div
-      style={{
-        position: "absolute",
-        transform: `translate(-50%, -50%) translate(${lx}px, ${ly}px)`,
-        pointerEvents: "none",
-        fontSize: 10,
-        fontFamily: "Inter, system-ui, sans-serif",
-        fontWeight: 500,
-        color: "#374151",
-        background: "rgba(255,255,255,0.92)",
-        padding: "1px 4px",
-        borderRadius: 3,
-        whiteSpace: "nowrap",
-        border: "1px solid #e5e7eb",
-      }}
-    >
-      {edgeLabel}
-    </div>
-  ) : null;
-
-  // Cable ID labels at both ends of the connection, positioned along cable direction
+  // --- Label rendering (#5, #61) ---
   const signalColor = (style?.stroke as string) ?? "#6b7280";
   const labelText = cableId;
+  const cableIdGap = edgeCableIdGap ?? globalCableIdGap;
+  const customGap = edgeCustomLabelGap ?? globalCustomLabelGap;
+  const cableIdLabelMode = edgeCableIdLabelMode ?? globalCableIdLabelMode;
+  const customLabelMode = edgeCustomLabelMode ?? globalCustomLabelMode;
+  const cidMidOff = edgeCableIdMidOffset ?? globalCableIdMidOffset;
+  const clblMidOff = edgeCustomLabelMidOffset ?? globalCustomLabelMidOffset;
 
-  const LABEL_GAP = 4;
+  // Build cumulative distances along the routed path (shared by midpoint calculations)
+  let pathWps: { x: number; y: number }[] = [];
+  let cumDist: number[] = [];
+  let totalLen = 0;
+  if (routeWpStr) {
+    pathWps = routeWpStr.split("|").map((s) => {
+      const [wx, wy] = s.split(",");
+      return { x: Number(wx), y: Number(wy) };
+    });
+    if (pathWps.length >= 2) {
+      cumDist = [0];
+      for (let i = 1; i < pathWps.length; i++) {
+        const ddx = pathWps[i].x - pathWps[i - 1].x;
+        const ddy = pathWps[i].y - pathWps[i - 1].y;
+        cumDist.push(cumDist[i - 1] + Math.sqrt(ddx * ddx + ddy * ddy));
+      }
+      totalLen = cumDist[cumDist.length - 1];
+    }
+  }
+
+  // Interpolate a point + direction along the path at a given distance from the start
+  const pointAtDistance = (dist: number): { x: number; y: number; dx: number; dy: number } => {
+    const d = Math.max(0, Math.min(totalLen, dist));
+    for (let i = 1; i < cumDist.length; i++) {
+      if (cumDist[i] >= d) {
+        const segLen = cumDist[i] - cumDist[i - 1];
+        const t = segLen > 0 ? (d - cumDist[i - 1]) / segLen : 0;
+        const sdx = pathWps[i].x - pathWps[i - 1].x;
+        const sdy = pathWps[i].y - pathWps[i - 1].y;
+        const len = Math.sqrt(sdx * sdx + sdy * sdy);
+        return {
+          x: pathWps[i - 1].x + t * sdx,
+          y: pathWps[i - 1].y + t * sdy,
+          dx: len > 0 ? sdx / len : 1,
+          dy: len > 0 ? sdy / len : 0,
+        };
+      }
+    }
+    const last = pathWps.length > 0 ? pathWps[pathWps.length - 1] : { x: lx, y: ly };
+    return { ...last, dx: 1, dy: 0 };
+  };
+
   const cableIdLabelStyle: React.CSSProperties = {
     position: "absolute",
     pointerEvents: "none",
@@ -725,28 +385,62 @@ function OffsetEdgeComponent({
     border: `1px solid ${signalColor}`,
   };
 
-  // Build a positioned cable ID label div for EdgeLabelRenderer
-  const makeCableIdLabel = (
-    ex: number, ey: number, dx: number, dy: number, key: string,
+  const customLabelStyle: React.CSSProperties = {
+    position: "absolute",
+    pointerEvents: "none",
+    fontSize: 10,
+    fontFamily: "Inter, system-ui, sans-serif",
+    fontWeight: 500,
+    color: "#374151",
+    background: "rgba(255,255,255,0.92)",
+    padding: "1px 4px",
+    borderRadius: 3,
+    whiteSpace: "nowrap",
+    border: "1px solid #e5e7eb",
+  };
+
+  // Estimate badge width from text length (for offset positioning)
+  const estimateBadgeWidth = (text: string, fontSize: number, paddingH: number) =>
+    text.length * fontSize * 0.58 + paddingH * 2 + 2; // +2 for border
+
+  // Build a positioned endpoint label that follows the cable path
+  const makeEndpointLabel = (
+    fromSource: boolean, offset: number,
+    text: string, labelStyle: React.CSSProperties, key: string,
+    // Fallbacks when no routed path is available
+    fallbackX: number, fallbackY: number, fallbackDx: number, fallbackDy: number,
   ) => {
-    // Determine dominant axis (orthogonal cables: one of dx/dy is ~1, other ~0)
-    const isHoriz = Math.abs(dx) >= Math.abs(dy);
-    // Offset along the cable direction from the endpoint
-    const px = isHoriz ? ex + Math.sign(dx) * LABEL_GAP : ex;
-    const py = isHoriz ? ey : ey + Math.sign(dy) * LABEL_GAP;
-    // CSS translate: place at (px, py) then anchor appropriately
-    const anchorX = isHoriz ? (dx < 0 ? "-100%" : "0%") : "-50%";
-    const anchorY = isHoriz ? "-50%" : (dy < 0 ? "-100%" : "0%");
+    let px: number, py: number, dirDx: number, dirDy: number;
+    if (totalLen > 0) {
+      // Walk along the path from source or target end
+      const dist = fromSource ? offset : totalLen - offset;
+      const pt = pointAtDistance(dist);
+      px = pt.x;
+      py = pt.y;
+      // Direction pointing away from the endpoint (for anchor alignment)
+      dirDx = fromSource ? pt.dx : -pt.dx;
+      dirDy = fromSource ? pt.dy : -pt.dy;
+    } else {
+      // No route yet — fall back to straight-line offset
+      const isHoriz = Math.abs(fallbackDx) >= Math.abs(fallbackDy);
+      px = isHoriz ? fallbackX + Math.sign(fallbackDx) * offset : fallbackX;
+      py = isHoriz ? fallbackY : fallbackY + Math.sign(fallbackDy) * offset;
+      dirDx = fallbackDx;
+      dirDy = fallbackDy;
+    }
+    const isHoriz = Math.abs(dirDx) >= Math.abs(dirDy);
+    const anchorX = isHoriz ? (dirDx < 0 ? "-100%" : "0%") : "-50%";
+    const anchorY = isHoriz ? "-50%" : (dirDy < 0 ? "-100%" : "0%");
 
     return (
       <div
         key={key}
         style={{
-          ...cableIdLabelStyle,
+          ...labelStyle,
           transform: `translate(${anchorX}, ${anchorY}) translate(${px}px, ${py}px)`,
         }}
       >
-        {labelText}
+        {text}
       </div>
     );
   };
@@ -766,11 +460,63 @@ function OffsetEdgeComponent({
     }
   }
 
-  const cableIdLabels = showConnectionLabels && !hideLabel && labelText && routeStr ? (
-    <>
-      {makeCableIdLabel(sourceX, sourceY, srcDx, srcDy, "lbl-src")}
-      {makeCableIdLabel(tgtLabelX, tgtLabelY, -tgtDx, -tgtDy, "lbl-tgt")}
-    </>
+  // Determine which labels to show
+  const showCableId = showCableIdLabels && !hideCableId && labelText && routeStr;
+  const showCustom = showCustomLabels && !hideCustomLabel && edgeLabel && routeStr;
+
+  // Calculate custom label endpoint offset (past cable ID badge if both visible at endpoints)
+  const cableIdBadgeWidth = labelText ? estimateBadgeWidth(labelText, 9, 3) : 0;
+  const bothAtEndpoints = showCableId && cableIdLabelMode === "endpoint"
+    && showCustom && customLabelMode === "endpoint";
+  const customEndpointOffset = bothAtEndpoints
+    ? cableIdGap + cableIdBadgeWidth + 3 + (customGap - 4) // base gap + badge + 3px padding + user adjustment
+    : customGap;
+
+  // Compute midpoint positions along the path with user offsets
+  const cidMidPt = totalLen > 0 ? pointAtDistance(totalLen / 2 + cidMidOff) : { x: lx, y: ly };
+  const clblMidPt = totalLen > 0 ? pointAtDistance(totalLen / 2 + clblMidOff) : { x: lx, y: ly };
+
+  // Cable ID labels — at endpoints or midpoint depending on mode
+  const cableIdLabels = showCableId ? (
+    cableIdLabelMode === "endpoint" ? (
+      <>
+        {!sourceIsStub && makeEndpointLabel(true, cableIdGap, labelText, cableIdLabelStyle, "cid-src",
+          sourceX, sourceY, srcDx, srcDy)}
+        {!targetIsStub && makeEndpointLabel(false, cableIdGap, labelText, cableIdLabelStyle, "cid-tgt",
+          tgtLabelX, tgtLabelY, -tgtDx, -tgtDy)}
+      </>
+    ) : (
+      <div
+        key="cid-mid"
+        style={{
+          ...cableIdLabelStyle,
+          transform: `translate(-50%, -50%) translate(${cidMidPt.x}px, ${cidMidPt.y}px)`,
+        }}
+      >
+        {labelText}
+      </div>
+    )
+  ) : null;
+
+  // Custom labels — at endpoints or midpoint depending on mode
+  const customLabels = showCustom ? (
+    customLabelMode === "endpoint" ? (
+      <>
+        {makeEndpointLabel(true, customEndpointOffset, edgeLabel, customLabelStyle, "clbl-src",
+          sourceX, sourceY, srcDx, srcDy)}
+        {makeEndpointLabel(false, customEndpointOffset, edgeLabel, customLabelStyle, "clbl-tgt",
+          tgtLabelX, tgtLabelY, -tgtDx, -tgtDy)}
+      </>
+    ) : (
+      <div
+        style={{
+          ...customLabelStyle,
+          transform: `translate(-50%, -50%) translate(${clblMidPt.x}px, ${clblMidPt.y}px)`,
+        }}
+      >
+        {edgeLabel}
+      </div>
+    )
   ) : null;
 
   // Visual-only reconnect circles + tooltip — rendered in HTML layer above cable labels.
@@ -805,11 +551,11 @@ function OffsetEdgeComponent({
   ) : null;
 
   // All labels + reconnect visuals rendered via EdgeLabelRenderer (HTML layer above all SVG edges)
-  const hasPortalContent = connectionLabel || cableIdLabels || reconnectVisuals;
+  const hasPortalContent = customLabels || cableIdLabels || reconnectVisuals;
   const edgeLabelsPortal = hasPortalContent ? (
     <EdgeLabelRenderer>
       {cableIdLabels}
-      {connectionLabel}
+      {customLabels}
       {reconnectVisuals}
     </EdgeLabelRenderer>
   ) : null;
@@ -828,69 +574,6 @@ function OffsetEdgeComponent({
     return null;
   }
 
-  if (stubbed && stubPaths) {
-    // Build stub end labels — the label IS the endpoint, line terminates at it
-    const stubColor = edgeStyle.stroke as string ?? "#999";
-    const formatStubText = (label: string, room: string, page: string, exitDx: number) => {
-      const arrow = exitDx >= 0 ? "→" : "←";
-      let text = `${arrow} ${label}`;
-      if (room) text += ` (${room})`;
-      if (page) text += ` Pg ${page}`;
-      return text;
-    };
-    const srcLabelText = stubLabelInfo ? formatStubText(stubLabelInfo.tgtLabel, stubLabelInfo.tgtRoom, stubLabelInfo.tgtPage, stubPaths.srcEnd.dx) : "";
-    const tgtLabelText = stubLabelInfo ? formatStubText(stubLabelInfo.srcLabel, stubLabelInfo.srcRoom, stubLabelInfo.srcPage, stubPaths.tgtEnd.dx) : "";
-
-    const stubLabelsPortal = (
-      <EdgeLabelRenderer>
-        {cableIdLabels}
-        {srcLabelText && (
-          <StubEndLabel x={stubPaths.srcEnd.x} y={stubPaths.srcEnd.y} dx={stubPaths.srcEnd.dx} dy={stubPaths.srcEnd.dy}
-            text={srcLabelText} color={stubColor} edgeId={id} field="stubSourceEnd" />
-        )}
-        {tgtLabelText && (
-          <StubEndLabel x={stubPaths.tgtEnd.x} y={stubPaths.tgtEnd.y} dx={stubPaths.tgtEnd.dx} dy={stubPaths.tgtEnd.dy}
-            text={tgtLabelText} color={stubColor} edgeId={id} field="stubTargetEnd" />
-        )}
-      </EdgeLabelRenderer>
-    );
-
-    // Draggable intermediate waypoint handles on stub paths
-    const makeStubWpHandles = (intermediates: {x:number;y:number}[], field: "stubSourceWaypoints" | "stubTargetWaypoints") =>
-      selected && intermediates.length > 0 ? intermediates.map((wp, i) => (
-        <g key={`${field}-${i}`}>
-          <circle cx={wp.x} cy={wp.y} r={5} fill="white" stroke="#1a73e8" strokeWidth={2} style={{ pointerEvents: "none" }} />
-          <circle cx={wp.x} cy={wp.y} r={10} fill="rgba(0,0,0,0.001)" stroke="rgba(0,0,0,0.001)" strokeWidth={4}
-            style={{ cursor: "grab", pointerEvents: "all" }}
-            onMouseDown={(e) => {
-              e.stopPropagation();
-              e.preventDefault();
-              const onMove = (me: MouseEvent) => {
-                const fp = rfInstance.screenToFlowPosition({ x: me.clientX, y: me.clientY });
-                const newWps = intermediates.map((w, j) => j === i ? { x: snapToGrid(fp.x), y: snapToGrid(fp.y) } : w);
-                useSchematicStore.getState().patchEdgeData(id, { [field]: newWps });
-              };
-              const onUp = () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
-              window.addEventListener("mousemove", onMove);
-              window.addEventListener("mouseup", onUp);
-            }}
-          />
-        </g>
-      )) : null;
-
-    return (
-      <>
-        {gradientDef}
-        <path d={stubPaths.srcPath} fill="none" style={edgeStyle} markerEnd={undefined} />
-        <path d={stubPaths.tgtPath} fill="none" style={edgeStyle} markerEnd={undefined} />
-        {makeStubWpHandles(stubPaths.srcIntermediates, "stubSourceWaypoints")}
-        {makeStubWpHandles(stubPaths.tgtIntermediates, "stubTargetWaypoints")}
-        {stubLabelsPortal}
-        {debugLabel}
-      </>
-    );
-  }
-
   return (
     <>
       {gradientDef}
@@ -904,7 +587,6 @@ function OffsetEdgeComponent({
         interactionWidth={interactionWidth}
       />
       {edgeLabelsPortal}
-      {waypointHandles}
       {debugLabel}
     </>
   );

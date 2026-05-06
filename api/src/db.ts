@@ -18,8 +18,21 @@ interface TemplateOutput {
   powerDrawW?: number;
   powerCapacityW?: number;
   voltage?: string;
+  thermalBtuh?: number;
   poeBudgetW?: number;
+  poeDrawW?: number;
+  unitCost?: number;
   isVenueProvided?: boolean;
+  heightMm?: number;
+  widthMm?: number;
+  depthMm?: number;
+  weightKg?: number;
+  auxiliaryData?: AuxRow[];
+}
+
+export interface AuxRow {
+  text: string;
+  position?: "header" | "footer";
 }
 
 export interface TemplateRow {
@@ -41,9 +54,21 @@ export interface TemplateRow {
   power_draw_w: number | null;
   power_capacity_w: number | null;
   voltage: string | null;
+  thermal_btuh: number | null;
   poe_budget_w: number | null;
+  poe_draw_w: number | null;
+  unit_cost: number | null;
   is_venue_provided: number | null;
+  height_mm: number | null;
+  width_mm: number | null;
+  depth_mm: number | null;
+  weight_kg: number | null;
+  auxiliary_data: string | null;
   sort_order: number;
+  flagged_for_deletion?: number;
+  flagged_for_deletion_reason?: string | null;
+  flagged_for_deletion_at?: string | null;
+  flagged_for_deletion_by?: string | null;
 }
 
 interface TemplateInput {
@@ -64,8 +89,16 @@ interface TemplateInput {
   powerDrawW?: number;
   powerCapacityW?: number;
   voltage?: string;
+  thermalBtuh?: number;
   poeBudgetW?: number;
+  poeDrawW?: number;
+  unitCost?: number;
   isVenueProvided?: boolean;
+  heightMm?: number;
+  widthMm?: number;
+  depthMm?: number;
+  weightKg?: number;
+  auxiliaryData?: AuxRow[];
   sortOrder?: number;
 }
 
@@ -88,9 +121,49 @@ export function templateToRow(input: TemplateInput): Omit<TemplateRow, "version"
     power_draw_w: input.powerDrawW ?? null,
     power_capacity_w: input.powerCapacityW ?? null,
     voltage: input.voltage ?? null,
+    thermal_btuh: input.thermalBtuh ?? null,
     poe_budget_w: input.poeBudgetW ?? null,
+    poe_draw_w: input.poeDrawW ?? null,
+    unit_cost: input.unitCost ?? null,
     is_venue_provided: input.isVenueProvided ? 1 : null,
+    height_mm: input.heightMm ?? null,
+    width_mm: input.widthMm ?? null,
+    depth_mm: input.depthMm ?? null,
+    weight_kg: input.weightKg ?? null,
+    auxiliary_data: input.auxiliaryData ? JSON.stringify(input.auxiliaryData) : null,
     sort_order: input.sortOrder ?? 0,
+  };
+}
+
+export interface TemplateSummaryOutput {
+  id: string;
+  label: string;
+  deviceType: string;
+  category: string;
+  manufacturer?: string;
+  modelNumber?: string;
+  color?: string;
+  searchTerms?: string[];
+  portCount: number;
+  signalTypes: string[];
+  slotCount: number;
+}
+
+export function rowToSummary(row: TemplateRow): TemplateSummaryOutput {
+  const ports = JSON.parse(row.ports) as { signalType: string }[];
+  const slots = row.slots ? JSON.parse(row.slots) as unknown[] : [];
+  return {
+    id: row.id,
+    label: row.label,
+    deviceType: row.device_type,
+    category: row.category,
+    ...(row.manufacturer && { manufacturer: row.manufacturer }),
+    ...(row.model_number && { modelNumber: row.model_number }),
+    ...(row.color && { color: row.color }),
+    ...(row.search_terms && { searchTerms: JSON.parse(row.search_terms) as string[] }),
+    portCount: ports.length,
+    signalTypes: [...new Set(ports.map((p) => p.signalType))],
+    slotCount: slots.length,
   };
 }
 
@@ -114,7 +187,15 @@ export function rowToTemplate(row: TemplateRow): TemplateOutput {
     ...(row.power_draw_w != null && { powerDrawW: row.power_draw_w }),
     ...(row.power_capacity_w != null && { powerCapacityW: row.power_capacity_w }),
     ...(row.voltage && { voltage: row.voltage }),
+    ...(row.thermal_btuh != null && { thermalBtuh: row.thermal_btuh }),
     ...(row.poe_budget_w != null && { poeBudgetW: row.poe_budget_w }),
+    ...(row.poe_draw_w != null && { poeDrawW: row.poe_draw_w }),
+    ...(row.unit_cost != null && { unitCost: row.unit_cost }),
     ...(row.is_venue_provided && { isVenueProvided: true }),
+    ...(row.height_mm != null && { heightMm: row.height_mm }),
+    ...(row.width_mm != null && { widthMm: row.width_mm }),
+    ...(row.depth_mm != null && { depthMm: row.depth_mm }),
+    ...(row.weight_kg != null && { weightKg: row.weight_kg }),
+    ...(row.auxiliary_data && { auxiliaryData: JSON.parse(row.auxiliary_data) as AuxRow[] }),
   };
 }

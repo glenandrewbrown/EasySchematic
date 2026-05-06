@@ -34,10 +34,20 @@ allTemplates.forEach((t, i) => {
   const powerDrawW = t.powerDrawW != null ? `${t.powerDrawW}` : "NULL";
   const powerCapacityW = t.powerCapacityW != null ? `${t.powerCapacityW}` : "NULL";
   const voltage = t.voltage ? `'${escapeSQL(t.voltage)}'` : "NULL";
+  const thermalBtuh = t.thermalBtuh != null ? `${t.thermalBtuh}` : "NULL";
+  const poeBudgetW = t.poeBudgetW != null ? `${t.poeBudgetW}` : "NULL";
+  const poeDrawW = t.poeDrawW != null ? `${t.poeDrawW}` : "NULL";
   const isVenueProvided = t.isVenueProvided ? "1" : "NULL";
+  const heightMm = t.heightMm != null ? `${t.heightMm}` : "NULL";
+  const widthMm = t.widthMm != null ? `${t.widthMm}` : "NULL";
+  const depthMm = t.depthMm != null ? `${t.depthMm}` : "NULL";
+  const weightKg = t.weightKg != null ? `${t.weightKg}` : "NULL";
+  const auxiliaryData = t.auxiliaryData
+    ? `'${escapeSQL(JSON.stringify(t.auxiliaryData))}'`
+    : "NULL";
 
   lines.push(
-    `INSERT OR REPLACE INTO templates (id, version, device_type, category, label, manufacturer, model_number, color, image_url, reference_url, search_terms, ports, slots, slot_family, power_draw_w, power_capacity_w, voltage, is_venue_provided, sort_order) VALUES ('${escapeSQL(id)}', ${version}, '${deviceType}', '${category}', '${label}', ${manufacturer}, ${modelNumber}, ${color}, ${imageUrl}, ${referenceUrl}, ${searchTerms}, '${ports}', ${slots}, ${slotFamily}, ${powerDrawW}, ${powerCapacityW}, ${voltage}, ${isVenueProvided}, ${i});`
+    `INSERT OR REPLACE INTO templates (id, version, device_type, category, label, manufacturer, model_number, color, image_url, reference_url, search_terms, ports, slots, slot_family, power_draw_w, power_capacity_w, voltage, thermal_btuh, poe_budget_w, poe_draw_w, is_venue_provided, height_mm, width_mm, depth_mm, weight_kg, auxiliary_data, sort_order) VALUES ('${escapeSQL(id)}', ${version}, '${deviceType}', '${category}', '${label}', ${manufacturer}, ${modelNumber}, ${color}, ${imageUrl}, ${referenceUrl}, ${searchTerms}, '${ports}', ${slots}, ${slotFamily}, ${powerDrawW}, ${powerCapacityW}, ${voltage}, ${thermalBtuh}, ${poeBudgetW}, ${poeDrawW}, ${isVenueProvided}, ${heightMm}, ${widthMm}, ${depthMm}, ${weightKg}, ${auxiliaryData}, ${i});`
   );
 });
 

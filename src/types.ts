@@ -9,10 +9,14 @@ export type ConnectorType =
   | "speakon" | "socapex" | "multipin" | "rca" | "toslink" | "barrel"
   | "banana" | "binding-post" | "binding-post-banana" | "dvi" | "mini-xlr" | "opticalcon"
   | "l5-20" | "l6-20" | "l6-30" | "l21-30" | "cam-lok" | "powercon-true1"
-  | "qsfp" | "mpo"
+  | "qsfp" | "qsfp28" | "mpo" | "digilink" | "pcie-6pin"
   | "mini-din-4" | "mini-din-7"
   | "mini-hdmi" | "mini-displayport"
-  | "rj11" | "usb-mini" | "trs-2.5mm"
+  | "rj11" | "rj12" | "usb-mini" | "usb-micro" | "trs-2.5mm"
+  | "reverse-tnc" | "sma" | "db37"
+  | "d-tap" | "v-mount" | "f-connector"
+  | "lemo-2pin" | "lemo-4pin" | "lemo-5pin"
+  | "wireless"
   | "none" | "other";
 
 export interface PortNetworkConfig {
@@ -50,7 +54,10 @@ export type SignalType =
   | "hdmi"
   | "ndi"
   | "dante"
+  | "avb"
   | "analog-audio"
+  | "speaker-level"
+  | "bluetooth"
   | "aes"
   | "dmx"
   | "madi"
@@ -62,6 +69,7 @@ export type SignalType =
   | "srt"
   | "genlock"
   | "gpio"
+  | "contact-closure"
   | "rs422"
   | "serial"
   | "thunderbolt"
@@ -89,6 +97,29 @@ export type SignalType =
   | "st2110"
   | "artnet"
   | "sacn"
+  | "ir"
+  | "timecode"
+  | "gigaace"
+  | "dx5"
+  | "slink"
+  | "soundgrid"
+  | "fibreace"
+  | "dsnake"
+  | "dxlink"
+  | "gps"
+  | "dars"
+  | "rtmp"
+  | "rtsp"
+  | "mpeg-ts"
+  | "component-video"
+  | "digilink"
+  | "ebus"
+  | "control-voltage"
+  | "extron-exp"
+  | "pots"
+  | "blu-link"
+  | "cresnet"
+  | "sensor"
   | "custom";
 
 export type LineStyle = "solid" | "dashed" | "dotted" | "dash-dot";
@@ -109,6 +140,8 @@ export const LINE_STYLE_DASHARRAY: Record<LineStyle, string | undefined> = {
 
 export type PortDirection = "input" | "output" | "bidirectional";
 
+export type Gender = "male" | "female";
+
 export interface Port {
   id: string;
   label: string;
@@ -116,6 +149,8 @@ export interface Port {
   direction: PortDirection;
   section?: string;
   connectorType?: ConnectorType;
+  /** Connector gender override. Omit to derive from connector + direction convention. */
+  gender?: Gender;
   capabilities?: PortCapabilities;
   networkConfig?: PortNetworkConfig;
   addressable?: boolean;
@@ -131,6 +166,8 @@ export interface Port {
   poeDrawW?: number;
   /** Link speed for network ports */
   linkSpeed?: string;
+  /** Stable link back to the template port this was cloned from — used for template-sync reconciliation. */
+  templatePortId?: string;
 }
 
 export interface SlotDefinition {
@@ -149,6 +186,7 @@ export interface InstalledSlot {
   cardLabel?: string;           // denormalized for display/pack list
   cardManufacturer?: string;
   cardModelNumber?: string;
+  cardUnitCost?: number;
   portIds: string[];            // tracks which ports in device.ports belong to this slot
 }
 
@@ -171,6 +209,10 @@ export interface DeviceData {
   templateVersion?: number;
   manufacturer?: string;
   modelNumber?: string;
+  /** Manufacturer spec sheet / product page URL — inherited from the source template but editable per-device */
+  referenceUrl?: string;
+  /** Device category (e.g. "video", "audio") — meaningful for custom templates and community submissions */
+  category?: string;
   showAllPorts?: boolean;
   hiddenPorts?: string[];
   dhcpServer?: DhcpServerConfig;
@@ -180,21 +222,42 @@ export interface DeviceData {
   powerDrawW?: number;
   powerCapacityW?: number;
   voltage?: string;
-  /** PoE budget in watts (for network switches) */
+  /** Thermal load in BTU/h for HVAC sizing; auto-derived from powerDrawW × 3.412 if omitted */
+  thermalBtuh?: number;
+  /** PoE budget in watts (for network switches — power this device *supplies* over PoE) */
   poeBudgetW?: number;
+  /** PoE draw in watts (power this device *consumes* over PoE, e.g. a camera or AP) */
+  poeDrawW?: number;
+  /** Unit cost in dollars (optional, for BOM/quoting) */
+  unitCost?: number;
   isVenueProvided?: boolean;
+  /** Physical height in millimeters — reserved for future rack management */
+  heightMm?: number;
+  /** Physical width in millimeters — reserved for future rack management */
+  widthMm?: number;
+  /** Physical depth in millimeters — reserved for future rack management */
+  depthMm?: number;
+  /** Device weight in kilograms — reserved for future rack management */
+  weightKg?: number;
   /** Adapter visibility override — only meaningful for deviceType "adapter" */
   adapterVisibility?: "default" | "force-show" | "force-hide";
-  /** Physical height in millimeters */
-  heightMm?: number;
-  /** Physical width in millimeters */
-  widthMm?: number;
-  /** Physical depth in millimeters */
-  depthMm?: number;
-  /** Device weight in kg */
-  weightKg?: number;
+  /** User-customizable auxiliary data rows. Each row carries its own slot (header vs
+   *  footer) and text; blank text entries within a slot render as separator gaps. */
+  auxiliaryData?: AuxRow[];
+  /** Search terms used to find this device in the library; editable per-placement so
+   *  improved terms can ride the "save as template" submission flow. */
+  searchTerms?: string[];
   /** Custom face-plate connector layout (overrides auto-layout) */
   facePlateLayout?: FacePlateLayout;
+}
+
+/** One row of auxiliary data shown on a device node. */
+export interface AuxRow {
+  /** Display text — may contain `{{token}}` placeholders (e.g. `{{modelNumber}}`). */
+  text: string;
+  /** Whether the row renders above the ports (header) or below them (footer).
+   *  Defaults to "footer" when omitted. */
+  position?: "header" | "footer";
 }
 
 export interface FacePlateLayout {
@@ -221,6 +284,7 @@ export interface RoomData {
   borderStyle?: "dashed" | "solid" | "dotted";
   labelSize?: number;
   locked?: boolean;
+  isEquipmentRack?: boolean;
 }
 
 export type RoomNode = Node<RoomData, "room">;
@@ -236,18 +300,48 @@ export type NoteNode = Node<NoteData, "note">;
 export interface AnnotationData {
   [key: string]: unknown;
   /** Shape type for the annotation (#24) */
-  shape: "rectangle" | "ellipse";
+  shape: "rectangle" | "ellipse" | "circle" | "diamond" | "triangle";
   /** Fill color */
   color?: string;
   /** Border color */
   borderColor?: string;
   /** Optional text label */
   label?: string;
+  /** Font size for the label in px */
+  fontSize?: number;
 }
 
 export type AnnotationNode = Node<AnnotationData, "annotation">;
 
-export type SchematicNode = DeviceNode | RoomNode | NoteNode | AnnotationNode;
+export interface StubLabelData {
+  [key: string]: unknown;
+  /** Signal type — controls border color, matches the linked connection */
+  signalType: SignalType;
+  /** Shared with the partner stub node + both stub-leg edges. Identifies one logical cable. */
+  linkedConnectionId: string;
+  /** Which end of the logical connection this stub represents */
+  side: "source" | "target";
+  /** When true, append [PortName] to the label text (per-stub override; falls back to global setting) */
+  showPort?: boolean;
+  /** When true, append (RoomName) to the label text (per-stub override; falls back to global setting) */
+  showRoom?: boolean;
+  /** When/whether to append page number (per-stub override; falls back to global setting) */
+  pageMode?: StubLabelPageMode;
+}
+
+export type StubLabelNode = Node<StubLabelData, "stub-label">;
+
+export interface WaypointData {
+  [key: string]: unknown;
+  /** The connection edge this waypoint belongs to. */
+  edgeId: string;
+  /** Position within the edge's manualWaypoints array. */
+  index: number;
+}
+
+export type WaypointNode = Node<WaypointData, "waypoint">;
+
+export type SchematicNode = DeviceNode | RoomNode | NoteNode | AnnotationNode | StubLabelNode | WaypointNode;
 
 export interface ConnectionData {
   [key: string]: unknown;
@@ -261,20 +355,43 @@ export interface ConnectionData {
   multicableLabel?: string;
   /** User-defined label displayed on the connection line (#5) */
   label?: string;
-  /** When true, render as a short stub from each end instead of a full connection (#13) */
+  /** When set, this edge is one half of a logical cable that has been split into two
+   *  stub-leg edges connected via stub-label nodes. Both halves share the same id. */
+  linkedConnectionId?: string;
+  /** @deprecated v31+: stubs are real nodes now. Kept on the type so the v30→v31 migration can read it. */
   stubbed?: boolean;
-  /** Custom position for source stub endpoint (absolute canvas coords) */
+  /** @deprecated v31+: replaced by StubLabelNode position. */
   stubSourceEnd?: { x: number; y: number };
-  /** Custom position for target stub endpoint (absolute canvas coords) */
+  /** @deprecated v31+: replaced by StubLabelNode position. */
   stubTargetEnd?: { x: number; y: number };
-  /** Intermediate waypoints for source stub path */
+  /** @deprecated v31+: migrated to the source-leg edge's manualWaypoints. */
   stubSourceWaypoints?: { x: number; y: number }[];
-  /** Intermediate waypoints for target stub path */
+  /** @deprecated v31+: migrated to the target-leg edge's manualWaypoints. */
   stubTargetWaypoints?: { x: number; y: number }[];
   /** Allow connection between incompatible connector types (#6) */
   allowIncompatible?: boolean;
-  /** When true, hide cable ID labels on this specific connection (#5) */
+  /** @deprecated Use hideCableId + hideCustomLabel instead. Migrated in schema v25. */
   hideLabel?: boolean;
+  /** Per-edge: hide cable ID label (#61) */
+  hideCableId?: boolean;
+  /** Per-edge: hide custom label (#61) */
+  hideCustomLabel?: boolean;
+  /** Per-edge: cable ID endpoint spacing override in pixels (#61) */
+  cableIdGap?: number;
+  /** Per-edge: custom label endpoint spacing override in pixels (#61) */
+  customLabelGap?: number;
+  /** Per-edge: cable ID midpoint offset along path in pixels (#61) */
+  cableIdMidOffset?: number;
+  /** Per-edge: custom label midpoint offset along path in pixels (#61) */
+  customLabelMidOffset?: number;
+  /** Per-edge: cable ID label display mode override (#61) */
+  cableIdLabelMode?: "endpoint" | "midpoint";
+  /** Per-edge: custom label display mode override (#61) */
+  customLabelMode?: "endpoint" | "midpoint";
+  /** @deprecated v31+: moved to StubLabelData.showPort. */
+  stubLabelShowPort?: boolean;
+  /** @deprecated v31+: moved to StubLabelData.pageMode. */
+  stubLabelPageMode?: StubLabelPageMode;
   /** Edge represents a direct physical attachment, not a separate cable */
   directAttach?: boolean;
   /** Visual line style — solid (default), dashed, dotted, or dash-dot */
@@ -302,12 +419,16 @@ export interface DeviceTemplate {
   powerDrawW?: number;           // Max power consumption in watts
   powerCapacityW?: number;       // Total supply capacity in watts (distros only)
   voltage?: string;              // Informational: "100-240V", "208V", "120V"
+  thermalBtuh?: number;          // Thermal load in BTU/h for HVAC sizing; auto-derived from powerDrawW × 3.412 if omitted
   isVenueProvided?: boolean;     // Venue-owned gear — excluded from pack list
-  poeBudgetW?: number;           // PoE budget in watts (switches only)
+  poeBudgetW?: number;           // PoE budget in watts (switches/PSEs supplying PoE)
+  poeDrawW?: number;             // PoE draw in watts (PDs consuming PoE — cameras, APs, etc.)
+  unitCost?: number;             // MSRP / default unit cost in dollars
   heightMm?: number;             // Physical height in millimeters
   widthMm?: number;              // Physical width in millimeters
   depthMm?: number;              // Physical depth in millimeters
-  weightKg?: number;             // Weight in kg
+  weightKg?: number;             // Device weight in kilograms
+  auxiliaryData?: AuxRow[];      // Aux rows shown on the node (each row carries its own header/footer slot)
   facePlateLayout?: FacePlateLayout; // Custom face-plate connector positions
 }
 
@@ -319,14 +440,24 @@ export interface CustomTemplateGroup {
 
 export interface CustomTemplateMeta {
   groups: CustomTemplateGroup[];
-  order: string[];                          // deviceType[] in display order
-  groupAssignments: Record<string, string>; // deviceType -> groupId
+  order: string[];                          // template key (id ?? deviceType) in display order
+  groupAssignments: Record<string, string>; // template key -> groupId
 }
 
 export interface TemplatePreset {
   ports: Port[];
   hiddenPorts?: string[];
   color?: string;
+}
+
+export interface OwnedGearItem {
+  template: DeviceTemplate;
+  quantity: number;
+}
+
+export interface OwnedGearFile {
+  version: 1;
+  ownedGear: OwnedGearItem[];
 }
 
 export interface CustomField {
@@ -451,6 +582,7 @@ export interface SchematicFile {
   nodes: SchematicNode[];
   edges: ConnectionEdge[];
   customTemplates?: DeviceTemplate[];
+  ownedGear?: OwnedGearItem[];
   signalColors?: Partial<Record<SignalType, string>>;
   signalLineStyles?: Partial<Record<SignalType, LineStyle>>;
   printPaperId?: string;
@@ -463,8 +595,12 @@ export interface SchematicFile {
   titleBlock?: TitleBlock;
   titleBlockLayout?: TitleBlockLayout;
   hiddenSignalTypes?: SignalType[];
+  hiddenPinSignalTypes?: SignalType[];
+  /** @deprecated Replaced in schema v27 by the {{deviceType}} auxiliary row. Kept on the file
+   *  shape so the migration can honor the user's prior suppression intent. */
   hideDeviceTypes?: boolean;
   hideUnconnectedPorts?: boolean;
+  showPortCounts?: boolean;
   templateHiddenSignals?: Record<string, SignalType[]>;
   templatePresets?: Record<string, TemplatePreset>;
   favoriteTemplates?: string[];
@@ -480,8 +616,24 @@ export interface SchematicFile {
   cableNamingScheme?: "sequential" | "type-prefix";
   /** Show line jump arcs where connections cross (#18) */
   showLineJumps?: boolean;
-  /** Show cable ID labels at connection endpoints (#5) */
+  /** @deprecated Use showCableIdLabels instead. Kept for backwards compatibility. */
   showConnectionLabels?: boolean;
+  /** Show cable ID labels at connection endpoints (#61) */
+  showCableIdLabels?: boolean;
+  /** Show custom labels on connections (#61) */
+  showCustomLabels?: boolean;
+  /** Cable ID endpoint spacing in pixels (#61) */
+  cableIdGap?: number;
+  /** Custom label endpoint spacing in pixels (#61) */
+  customLabelGap?: number;
+  /** Cable ID midpoint offset along path in pixels (#61) */
+  cableIdMidOffset?: number;
+  /** Custom label midpoint offset along path in pixels (#61) */
+  customLabelMidOffset?: number;
+  /** Cable ID label display mode — at endpoints or midpoint (#61) */
+  cableIdLabelMode?: "endpoint" | "midpoint";
+  /** Custom label display mode — at endpoints or midpoint (#61) */
+  customLabelMode?: "endpoint" | "midpoint";
   /** Global toggle: when true, all adapters default to hidden on schematic */
   hideAdapters?: boolean;
   /** When false, edges use simple orthogonal L-shapes instead of A* routing */
@@ -490,6 +642,10 @@ export interface SchematicFile {
   edgeHitboxSize?: number;
   /** User-preferred device category display order (#62) */
   categoryOrder?: string[];
+  /** Show the owned-gear tab in the left library panel */
+  showOwnedGearPane?: boolean;
+  /** Active tab in the left library panel */
+  libraryActiveTab?: "devices" | "owned";
   /** Color key / signal legend for print view (#70) */
   colorKeyEnabled?: boolean;
   colorKeyCorner?: "top-left" | "top-right" | "bottom-left" | "bottom-right";
@@ -498,7 +654,50 @@ export interface SchematicFile {
   colorKeyOverrides?: Partial<Record<SignalType, boolean>>;
   /** Rack elevation pages */
   pages?: SchematicPage[];
+  /** Cable unit costs keyed by "cableType|signalType|cableLength" */
+  cableCosts?: Record<string, number>;
+  /** Force-case device/port/slot labels on write (normal = leave as-typed) */
+  labelCase?: LabelCaseMode;
+  /** Pairwise distances between top-level rooms; key is canonical pairKey("idA","idB"). */
+  roomDistances?: Record<string, number>;
+  /** Unit + slack settings for converting room distance → estimated cable length (#146). */
+  distanceSettings?: DistanceSettings;
+  /** ISO 4217 currency code for cost display in reports (#158). Defaults to "USD". */
+  currency?: string;
+  /** Left-drag canvas behavior — select box (default) or pan viewport */
+  panMode?: PanMode;
+  /** Show the destination port name on stub labels (e.g. "→ Projector [HDMI In 1]") */
+  stubLabelShowPort?: boolean;
+  /** Show the destination room name on stub labels (e.g. "→ Projector (Room A)") */
+  stubLabelShowRoom?: boolean;
+  /** When to show "Pg N" on stub labels: always | only when ends are on different pages | never */
+  stubLabelPageMode?: StubLabelPageMode;
 }
+
+export type LabelCaseMode = "as-typed" | "uppercase" | "lowercase" | "capitalize";
+export const DEFAULT_LABEL_CASE: LabelCaseMode = "as-typed";
+
+export type PanMode = "select-first" | "pan-first";
+export const DEFAULT_PAN_MODE: PanMode = "select-first";
+
+export type StubLabelPageMode = "always" | "cross-page" | "never";
+export const DEFAULT_STUB_LABEL_SHOW_PORT = false;
+export const DEFAULT_STUB_LABEL_SHOW_ROOM = true;
+export const DEFAULT_STUB_LABEL_PAGE_MODE: StubLabelPageMode = "cross-page";
+
+export interface DistanceSettings {
+  unit: "m" | "ft";
+  /** Additional slack as a percentage of the room-to-room distance (e.g. 15 = +15%). */
+  slackPercent: number;
+  /** Additional slack added after percent (same unit as distance). */
+  slackFixed: number;
+}
+
+export const DEFAULT_DISTANCE_SETTINGS: DistanceSettings = {
+  unit: "ft",
+  slackPercent: 15,
+  slackFixed: 0,
+};
 
 export type ScrollAction = "zoom" | "pan-x" | "pan-y";
 
@@ -531,7 +730,10 @@ export const SIGNAL_COLORS: Record<SignalType, string> = {
   hdmi: "var(--color-hdmi)",
   ndi: "var(--color-ndi)",
   dante: "var(--color-dante)",
+  avb: "var(--color-avb)",
   "analog-audio": "var(--color-analog-audio)",
+  "speaker-level": "var(--color-speaker-level)",
+  bluetooth: "var(--color-bluetooth)",
   aes: "var(--color-aes)",
   dmx: "var(--color-dmx)",
   madi: "var(--color-madi)",
@@ -543,10 +745,12 @@ export const SIGNAL_COLORS: Record<SignalType, string> = {
   srt: "var(--color-srt)",
   genlock: "var(--color-genlock)",
   gpio: "var(--color-gpio)",
+  "contact-closure": "var(--color-contact-closure)",
   rs422: "var(--color-rs422)",
   serial: "var(--color-serial)",
   thunderbolt: "var(--color-thunderbolt)",
   composite: "var(--color-composite)",
+  "component-video": "var(--color-component-video)",
   "s-video": "var(--color-s-video)",
   vga: "var(--color-vga)",
   dvi: "var(--color-dvi)",
@@ -570,6 +774,28 @@ export const SIGNAL_COLORS: Record<SignalType, string> = {
   st2110: "var(--color-st2110)",
   artnet: "var(--color-artnet)",
   sacn: "var(--color-sacn)",
+  ir: "var(--color-ir)",
+  timecode: "var(--color-timecode)",
+  gigaace: "var(--color-gigaace)",
+  dx5: "var(--color-dx5)",
+  slink: "var(--color-slink)",
+  soundgrid: "var(--color-soundgrid)",
+  fibreace: "var(--color-fibreace)",
+  dsnake: "var(--color-dsnake)",
+  dxlink: "var(--color-dxlink)",
+  gps: "var(--color-gps)",
+  dars: "var(--color-dars)",
+  rtmp: "var(--color-rtmp)",
+  rtsp: "var(--color-rtsp)",
+  "mpeg-ts": "var(--color-mpeg-ts)",
+  digilink: "var(--color-digilink)",
+  ebus: "var(--color-ebus)",
+  "control-voltage": "var(--color-control-voltage)",
+  "extron-exp": "var(--color-extron-exp)",
+  pots: "var(--color-pots)",
+  "blu-link": "var(--color-blu-link)",
+  cresnet: "var(--color-cresnet)",
+  sensor: "var(--color-sensor)",
   custom: "var(--color-custom)",
 };
 
@@ -601,7 +827,7 @@ export const CONNECTOR_LABELS: Record<ConnectorType, string> = {
   "terminal-block": "Terminal Block",
   powercon: "powerCON",
   edison: "Edison",
-  iec: "IEC C13",
+  iec: "IEC C14",
   "iec-c5": "IEC C5",
   "iec-c7": "IEC C7",
   "iec-c15": "IEC C15",
@@ -629,10 +855,25 @@ export const CONNECTOR_LABELS: Record<ConnectorType, string> = {
   "cam-lok": "Cam-Lok",
   "powercon-true1": "powerCON TRUE1",
   rj11: "RJ11",
+  rj12: "RJ12",
   qsfp: "QSFP+",
+  qsfp28: "QSFP28",
   mpo: "Fiber - MPO/MTP",
+  digilink: "DigiLink",
+  "pcie-6pin": "PCIe 6-pin Aux",
+  "lemo-2pin": "LEMO 2-pin",
+  "lemo-4pin": "LEMO 4-pin",
+  "lemo-5pin": "LEMO 5-pin",
   "usb-mini": "Mini USB",
+  "usb-micro": "Micro USB",
   "trs-2.5mm": "2.5mm TRS",
+  "reverse-tnc": "Reverse TNC",
+  sma: "SMA",
+  db37: "DB37",
+  "d-tap": "D-Tap",
+  "v-mount": "V-Mount",
+  "f-connector": "F-Connector",
+  wireless: "Wireless",
   none: "None",
   other: "Other",
 };
@@ -649,7 +890,10 @@ export const SIGNAL_LABELS: Record<SignalType, string> = {
   hdmi: "HDMI",
   ndi: "NDI",
   dante: "Dante",
+  avb: "AVB",
   "analog-audio": "Analog",
+  "speaker-level": "Speaker",
+  bluetooth: "Bluetooth",
   aes: "AES",
   dmx: "DMX",
   madi: "MADI",
@@ -661,6 +905,7 @@ export const SIGNAL_LABELS: Record<SignalType, string> = {
   srt: "SRT",
   genlock: "Genlock",
   gpio: "GPIO",
+  "contact-closure": "Contact Closure",
   rs422: "RS-422",
   serial: "Serial",
   thunderbolt: "Thunderbolt",
@@ -688,5 +933,55 @@ export const SIGNAL_LABELS: Record<SignalType, string> = {
   st2110: "ST 2110",
   artnet: "Art-Net",
   sacn: "sACN",
+  ir: "IR",
+  timecode: "Timecode",
+  gigaace: "GigaACE",
+  dx5: "DX5",
+  slink: "SLink",
+  soundgrid: "SoundGrid",
+  fibreace: "fibreACE",
+  dsnake: "dSnake",
+  dxlink: "DX Link",
+  gps: "GPS",
+  dars: "DARS",
+  rtmp: "RTMP",
+  rtsp: "RTSP",
+  "mpeg-ts": "MPEG-TS",
+  "component-video": "Component Video",
+  digilink: "DigiLink",
+  ebus: "eBUS",
+  "control-voltage": "0-10V Control",
+  "extron-exp": "Extron EXP",
+  pots: "POTS",
+  "blu-link": "BLU link",
+  cresnet: "Cresnet",
+  sensor: "Sensor",
   custom: "Custom",
+};
+
+/** Signal types organized by functional group (for searchable dropdowns) */
+export const SIGNAL_GROUPS: Record<string, SignalType[]> = {
+  "Video": ["sdi", "hdmi", "displayport", "dvi", "composite", "s-video", "vga"],
+  "Video over IP": ["ndi", "srt", "hdbaset", "st2110"],
+  "Audio": ["analog-audio", "speaker-level", "bluetooth", "aes", "dante", "avb", "aes67", "madi", "spdif", "adat", "ultranet", "aes50", "stageconnect", "ydif", "soundgrid", "gigaace", "dx5", "dsnake", "slink", "fibreace", "digilink", "extron-exp", "pots", "blu-link"],
+  "Network": ["ethernet", "fiber"],
+  "Control / Data": ["dmx", "artnet", "sacn", "rs422", "serial", "gpio", "contact-closure", "ir", "midi", "tally", "usb", "thunderbolt", "dxlink", "ebus", "control-voltage", "cresnet", "sensor"],
+  "Sync / Clock": ["genlock", "wordclock", "timecode", "dars", "gps"],
+  "Power": ["power", "power-l1", "power-l2", "power-l3", "power-neutral", "power-ground"],
+  "Streaming": ["rtmp", "rtsp", "mpeg-ts", "rf"],
+  "Other": ["custom"],
+};
+
+/** Connector types organized by functional group (for searchable dropdowns) */
+export const CONNECTOR_GROUPS: Record<string, ConnectorType[]> = {
+  "Video": ["bnc", "hdmi", "mini-hdmi", "displayport", "mini-displayport", "dvi", "vga"],
+  "Audio": ["xlr-3", "xlr-4", "xlr-5", "mini-xlr", "combo-xlr-trs", "trs-quarter", "trs-eighth", "trs-2.5mm", "rca", "din-5", "mini-din-4", "mini-din-7", "toslink"],
+  "Network / Data": ["rj45", "ethercon", "sfp", "lc", "sc", "opticalcon", "qsfp", "qsfp28", "mpo", "rj11", "rj12"],
+  "USB": ["usb-a", "usb-b", "usb-c", "usb-mini", "usb-micro"],
+  "D-Sub / Serial": ["db9", "db15", "db25", "db37", "db7w2", "lemo-5pin"],
+  "Power": ["iec", "iec-c5", "iec-c7", "iec-c15", "iec-c20", "powercon", "powercon-true1", "edison", "barrel", "l5-20", "l6-20", "l6-30", "l21-30", "cam-lok", "socapex", "pcie-6pin", "lemo-2pin", "lemo-4pin"],
+  "Speaker": ["speakon", "banana", "binding-post", "binding-post-banana"],
+  "Terminal": ["phoenix", "terminal-block", "multipin"],
+  "RF": ["reverse-tnc", "sma"],
+  "Other": ["wireless", "digilink", "none", "other"],
 };
