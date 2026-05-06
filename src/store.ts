@@ -43,7 +43,7 @@ import { reconcileWaypointNodes, syncEdgesFromWaypointNodes, spliceWaypointsForR
 import { routeAllEdges, orthogonalize, extractSegments, segmentsCross, type RoutedEdge, type CrossingPoint } from "./edgeRouter";
 import { simplifyWaypoints, waypointsToSvgPath, waypointsToSvgPathWithHops } from "./pathfinding";
 import { areConnectorsCompatible, needsAdapter, findAdaptersForConnectorBridge, findAdaptersForSignalBridge, NETWORK_SIGNAL_TYPES, BARE_WIRE_CONNECTORS, areSignalsCompatibleViaConnector } from "./connectorTypes";
-import { inferRackHeightU } from "./rackUtils";
+import { inferRackHeightU, inferRackForm, shelfInnerWidthMm } from "./rackUtils";
 import { DEVICE_TEMPLATES } from "./deviceLibrary";
 import { createDefaultLayout } from "./titleBlockLayout";
 import { sanitizeNoteHtml } from "./sanitizeHtml";
@@ -533,6 +533,16 @@ interface SchematicState {
   removeRack: (pageId: string, rackId: string) => void;
   updateRack: (pageId: string, rackId: string, patch: Partial<RackData>) => void;
   addRackPlacement: (pageId: string, placement: Omit<RackDevicePlacement, "id">) => string;
+  /** Drop a device into a rack, routing to direct/half/shelf-mount based on its physical
+   *  dimensions (see `inferRackForm`). Returns the resulting placement id, or null on
+   *  rejection (oversize device). */
+  addPlacementSmart: (
+    pageId: string,
+    rackId: string,
+    deviceNodeId: string,
+    uPosition: number,
+    face: "front" | "rear",
+  ) => { ok: true; placementId: string; shelfId?: string } | { ok: false; reason: "oversize" | "no-page" | "no-device" };
   removeRackPlacement: (pageId: string, placementId: string) => void;
   updateRackPlacement: (pageId: string, placementId: string, patch: Partial<RackDevicePlacement>) => void;
   addRackAccessory: (pageId: string, accessory: Omit<RackAccessory, "id">) => string;
@@ -3188,6 +3198,90 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
     });
     get().saveToLocalStorage();
     return id;
+  },
+
+  addPlacementSmart: (pageId, rackId, deviceNodeId, uPosition, face) => {
+    const state = get();
+    const page = state.pages.find((p) => p.id === pageId && p.type === "rack-elevation") as RackElevationPage | undefined;
+    if (!page) return { ok: false, reason: "no-page" };
+    const rack = page.racks.find((r) => r.id === rackId);
+    if (!rack) return { ok: false, reason: "no-page" };
+    const device = state.nodes.find((n) => n.id === deviceNodeId)?.data as DeviceData | undefined;
+    if (!device) return { ok: false, reason: "no-device" };
+
+    const form = inferRackForm(device);
+
+    if (form === "oversize") {
+      return { ok: false, reason: "oversize" };
+    }
+
+    if (form === "shelf-only") {
+      // Atomic shelf + placement: one undo entry covers both.
+      pushUndo({ nodes: state.nodes, edges: state.edges });
+      const shelfId = nextAccessoryId();
+      const placementId = nextPlacementId();
+      const innerWMm = shelfInnerWidthMm();
+      const shelf: RackAccessory = {
+        id: shelfId,
+        rackId,
+        type: "shelf",
+        uPosition,
+        heightU: 1,
+        face,
+      };
+      const newW = device.widthMm ?? innerWMm;
+      // Center on the shelf when there's room; otherwise pin to the left rail.
+      const centeredX = Math.max(0, (innerWMm - newW) / 2);
+      const placement: RackDevicePlacement = {
+        id: placementId,
+        rackId,
+        deviceNodeId,
+        uPosition,
+        face,
+        mountedOnShelfId: shelfId,
+        shelfOffsetMm: { x: centeredX, y: 0 },
+      };
+      set({
+        pages: mapElevationPage(state.pages, pageId, (p) => ({
+          ...p,
+          accessories: [...p.accessories, shelf],
+          placements: [...p.placements, placement],
+        })),
+        undoSize: undoStack.length, redoSize: 0,
+      });
+      get().saveToLocalStorage();
+      return { ok: true, placementId, shelfId };
+    }
+
+    if (form === "half") {
+      // Default to left side; flip to right if left half at this U is occupied.
+      const leftTaken = page.placements.some((p) =>
+        p.rackId === rackId && p.face === face && !p.mountedOnShelfId
+        && p.halfRackSide === "left"
+        && p.uPosition === uPosition
+      );
+      const halfRackSide: "left" | "right" = leftTaken ? "right" : "left";
+      pushUndo({ nodes: state.nodes, edges: state.edges });
+      const id = nextPlacementId();
+      const placement: RackDevicePlacement = { id, rackId, deviceNodeId, uPosition, face, halfRackSide };
+      set({
+        pages: mapElevationPage(state.pages, pageId, (p) => ({ ...p, placements: [...p.placements, placement] })),
+        undoSize: undoStack.length, redoSize: 0,
+      });
+      get().saveToLocalStorage();
+      return { ok: true, placementId: id };
+    }
+
+    // full / unknown — direct placement, current behavior
+    pushUndo({ nodes: state.nodes, edges: state.edges });
+    const id = nextPlacementId();
+    const placement: RackDevicePlacement = { id, rackId, deviceNodeId, uPosition, face };
+    set({
+      pages: mapElevationPage(state.pages, pageId, (p) => ({ ...p, placements: [...p.placements, placement] })),
+      undoSize: undoStack.length, redoSize: 0,
+    });
+    get().saveToLocalStorage();
+    return { ok: true, placementId: id };
   },
 
   removeRackPlacement: (pageId, placementId) => {

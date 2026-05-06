@@ -239,6 +239,9 @@ export interface DeviceData {
   depthMm?: number;
   /** Device weight in kilograms — reserved for future rack management */
   weightKg?: number;
+  /** Optional rack-form override — when set, bypasses the size heuristic in `inferRackForm`.
+   *  Use for edge cases (e.g., desktop unit with optional rack ears, oddly-sized half-rack gear). */
+  rackForm?: "full" | "half" | "shelf-only";
   /** Adapter visibility override — only meaningful for deviceType "adapter" */
   adapterVisibility?: "default" | "force-show" | "force-hide";
   /** User-customizable auxiliary data rows. Each row carries its own slot (header vs
@@ -430,6 +433,7 @@ export interface DeviceTemplate {
   widthMm?: number;              // Physical width in millimeters
   depthMm?: number;              // Physical depth in millimeters
   weightKg?: number;             // Device weight in kilograms
+  rackForm?: "full" | "half" | "shelf-only"; // Optional override for the size-based rack-form heuristic
   auxiliaryData?: AuxRow[];      // Aux rows shown on the node (each row carries its own header/footer slot)
   facePlateLayout?: FacePlateLayout; // Custom face-plate connector positions
 }

@@ -4,6 +4,7 @@ import type { RackData, RackDevicePlacement, RackAccessory, RackDepthConflict, D
 import { RACK_ACCESSORY_LABELS, RACK_TYPE_LABELS } from "../types";
 import {
   inferRackHeightU,
+  inferRackForm,
   autoLayoutPorts,
   PX_PER_MM,
   getRackDepthConflicts,
@@ -593,13 +594,27 @@ function AccessoryBlock({
   );
 }
 
-function DropIndicator({ rack, uPosition, heightU, halfRackSide, valid }: { rack: RackData; uPosition: number; heightU: number; halfRackSide?: "left" | "right"; valid: boolean }) {
+function DropIndicator({ rack, uPosition, heightU, halfRackSide, valid, mode }: { rack: RackData; uPosition: number; heightU: number; halfRackSide?: "left" | "right"; valid: boolean; mode?: "direct" | "shelf-only" | "oversize" }) {
   const y = uToY(uPosition + heightU - 1, rack.heightU);
   const h = heightU * PX_PER_U - 1;
   const isHalf = !!halfRackSide;
   const w = isHalf ? HALF_WIDTH : FULL_WIDTH;
   const x = DEVICE_INSET + (isHalf && halfRackSide === "right" ? HALF_WIDTH + 2 : 0);
-  return <rect x={x} y={y} width={w} height={h} fill={valid ? "rgba(59,130,246,0.2)" : "rgba(239,68,68,0.2)"} stroke={valid ? "#3b82f6" : "#ef4444"} strokeWidth={1.5} strokeDasharray="4 2" rx={1} style={{ pointerEvents: "none" }} />;
+  const stroke = valid ? "#3b82f6" : "#ef4444";
+  const fill = valid ? "rgba(59,130,246,0.2)" : "rgba(239,68,68,0.2)";
+  if (mode === "shelf-only") {
+    // Render as an auto-shelf preview: a slim shelf bar across the bottom of the U,
+    // hatched to communicate "a shelf will be added here".
+    const shelfBarH = Math.min(6, h);
+    const shelfY = y + h - shelfBarH;
+    return (
+      <g style={{ pointerEvents: "none" }}>
+        <rect x={x} y={y} width={w} height={h} fill={fill} stroke={stroke} strokeWidth={1.5} strokeDasharray="4 2" rx={1} />
+        <rect x={x} y={shelfY} width={w} height={shelfBarH} fill={valid ? "rgba(59,130,246,0.55)" : "rgba(239,68,68,0.55)"} stroke="none" />
+      </g>
+    );
+  }
+  return <rect x={x} y={y} width={w} height={h} fill={fill} stroke={stroke} strokeWidth={1.5} strokeDasharray="4 2" rx={1} style={{ pointerEvents: "none" }} />;
 }
 
 /** Floating ghost that follows the cursor when dragging an existing placement */
@@ -1179,6 +1194,7 @@ function SlotMenu({
 export default function RackRenderer({ page }: { page: RackElevationPage }) {
   const nodes = useSchematicStore((s) => s.nodes);
   const addRackPlacement = useSchematicStore((s) => s.addRackPlacement);
+  const addPlacementSmart = useSchematicStore((s) => s.addPlacementSmart);
   const removeRackPlacement = useSchematicStore((s) => s.removeRackPlacement);
   const updateRackPlacement = useSchematicStore((s) => s.updateRackPlacement);
   const updateRack = useSchematicStore((s) => s.updateRack);
@@ -1237,6 +1253,8 @@ export default function RackRenderer({ page }: { page: RackElevationPage }) {
     face?: "front" | "rear";
     /** When set, the drop will mount the device on this shelf instead of placing in U slots. */
     shelfId?: string;
+    /** How the drop will be interpreted: direct rack mount, auto-shelf (small device), or rejected (oversize). */
+    mode?: "direct" | "shelf-only" | "oversize";
   } | null>(null);
   // Confirm dialog state for shelf removal with occupants
   const [shelfDeleteConfirm, setShelfDeleteConfirm] = useState<{ accessoryId: string; label: string; occupantCount: number } | null>(null);
@@ -1630,14 +1648,29 @@ export default function RackRenderer({ page }: { page: RackElevationPage }) {
         if (dd) {
           const occupants = getShelfOccupants(shelf.id, page.placements);
           const fits = canFitOnShelf(shelf, occupants, dd, hit.rack, deviceDataMap);
-          setDropTarget({ rackId: hit.rack.id, uPosition: shelf.uPosition, heightU: shelf.heightU, valid: fits, shelfId: shelf.id });
+          setDropTarget({ rackId: hit.rack.id, uPosition: shelf.uPosition, heightU: shelf.heightU, valid: fits, shelfId: shelf.id, mode: "direct" });
           return;
         }
+      }
+      // Form-aware drop target — small devices auto-shelf, oversize devices reject.
+      const dd = draggedDeviceNodeId ? deviceDataMap.get(draggedDeviceNodeId) : undefined;
+      const form = dd ? inferRackForm(dd) : "unknown";
+      if (form === "oversize") {
+        const clampedU = Math.max(1, Math.min(hit.uPosition, hit.rack.heightU));
+        setDropTarget({ rackId: hit.rack.id, uPosition: clampedU, heightU: 1, valid: false, mode: "oversize" });
+        return;
+      }
+      if (form === "shelf-only") {
+        // Auto-shelf is always 1U; check the slot for a 1U fit, not the device's inferred U height.
+        const clampedU = Math.max(1, Math.min(hit.uPosition, hit.rack.heightU));
+        const valid = isRackSlotAvailable(page.id, hit.rack.id, clampedU, 1, activeFace, undefined);
+        setDropTarget({ rackId: hit.rack.id, uPosition: clampedU, heightU: 1, valid, mode: "shelf-only" });
+        return;
       }
       const heightU = draggedDeviceHeightU;
       const clampedU = Math.max(1, Math.min(hit.uPosition, hit.rack.heightU - heightU + 1));
       const valid = isRackSlotAvailable(page.id, hit.rack.id, clampedU, heightU, activeFace, undefined);
-      setDropTarget({ rackId: hit.rack.id, uPosition: clampedU, heightU, valid });
+      setDropTarget({ rackId: hit.rack.id, uPosition: clampedU, heightU, valid, mode: "direct" });
     } else {
       setDropTarget(null);
     }
@@ -1646,16 +1679,25 @@ export default function RackRenderer({ page }: { page: RackElevationPage }) {
   const onDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     const deviceNodeId = e.dataTransfer.getData("application/x-rack-device-id");
-    if (!deviceNodeId || !dropTarget || !dropTarget.valid) { setDropTarget(null); return; }
+    if (!deviceNodeId || !dropTarget) { setDropTarget(null); return; }
+    if (dropTarget.mode === "oversize") {
+      addToast("Device is too wide to fit in this rack — can't be racked.", "error");
+      setDropTarget(null);
+      return;
+    }
+    if (!dropTarget.valid) { setDropTarget(null); return; }
     if (dropTarget.shelfId) {
       addShelfMountedDevice(page.id, dropTarget.shelfId, deviceNodeId);
     } else {
-      addRackPlacement(page.id, {
-        rackId: dropTarget.rackId, deviceNodeId, uPosition: dropTarget.uPosition, face: activeFace, halfRackSide: dropTarget.halfRackSide,
-      });
+      // addPlacementSmart routes by inferRackForm: full/half direct, shelf-only auto-shelf,
+      // oversize already short-circuited above.
+      const result = addPlacementSmart(page.id, dropTarget.rackId, deviceNodeId, dropTarget.uPosition, activeFace);
+      if (!result.ok && result.reason === "oversize") {
+        addToast("Device is too wide to fit in this rack — can't be racked.", "error");
+      }
     }
     setDropTarget(null);
-  }, [page.id, dropTarget, addRackPlacement, addShelfMountedDevice, activeFace]);
+  }, [page.id, dropTarget, addShelfMountedDevice, addPlacementSmart, activeFace, addToast]);
 
   const onDragLeave = useCallback(() => { setDropTarget(null); }, []);
 
@@ -1932,7 +1974,7 @@ export default function RackRenderer({ page }: { page: RackElevationPage }) {
                   );
                 })}
                 {dropTarget && dropTarget.rackId === rack.id && (
-                  <DropIndicator rack={rack} uPosition={dropTarget.uPosition} heightU={dropTarget.heightU} halfRackSide={dropTarget.halfRackSide} valid={dropTarget.valid} />
+                  <DropIndicator rack={rack} uPosition={dropTarget.uPosition} heightU={dropTarget.heightU} halfRackSide={dropTarget.halfRackSide} valid={dropTarget.valid} mode={dropTarget.mode} />
                 )}
                 <text x={RACK_WIDTH / 2} y={totalH + 28} textAnchor="middle" fontSize={9} fill="#444">{statsLine}</text>
                 {(stats.unknownDepthCount > 0 || stats.unknownWeightCount > 0 || stats.unknownPowerCount > 0) && (

@@ -40,6 +40,52 @@ export function inferRackHeightU(data: DeviceData): number {
   return 4;
 }
 
+/**
+ * Classification of how a device mounts in a 19" rack.
+ * - `full`: standard 19" rack-mount (panel ~482mm, height in whole U)
+ * - `half`: 9.5" half-rack panel (~217–244mm wide, height in whole U)
+ * - `shelf-only`: too small / non-standard for direct rack-mount; sits on a shelf
+ * - `oversize`: too wide to fit on any shelf in a 19" rack — can't be racked at all
+ * - `unknown`: missing dimensions; preserve historical behavior (allow direct placement)
+ */
+export type RackForm = "full" | "half" | "shelf-only" | "oversize" | "unknown";
+
+/**
+ * Infer how a device should mount in a rack, from its physical dimensions.
+ * Honors an explicit `device.rackForm` override before applying the heuristic.
+ */
+export function inferRackForm(device: DeviceData): RackForm {
+  if (device.rackForm) return device.rackForm;
+
+  const w = device.widthMm;
+  const h = device.heightMm;
+
+  if (w == null && h == null) return "unknown";
+
+  let fitsU = false;
+  if (h != null) {
+    const u = h / MM_PER_U;
+    const nearest = Math.round(u);
+    fitsU = Math.abs(u - nearest) < 0.15 && nearest >= 1 && nearest <= 12;
+  }
+
+  // Standard 19" rack-mount: panel width 440–510mm covers ~17.3"–20.1" with rack-ear tolerance
+  if (fitsU && w != null && w >= 440 && w <= 510) return "full";
+
+  // Half-rack: ~9.5" panel
+  if (fitsU && w != null && w >= 200 && w <= 260) return "half";
+
+  // Inner shelf width — anything wider than the rack interior can't sit on a shelf either
+  const innerWMm = shelfInnerWidthMm();
+  if (w != null && w > innerWMm + 1) return "oversize";
+
+  // Has a width that fits on a shelf but isn't a rack-mount panel profile
+  if (w != null) return "shelf-only";
+
+  // Has heightMm but no widthMm — can't say
+  return "unknown";
+}
+
 /** Pixels per rack unit at zoom=1 */
 export const PX_PER_U = 24;
 
