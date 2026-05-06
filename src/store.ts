@@ -473,6 +473,10 @@ interface SchematicState {
   showLineJumps: boolean;
   setShowLineJumps: (show: boolean) => void;
 
+  /** Rack: show connector-level face-plate detail (default off; advanced) */
+  showFacePlateDetail: boolean;
+  setShowFacePlateDetail: (show: boolean) => void;
+
   // Connection labels (#5, #61)
   /** @deprecated Use showCableIdLabels instead */
   showConnectionLabels: boolean;
@@ -528,9 +532,14 @@ interface SchematicState {
   removeRackPlacement: (pageId: string, placementId: string) => void;
   updateRackPlacement: (pageId: string, placementId: string, patch: Partial<RackDevicePlacement>) => void;
   addRackAccessory: (pageId: string, accessory: Omit<RackAccessory, "id">) => string;
+  updateRackAccessory: (pageId: string, accessoryId: string, patch: Partial<RackAccessory>) => void;
   removeRackAccessory: (pageId: string, accessoryId: string) => void;
+  /** Remove a shelf with its mounted devices, returning them to the unracked pool. */
+  removeRackAccessoryWithOccupants: (pageId: string, accessoryId: string) => void;
+  /** Mount a device on a shelf accessory (face/uPosition inherited from the shelf). */
+  addShelfMountedDevice: (pageId: string, shelfId: string, deviceNodeId: string) => string | null;
   /** Check if a U range is available in a rack for placement */
-  isRackSlotAvailable: (pageId: string, rackId: string, uPosition: number, heightU: number, face: "front" | "rear", halfRackSide?: "left" | "right", excludePlacementId?: string) => boolean;
+  isRackSlotAvailable: (pageId: string, rackId: string, uPosition: number, heightU: number, face: "front" | "rear", halfRackSide?: "left" | "right", excludePlacementId?: string, excludeAccessoryId?: string) => boolean;
 
   // Local file handle (File System Access API — Chromium only, not persisted)
   fileHandle: FileSystemFileHandle | null;
@@ -1032,6 +1041,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
   labelCase: DEFAULT_LABEL_CASE,
   currency: "USD",
   showLineJumps: true,
+  showFacePlateDetail: false,
   showConnectionLabels: true,
   showCableIdLabels: true,
   showCustomLabels: true,
@@ -2870,6 +2880,11 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
     get().saveToLocalStorage();
   },
 
+  setShowFacePlateDetail: (show) => {
+    set({ showFacePlateDetail: show });
+    get().saveToLocalStorage();
+  },
+
   setShowConnectionLabels: (show) => {
     set({ showConnectionLabels: show, showCableIdLabels: show });
     get().saveToLocalStorage();
@@ -3125,7 +3140,82 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
     get().saveToLocalStorage();
   },
 
-  isRackSlotAvailable: (pageId, rackId, uPosition, heightU, face, halfRackSide, excludePlacementId) => {
+  updateRackAccessory: (pageId, accessoryId, patch) => {
+    const state = get();
+    set({
+      pages: state.pages.map((p) => p.id === pageId ? {
+        ...p,
+        accessories: p.accessories.map((a) => a.id === accessoryId ? { ...a, ...patch } : a),
+      } : p),
+    });
+    get().saveToLocalStorage();
+  },
+
+  removeRackAccessoryWithOccupants: (pageId, accessoryId) => {
+    const state = get();
+    pushUndo({ nodes: state.nodes, edges: state.edges });
+    set({
+      pages: state.pages.map((p) => p.id === pageId ? {
+        ...p,
+        accessories: p.accessories.filter((a) => a.id !== accessoryId),
+        // Drop occupant placements — devices remain in the schematic, return to unracked pool
+        placements: p.placements.filter((pl) => pl.mountedOnShelfId !== accessoryId),
+      } : p),
+      undoSize: undoStack.length, redoSize: 0,
+    });
+    get().saveToLocalStorage();
+  },
+
+  addShelfMountedDevice: (pageId, shelfId, deviceNodeId) => {
+    const state = get();
+    const page = state.pages.find((p) => p.id === pageId);
+    if (!page) return null;
+    const shelf = page.accessories.find((a) => a.id === shelfId);
+    if (!shelf || shelf.type !== "shelf") return null;
+    const newDevice = state.nodes.find((n) => n.id === deviceNodeId)?.data as DeviceData | undefined;
+    pushUndo({ nodes: state.nodes, edges: state.edges });
+    const id = nextPlacementId();
+
+    // Auto-place: walk to the right of the rightmost existing occupant on the bottom row.
+    // If that pushes past the shelf, fall back to (0, 0) — the user can drag to reposition.
+    const innerWidthMm = (260 - 16) / (24 / 44.45); // mirrors shelfInnerWidthMm() — kept inline to avoid circular import
+    const newW = newDevice?.widthMm ?? innerWidthMm;
+    const newH = newDevice?.heightMm ?? 44.45;
+    const occupants = page.placements.filter((pl) => pl.mountedOnShelfId === shelfId);
+    let nextX = 0;
+    for (const occ of occupants) {
+      const dd = state.nodes.find((n) => n.id === occ.deviceNodeId)?.data as DeviceData | undefined;
+      if (!dd) continue;
+      const ow = occ.rotated ? (dd.heightMm ?? 44.45) : (dd.widthMm ?? innerWidthMm);
+      const oy = occ.shelfOffsetMm?.y ?? 0;
+      const oh = occ.rotated ? (dd.widthMm ?? innerWidthMm) : (dd.heightMm ?? 44.45);
+      // Only push past occupants whose y range overlaps [0, newH] (would block the new device on bottom row)
+      if (oy < newH && oy + oh > 0) {
+        const ox = occ.shelfOffsetMm?.x ?? 0;
+        nextX = Math.max(nextX, ox + ow + 4);
+      }
+    }
+    const fits = nextX + newW <= innerWidthMm + 0.5;
+    const offset = fits ? { x: nextX, y: 0 } : { x: 0, y: 0 };
+
+    const placement: RackDevicePlacement = {
+      id,
+      rackId: shelf.rackId,
+      deviceNodeId,
+      uPosition: shelf.uPosition,
+      face: shelf.face,
+      mountedOnShelfId: shelfId,
+      shelfOffsetMm: offset,
+    };
+    set({
+      pages: state.pages.map((p) => p.id === pageId ? { ...p, placements: [...p.placements, placement] } : p),
+      undoSize: undoStack.length, redoSize: 0,
+    });
+    get().saveToLocalStorage();
+    return id;
+  },
+
+  isRackSlotAvailable: (pageId, rackId, uPosition, heightU, face, halfRackSide, excludePlacementId, excludeAccessoryId) => {
     const state = get();
     const page = state.pages.find((p) => p.id === pageId);
     if (!page) return false;
@@ -3139,6 +3229,8 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
     for (const p of page.placements) {
       if (p.rackId !== rackId || p.face !== face) continue;
       if (excludePlacementId && p.id === excludePlacementId) continue;
+      // Shelf-mounted devices are passengers — the shelf already claims its U slots
+      if (p.mountedOnShelfId) continue;
       const device = state.nodes.find((n) => n.id === p.deviceNodeId);
       const deviceData = device?.data as DeviceData | undefined;
       const deviceHeightU = deviceData ? inferRackHeightU(deviceData) : 1;
@@ -3156,6 +3248,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
     // Check against accessories
     for (const a of page.accessories) {
       if (a.rackId !== rackId || a.face !== face) continue;
+      if (excludeAccessoryId && a.id === excludeAccessoryId) continue;
       const aTop = a.uPosition + a.heightU - 1;
       const newTop = uPosition + heightU - 1;
       if (a.uPosition <= newTop && uPosition <= aTop) return false;
@@ -3200,6 +3293,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
       currency: state.currency !== "USD" ? state.currency : undefined,
       panMode: state.panMode !== "select-first" ? state.panMode : undefined,
       showLineJumps: !state.showLineJumps ? false : undefined,
+      showFacePlateDetail: state.showFacePlateDetail ? true : undefined,
       showCableIdLabels: !state.showCableIdLabels ? false : undefined,
       showCustomLabels: !state.showCustomLabels ? false : undefined,
       cableIdGap: state.cableIdGap !== 4 ? state.cableIdGap : undefined,
@@ -3290,6 +3384,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
             currency: data.currency ?? "USD",
             panMode: (data.panMode === "pan-first" ? "pan-first" : "select-first") as PanMode,
             showLineJumps: data.showLineJumps ?? true,
+            showFacePlateDetail: data.showFacePlateDetail ?? false,
             autoRoute: data.autoRoute ?? true,
             edgeHitboxSize: data.edgeHitboxSize ?? 10,
             showCableIdLabels: data.showCableIdLabels ?? data.showConnectionLabels ?? true,
@@ -3367,6 +3462,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
         currency: data.currency ?? "USD",
         panMode: (data.panMode === "pan-first" ? "pan-first" : "select-first") as PanMode,
         showLineJumps: data.showLineJumps ?? true,
+        showFacePlateDetail: data.showFacePlateDetail ?? false,
         showCableIdLabels: data.showCableIdLabels ?? data.showConnectionLabels ?? true,
         showConnectionLabels: data.showCableIdLabels ?? data.showConnectionLabels ?? true,
         showCustomLabels: data.showCustomLabels ?? true,
@@ -3444,6 +3540,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
       currency: state.currency !== "USD" ? state.currency : undefined,
       panMode: state.panMode !== "select-first" ? state.panMode : undefined,
       showLineJumps: !state.showLineJumps ? false : undefined,
+      showFacePlateDetail: state.showFacePlateDetail ? true : undefined,
       showCableIdLabels: !state.showCableIdLabels ? false : undefined,
       showCustomLabels: !state.showCustomLabels ? false : undefined,
       cableIdGap: state.cableIdGap !== 4 ? state.cableIdGap : undefined,
@@ -3536,6 +3633,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
       currency: data.currency ?? "USD",
       panMode: (data.panMode === "pan-first" ? "pan-first" : "select-first") as PanMode,
       showLineJumps: data.showLineJumps ?? true,
+      showFacePlateDetail: data.showFacePlateDetail ?? false,
       showCableIdLabels: data.showCableIdLabels ?? data.showConnectionLabels ?? true,
       showConnectionLabels: data.showCableIdLabels ?? data.showConnectionLabels ?? true,
       showCustomLabels: data.showCustomLabels ?? true,

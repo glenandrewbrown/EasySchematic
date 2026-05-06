@@ -1,11 +1,27 @@
 import { useCallback, useMemo, useRef, useState, type WheelEvent, type MouseEvent } from "react";
 import { useSchematicStore } from "../store";
-import type { RackData, RackDevicePlacement, RackAccessory, DeviceData, SchematicPage } from "../types";
-import { RACK_ACCESSORY_LABELS } from "../types";
-import { inferRackHeightU, autoLayoutPorts, PX_PER_MM } from "../rackUtils";
+import type { RackData, RackDevicePlacement, RackAccessory, RackDepthConflict, DeviceData, SchematicPage } from "../types";
+import { RACK_ACCESSORY_LABELS, RACK_TYPE_LABELS } from "../types";
+import {
+  inferRackHeightU,
+  autoLayoutPorts,
+  PX_PER_MM,
+  getRackDepthConflicts,
+  countUnknownDepthDevices,
+  getOversizedDevices,
+  shelfDepthMm,
+  shelfInnerWidthMm,
+  getShelfOccupants,
+  canFitOnShelf,
+  isShelfOffsetValid,
+  gravitySnapShelfY,
+  computeShelfSnaps,
+} from "../rackUtils";
+import type { ShelfSnapGuides } from "../rackUtils";
+import { computeRackStats, formatStatsLine } from "../rackStats";
 import { SIGNAL_COLORS } from "../types";
 import { ConnectorIcon, getConnectorSpec } from "./connectorIcons";
-import { draggedDeviceHeightU } from "./RackSidebar";
+import { draggedDeviceHeightU, draggedDeviceNodeId } from "./RackSidebar";
 import FacePlateEditor from "./FacePlateEditor";
 import type { FacePlateLayout } from "../types";
 
@@ -21,13 +37,74 @@ const LABEL_HEIGHT = 24;
 const DEVICE_INSET = RAIL_WIDTH;
 const HALF_WIDTH = (RACK_WIDTH - 2 * DEVICE_INSET) / 2 - 1;
 const FULL_WIDTH = RACK_WIDTH - 2 * DEVICE_INSET;
-const SIDE_VIEW_WIDTH = 120;
+/** Side-view width in pixels for a given rack — true-scale: depth axis uses the
+ *  same px-per-mm as the height axis, so 1U-tall and 1mm-deep render at matching
+ *  pixel ratios. Floor a little so very shallow desktops still have room to draw. */
+function sideViewWidthPx(rack: RackData): number {
+  return Math.max(80, rack.depthMm * PX_PER_MM);
+}
 
 type ViewFace = "front" | "rear";
 type ViewMode = "front" | "rear" | "side";
 
 function uToY(uPosition: number, rackHeightU: number): number {
   return (rackHeightU - uPosition) * PX_PER_U;
+}
+
+/** Word-wrap text into at most maxLines lines, each no longer than maxChars. Last line gets "…" if truncated. */
+function wrapLabel(text: string, maxChars: number, maxLines: number): string[] {
+  if (maxChars < 2) return [text.slice(0, 1) + "…"];
+  const words = text.split(/\s+/);
+  const lines: string[] = [];
+  let cur = "";
+  for (const word of words) {
+    if (lines.length >= maxLines) break;
+    const candidate = cur ? cur + " " + word : word;
+    if (candidate.length <= maxChars) {
+      cur = candidate;
+    } else {
+      if (cur) lines.push(cur);
+      cur = word.length > maxChars ? word.slice(0, maxChars - 1) + "…" : word;
+    }
+  }
+  if (cur && lines.length < maxLines) lines.push(cur);
+  if (lines.length === 0) lines.push(text.slice(0, maxChars - 1) + "…");
+  return lines;
+}
+
+/** Canvas origin (left edge of inner shelf area) and shelf surface y for a given shelf. */
+function shelfCanvasCoords(rack: RackData, shelf: RackAccessory, maxHeightU = 0) {
+  const rackOriginX = rack.position.x + RACK_PAD_X + RULER_WIDTH;
+  const rackOriginY = rack.position.y + RACK_PAD_Y + LABEL_HEIGHT + (maxHeightU - rack.heightU) * PX_PER_U;
+  const shelfTopY = uToY(shelf.uPosition + shelf.heightU - 1, rack.heightU);
+  const shelfH = shelf.heightU * PX_PER_U - 1;
+  return {
+    originX: rackOriginX + DEVICE_INSET,
+    topCanvasY: rackOriginY + shelfTopY,
+    surfaceCanvasY: rackOriginY + shelfTopY + shelfH - 0.5,
+    height: shelfH,
+  };
+}
+
+/** Find the shelf (and its rack) that contains canvas point (cx, cy) on the given face. */
+function hitTestShelfCanvas(
+  page: SchematicPage,
+  cx: number,
+  cy: number,
+  viewFace: "front" | "rear",
+  maxHeightU = 0,
+): { shelf: RackAccessory; rack: RackData } | null {
+  for (const rack of page.racks) {
+    for (const acc of page.accessories) {
+      if (acc.rackId !== rack.id || acc.type !== "shelf" || acc.face !== viewFace) continue;
+      const { originX, topCanvasY, height } = shelfCanvasCoords(rack, acc, maxHeightU);
+      if (cx >= originX && cx <= originX + FULL_WIDTH &&
+          cy >= topCanvasY && cy <= topCanvasY + height) {
+        return { shelf: acc, rack };
+      }
+    }
+  }
+  return null;
 }
 
 // ── SVG defs ───────────────────────────────────────────────────────
@@ -151,12 +228,13 @@ interface DeviceBlockProps {
   isSelected: boolean;
   isDragging: boolean;
   zoom: number;
+  showFacePlateDetail: boolean;
   onSelect: (id: string) => void;
   onDragStart: (placementId: string, e: React.MouseEvent) => void;
   onContextMenu: (e: React.MouseEvent, placement: RackDevicePlacement) => void;
 }
 
-function DeviceBlock({ placement, rack, deviceData, isSelected, isDragging, zoom, onSelect, onDragStart, onContextMenu }: DeviceBlockProps) {
+function DeviceBlock({ placement, rack, deviceData, isSelected, isDragging, zoom, showFacePlateDetail, onSelect, onDragStart, onContextMenu }: DeviceBlockProps) {
   const label = deviceData.label;
   const heightU = inferRackHeightU(deviceData);
   const color = deviceData.headerColor ?? deviceData.color;
@@ -170,7 +248,7 @@ function DeviceBlock({ placement, rack, deviceData, isSelected, isDragging, zoom
   // 1U (23px) = label only, no connectors. 2U+ = connectors fit.
   const labelHeight = 14;
   const availableHeight = h - labelHeight;
-  const showConnectors = zoom >= 0.8 && availableHeight >= 16;
+  const showConnectors = showFacePlateDetail && zoom >= 0.8 && availableHeight >= 16;
 
   // Connector detail level based on zoom
   // 0 = dots, 1 = silhouettes, 2 = detailed with pins
@@ -213,23 +291,36 @@ function DeviceBlock({ placement, rack, deviceData, isSelected, isDragging, zoom
       {/* Device label — custom position from face-plate layout, or default */}
       {(() => {
         const dl = deviceData.facePlateLayout?.deviceLabel;
-        const defaultY = showConnectors && layoutPorts.length > 0 ? y + 6 : y + h / 2;
-        const defaultBaseline = showConnectors && layoutPorts.length > 0 ? "hanging" : "central";
-        const labelX = dl ? x + (dl.x / 100) * w : x + w / 2;
-        const labelY = dl ? y + (dl.y / 100) * h : defaultY;
-        const labelFontSize = dl?.fontSize ? Math.max(4, dl.fontSize * (h / 140)) : (h > 20 ? 9 : 7);
+        const showConn = showConnectors && layoutPorts.length > 0;
+        const fs = dl?.fontSize ? Math.max(4, dl.fontSize * (h / 140)) : (h > 20 ? 8 : 7);
+        const cx = dl ? x + (dl.x / 100) * w : x + w / 2;
+        if (dl) {
+          const ly = y + (dl.y / 100) * h;
+          const maxC = Math.floor(w / (fs * 0.62));
+          const lbl = label.length > maxC ? label.slice(0, maxC - 1) + "…" : label;
+          return (
+            <text x={cx} y={ly} textAnchor="middle" dominantBaseline="central"
+              fontSize={fs} fill="#fff" fontWeight={600} style={{ pointerEvents: "none" }}>
+              {lbl}
+            </text>
+          );
+        }
+        const maxChars = Math.min(isHalf ? 14 : 36, Math.floor(w / (fs * 0.58)));
+        const maxLines = showConn ? 1 : Math.max(1, Math.floor(h / (fs * 1.5)));
+        const lines = wrapLabel(label, maxChars, Math.min(maxLines, 3));
+        const lineH = fs * 1.35;
+        const baseY = showConn
+          ? y + 5
+          : y + h / 2 - ((lines.length - 1) * lineH) / 2;
         return (
-          <text
-            x={labelX}
-            y={labelY}
-            textAnchor="middle"
-            dominantBaseline={dl ? "central" : defaultBaseline}
-            fontSize={labelFontSize}
-            fill="#fff"
-            fontWeight={600}
-            style={{ pointerEvents: "none" }}
-          >
-            {label.length > (isHalf ? 12 : 28) ? label.slice(0, isHalf ? 11 : 27) + "…" : label}
+          <text x={cx} textAnchor="middle" fontSize={fs} fill="#fff"
+            fontWeight={600} style={{ pointerEvents: "none" }}>
+            {lines.map((line, i) => (
+              <tspan key={i} x={cx} y={baseY + i * lineH}
+                dominantBaseline={showConn ? "hanging" : "central"}>
+                {line}
+              </tspan>
+            ))}
           </text>
         );
       })()}
@@ -305,22 +396,198 @@ function OccupancyGhost({ placement, rack, heightU }: { placement: RackDevicePla
   return <rect x={x} y={y} width={w} height={h} fill="url(#occupancy-stripes)" stroke="#bbb" strokeWidth={0.5} strokeDasharray="3 2" rx={1} />;
 }
 
-function AccessoryBlock({ accessory, rack }: { accessory: RackAccessory; rack: RackData }) {
+function AccessoryBlock({
+  accessory,
+  rack,
+  occupants,
+  deviceDataMap,
+  isDragging,
+  onDragStart,
+  onOccupantDragStart,
+  onOccupantContextMenu,
+  draggingOccupantId,
+  draggingOccupantPreview,
+  crossShelfPreview,
+  snapGuides,
+}: {
+  accessory: RackAccessory;
+  rack: RackData;
+  occupants: RackDevicePlacement[];
+  deviceDataMap: Map<string, DeviceData>;
+  isDragging: boolean;
+  onDragStart: (accessoryId: string, e: React.MouseEvent) => void;
+  onOccupantDragStart: (placementId: string, shelfId: string, e: React.MouseEvent) => void;
+  onOccupantContextMenu: (e: React.MouseEvent, placement: RackDevicePlacement) => void;
+  /** When set, the indicated occupant is being dragged — render its preview at the
+   *  drag's current target offset rather than the stored offset. */
+  draggingOccupantId: string | null;
+  draggingOccupantPreview: { offsetMm: { x: number; y: number }; valid: boolean } | null;
+  /** Incoming device dragged from another shelf — rendered as a preview on this shelf. */
+  crossShelfPreview: {
+    offsetMm: { x: number; y: number }; valid: boolean;
+    wMm: number; hMm: number; rotated: boolean; label: string; color: string;
+  } | null;
+  snapGuides: ShelfSnapGuides | null;
+}) {
   const y = uToY(accessory.uPosition + accessory.heightU - 1, rack.heightU);
   const h = accessory.heightU * PX_PER_U - 1;
   const fills: Record<string, string> = {
     "blank-panel": "#888", "vent-panel": "#aaa", "shelf": "#a0855b",
     "drawer": "#8a7a5a", "cable-manager": "#666", "fan-unit": "#556b7a",
   };
+  const isShelf = accessory.type === "shelf" && occupants.length > 0;
+  const innerW = shelfInnerWidthMm();
+
   return (
-    <g>
+    <g
+      className="cursor-grab"
+      style={{ opacity: isDragging ? 0.3 : 1 }}
+      onMouseDown={(e) => {
+        if (e.button === 0 && !e.altKey) {
+          e.stopPropagation();
+          onDragStart(accessory.id, e);
+        }
+      }}
+    >
       <rect x={DEVICE_INSET} y={y} width={FULL_WIDTH} height={h} fill={fills[accessory.type] ?? "#888"} stroke="#555" strokeWidth={0.5} rx={1} />
       {accessory.type === "vent-panel" && Array.from({ length: Math.max(1, Math.floor(h / 6)) }, (_, i) => (
         <line key={i} x1={DEVICE_INSET + 8} y1={y + 3 + i * 6} x2={DEVICE_INSET + FULL_WIDTH - 8} y2={y + 3 + i * 6} stroke="rgba(255,255,255,0.3)" strokeWidth={1} />
       ))}
-      <text x={DEVICE_INSET + FULL_WIDTH / 2} y={y + h / 2} textAnchor="middle" dominantBaseline="central" fontSize={8} fill="rgba(255,255,255,0.8)" style={{ pointerEvents: "none" }}>
-        {accessory.label ?? RACK_ACCESSORY_LABELS[accessory.type]}
-      </text>
+      {!isShelf && (
+        <text x={DEVICE_INSET + FULL_WIDTH / 2} y={y + h / 2} textAnchor="middle" dominantBaseline="central" fontSize={8} fill="rgba(255,255,255,0.8)" style={{ pointerEvents: "none" }}>
+          {accessory.label ?? RACK_ACCESSORY_LABELS[accessory.type]}
+        </text>
+      )}
+      {/* Shelf occupants — real-mm proportions, free-form positioning via shelfOffsetMm */}
+      {isShelf && (() => {
+        const surfaceY = y + h - 0.5;  // bottom edge of shelf rect = the surface line
+        return occupants.map((p) => {
+          const dd = deviceDataMap.get(p.deviceNodeId);
+          if (!dd) return null;
+          // Effective dims: rotated devices swap width and height
+          const wMm = p.rotated ? (dd.heightMm ?? 44.45) : (dd.widthMm ?? innerW);
+          const hMm = p.rotated ? (dd.widthMm ?? innerW) : (dd.heightMm ?? 44.45);
+          const wPx = wMm * PX_PER_MM;
+          const hPx = hMm * PX_PER_MM;
+          // Offset: drag preview if currently being dragged, else stored offset
+          const isOccDragging = draggingOccupantId === p.id;
+          const offset = isOccDragging && draggingOccupantPreview
+            ? draggingOccupantPreview.offsetMm
+            : (p.shelfOffsetMm ?? { x: 0, y: 0 });
+          const xPx = DEVICE_INSET + offset.x * PX_PER_MM;
+          const topY = surfaceY - hPx - offset.y * PX_PER_MM;
+          const overflowsAbove = hPx + offset.y * PX_PER_MM > h - 1;
+          // Rotated labels use hPx as the effective display width (text rotates with the device)
+          const effectiveWidthPx = p.rotated ? hPx : wPx;
+          const labelTrim = Math.max(4, Math.floor(effectiveWidthPx / 5));
+          const lbl = dd.label.length > labelTrim ? dd.label.slice(0, Math.max(1, labelTrim - 1)) + "…" : dd.label;
+          const previewInvalid = isOccDragging && draggingOccupantPreview && !draggingOccupantPreview.valid;
+          return (
+            <g
+              key={p.id}
+              className="cursor-grab"
+              style={{ opacity: isOccDragging ? 0.85 : 1 }}
+              onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); onOccupantContextMenu(e, p); }}
+              onMouseDown={(e) => {
+                if (e.button === 0 && !e.altKey) {
+                  e.stopPropagation();
+                  onOccupantDragStart(p.id, accessory.id, e);
+                }
+              }}
+            >
+              <rect
+                x={xPx}
+                y={topY}
+                width={wPx}
+                height={hPx}
+                fill={dd.headerColor ?? dd.color ?? "#4a90d9"}
+                stroke={previewInvalid ? "#ef4444" : (overflowsAbove ? "#dc2626" : "#333")}
+                strokeWidth={previewInvalid || overflowsAbove ? 1 : 0.5}
+                strokeDasharray={previewInvalid || overflowsAbove ? "3 2" : undefined}
+                rx={1}
+              />
+              <text
+                x={xPx + wPx / 2}
+                y={topY + hPx / 2}
+                textAnchor="middle"
+                dominantBaseline="central"
+                fontSize={Math.min(7, hPx * 0.4)}
+                fill="#fff"
+                style={{ pointerEvents: "none" }}
+                transform={p.rotated ? `rotate(-90 ${xPx + wPx / 2} ${topY + hPx / 2})` : undefined}
+              >
+                {lbl}
+              </text>
+            </g>
+          );
+        });
+      })()}
+
+      {/* Cross-shelf preview — incoming device dragged from another shelf */}
+      {accessory.type === "shelf" && crossShelfPreview && (() => {
+        const surfaceY = y + h - 0.5;
+        const { offsetMm, valid, wMm, hMm, rotated, label, color } = crossShelfPreview;
+        const wPx = wMm * PX_PER_MM;
+        const hPx = hMm * PX_PER_MM;
+        const xPx = DEVICE_INSET + offsetMm.x * PX_PER_MM;
+        const topY = surfaceY - hPx - offsetMm.y * PX_PER_MM;
+        const effectiveWidthPx = rotated ? hPx : wPx;
+        const labelTrim = Math.max(4, Math.floor(effectiveWidthPx / 5));
+        const lbl = label.length > labelTrim ? label.slice(0, Math.max(1, labelTrim - 1)) + "…" : label;
+        return (
+          <g style={{ pointerEvents: "none" }}>
+            <rect
+              x={xPx} y={topY} width={wPx} height={hPx}
+              fill={color}
+              stroke={valid ? "#3b82f6" : "#ef4444"}
+              strokeWidth={1}
+              strokeDasharray="4 3"
+              rx={1}
+              opacity={0.75}
+            />
+            <text
+              x={xPx + wPx / 2} y={topY + hPx / 2}
+              textAnchor="middle" dominantBaseline="central"
+              fontSize={Math.min(7, hPx * 0.4)}
+              fill="#fff"
+              transform={rotated ? `rotate(-90 ${xPx + wPx / 2} ${topY + hPx / 2})` : undefined}
+            >{lbl}</text>
+          </g>
+        );
+      })()}
+
+      {/* Snap guide lines — rendered on top of occupants during drag */}
+      {accessory.type === "shelf" && snapGuides && (() => {
+        const surfaceY = y + h - 0.5;
+        return (
+          <>
+            {snapGuides.xMm !== undefined && (
+              <line
+                x1={DEVICE_INSET + snapGuides.xMm * PX_PER_MM}
+                y1={y}
+                x2={DEVICE_INSET + snapGuides.xMm * PX_PER_MM}
+                y2={y + h}
+                stroke="#3b82f6"
+                strokeWidth={0.75}
+                strokeDasharray="3 2"
+                style={{ pointerEvents: "none" }}
+              />
+            )}
+            {snapGuides.yMm !== undefined && (
+              <line
+                x1={DEVICE_INSET}
+                y1={surfaceY - snapGuides.yMm * PX_PER_MM}
+                x2={DEVICE_INSET + FULL_WIDTH}
+                y2={surfaceY - snapGuides.yMm * PX_PER_MM}
+                stroke="#3b82f6"
+                strokeWidth={0.75}
+                strokeDasharray="3 2"
+                style={{ pointerEvents: "none" }}
+              />
+            )}
+          </>
+        );
+      })()}
     </g>
   );
 }
@@ -346,11 +613,40 @@ function DragGhost({ x, y, width, height, label, color }: { x: number; y: number
 
 // ── Side view ──────────────────────────────────────────────────────
 
-function SideViewRack({ rack, placements, deviceDataMap }: { rack: RackData; placements: RackDevicePlacement[]; deviceDataMap: Map<string, DeviceData> }) {
+function SideViewRack({
+  rack,
+  placements,
+  accessories,
+  deviceDataMap,
+  conflicts,
+  selectedPlacementId,
+  draggingPlacementId,
+  dropTarget,
+  onSelect,
+  onDragStart,
+  onContextMenu,
+}: {
+  rack: RackData;
+  placements: RackDevicePlacement[];
+  accessories: RackAccessory[];
+  deviceDataMap: Map<string, DeviceData>;
+  conflicts: RackDepthConflict[];
+  selectedPlacementId: string | null;
+  draggingPlacementId: string | null;
+  dropTarget: { rackId: string; uPosition: number; heightU: number; valid: boolean; face?: "front" | "rear" } | null;
+  onSelect: (id: string) => void;
+  onDragStart: (placementId: string, e: React.MouseEvent) => void;
+  onContextMenu: (e: React.MouseEvent, placement: RackDevicePlacement) => void;
+}) {
   const totalH = rack.heightU * PX_PER_U;
   const is2Post = rack.rackType === "open-2post";
   const isOpen = is2Post || rack.rackType === "open-4post";
-  const depthScale = SIDE_VIEW_WIDTH / rack.depthMm;
+  // True-scale depth — matches front-view px-per-mm so geometry isn't squished.
+  const SIDE_VIEW_WIDTH = sideViewWidthPx(rack);
+  const depthScale = PX_PER_MM;
+
+  // Index placements by id for conflict overlay lookup
+  const byId = new Map(placements.map((p) => [p.id, p]));
 
   return (
     <g>
@@ -378,21 +674,131 @@ function SideViewRack({ rack, placements, deviceDataMap }: { rack: RackData; pla
         </>
       )}
 
+      {/* Shelf accessories — drawn first so device blocks paint on top */}
+      {accessories.filter((a) => a.type === "shelf").map((a) => {
+        const ay = uToY(a.uPosition + a.heightU - 1, rack.heightU);
+        const ah = a.heightU * PX_PER_U - 1;
+        const sd = shelfDepthMm(a, rack) * depthScale;
+        const ax = (is2Post || a.face === "front") ? 4 : SIDE_VIEW_WIDTH - 4 - sd;
+        return <rect key={a.id} x={ax} y={ay + ah - 2} width={sd} height={2} fill="#a0855b" stroke="#7a6240" strokeWidth={0.5} />;
+      })}
+
       {/* Devices */}
       {placements.map((pl) => {
         const dd = deviceDataMap.get(pl.deviceNodeId);
         if (!dd) return null;
         const heightU = inferRackHeightU(dd);
+        const isSelected = selectedPlacementId === pl.id;
+        const isDragging = draggingPlacementId === pl.id;
+        // Shelf-mounted: real-mm height, sitting on the shelf surface line (+ stack offset y)
+        if (pl.mountedOnShelfId) {
+          const shelf = accessories.find((a) => a.id === pl.mountedOnShelfId);
+          if (!shelf) return null;
+          const ay = uToY(shelf.uPosition + shelf.heightU - 1, rack.heightU);
+          const ah = shelf.heightU * PX_PER_U - 1;
+          // Rotation swaps width <-> height. Depth axis is unchanged.
+          const dDepth = (dd.depthMm ?? shelfDepthMm(shelf, rack)) * depthScale;
+          const hMm = pl.rotated ? (dd.widthMm ?? 44.45) : (dd.heightMm ?? 44.45);
+          const dh = hMm * PX_PER_MM;
+          const stackYMm = pl.shelfOffsetMm?.y ?? 0;
+          const surfaceY = ay + ah - 0.5;
+          const dy = surfaceY - dh - stackYMm * PX_PER_MM;
+          const dx = (is2Post || shelf.face === "front") ? 4 : SIDE_VIEW_WIDTH - 4 - dDepth;
+          const overflowsAbove = dh + stackYMm * PX_PER_MM > ah - 1;
+          return (
+            <g key={pl.id} style={{ opacity: isDragging ? 0.3 : 1 }}>
+              <rect
+                x={dx}
+                y={dy}
+                width={dDepth}
+                height={dh}
+                fill={dd.headerColor ?? dd.color ?? "#4a90d9"}
+                stroke={overflowsAbove ? "#dc2626" : "#333"}
+                strokeWidth={overflowsAbove ? 1 : 0.5}
+                strokeDasharray={overflowsAbove ? "3 2" : undefined}
+                rx={1}
+                opacity={0.85}
+              />
+            </g>
+          );
+        }
         const y = uToY(pl.uPosition + heightU - 1, rack.heightU);
         const h = heightU * PX_PER_U - 1;
         const deviceDepth = (dd.depthMm ?? rack.depthMm * 0.6) * depthScale;
         // 2-post: everything hangs from the front post
         const x = (is2Post || pl.face === "front") ? 4 : SIDE_VIEW_WIDTH - 4 - deviceDepth;
         return (
-          <g key={pl.id}>
-            <rect x={x} y={y} width={deviceDepth} height={h} fill={dd.headerColor ?? dd.color ?? "#4a90d9"} stroke="#333" strokeWidth={0.5} rx={1} opacity={0.7} />
+          <g
+            key={pl.id}
+            className="cursor-grab"
+            style={{ opacity: isDragging ? 0.3 : 1 }}
+            onClick={(e) => { e.stopPropagation(); onSelect(pl.id); }}
+            onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); onContextMenu(e, pl); }}
+            onMouseDown={(e) => {
+              if (e.button === 0 && !e.altKey) {
+                e.stopPropagation();
+                onDragStart(pl.id, e);
+              }
+            }}
+          >
+            <rect x={x} y={y} width={deviceDepth} height={h} fill={dd.headerColor ?? dd.color ?? "#4a90d9"} stroke={isSelected ? "#2563eb" : "#333"} strokeWidth={isSelected ? 1.5 : 0.5} rx={1} opacity={0.85} />
             <text x={x + deviceDepth / 2} y={y + h / 2} textAnchor="middle" dominantBaseline="central" fontSize={7} fill="#fff" style={{ pointerEvents: "none" }}>
               {dd.label.length > 8 ? dd.label.slice(0, 7) + "…" : dd.label}
+            </text>
+          </g>
+        );
+      })}
+
+      {/* Side-view drop indicator: horizontal band at target U, on the target face */}
+      {dropTarget && dropTarget.rackId === rack.id && (() => {
+        const y = uToY(dropTarget.uPosition + dropTarget.heightU - 1, rack.heightU);
+        const h = dropTarget.heightU * PX_PER_U - 1;
+        // 2-post: full width. Otherwise: front half or rear half based on dropTarget.face.
+        let bandX = 0;
+        let bandW = SIDE_VIEW_WIDTH;
+        if (!is2Post && dropTarget.face) {
+          if (dropTarget.face === "front") {
+            bandX = 0;
+            bandW = SIDE_VIEW_WIDTH / 2;
+          } else {
+            bandX = SIDE_VIEW_WIDTH / 2;
+            bandW = SIDE_VIEW_WIDTH / 2;
+          }
+        }
+        return (
+          <rect
+            x={bandX} y={y} width={bandW} height={h}
+            fill={dropTarget.valid ? "rgba(59,130,246,0.18)" : "rgba(239,68,68,0.18)"}
+            stroke={dropTarget.valid ? "#3b82f6" : "#ef4444"}
+            strokeWidth={1.2}
+            strokeDasharray="4 2"
+            rx={1}
+            style={{ pointerEvents: "none" }}
+          />
+        );
+      })()}
+
+      {/* Depth conflicts — translucent red rect across the U overlap × overhang span */}
+      {conflicts.map((c, i) => {
+        const a = byId.get(c.aId);
+        const b = byId.get(c.bId);
+        if (!a || !b) return null;
+        const ad = deviceDataMap.get(a.deviceNodeId);
+        const bd = deviceDataMap.get(b.deviceNodeId);
+        if (!ad || !bd || ad.depthMm == null || bd.depthMm == null) return null;
+        // Y-band over the U overlap range
+        const yTop = uToY(c.uOverlapEnd, rack.heightU);
+        const yBot = uToY(c.uOverlapStart - 1, rack.heightU);
+        // X-band: the overlap zone in the middle — front device extends inward, rear device extends inward
+        const frontEnd = 4 + ad.depthMm * depthScale;
+        const rearStart = SIDE_VIEW_WIDTH - 4 - bd.depthMm * depthScale;
+        const x = Math.min(frontEnd, rearStart);
+        const w = Math.max(0, Math.max(frontEnd, rearStart) - x);
+        return (
+          <g key={i}>
+            <rect x={x} y={yTop} width={w} height={yBot - yTop} fill="rgba(239,68,68,0.35)" stroke="#dc2626" strokeWidth={1} strokeDasharray="3 2" />
+            <text x={x + w / 2} y={(yTop + yBot) / 2} textAnchor="middle" dominantBaseline="central" fontSize={6} fill="#7f1d1d" fontWeight={700} style={{ pointerEvents: "none" }}>
+              +{Math.round(c.depthOverhangMm)}mm
             </text>
           </g>
         );
@@ -424,11 +830,19 @@ function ViewToggle({ viewMode, onChangeView }: { viewMode: ViewMode; onChangeVi
 // ── Drag state for in-rack movement ────────────────────────────────
 
 interface InRackDrag {
-  placementId: string;
-  deviceNodeId: string;
+  /** "device" = a placement is being dragged; "accessory" = a shelf/blank/etc. */
+  kind: "device" | "accessory";
+  /** placementId for kind="device", accessoryId for kind="accessory". */
+  id: string;
+  /** Only set when kind === "device". */
+  deviceNodeId?: string;
+  /** Only set when kind === "accessory". */
+  accessoryType?: import("../types").RackAccessoryType;
   heightU: number;
   label: string;
   color: string;
+  /** Face the item was on when the drag started — preserved unless flipped in side view. */
+  face: "front" | "rear";
   /** Canvas-space cursor position */
   cx: number;
   cy: number;
@@ -440,12 +854,15 @@ function hitTestRack(
   page: SchematicPage,
   cx: number,
   cy: number,
+  viewMode: ViewMode = "front",
+  maxHeightU = 0,
 ): { rack: RackData; uPosition: number } | null {
   for (const rack of page.racks) {
     const rx = rack.position.x + RACK_PAD_X + RULER_WIDTH;
-    const ry = rack.position.y + RACK_PAD_Y + LABEL_HEIGHT;
+    const ry = rack.position.y + RACK_PAD_Y + LABEL_HEIGHT + (maxHeightU - rack.heightU) * PX_PER_U;
     const totalH = rack.heightU * PX_PER_U;
-    if (cx >= rx && cx <= rx + RACK_WIDTH && cy >= ry && cy <= ry + totalH) {
+    const rackW = viewMode === "side" ? sideViewWidthPx(rack) : RACK_WIDTH;
+    if (cx >= rx && cx <= rx + rackW && cy >= ry && cy <= ry + totalH) {
       const relY = cy - ry;
       const uFromTop = Math.floor(relY / PX_PER_U);
       const uPosition = rack.heightU - uFromTop;
@@ -453,6 +870,307 @@ function hitTestRack(
     }
   }
   return null;
+}
+
+/** Find a shelf accessory at the given U position on the active face. */
+function findShelfAt(
+  page: SchematicPage,
+  rackId: string,
+  uPosition: number,
+  face: "front" | "rear",
+): RackAccessory | null {
+  for (const a of page.accessories) {
+    if (a.rackId !== rackId || a.face !== face || a.type !== "shelf") continue;
+    const aTop = a.uPosition + a.heightU - 1;
+    if (uPosition >= a.uPosition && uPosition <= aTop) return a;
+  }
+  return null;
+}
+
+// ── Accessory context menu (resize / rename / remove) ──────────────
+
+function AccessoryMenu({
+  menu,
+  onResize,
+  onRename,
+  onRemove,
+  onClose,
+}: {
+  menu: { screenX: number; screenY: number; accessory: RackAccessory; occupantCount: number };
+  onResize: (heightU: number) => void;
+  onRename: (label: string) => void;
+  onRemove: () => void;
+  onClose: () => void;
+}) {
+  const [heightU, setHeightU] = useState(menu.accessory.heightU);
+  const [label, setLabel] = useState(menu.accessory.label ?? "");
+  return (
+    <div
+      className="fixed z-50 bg-white rounded-lg shadow-xl border border-neutral-200 py-1 text-xs min-w-[200px]"
+      style={{ left: menu.screenX, top: menu.screenY }}
+      onMouseDown={(e) => e.stopPropagation()}
+      onContextMenu={(e) => e.preventDefault()}
+    >
+      <div className="px-3 py-1 text-neutral-400 text-[10px] uppercase tracking-wider">
+        {RACK_ACCESSORY_LABELS[menu.accessory.type]}
+        {menu.occupantCount > 0 && ` (${menu.occupantCount} on shelf)`}
+      </div>
+      <label className="flex items-center gap-2 px-3 py-1.5 border-t border-neutral-100">
+        <span className="text-neutral-600 w-12">Label</span>
+        <input
+          className="flex-1 border border-neutral-300 rounded px-2 py-0.5 outline-none focus:border-blue-400"
+          value={label}
+          placeholder={RACK_ACCESSORY_LABELS[menu.accessory.type]}
+          onChange={(e) => setLabel(e.target.value)}
+          onKeyDown={(e) => {
+            e.stopPropagation();
+            if (e.key === "Enter") onRename(label.trim());
+            if (e.key === "Escape") onClose();
+          }}
+          autoFocus
+        />
+      </label>
+      <label className="flex items-center gap-2 px-3 py-1.5">
+        <span className="text-neutral-600 w-12">Height</span>
+        <input
+          type="number"
+          className="flex-1 border border-neutral-300 rounded px-2 py-0.5 outline-none focus:border-blue-400 text-right"
+          value={heightU}
+          min={1}
+          max={20}
+          onChange={(e) => setHeightU(Number(e.target.value))}
+          onKeyDown={(e) => e.stopPropagation()}
+        />
+        <span className="text-neutral-500">U</span>
+      </label>
+      <div className="flex gap-1 px-3 py-1.5 border-t border-neutral-100">
+        <button
+          className="flex-1 px-2 py-1 rounded bg-blue-600 text-white hover:bg-blue-700"
+          onClick={() => {
+            if (label.trim() !== (menu.accessory.label ?? "")) onRename(label.trim());
+            if (heightU !== menu.accessory.heightU) onResize(heightU);
+            else if (label.trim() === (menu.accessory.label ?? "")) onClose();
+          }}
+        >
+          Save
+        </button>
+        <button
+          className="px-2 py-1 rounded text-red-600 hover:bg-red-50 border border-red-200"
+          onClick={onRemove}
+        >
+          Remove
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Inline Edit Rack dialog (used by rack context menu) ────────────
+
+function EditRackInlineDialog({
+  rack,
+  onSave,
+  onClose,
+}: {
+  rack: RackData;
+  onSave: (patch: Partial<RackData>) => void;
+  onClose: () => void;
+}) {
+  const [label, setLabel] = useState(rack.label);
+  const [rackType, setRackType] = useState(rack.rackType);
+  const [heightU, setHeightU] = useState(rack.heightU);
+  const [depthMm, setDepthMm] = useState(rack.depthMm);
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSave({
+      label: label.trim() || rack.label,
+      rackType,
+      heightU: Math.max(2, Math.min(60, Math.round(heightU))),
+      depthMm: Math.max(100, Math.min(2000, Math.round(depthMm))),
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50" onClick={onClose}>
+      <form className="bg-white rounded-lg shadow-xl p-4 w-80 text-xs" onClick={(e) => e.stopPropagation()} onSubmit={submit}>
+        <h3 className="font-semibold text-sm mb-3">Edit Rack</h3>
+        <label className="block mb-2">
+          <span className="text-neutral-600">Label</span>
+          <input
+            className="mt-0.5 w-full border border-neutral-300 rounded px-2 py-1 outline-none focus:border-blue-400"
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            onKeyDown={(e) => e.stopPropagation()}
+            autoFocus
+          />
+        </label>
+        <label className="block mb-2">
+          <span className="text-neutral-600">Type</span>
+          <select
+            className="mt-0.5 w-full border border-neutral-300 rounded px-2 py-1 outline-none focus:border-blue-400"
+            value={rackType}
+            onChange={(e) => setRackType(e.target.value as typeof rackType)}
+          >
+            {(Object.entries(RACK_TYPE_LABELS) as [typeof rackType, string][]).map(([value, lbl]) => (
+              <option key={value} value={value}>{lbl}</option>
+            ))}
+          </select>
+        </label>
+        <div className="flex gap-2 mb-3">
+          <label className="block flex-1">
+            <span className="text-neutral-600">Height (U)</span>
+            <input
+              type="number"
+              className="mt-0.5 w-full border border-neutral-300 rounded px-2 py-1 outline-none focus:border-blue-400"
+              value={heightU}
+              min={2}
+              max={60}
+              onChange={(e) => setHeightU(Number(e.target.value))}
+              onKeyDown={(e) => e.stopPropagation()}
+            />
+          </label>
+          <label className="block flex-1">
+            <span className="text-neutral-600">Depth (mm)</span>
+            <input
+              type="number"
+              className="mt-0.5 w-full border border-neutral-300 rounded px-2 py-1 outline-none focus:border-blue-400"
+              value={depthMm}
+              min={100}
+              max={2000}
+              step={50}
+              onChange={(e) => setDepthMm(Number(e.target.value))}
+              onKeyDown={(e) => e.stopPropagation()}
+            />
+          </label>
+        </div>
+        <div className="flex justify-end gap-2">
+          <button type="button" className="px-3 py-1 rounded border border-neutral-300 hover:bg-neutral-50" onClick={onClose}>Cancel</button>
+          <button type="submit" className="px-3 py-1 rounded bg-blue-600 text-white hover:bg-blue-700">Save</button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+// ── Slot context menu (cascading: Add Accessory ▸ Type ▸ U-height) ──
+
+const ACCESSORY_TYPE_ORDER: import("../types").RackAccessoryType[] = [
+  "shelf", "blank-panel", "vent-panel", "drawer", "cable-manager", "fan-unit",
+];
+const ACCESSORY_HEIGHTS: number[] = [1, 2, 3, 4];
+const MENU_W = 180;
+
+function SlotMenu({
+  menu,
+  onAdd,
+  onEditRack,
+  onDeleteRack,
+  onClose,
+}: {
+  menu: { screenX: number; screenY: number; rackId: string; uPosition: number };
+  onAdd: (rackId: string, uPosition: number, type: import("../types").RackAccessoryType, heightU: number) => void;
+  onEditRack: (rackId: string) => void;
+  onDeleteRack: (rackId: string) => void;
+  onClose: () => void;
+}) {
+  // Two-level expansion path: which top-level item is expanded, and which type beneath it.
+  const [expandedTop, setExpandedTop] = useState<"add" | null>("add");
+  const [expandedType, setExpandedType] = useState<import("../types").RackAccessoryType | null>(null);
+  const closeTypeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelCloseType = () => { if (closeTypeTimer.current) { clearTimeout(closeTypeTimer.current); closeTypeTimer.current = null; } };
+  const scheduleCloseType = () => { cancelCloseType(); closeTypeTimer.current = setTimeout(() => setExpandedType(null), 180); };
+
+  // Item heights (px) — keep aligned across panels for clean stacking
+  const ITEM_H = 28;
+
+  return (
+    <div
+      className="fixed z-50 text-xs"
+      style={{ left: menu.screenX, top: menu.screenY }}
+      onMouseDown={(e) => e.stopPropagation()}
+      onContextMenu={(e) => e.preventDefault()}
+    >
+      {/* Root menu */}
+      <div
+        className="absolute bg-white rounded-lg shadow-xl border border-neutral-200 py-1"
+        style={{ width: MENU_W }}
+        onMouseLeave={() => { setExpandedType(null); }}
+      >
+        <div className="px-3 py-1 text-neutral-400 text-[10px] uppercase tracking-wider">Rack at U{menu.uPosition}</div>
+        <button
+          className={`w-full text-left px-3 flex items-center justify-between hover:bg-neutral-100 ${expandedTop === "add" ? "bg-neutral-100" : ""}`}
+          style={{ height: ITEM_H }}
+          onMouseEnter={() => setExpandedTop("add")}
+          onClick={() => setExpandedTop("add")}
+        >
+          <span>Add Accessory</span><span className="text-neutral-400">▸</span>
+        </button>
+        <div className="border-t border-neutral-100 my-0.5" />
+        <button
+          className="w-full text-left px-3 hover:bg-neutral-100"
+          style={{ height: ITEM_H }}
+          onMouseEnter={() => { setExpandedTop(null); setExpandedType(null); }}
+          onClick={() => { onEditRack(menu.rackId); onClose(); }}
+        >
+          Edit Rack…
+        </button>
+        <button
+          className="w-full text-left px-3 hover:bg-neutral-100 text-red-600"
+          style={{ height: ITEM_H }}
+          onMouseEnter={() => { setExpandedTop(null); setExpandedType(null); }}
+          onClick={() => { onDeleteRack(menu.rackId); onClose(); }}
+        >
+          Delete Rack
+        </button>
+      </div>
+
+      {/* Type panel — opens to right of root */}
+      {expandedTop === "add" && (
+        <div
+          className="absolute bg-white rounded-lg shadow-xl border border-neutral-200 py-1"
+          style={{ left: MENU_W + 4, top: ITEM_H + 4, width: MENU_W }}
+          onMouseLeave={scheduleCloseType}
+        >
+          {ACCESSORY_TYPE_ORDER.map((type) => (
+            <button
+              key={type}
+              className={`w-full text-left px-3 flex items-center justify-between hover:bg-neutral-100 ${expandedType === type ? "bg-neutral-100" : ""}`}
+              style={{ height: ITEM_H }}
+              onMouseEnter={() => { cancelCloseType(); setExpandedType(type); }}
+              onClick={() => setExpandedType(type)}
+            >
+              <span>{RACK_ACCESSORY_LABELS[type]}</span><span className="text-neutral-400">▸</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* U-height panel — opens to right of type panel */}
+      {expandedTop === "add" && expandedType && (() => {
+        const typeIdx = ACCESSORY_TYPE_ORDER.indexOf(expandedType);
+        return (
+          <div
+            className="absolute bg-white rounded-lg shadow-xl border border-neutral-200 py-1"
+            style={{ left: MENU_W * 2 + 8, top: ITEM_H + 4 + typeIdx * ITEM_H, width: 80 }}
+            onMouseEnter={cancelCloseType}
+            onMouseLeave={scheduleCloseType}
+          >
+            {ACCESSORY_HEIGHTS.map((h) => (
+              <button
+                key={h}
+                className="w-full text-left px-3 hover:bg-neutral-100"
+                style={{ height: ITEM_H }}
+                onClick={() => { onAdd(menu.rackId, menu.uPosition, expandedType, h); onClose(); }}
+              >
+                {h}U
+              </button>
+            ))}
+          </div>
+        );
+      })()}
+    </div>
+  );
 }
 
 // ── Main RackRenderer ──────────────────────────────────────────────
@@ -467,9 +1185,30 @@ export default function RackRenderer({ page }: { page: SchematicPage }) {
   const addToast = useSchematicStore((s) => s.addToast);
   const patchDeviceData = useSchematicStore((s) => s.patchDeviceData);
   const setEditingNodeId = useSchematicStore((s) => s.setEditingNodeId);
+  const showFacePlateDetail = useSchematicStore((s) => s.showFacePlateDetail);
+  const addShelfMountedDevice = useSchematicStore((s) => s.addShelfMountedDevice);
+  const removeRackAccessoryWithOccupants = useSchematicStore((s) => s.removeRackAccessoryWithOccupants);
+  const addRackAccessory = useSchematicStore((s) => s.addRackAccessory);
+  const removeRackAccessory = useSchematicStore((s) => s.removeRackAccessory);
+  const updateRackAccessory = useSchematicStore((s) => s.updateRackAccessory);
+  const removeRack = useSchematicStore((s) => s.removeRack);
+  // Edit Rack dialog (opened from rack-context menu)
+  const [editRackTarget, setEditRackTarget] = useState<RackData | null>(null);
 
   // Device context menu in rack view
   const [rackContextMenu, setRackContextMenu] = useState<{
+    screenX: number; screenY: number; placement: RackDevicePlacement; deviceData: DeviceData;
+  } | null>(null);
+  // Empty-slot context menu — shown on right-click in an empty U position
+  const [slotContextMenu, setSlotContextMenu] = useState<{
+    screenX: number; screenY: number; rackId: string; uPosition: number;
+  } | null>(null);
+  // Accessory context menu — shown on right-click of an accessory rect
+  const [accessoryContextMenu, setAccessoryContextMenu] = useState<{
+    screenX: number; screenY: number; accessory: RackAccessory; occupantCount: number;
+  } | null>(null);
+  // Shelf-occupant context menu — shown on right-click of a device sitting on a shelf
+  const [shelfOccupantMenu, setShelfOccupantMenu] = useState<{
     screenX: number; screenY: number; placement: RackDevicePlacement; deviceData: DeviceData;
   } | null>(null);
   // Face-plate editor
@@ -492,11 +1231,45 @@ export default function RackRenderer({ page }: { page: SchematicPage }) {
   // Sidebar drag-and-drop (new placements from unracked list)
   const [dropTarget, setDropTarget] = useState<{
     rackId: string; uPosition: number; heightU: number; halfRackSide?: "left" | "right"; valid: boolean;
+    /** Target face — only meaningful in side-view drag where face can flip. */
+    face?: "front" | "rear";
+    /** When set, the drop will mount the device on this shelf instead of placing in U slots. */
+    shelfId?: string;
   } | null>(null);
+  // Confirm dialog state for shelf removal with occupants
+  const [shelfDeleteConfirm, setShelfDeleteConfirm] = useState<{ accessoryId: string; label: string; occupantCount: number } | null>(null);
 
   // In-rack drag (moving existing placements)
   const [inRackDrag, setInRackDrag] = useState<InRackDrag | null>(null);
-  const pendingDragRef = useRef<{ placementId: string; startX: number; startY: number } | null>(null);
+  const pendingDragRef = useRef<{ kind: "device" | "accessory"; id: string; startX: number; startY: number } | null>(null);
+
+  // Shelf-occupant drag — free-form positioning within a shelf (separate pipeline from U-snap drag)
+  const [shelfDrag, setShelfDrag] = useState<{
+    placementId: string;
+    shelfId: string;        // source shelf (never changes during drag)
+    targetShelfId: string;  // current target shelf (may differ from shelfId)
+    offsetMm: { x: number; y: number };
+    valid: boolean;
+    guides: ShelfSnapGuides;
+  } | null>(null);
+  const pendingShelfDragRef = useRef<{
+    placementId: string;
+    shelfId: string;
+    startCanvasX: number;
+    startCanvasY: number;
+    /** Cursor offset (mm) from device's top-left at the moment of grab — anchors the drag. */
+    grabOffsetMm: { x: number; y: number };
+    /** Device's effective dims (rotation applied). */
+    wMm: number;
+    hMm: number;
+    /** Initial offset, used when restoring on cancel. */
+    initialOffsetMm: { x: number; y: number };
+  } | null>(null);
+
+  const maxRackHeightU = useMemo(
+    () => page.racks.reduce((m, r) => Math.max(m, r.heightU), 0),
+    [page.racks],
+  );
 
   const deviceDataMap = useMemo(() => {
     const map = new Map<string, DeviceData>();
@@ -576,24 +1349,95 @@ export default function RackRenderer({ page }: { page: SchematicPage }) {
       return;
     }
 
+    // Promote pending shelf-occupant drag to active shelfDrag after 4px threshold
+    if (pendingShelfDragRef.current && !shelfDrag) {
+      const ps = pendingShelfDragRef.current;
+      const c = clientToCanvas(e.clientX, e.clientY);
+      const dx = c.x - ps.startCanvasX;
+      const dy = c.y - ps.startCanvasY;
+      if (dx * dx + dy * dy > 16) {
+        setShelfDrag({
+          placementId: ps.placementId,
+          shelfId: ps.shelfId,
+          targetShelfId: ps.shelfId,
+          offsetMm: ps.initialOffsetMm,
+          valid: true,
+          guides: {},
+        });
+      }
+    }
+
+    if (shelfDrag && pendingShelfDragRef.current) {
+      const ps = pendingShelfDragRef.current;
+      const c = clientToCanvas(e.clientX, e.clientY);
+      // Hit-test: which shelf is the cursor over? Fall back to source shelf.
+      const hitResult = hitTestShelfCanvas(page, c.x, c.y, activeFace, maxRackHeightU);
+      const sourceShelf = page.accessories.find((a) => a.id === ps.shelfId);
+      const targetShelf = hitResult?.shelf ?? sourceShelf;
+      const targetRack = hitResult?.rack ?? page.racks.find((r) => r.id === targetShelf?.rackId);
+      if (targetShelf && targetRack) {
+        // Absolute canvas→mm conversion: cursor position in target shelf mm space,
+        // offset by the grab anchor so the device follows the cursor correctly.
+        const { originX, surfaceCanvasY } = shelfCanvasCoords(targetRack, targetShelf, maxRackHeightU);
+        const rawOffsetMm = {
+          x: (c.x - originX) / PX_PER_MM - ps.grabOffsetMm.x,
+          y: (surfaceCanvasY - c.y) / PX_PER_MM - ps.grabOffsetMm.y,
+        };
+        const { offset: newOffsetMm, guides } = computeShelfSnaps(
+          targetShelf, page.placements, ps.placementId,
+          rawOffsetMm, { wMm: ps.wMm }, deviceDataMap,
+        );
+        const valid = isShelfOffsetValid(
+          targetShelf, page.placements, ps.placementId,
+          { xMm: newOffsetMm.x, yMm: newOffsetMm.y, wMm: ps.wMm, hMm: ps.hMm },
+          deviceDataMap,
+        );
+        setShelfDrag((d) => d ? { ...d, targetShelfId: targetShelf.id, offsetMm: newOffsetMm, valid, guides } : null);
+      }
+      return;
+    }
+
     // Promote pending drag to real drag after 4px threshold
     if (pendingDragRef.current && !inRackDrag) {
       const dx = e.clientX - pendingDragRef.current.startX;
       const dy = e.clientY - pendingDragRef.current.startY;
       if (dx * dx + dy * dy > 16) { // 4px threshold
-        const { placementId } = pendingDragRef.current;
+        const { kind, id } = pendingDragRef.current;
         pendingDragRef.current = null;
-        const pl = page.placements.find((p) => p.id === placementId);
-        if (pl) {
-          const dd = deviceDataMap.get(pl.deviceNodeId);
-          if (dd) {
-            const c = clientToCanvas(e.clientX, e.clientY);
+        const c = clientToCanvas(e.clientX, e.clientY);
+        if (kind === "device") {
+          const pl = page.placements.find((p) => p.id === id);
+          if (pl) {
+            const dd = deviceDataMap.get(pl.deviceNodeId);
+            if (dd) {
+              setInRackDrag({
+                kind: "device",
+                id,
+                deviceNodeId: pl.deviceNodeId,
+                heightU: inferRackHeightU(dd),
+                label: dd.label,
+                color: dd.headerColor ?? dd.color ?? "#4a90d9",
+                face: pl.face,
+                cx: c.x,
+                cy: c.y,
+              });
+            }
+          }
+        } else {
+          const ac = page.accessories.find((a) => a.id === id);
+          if (ac) {
+            const fills: Record<string, string> = {
+              "blank-panel": "#888", "vent-panel": "#aaa", "shelf": "#a0855b",
+              "drawer": "#8a7a5a", "cable-manager": "#666", "fan-unit": "#556b7a",
+            };
             setInRackDrag({
-              placementId,
-              deviceNodeId: pl.deviceNodeId,
-              heightU: inferRackHeightU(dd),
-              label: dd.label,
-              color: dd.headerColor ?? dd.color ?? "#4a90d9",
+              kind: "accessory",
+              id,
+              accessoryType: ac.type,
+              heightU: ac.heightU,
+              label: ac.label ?? RACK_ACCESSORY_LABELS[ac.type],
+              color: fills[ac.type] ?? "#888",
+              face: ac.face,
               cx: c.x,
               cy: c.y,
             });
@@ -605,70 +1449,162 @@ export default function RackRenderer({ page }: { page: SchematicPage }) {
 
     if (inRackDrag) {
       const c = clientToCanvas(e.clientX, e.clientY);
-      setInRackDrag((d) => d ? { ...d, cx: c.x, cy: c.y } : null);
 
-      // Update drop target
-      const hit = hitTestRack(page, c.x, c.y);
+      // In side view, horizontal cursor position picks the target face.
+      // Cursor on the front half of the rack → front; on the rear half → rear.
+      // 2-post racks have no rear face so always front.
+      let dragFace = inRackDrag.face;
+      if (viewMode === "side") {
+        const hit = hitTestRack(page, c.x, c.y, viewMode, maxRackHeightU);
+        if (hit) {
+          const rackLeftCanvas = hit.rack.position.x + RACK_PAD_X + RULER_WIDTH;
+          const rackMidCanvas = rackLeftCanvas + sideViewWidthPx(hit.rack) / 2;
+          if (hit.rack.rackType === "open-2post") dragFace = "front";
+          else dragFace = c.x < rackMidCanvas ? "front" : "rear";
+        }
+      }
+      setInRackDrag((d) => d ? { ...d, cx: c.x, cy: c.y, face: dragFace } : null);
+
+      const hit = hitTestRack(page, c.x, c.y, viewMode, maxRackHeightU);
       if (hit) {
-        if (isRackRearBlocked(hit.rack.id)) {
+        if (dragFace === "rear" && hit.rack.rackType === "open-2post") {
           const clampedU = Math.max(1, Math.min(hit.uPosition, hit.rack.heightU - inRackDrag.heightU + 1));
-          setDropTarget({ rackId: hit.rack.id, uPosition: clampedU, heightU: inRackDrag.heightU, valid: false });
+          setDropTarget({ rackId: hit.rack.id, uPosition: clampedU, heightU: inRackDrag.heightU, valid: false, face: dragFace });
         } else {
           const clampedU = Math.max(1, Math.min(hit.uPosition, hit.rack.heightU - inRackDrag.heightU + 1));
-          const valid = isRackSlotAvailable(page.id, hit.rack.id, clampedU, inRackDrag.heightU, activeFace, undefined, inRackDrag.placementId);
-          setDropTarget({ rackId: hit.rack.id, uPosition: clampedU, heightU: inRackDrag.heightU, valid });
+          const valid = isRackSlotAvailable(
+            page.id, hit.rack.id, clampedU, inRackDrag.heightU, dragFace, undefined,
+            inRackDrag.kind === "device" ? inRackDrag.id : undefined,
+            inRackDrag.kind === "accessory" ? inRackDrag.id : undefined,
+          );
+          setDropTarget({ rackId: hit.rack.id, uPosition: clampedU, heightU: inRackDrag.heightU, valid, face: dragFace });
         }
       } else {
         setDropTarget(null);
       }
     }
-  }, [isPanning, inRackDrag, clientToCanvas, page, isRackSlotAvailable, activeFace, isRackRearBlocked, deviceDataMap]);
+  }, [isPanning, inRackDrag, shelfDrag, clientToCanvas, page, isRackSlotAvailable, viewMode, deviceDataMap]);
 
   const onMouseUp = useCallback((e: MouseEvent) => {
     setIsPanning(false);
     pendingDragRef.current = null;
 
-    if (inRackDrag) {
-      const c = clientToCanvas(e.clientX, e.clientY);
-      const hit = hitTestRack(page, c.x, c.y);
-
-      if (hit && dropTarget?.valid) {
-        // Move to new position
-        const clampedU = Math.max(1, Math.min(hit.uPosition, hit.rack.heightU - inRackDrag.heightU + 1));
-        if (dropTarget.rackId === page.placements.find((p) => p.id === inRackDrag.placementId)?.rackId) {
-          // Same rack — update position
-          updateRackPlacement(page.id, inRackDrag.placementId, { uPosition: clampedU, rackId: dropTarget.rackId });
+    // Shelf-occupant drag: commit if valid (gravity-snap y), snap back otherwise
+    if (shelfDrag) {
+      if (shelfDrag.valid) {
+        const ps = pendingShelfDragRef.current;
+        const targetShelf = page.accessories.find((a) => a.id === shelfDrag.targetShelfId);
+        let snappedY = shelfDrag.offsetMm.y;
+        if (ps && targetShelf) {
+          snappedY = gravitySnapShelfY(targetShelf, page.placements, ps.placementId,
+            { xMm: shelfDrag.offsetMm.x, wMm: ps.wMm }, deviceDataMap);
+        }
+        if (shelfDrag.targetShelfId !== shelfDrag.shelfId && targetShelf) {
+          // Cross-shelf drop: rewire the placement to the new shelf
+          updateRackPlacement(page.id, shelfDrag.placementId, {
+            mountedOnShelfId: targetShelf.id,
+            rackId: targetShelf.rackId,
+            uPosition: targetShelf.uPosition,
+            face: targetShelf.face,
+            shelfOffsetMm: { x: shelfDrag.offsetMm.x, y: snappedY },
+          });
         } else {
-          // Different rack — remove and re-add
-          removeRackPlacement(page.id, inRackDrag.placementId);
-          addRackPlacement(page.id, {
-            rackId: dropTarget.rackId,
-            deviceNodeId: inRackDrag.deviceNodeId,
-            uPosition: clampedU,
-            face: activeFace,
+          updateRackPlacement(page.id, shelfDrag.placementId, {
+            shelfOffsetMm: { x: shelfDrag.offsetMm.x, y: snappedY },
           });
         }
+      }
+      setShelfDrag(null);
+      pendingShelfDragRef.current = null;
+      return;
+    }
+    pendingShelfDragRef.current = null;
+
+    if (inRackDrag) {
+      const c = clientToCanvas(e.clientX, e.clientY);
+      const hit = hitTestRack(page, c.x, c.y, viewMode, maxRackHeightU);
+
+      if (hit && dropTarget?.valid) {
+        const clampedU = Math.max(1, Math.min(hit.uPosition, hit.rack.heightU - inRackDrag.heightU + 1));
+        if (inRackDrag.kind === "device") {
+          const original = page.placements.find((p) => p.id === inRackDrag.id);
+          if (dropTarget.rackId === original?.rackId) {
+            updateRackPlacement(page.id, inRackDrag.id, { uPosition: clampedU, rackId: dropTarget.rackId, face: inRackDrag.face });
+          } else {
+            removeRackPlacement(page.id, inRackDrag.id);
+            addRackPlacement(page.id, {
+              rackId: dropTarget.rackId,
+              deviceNodeId: inRackDrag.deviceNodeId!,
+              uPosition: clampedU,
+              face: inRackDrag.face,
+            });
+          }
+        } else {
+          // Accessory move — within or across racks
+          updateRackAccessory(page.id, inRackDrag.id, { uPosition: clampedU, rackId: dropTarget.rackId, face: inRackDrag.face });
+        }
       } else if (!hit) {
-        // Dropped outside any rack — unrack the device
-        const dd = deviceDataMap.get(inRackDrag.deviceNodeId);
-        removeRackPlacement(page.id, inRackDrag.placementId);
-        addToast(`Removed ${dd?.label ?? "device"} from rack`, "info");
+        if (inRackDrag.kind === "device") {
+          const dd = inRackDrag.deviceNodeId ? deviceDataMap.get(inRackDrag.deviceNodeId) : undefined;
+          removeRackPlacement(page.id, inRackDrag.id);
+          addToast(`Removed ${dd?.label ?? "device"} from rack`, "info");
+        }
+        // Accessories don't unrack — dropping outside is a no-op (snap back)
       }
       // else: dropped on invalid position — snap back (do nothing)
 
       setInRackDrag(null);
       setDropTarget(null);
     }
-  }, [inRackDrag, dropTarget, clientToCanvas, page, updateRackPlacement, removeRackPlacement, addRackPlacement, activeFace, deviceDataMap, addToast]);
+  }, [inRackDrag, shelfDrag, dropTarget, clientToCanvas, page, updateRackPlacement, removeRackPlacement, addRackPlacement, updateRackAccessory, viewMode, deviceDataMap, addToast]);
 
   // ── In-rack drag start (from DeviceBlock) ────────────────────────
 
   const onPlacementDragStart = useCallback((placementId: string, e: React.MouseEvent) => {
-    if (viewMode === "side" || isPlacementBlocked) return;
+    // Side view allows drag (uPosition only, face preserved). Front/rear views still
+    // honor the placement-blocked guard (e.g. 2-post rear).
+    if (viewMode !== "side" && isPlacementBlocked) return;
     // Don't start drag immediately — wait for mouse movement past threshold
-    pendingDragRef.current = { placementId, startX: e.clientX, startY: e.clientY };
+    pendingDragRef.current = { kind: "device", id: placementId, startX: e.clientX, startY: e.clientY };
     setSelectedPlacementId(placementId);
   }, [viewMode, isPlacementBlocked]);
+
+  const onAccessoryDragStart = useCallback((accessoryId: string, e: React.MouseEvent) => {
+    if (viewMode !== "side" && isPlacementBlocked) return;
+    pendingDragRef.current = { kind: "accessory", id: accessoryId, startX: e.clientX, startY: e.clientY };
+  }, [viewMode, isPlacementBlocked]);
+
+  const onShelfOccupantDragStart = useCallback((placementId: string, shelfId: string, e: React.MouseEvent) => {
+    if (viewMode !== "front" && viewMode !== "rear") return;
+    const pl = page.placements.find((p) => p.id === placementId);
+    const shelf = page.accessories.find((a) => a.id === shelfId);
+    const rack = page.racks.find((r) => r.id === shelf?.rackId);
+    if (!pl || !shelf || !rack) return;
+    const dd = deviceDataMap.get(pl.deviceNodeId);
+    if (!dd) return;
+    const wMm = pl.rotated ? (dd.heightMm ?? 44.45) : (dd.widthMm ?? 482);
+    const hMm = pl.rotated ? (dd.widthMm ?? 482) : (dd.heightMm ?? 44.45);
+    const offset = pl.shelfOffsetMm ?? { x: 0, y: 0 };
+    const c = clientToCanvas(e.clientX, e.clientY);
+    // Compute cursor's offset from the device's bottom-left corner in shelf mm space.
+    // This is used for absolute-position cross-shelf dragging.
+    const { originX, surfaceCanvasY } = shelfCanvasCoords(rack, shelf, maxRackHeightU);
+    const grabOffsetMm = {
+      x: (c.x - originX) / PX_PER_MM - offset.x,
+      y: (surfaceCanvasY - c.y) / PX_PER_MM - offset.y,
+    };
+    pendingShelfDragRef.current = {
+      placementId,
+      shelfId,
+      startCanvasX: c.x,
+      startCanvasY: c.y,
+      grabOffsetMm,
+      wMm,
+      hMm,
+      initialOffsetMm: offset,
+    };
+    setSelectedPlacementId(placementId);
+  }, [viewMode, page, deviceDataMap, clientToCanvas]);
 
   // ── Sidebar drag-and-drop (new placements) ───────────────────────
 
@@ -677,13 +1613,24 @@ export default function RackRenderer({ page }: { page: SchematicPage }) {
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
     const c = clientToCanvas(e.clientX, e.clientY);
-    const hit = hitTestRack(page, c.x, c.y);
+    const hit = hitTestRack(page, c.x, c.y, "front", maxRackHeightU);
     if (hit) {
       if (isRackRearBlocked(hit.rack.id)) {
         const heightU = draggedDeviceHeightU;
         const clampedU = Math.max(1, Math.min(hit.uPosition, hit.rack.heightU - heightU + 1));
         setDropTarget({ rackId: hit.rack.id, uPosition: clampedU, heightU, valid: false });
         return;
+      }
+      // Check if hovering over a shelf — prefer shelf-mount over normal placement
+      const shelf = findShelfAt(page, hit.rack.id, hit.uPosition, activeFace);
+      if (shelf && draggedDeviceNodeId) {
+        const dd = deviceDataMap.get(draggedDeviceNodeId);
+        if (dd) {
+          const occupants = getShelfOccupants(shelf.id, page.placements);
+          const fits = canFitOnShelf(shelf, occupants, dd, hit.rack, deviceDataMap);
+          setDropTarget({ rackId: hit.rack.id, uPosition: shelf.uPosition, heightU: shelf.heightU, valid: fits, shelfId: shelf.id });
+          return;
+        }
       }
       const heightU = draggedDeviceHeightU;
       const clampedU = Math.max(1, Math.min(hit.uPosition, hit.rack.heightU - heightU + 1));
@@ -692,17 +1639,21 @@ export default function RackRenderer({ page }: { page: SchematicPage }) {
     } else {
       setDropTarget(null);
     }
-  }, [page, clientToCanvas, isRackSlotAvailable, activeFace, viewMode, isPlacementBlocked, isRackRearBlocked]);
+  }, [page, clientToCanvas, isRackSlotAvailable, activeFace, viewMode, isPlacementBlocked, isRackRearBlocked, deviceDataMap]);
 
   const onDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     const deviceNodeId = e.dataTransfer.getData("application/x-rack-device-id");
     if (!deviceNodeId || !dropTarget || !dropTarget.valid) { setDropTarget(null); return; }
-    addRackPlacement(page.id, {
-      rackId: dropTarget.rackId, deviceNodeId, uPosition: dropTarget.uPosition, face: activeFace, halfRackSide: dropTarget.halfRackSide,
-    });
+    if (dropTarget.shelfId) {
+      addShelfMountedDevice(page.id, dropTarget.shelfId, deviceNodeId);
+    } else {
+      addRackPlacement(page.id, {
+        rackId: dropTarget.rackId, deviceNodeId, uPosition: dropTarget.uPosition, face: activeFace, halfRackSide: dropTarget.halfRackSide,
+      });
+    }
     setDropTarget(null);
-  }, [page.id, dropTarget, addRackPlacement, activeFace]);
+  }, [page.id, dropTarget, addRackPlacement, addShelfMountedDevice, activeFace]);
 
   const onDragLeave = useCallback(() => { setDropTarget(null); }, []);
 
@@ -712,6 +1663,66 @@ export default function RackRenderer({ page }: { page: SchematicPage }) {
       setSelectedPlacementId(null);
     }
   }, [selectedPlacementId, page.id, removeRackPlacement]);
+
+  // Right-click on empty rack space → "Add Accessory" menu
+  const onCanvasContextMenu = useCallback((e: React.MouseEvent) => {
+    if (viewMode === "side") return;
+    const c = clientToCanvas(e.clientX, e.clientY);
+    const hit = hitTestRack(page, c.x, c.y, "front", maxRackHeightU);
+    if (!hit) { setSlotContextMenu(null); setAccessoryContextMenu(null); setRackContextMenu(null); return; }
+
+    // Hit-test for an existing accessory at this U position
+    const accessory = page.accessories.find((a) =>
+      a.rackId === hit.rack.id && a.face === activeFace
+        && hit.uPosition >= a.uPosition && hit.uPosition <= a.uPosition + a.heightU - 1
+    );
+    if (accessory) {
+      e.preventDefault();
+      e.stopPropagation();
+      const occupantCount = page.placements.filter((p) => p.mountedOnShelfId === accessory.id).length;
+      setAccessoryContextMenu({ screenX: e.clientX, screenY: e.clientY, accessory, occupantCount });
+      setSlotContextMenu(null);
+      setRackContextMenu(null);
+      return;
+    }
+
+    // Hit-test for a device — handled by DeviceBlock onContextMenu, skip
+    const placementHere = page.placements.find((p) => {
+      if (p.rackId !== hit.rack.id || p.face !== activeFace || p.mountedOnShelfId) return false;
+      const dd = deviceDataMap.get(p.deviceNodeId);
+      const heightU = dd ? inferRackHeightU(dd) : 1;
+      return hit.uPosition >= p.uPosition && hit.uPosition <= p.uPosition + heightU - 1;
+    });
+    if (placementHere) return;
+
+    if (isRackRearBlocked(hit.rack.id)) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+    setSlotContextMenu({ screenX: e.clientX, screenY: e.clientY, rackId: hit.rack.id, uPosition: hit.uPosition });
+    setAccessoryContextMenu(null);
+    setRackContextMenu(null);
+  }, [viewMode, clientToCanvas, page, activeFace, deviceDataMap, isRackRearBlocked]);
+
+  const handleAddAccessory = useCallback((rackId: string, uPosition: number, type: import("../types").RackAccessoryType, heightU: number) => {
+    const cleanH = Math.max(1, Math.min(20, Math.round(heightU || 1)));
+    const valid = isRackSlotAvailable(page.id, rackId, uPosition, cleanH, activeFace, undefined);
+    if (!valid) {
+      addToast(`Can't add ${type} — ${cleanH}U slot at U${uPosition} is occupied`, "error");
+      return;
+    }
+    addRackAccessory(page.id, { rackId, type, uPosition, heightU: cleanH, face: activeFace });
+    setSlotContextMenu(null);
+  }, [page.id, activeFace, addRackAccessory, isRackSlotAvailable, addToast]);
+
+  const handleRemoveAccessory = useCallback((accessory: RackAccessory, occupantCount: number) => {
+    if (occupantCount > 0) {
+      setShelfDeleteConfirm({ accessoryId: accessory.id, label: accessory.label ?? RACK_ACCESSORY_LABELS[accessory.type], occupantCount });
+    } else {
+      removeRackAccessory(page.id, accessory.id);
+    }
+    setAccessoryContextMenu(null);
+  }, [page.id, removeRackAccessory]);
 
   // ── Cursor style ─────────────────────────────────────────────────
 
@@ -735,22 +1746,50 @@ export default function RackRenderer({ page }: { page: SchematicPage }) {
     >
       <ViewToggle viewMode={viewMode} onChangeView={setViewMode} />
 
-      <svg width="100%" height="100%" style={{ display: "block" }} onClick={() => setRackContextMenu(null)} onContextMenu={() => setRackContextMenu(null)}>
+      <svg
+        width="100%" height="100%" style={{ display: "block" }}
+        onClick={() => { setRackContextMenu(null); setSlotContextMenu(null); setAccessoryContextMenu(null); setShelfOccupantMenu(null); }}
+        onContextMenu={onCanvasContextMenu}
+      >
         <OccupancyPattern />
         <g transform={`translate(${viewOffset.x}, ${viewOffset.y}) scale(${zoom})`}>
           {page.racks.map((rack) => {
             const ox = rack.position.x + RACK_PAD_X + RULER_WIDTH;
-            const oy = rack.position.y + RACK_PAD_Y + LABEL_HEIGHT;
-            const activePlacements = page.placements.filter((p) => p.rackId === rack.id && p.face === activeFace);
-            const oppositePlacements = page.placements.filter((p) => p.rackId === rack.id && p.face !== activeFace);
+            const oy = rack.position.y + RACK_PAD_Y + LABEL_HEIGHT + (maxRackHeightU - rack.heightU) * PX_PER_U;
+            // Visible (non-shelf-mounted) placements participate in face-specific layout & occupancy
+            const visiblePlacements = page.placements.filter((p) => p.rackId === rack.id && !p.mountedOnShelfId);
+            const activePlacements = visiblePlacements.filter((p) => p.face === activeFace);
+            const oppositePlacements = visiblePlacements.filter((p) => p.face !== activeFace);
             const activeAccessories = page.accessories.filter((a) => a.rackId === rack.id && a.face === activeFace);
+            const rackAccessories = page.accessories.filter((a) => a.rackId === rack.id);
             const allPlacements = page.placements.filter((p) => p.rackId === rack.id);
+            const conflicts = getRackDepthConflicts(rack, allPlacements, deviceDataMap);
+            const unknownDepth = countUnknownDepthDevices(rack, allPlacements, deviceDataMap);
+            const oversized = getOversizedDevices(rack, allPlacements, deviceDataMap);
+            const maxOversize = oversized.reduce((m, d) => Math.max(m, d.overhangMm), 0);
+            const stats = computeRackStats(rack, allPlacements, rackAccessories, deviceDataMap);
+            const totalH = rack.heightU * PX_PER_U;
+            const statsLine = formatStatsLine(stats);
 
             if (viewMode === "side") {
+              const sideW = sideViewWidthPx(rack);
               return (
                 <g key={rack.id} transform={`translate(${ox}, ${oy})`}>
-                  <RackLabel rack={rack} width={SIDE_VIEW_WIDTH} onRename={handleRenameRack} />
-                  <SideViewRack rack={rack} placements={allPlacements} deviceDataMap={deviceDataMap} />
+                  <RackLabel rack={rack} width={sideW} onRename={handleRenameRack} />
+                  <SideViewRack
+                    rack={rack}
+                    placements={allPlacements}
+                    accessories={rackAccessories}
+                    deviceDataMap={deviceDataMap}
+                    conflicts={conflicts}
+                    selectedPlacementId={selectedPlacementId}
+                    draggingPlacementId={inRackDrag && inRackDrag.kind === "device" ? inRackDrag.id : null}
+                    dropTarget={dropTarget && dropTarget.rackId === rack.id ? dropTarget : null}
+                    onSelect={setSelectedPlacementId}
+                    onDragStart={onPlacementDragStart}
+                    onContextMenu={handleDeviceContextMenu}
+                  />
+                  <text x={sideW / 2} y={totalH + 28} textAnchor="middle" fontSize={9} fill="#444">{statsLine}</text>
                 </g>
               );
             }
@@ -758,13 +1797,80 @@ export default function RackRenderer({ page }: { page: SchematicPage }) {
             return (
               <g key={rack.id} transform={`translate(${ox}, ${oy})`}>
                 <RackLabel rack={rack} onRename={handleRenameRack} />
+                {conflicts.length > 0 && (
+                  <g
+                    className="cursor-pointer"
+                    onClick={(e) => { e.stopPropagation(); setViewMode("side"); }}
+                  >
+                    <rect x={RACK_WIDTH - 90} y={-22} width={88} height={16} rx={3} fill="#fef2f2" stroke="#dc2626" strokeWidth={0.75} />
+                    <text x={RACK_WIDTH - 90 + 44} y={-14} textAnchor="middle" dominantBaseline="central" fontSize={9} fontWeight={600} fill="#b91c1c">
+                      ⚠ {conflicts.length} depth conflict{conflicts.length === 1 ? "" : "s"}
+                    </text>
+                    {unknownDepth > 0 && (
+                      <title>{`${conflicts.length} front/rear pair(s) overlap deeper than the rack. ${unknownDepth} device${unknownDepth === 1 ? " has" : "s have"} unknown depth (not counted).`}</title>
+                    )}
+                  </g>
+                )}
+                {oversized.length > 0 && (
+                  <g
+                    className="cursor-pointer"
+                    onClick={(e) => { e.stopPropagation(); setViewMode("side"); }}
+                  >
+                    {/* Left side of header — opposite the depth-conflict badge so they don't both crowd the rack name */}
+                    <rect x={2} y={-22} width={92} height={16} rx={3} fill="#fff7ed" stroke="#ea580c" strokeWidth={0.75} />
+                    <text x={2 + 46} y={-14} textAnchor="middle" dominantBaseline="central" fontSize={9} fontWeight={600} fill="#9a3412">
+                      ⚠ {oversized.length} too deep
+                    </text>
+                    <title>{`${oversized.length} device${oversized.length === 1 ? "" : "s"} ${oversized.length === 1 ? "is" : "are"} deeper than the rack (max +${Math.round(maxOversize)}mm). Consider a deeper rack.`}</title>
+                  </g>
+                )}
                 <RackFrame rack={rack} faceLabel={viewMode === "front" ? "Front" : "Rear"} viewFace={activeFace} />
                 {oppositePlacements.map((pl) => {
                   const dd = deviceDataMap.get(pl.deviceNodeId);
                   if (!dd) return null;
                   return <OccupancyGhost key={pl.id} placement={pl} rack={rack} heightU={inferRackHeightU(dd)} />;
                 })}
-                {activeAccessories.map((a) => <AccessoryBlock key={a.id} accessory={a} rack={rack} />)}
+                {activeAccessories.map((a) => (
+                  <AccessoryBlock
+                    key={a.id}
+                    accessory={a}
+                    rack={rack}
+                    occupants={a.type === "shelf" ? getShelfOccupants(a.id, page.placements) : []}
+                    deviceDataMap={deviceDataMap}
+                    isDragging={inRackDrag?.kind === "accessory" && inRackDrag.id === a.id}
+                    onDragStart={onAccessoryDragStart}
+                    onOccupantDragStart={onShelfOccupantDragStart}
+                    draggingOccupantId={shelfDrag?.shelfId === a.id ? shelfDrag.placementId : null}
+                    draggingOccupantPreview={
+                      shelfDrag?.shelfId === a.id && shelfDrag.targetShelfId === a.id
+                        ? { offsetMm: shelfDrag.offsetMm, valid: shelfDrag.valid }
+                        : null
+                    }
+                    crossShelfPreview={(() => {
+                      if (!shelfDrag || shelfDrag.targetShelfId !== a.id || shelfDrag.shelfId === a.id) return null;
+                      const pl = page.placements.find((p) => p.id === shelfDrag.placementId);
+                      if (!pl) return null;
+                      const dd = deviceDataMap.get(pl.deviceNodeId);
+                      if (!dd) return null;
+                      const wMm = pl.rotated ? (dd.heightMm ?? 44.45) : (dd.widthMm ?? 482);
+                      const hMm = pl.rotated ? (dd.widthMm ?? 482) : (dd.heightMm ?? 44.45);
+                      return {
+                        offsetMm: shelfDrag.offsetMm, valid: shelfDrag.valid,
+                        wMm, hMm, rotated: pl.rotated ?? false,
+                        label: dd.label, color: dd.headerColor ?? dd.color ?? "#4a90d9",
+                      };
+                    })()}
+                    snapGuides={shelfDrag?.targetShelfId === a.id ? shelfDrag.guides : null}
+                    onOccupantContextMenu={(e, pl) => {
+                      const dd = deviceDataMap.get(pl.deviceNodeId);
+                      if (!dd) return;
+                      setShelfOccupantMenu({ screenX: e.clientX, screenY: e.clientY, placement: pl, deviceData: dd });
+                      setRackContextMenu(null);
+                      setAccessoryContextMenu(null);
+                      setSlotContextMenu(null);
+                    }}
+                  />
+                ))}
                 {activePlacements.map((pl) => {
                   const dd = deviceDataMap.get(pl.deviceNodeId);
                   if (!dd) return null;
@@ -775,16 +1881,27 @@ export default function RackRenderer({ page }: { page: SchematicPage }) {
                       rack={rack}
                       deviceData={dd}
                       isSelected={selectedPlacementId === pl.id}
-                      isDragging={inRackDrag?.placementId === pl.id}
+                      isDragging={inRackDrag?.kind === "device" && inRackDrag.id === pl.id}
                       zoom={zoom}
                       onSelect={setSelectedPlacementId}
                       onDragStart={onPlacementDragStart}
                       onContextMenu={handleDeviceContextMenu}
+                      showFacePlateDetail={showFacePlateDetail}
                     />
                   );
                 })}
                 {dropTarget && dropTarget.rackId === rack.id && (
                   <DropIndicator rack={rack} uPosition={dropTarget.uPosition} heightU={dropTarget.heightU} halfRackSide={dropTarget.halfRackSide} valid={dropTarget.valid} />
+                )}
+                <text x={RACK_WIDTH / 2} y={totalH + 28} textAnchor="middle" fontSize={9} fill="#444">{statsLine}</text>
+                {(stats.unknownDepthCount > 0 || stats.unknownWeightCount > 0 || stats.unknownPowerCount > 0) && (
+                  <text x={RACK_WIDTH / 2} y={totalH + 40} textAnchor="middle" fontSize={7} fill="#999">
+                    {[
+                      stats.unknownDepthCount > 0 ? `${stats.unknownDepthCount} unknown depth` : null,
+                      stats.unknownWeightCount > 0 ? `${stats.unknownWeightCount} unknown weight` : null,
+                      stats.unknownPowerCount > 0 ? `${stats.unknownPowerCount} unknown power` : null,
+                    ].filter(Boolean).join(" · ")}
+                  </text>
                 )}
               </g>
             );
@@ -827,15 +1944,17 @@ export default function RackRenderer({ page }: { page: SchematicPage }) {
           style={{ left: rackContextMenu.screenX, top: rackContextMenu.screenY }}
           onMouseDown={(e) => e.stopPropagation()}
         >
-          <button
-            className="w-full text-left px-3 py-1.5 hover:bg-neutral-100"
-            onClick={() => {
-              setFacePlateTarget({ nodeId: rackContextMenu.placement.deviceNodeId, deviceData: rackContextMenu.deviceData });
-              setRackContextMenu(null);
-            }}
-          >
-            Edit Face-Plate Layout
-          </button>
+          {showFacePlateDetail && (
+            <button
+              className="w-full text-left px-3 py-1.5 hover:bg-neutral-100"
+              onClick={() => {
+                setFacePlateTarget({ nodeId: rackContextMenu.placement.deviceNodeId, deviceData: rackContextMenu.deviceData });
+                setRackContextMenu(null);
+              }}
+            >
+              Edit Face-Plate Layout
+            </button>
+          )}
           <button
             className="w-full text-left px-3 py-1.5 hover:bg-neutral-100"
             onClick={() => {
@@ -855,6 +1974,150 @@ export default function RackRenderer({ page }: { page: SchematicPage }) {
           >
             Remove from Rack
           </button>
+        </div>
+      )}
+
+      {/* Empty-slot context menu — Add Accessory cascade + Edit/Delete Rack */}
+      {slotContextMenu && (
+        <SlotMenu
+          menu={slotContextMenu}
+          onAdd={handleAddAccessory}
+          onEditRack={(rackId) => {
+            const r = page.racks.find((x) => x.id === rackId);
+            if (r) setEditRackTarget(r);
+          }}
+          onDeleteRack={(rackId) => {
+            const r = page.racks.find((x) => x.id === rackId);
+            if (!r) return;
+            if (confirm(`Delete "${r.label}"? This removes all devices placed in it.`)) {
+              removeRack(page.id, rackId);
+            }
+          }}
+          onClose={() => setSlotContextMenu(null)}
+        />
+      )}
+
+      {/* Edit Rack dialog (triggered from rack context menu) */}
+      {editRackTarget && (
+        <EditRackInlineDialog
+          rack={editRackTarget}
+          onSave={(patch) => {
+            updateRack(page.id, editRackTarget.id, patch);
+            setEditRackTarget(null);
+          }}
+          onClose={() => setEditRackTarget(null)}
+        />
+      )}
+
+      {/* Accessory context menu — resize / rename / remove */}
+      {accessoryContextMenu && (
+        <AccessoryMenu
+          menu={accessoryContextMenu}
+          onResize={(heightU) => {
+            const a = accessoryContextMenu.accessory;
+            const cleanH = Math.max(1, Math.min(20, Math.round(heightU || 1)));
+            // Validate U range fits within rack and doesn't collide with other items
+            const rack = page.racks.find((r) => r.id === a.rackId);
+            if (!rack) { setAccessoryContextMenu(null); return; }
+            if (a.uPosition + cleanH - 1 > rack.heightU) {
+              addToast(`Can't resize: extends past top of rack`, "error");
+              return;
+            }
+            // Treat current accessory as exempt by computing collisions manually
+            const others = page.accessories.filter((o) => o.id !== a.id && o.rackId === a.rackId && o.face === a.face);
+            const newTop = a.uPosition + cleanH - 1;
+            const collidesWithAcc = others.some((o) => {
+              const oTop = o.uPosition + o.heightU - 1;
+              return o.uPosition <= newTop && a.uPosition <= oTop;
+            });
+            const collidesWithDev = page.placements.some((p) => {
+              if (p.rackId !== a.rackId || p.face !== a.face || p.mountedOnShelfId) return false;
+              const dd = deviceDataMap.get(p.deviceNodeId);
+              const dh = dd ? inferRackHeightU(dd) : 1;
+              const pTop = p.uPosition + dh - 1;
+              return p.uPosition <= newTop && a.uPosition <= pTop;
+            });
+            if (collidesWithAcc || collidesWithDev) {
+              addToast(`Can't resize: would overlap an existing item`, "error");
+              return;
+            }
+            updateRackAccessory(page.id, a.id, { heightU: cleanH });
+            setAccessoryContextMenu(null);
+          }}
+          onRename={(label) => {
+            updateRackAccessory(page.id, accessoryContextMenu.accessory.id, { label: label || undefined });
+            setAccessoryContextMenu(null);
+          }}
+          onRemove={() => handleRemoveAccessory(accessoryContextMenu.accessory, accessoryContextMenu.occupantCount)}
+          onClose={() => setAccessoryContextMenu(null)}
+        />
+      )}
+
+      {/* Shelf-occupant context menu — rotate / remove from shelf / edit device */}
+      {shelfOccupantMenu && (
+        <div
+          className="fixed z-50 bg-white rounded-lg shadow-xl border border-neutral-200 py-1 text-xs min-w-[180px]"
+          style={{ left: shelfOccupantMenu.screenX, top: shelfOccupantMenu.screenY }}
+          onMouseDown={(e) => e.stopPropagation()}
+          onContextMenu={(e) => e.preventDefault()}
+        >
+          <div className="px-3 py-1 text-neutral-400 text-[10px] uppercase tracking-wider truncate">
+            {shelfOccupantMenu.deviceData.label}
+          </div>
+          <button
+            className="w-full text-left px-3 py-1.5 hover:bg-neutral-100"
+            onClick={() => {
+              const cur = !!shelfOccupantMenu.placement.rotated;
+              updateRackPlacement(page.id, shelfOccupantMenu.placement.id, { rotated: !cur });
+              setShelfOccupantMenu(null);
+            }}
+          >
+            {shelfOccupantMenu.placement.rotated ? "Lay flat" : "Rotate (lay on side)"}
+          </button>
+          <button
+            className="w-full text-left px-3 py-1.5 hover:bg-neutral-100"
+            onClick={() => {
+              setEditingNodeId(shelfOccupantMenu.placement.deviceNodeId);
+              setShelfOccupantMenu(null);
+            }}
+          >
+            Edit Device
+          </button>
+          <div className="border-t border-neutral-100 my-0.5" />
+          <button
+            className="w-full text-left px-3 py-1.5 hover:bg-neutral-100 text-red-600"
+            onClick={() => {
+              removeRackPlacement(page.id, shelfOccupantMenu.placement.id);
+              setShelfOccupantMenu(null);
+            }}
+          >
+            Remove from shelf (unrack)
+          </button>
+        </div>
+      )}
+
+      {/* Shelf-delete confirm dialog (occupants present) */}
+      {shelfDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-[60]" onClick={() => setShelfDeleteConfirm(null)}>
+          <div className="bg-white rounded-lg shadow-xl p-4 w-80 text-xs" onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-semibold text-sm mb-2">Remove shelf?</h3>
+            <p className="text-neutral-600 mb-3">
+              "{shelfDeleteConfirm.label}" has {shelfDeleteConfirm.occupantCount} mounted device{shelfDeleteConfirm.occupantCount === 1 ? "" : "s"}.
+              Removing the shelf will return {shelfDeleteConfirm.occupantCount === 1 ? "it" : "them"} to the unracked sidebar pool.
+            </p>
+            <div className="flex justify-end gap-2">
+              <button className="px-3 py-1 rounded border border-neutral-300 hover:bg-neutral-50" onClick={() => setShelfDeleteConfirm(null)}>Cancel</button>
+              <button
+                className="px-3 py-1 rounded bg-red-600 text-white hover:bg-red-700"
+                onClick={() => {
+                  removeRackAccessoryWithOccupants(page.id, shelfDeleteConfirm.accessoryId);
+                  setShelfDeleteConfirm(null);
+                }}
+              >
+                Remove shelf & unrack devices
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

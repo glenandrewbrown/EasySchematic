@@ -544,6 +544,25 @@ export interface RackDevicePlacement {
   face: "front" | "rear";
   /** For half-rack-width devices mounted in a 19" rack */
   halfRackSide?: "left" | "right";
+  /** When set, this device sits on the shelf accessory with that ID; uPosition/face are
+   *  inherited from the shelf and `halfRackSide` is ignored. */
+  mountedOnShelfId?: string;
+  /** Only meaningful when mountedOnShelfId is set: device is laid on its side
+   *  (90° rotation around the depth axis). Width and height swap when rendered. */
+  rotated?: boolean;
+  /** Only meaningful when mountedOnShelfId is set: free-form position on the shelf,
+   *  in mm. `x` is offset from the shelf's left inner-rail; `y` is height above the
+   *  shelf surface (for stacking). Default {x:0, y:0} when undefined. */
+  shelfOffsetMm?: { x: number; y: number };
+}
+
+/** A front + rear pair whose summed depth exceeds the rack's internal depth at overlapping U positions. */
+export interface RackDepthConflict {
+  aId: string;
+  bId: string;
+  uOverlapStart: number;
+  uOverlapEnd: number;
+  depthOverhangMm: number;
 }
 
 export type RackAccessoryType = "blank-panel" | "vent-panel" | "shelf" | "drawer" | "cable-manager" | "fan-unit";
@@ -565,6 +584,9 @@ export interface RackAccessory {
   heightU: number;
   face: "front" | "rear";
   label?: string;
+  /** Usable depth for shelf-mounted gear in mm (only meaningful when type === "shelf").
+   *  Defaults to ~60% of rack.depthMm when unset. */
+  shelfDepthMm?: number;
 }
 
 export interface SchematicPage {
@@ -654,6 +676,8 @@ export interface SchematicFile {
   colorKeyOverrides?: Partial<Record<SignalType, boolean>>;
   /** Rack elevation pages */
   pages?: SchematicPage[];
+  /** Show connector-level face-plate detail in rack views (default off; advanced) */
+  showFacePlateDetail?: boolean;
   /** Cable unit costs keyed by "cableType|signalType|cableLength" */
   cableCosts?: Record<string, number>;
   /** Force-case device/port/slot labels on write (normal = leave as-typed) */
