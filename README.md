@@ -35,6 +35,9 @@
 - **Rooms** — resizable dashed-border containers for grouping devices, with lock/unlock to prevent accidental moves
 - **Room dimensions** — give a room its real width × depth × ceiling height in meters; dimensions display on the canvas and scale intra-room cable-length estimates from actual device positions
 - **Custom room shapes** — right-click a room → Edit Shape to drag corners, add corners on any wall, and build L-shaped or irregular floor plans; each wall shows its real length in meters, updating live as you reshape
+- **Layers** — Photoshop-style layers panel (right edge): show/hide and lock layers, rename, move any selection onto a layer; hidden layers hide their devices and connections
+- **Device icons** — pick a glyph per device (camera, mic, speaker, computer, …) in the device editor, shown before the device name on the canvas
+- **Software devices** — mark a device as software running inside a host computer (right-click → Run Inside); it renders with a "runs on" badge
 - **Auto-numbering** — dropped devices auto-increment (Camera → Camera 1, Camera 2, …)
 - **Dark mode** — toggle light/dark themes from the menu bar; saved automatically, respects OS setting on first visit
 - **Mobile support** — mobile detection with hamburger menu and touch-friendly pan controls
