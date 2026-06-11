@@ -135,6 +135,7 @@ export default function DeviceEditor() {
 
   const [label, setLabel] = useState("");
   const [shortName, setShortName] = useState("");
+  const [icon, setIcon] = useState("");
   /** Tri-state per-instance toggle: undefined = inherit schematic default. */
   const [useShortName, setUseShortName] = useState<boolean | undefined>(undefined);
   const [wrapLabel, setWrapLabelState] = useState<boolean | undefined>(undefined);
@@ -216,6 +217,7 @@ export default function DeviceEditor() {
       : undefined;
     setLabel(node.data.label);
     setShortName(node.data.shortName ?? "");
+    setIcon(node.data.icon ?? "");
     setUseShortName(node.data.useShortName);
     setWrapLabelState(node.data.wrapLabel);
     setHostname(node.data.hostname ?? "");
@@ -325,6 +327,9 @@ export default function DeviceEditor() {
       ...(category.trim() ? { category: category.trim() } : {}),
       ...(existing?.templateId ? { templateId: existing.templateId } : {}),
       ...(existing?.templateVersion ? { templateVersion: existing.templateVersion } : {}),
+      ...(existing?.layerId ? { layerId: existing.layerId } : {}),
+      ...(existing?.hostDeviceId ? { hostDeviceId: existing.hostDeviceId } : {}),
+      ...(icon ? { icon } : {}),
       ...(color ? { color } : {}),
       ...(headerColor ? { headerColor } : {}),
       ...(existing?.model ? { model: existing.model } : {}),
@@ -358,7 +363,7 @@ export default function DeviceEditor() {
     updateDevice(editingNodeId, data);
     setCreatingNodeId(null); // commit the node — close won't undo it
     close();
-  }, [editingNodeId, ports, label, shortName, useShortName, wrapLabel, hostname, deviceType, manufacturer, modelNumber, referenceUrl, category, color, headerColor, node, updateDevice, close, setCreatingNodeId, showAllPorts, hiddenPorts, dhcpServer, powerDrawW, powerCapacityW, voltage, thermalBtuh, poeBudgetW, poeDrawW, unitCost, heightMm, widthMm, depthMm, weightKg, isCableAccessory, integratedWithCable, isVenueProvided, adapterVisibility, auxiliaryData, searchTermsRaw]);
+  }, [editingNodeId, ports, label, shortName, icon, useShortName, wrapLabel, hostname, deviceType, manufacturer, modelNumber, referenceUrl, category, color, headerColor, node, updateDevice, close, setCreatingNodeId, showAllPorts, hiddenPorts, dhcpServer, powerDrawW, powerCapacityW, voltage, thermalBtuh, poeBudgetW, poeDrawW, unitCost, heightMm, widthMm, depthMm, weightKg, isCableAccessory, integratedWithCable, isVenueProvided, adapterVisibility, auxiliaryData, searchTermsRaw]);
 
   // Ctrl+Enter anywhere in the editor → Apply & Close
   const onCtrlEnter = useCallback((e: React.KeyboardEvent) => {
@@ -844,6 +849,28 @@ export default function DeviceEditor() {
                 onChange={(e) => setShortName(e.target.value)}
                 placeholder="e.g. HDC-5500"
               />
+            </Field>
+            <Field label="Icon">
+              <div className="flex flex-wrap items-center gap-1">
+                {["🎥", "📹", "📷", "🎤", "🎙", "🔊", "🎛", "🎚", "🖥", "💻", "📺", "📡", "🌐", "🔀", "💡", "🔌", "⚡", "🗄", "☁️", "⚙️"].map((glyph) => (
+                  <button
+                    key={glyph}
+                    type="button"
+                    onClick={() => setIcon(icon === glyph ? "" : glyph)}
+                    className={`w-7 h-7 rounded-md text-sm flex items-center justify-center cursor-pointer transition-colors ${
+                      icon === glyph
+                        ? "bg-[var(--color-accent-soft)] ring-1 ring-[var(--color-accent)]"
+                        : "hover:bg-[var(--color-surface-hover)]"
+                    }`}
+                    title={icon === glyph ? "Click to remove icon" : "Use this icon"}
+                  >
+                    {glyph}
+                  </button>
+                ))}
+              </div>
+              <div className="text-[10px] text-[var(--color-text-muted)] mt-0.5">
+                Shown before the device name on the canvas.
+              </div>
             </Field>
             <div className="col-span-2 flex flex-wrap gap-x-4 gap-y-1 -mt-1">
               {(() => {

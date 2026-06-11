@@ -218,6 +218,12 @@ export interface InstalledSlot {
 
 export interface DeviceData {
   [key: string]: unknown;
+  /** Layer membership (SchematicLayer.id). Absent = default layer. */
+  layerId?: string;
+  /** Display glyph shown before the device label on the canvas. */
+  icon?: string;
+  /** When set, this device is software running inside the named host device. */
+  hostDeviceId?: string;
   label: string;
   /** Short alternative name (e.g. "HDC-5500" instead of "Sony HDC-5500 Studio Camera").
    *  Initialized from template.shortName at placement; editable per-instance. */
@@ -322,6 +328,8 @@ export interface RoomData {
   borderStyle?: "dashed" | "solid" | "dotted";
   labelSize?: number;
   locked?: boolean;
+  /** Layer membership (SchematicLayer.id). Absent = default layer. */
+  layerId?: string;
   isEquipmentRack?: boolean;
   linkedRackPageId?: string;
   linkedRackId?: string;
@@ -340,6 +348,8 @@ export type RoomNode = Node<RoomData, "room">;
 
 export interface NoteData {
   [key: string]: unknown;
+  /** Layer membership (SchematicLayer.id). Absent = default layer. */
+  layerId?: string;
   /** HTML content from contentEditable */
   html: string;
 }
@@ -348,6 +358,8 @@ export type NoteNode = Node<NoteData, "note">;
 
 export interface AnnotationData {
   [key: string]: unknown;
+  /** Layer membership (SchematicLayer.id). Absent = default layer. */
+  layerId?: string;
   /** Shape type for the annotation (#24) */
   shape: "rectangle" | "ellipse" | "circle" | "diamond" | "triangle";
   /** Fill color */
@@ -399,6 +411,8 @@ export type SchematicNode = DeviceNode | RoomNode | NoteNode | AnnotationNode | 
 
 export interface ConnectionData {
   [key: string]: unknown;
+  /** Layer membership (SchematicLayer.id). Absent = default layer. */
+  layerId?: string;
   signalType: SignalType;
   manualWaypoints?: { x: number; y: number }[];
   /** When true, manualWaypoints were auto-generated from A* route and can be overwritten on re-route */
@@ -513,6 +527,17 @@ export interface OwnedGearItem {
   template: DeviceTemplate;
   quantity: number;
 }
+
+/** A named layer for organizing schematic content (Photoshop-style show/hide/lock). */
+export interface SchematicLayer {
+  id: string;
+  name: string;
+  visible: boolean;
+  locked: boolean;
+}
+
+/** The implicit layer that unassigned content belongs to. */
+export const DEFAULT_LAYER_ID = "default";
 
 /** A physical cable (or stock of identical cables) the user owns. */
 export interface OwnedCableItem {
@@ -706,6 +731,7 @@ export interface SchematicFile {
   customTemplates?: DeviceTemplate[];
   ownedGear?: OwnedGearItem[];
   ownedCables?: OwnedCableItem[];
+  layers?: SchematicLayer[];
   signalColors?: Partial<Record<SignalType, string>>;
   signalLineStyles?: Partial<Record<SignalType, LineStyle>>;
   printPaperId?: string;

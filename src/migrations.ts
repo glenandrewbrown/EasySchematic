@@ -16,7 +16,7 @@ import { defaultStubPlacement } from "./stubPlacement";
 import { getPortAbsolutePositions } from "./snapUtils";
 import type { SchematicNode } from "./types";
 
-export const CURRENT_SCHEMA_VERSION = 41;
+export const CURRENT_SCHEMA_VERSION = 42;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Migration = (data: any) => any;
@@ -495,6 +495,13 @@ const migrations: Record<number, Migration> = {
     // v40 → v41: floor-plan rooms. Adds optional heightM and shape (normalized
     // polygon vertices) to RoomData. No data transform needed.
     data.version = 41;
+    return data;
+  },
+  41: (data) => {
+    // v41 → v42: layers, device icons, software-host links. Seeds the layers
+    // array with the default layer; everything else is optional fields.
+    data.layers ??= [{ id: "default", name: "Base", visible: true, locked: false }];
+    data.version = 42;
     return data;
   },
 

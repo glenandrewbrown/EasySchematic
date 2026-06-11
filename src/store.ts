@@ -16,6 +16,7 @@ import type {
   DeviceTemplate,
   OwnedGearItem,
   OwnedCableItem,
+  SchematicLayer,
   Port,
   SchematicFile,
   SchematicPage,
@@ -37,7 +38,7 @@ import type { ReactFlowInstance } from "@xyflow/react";
 import type { SignalType, ScrollConfig, LineStyle, LabelCaseMode, DistanceSettings, PanMode, StubLabelPageMode } from "./types";
 import { defaultStubPlacement } from "./stubPlacement";
 import { getPortAbsolutePositions } from "./snapUtils";
-import { DEFAULT_SCROLL_CONFIG, DEFAULT_LABEL_CASE, DEFAULT_DISTANCE_SETTINGS, DEFAULT_PAN_MODE, DEFAULT_STUB_LABEL_SHOW_PORT, DEFAULT_STUB_LABEL_SHOW_ROOM, DEFAULT_STUB_LABEL_PAGE_MODE } from "./types";
+import { DEFAULT_LAYER_ID, DEFAULT_SCROLL_CONFIG, DEFAULT_LABEL_CASE, DEFAULT_DISTANCE_SETTINGS, DEFAULT_PAN_MODE, DEFAULT_STUB_LABEL_SHOW_PORT, DEFAULT_STUB_LABEL_SHOW_ROOM, DEFAULT_STUB_LABEL_PAGE_MODE } from "./types";
 import { pairKey } from "./roomDistance";
 import { DEFAULT_RECT_SHAPE } from "./roomShape";
 import type { Orientation } from "./printConfig";
@@ -328,6 +329,18 @@ interface SchematicState {
   setEditingRoomShape: (id: string | null) => void;
   /** Replace a room's normalized outline. Pass undefined to reset to rectangle. */
   updateRoomShape: (id: string, shape: { x: number; y: number }[] | undefined, recordUndo?: boolean) => void;
+
+  // Layers (Photoshop-style show/hide/lock)
+  layers: SchematicLayer[];
+  addLayer: (name: string) => void;
+  renameLayer: (id: string, name: string) => void;
+  removeLayer: (id: string) => void;
+  toggleLayerVisible: (id: string) => void;
+  toggleLayerLocked: (id: string) => void;
+  /** Move all currently-selected nodes and edges onto a layer. */
+  assignSelectionToLayer: (layerId: string) => void;
+  /** Link (or unlink with undefined) a software device to its host computer. */
+  setDeviceHost: (deviceId: string, hostId: string | undefined) => void;
 
   // Custom template organization (#62)
   customTemplateGroups: CustomTemplateGroup[];
@@ -1097,6 +1110,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
   customTemplates: _initCustomTemplates,
   ownedGear: [],
   ownedCables: [],
+  layers: [{ id: DEFAULT_LAYER_ID, name: "Base", visible: true, locked: false }],
   showOwnedGearPane: false,
   libraryActiveTab: "devices",
   customTemplateGroups: _initCustomMeta.groups,
@@ -3129,6 +3143,70 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
     });
   },
 
+
+  addLayer: (name) => {
+    set({ layers: [...get().layers, { id: crypto.randomUUID(), name, visible: true, locked: false }] });
+    get().saveToLocalStorage();
+  },
+
+  renameLayer: (id, name) => {
+    set({ layers: get().layers.map((l) => (l.id === id ? { ...l, name } : l)) });
+    get().saveToLocalStorage();
+  },
+
+  removeLayer: (id) => {
+    if (id === DEFAULT_LAYER_ID) return;
+    // Members fall back to the default layer so nothing disappears.
+    set({
+      layers: get().layers.filter((l) => l.id !== id),
+      nodes: get().nodes.map((n) =>
+        (n.data as { layerId?: string }).layerId === id
+          ? ({ ...n, data: { ...n.data, layerId: undefined } } as SchematicNode)
+          : n,
+      ),
+      edges: get().edges.map((e) =>
+        e.data?.layerId === id ? { ...e, data: { ...e.data!, layerId: undefined } } : e,
+      ),
+    });
+    get().saveToLocalStorage();
+  },
+
+  toggleLayerVisible: (id) => {
+    set({ layers: get().layers.map((l) => (l.id === id ? { ...l, visible: !l.visible } : l)) });
+    get().saveToLocalStorage();
+  },
+
+  toggleLayerLocked: (id) => {
+    set({ layers: get().layers.map((l) => (l.id === id ? { ...l, locked: !l.locked } : l)) });
+    get().saveToLocalStorage();
+  },
+
+  assignSelectionToLayer: (layerId) => {
+    pushUndo({ nodes: get().nodes, edges: get().edges });
+    const lid = layerId === DEFAULT_LAYER_ID ? undefined : layerId;
+    set({
+      nodes: get().nodes.map((n) =>
+        n.selected ? ({ ...n, data: { ...n.data, layerId: lid } } as SchematicNode) : n,
+      ),
+      edges: get().edges.map((e) =>
+        e.selected ? { ...e, data: { ...e.data!, layerId: lid } } : e,
+      ),
+    });
+    get().saveToLocalStorage();
+  },
+
+  setDeviceHost: (deviceId, hostId) => {
+    pushUndo({ nodes: get().nodes, edges: get().edges });
+    set({
+      nodes: get().nodes.map((n) =>
+        n.id === deviceId && n.type === "device"
+          ? ({ ...n, data: { ...n.data, hostDeviceId: hostId } } as SchematicNode)
+          : n,
+      ),
+    });
+    get().saveToLocalStorage();
+  },
+
   setShowOwnedGearPane: (show) => {
     set({
       showOwnedGearPane: show,
@@ -4414,6 +4492,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
       edges: state.edges.map(({ zIndex: _, selected: _s, ...rest }) => rest) as ConnectionEdge[],
       ownedGear: state.ownedGear.length > 0 ? state.ownedGear : undefined,
       ownedCables: state.ownedCables.length > 0 ? state.ownedCables : undefined,
+      layers: state.layers,
       signalColors: state.signalColors,
       signalLineStyles: state.signalLineStyles,
       printPaperId: state.printPaperId,
@@ -4505,6 +4584,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
             schematicName: data.name ?? "Demo Schematic",
             ownedGear: data.ownedGear ?? [],
         ownedCables: data.ownedCables ?? [],
+        layers: data.layers ?? [{ id: DEFAULT_LAYER_ID, name: "Base", visible: true, locked: false }],
             signalColors: data.signalColors,
             signalLineStyles: data.signalLineStyles,
             printPaperId: data.printPaperId ?? "arch-d",
@@ -4583,6 +4663,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
         schematicName: data.name ?? "Untitled Schematic",
         ownedGear: data.ownedGear ?? [],
         ownedCables: data.ownedCables ?? [],
+        layers: data.layers ?? [{ id: DEFAULT_LAYER_ID, name: "Base", visible: true, locked: false }],
         signalColors: data.signalColors,
         signalLineStyles: data.signalLineStyles,
         printPaperId: data.printPaperId ?? "arch-d",
@@ -4661,6 +4742,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
       customTemplates: state.customTemplates.length > 0 ? state.customTemplates : undefined,
       ownedGear: state.ownedGear.length > 0 ? state.ownedGear : undefined,
       ownedCables: state.ownedCables.length > 0 ? state.ownedCables : undefined,
+      layers: state.layers,
       signalColors: state.signalColors,
       signalLineStyles: state.signalLineStyles,
       printPaperId: state.printPaperId,
@@ -4754,6 +4836,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
       isDemo: false,
       ownedGear: data.ownedGear ?? [],
         ownedCables: data.ownedCables ?? [],
+        layers: data.layers ?? [{ id: DEFAULT_LAYER_ID, name: "Base", visible: true, locked: false }],
       signalColors: data.signalColors,
       signalLineStyles: data.signalLineStyles,
       printPaperId: data.printPaperId ?? "arch-d",
@@ -4858,6 +4941,8 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
         schematicName: "Untitled Schematic",
         isDemo: false,
         ownedGear: [],
+        ownedCables: [],
+        layers: [{ id: DEFAULT_LAYER_ID, name: "Base", visible: true, locked: false }],
         cloudSchematicId: null,
         cloudSavedAt: null,
         fileHandle: null,

@@ -32,6 +32,8 @@ import MenuBar from "./components/MenuBar";
 import EdgeContextMenu from "./components/EdgeContextMenu";
 import CableAssignDialog from "./components/CableAssignDialog";
 import CableInventoryDialog from "./components/CableInventoryDialog";
+import LayersPanel from "./components/LayersPanel";
+import { DEFAULT_LAYER_ID } from "./types";
 import IncompatibleConnectionDialog from "./components/IncompatibleConnectionDialog";
 import DeviceSwapDialog from "./components/DeviceSwapDialog";
 import MobileGate from "./components/MobileGate";
@@ -570,12 +572,64 @@ function SchematicCanvas() {
     s.edges.map((e) => `${e.id}:${e.source}:${e.sourceHandle}:${e.target}:${e.targetHandle}:${e.data?.manualWaypoints?.length ?? 0}:${e.data?.stubbed ? "s" : ""}`).join("|"),
   );
 
-  // Filter out edges whose signal type is hidden (presentation-only — store edges stay complete)
-  const visibleEdges = useMemo(() => {
-    if (!hiddenSignalTypesStr) return edges;
-    const hidden = new Set(hiddenSignalTypesStr.split(","));
-    return edges.filter((e) => !hidden.has(e.data?.signalType ?? ""));
-  }, [edges, hiddenSignalTypesStr]);
+  // Presentation-only filtering: hidden signal types + layer visibility/locking.
+  // Store nodes/edges stay complete; we only decorate what React Flow renders.
+  const layers = useSchematicStore((s) => s.layers);
+  const { renderNodes, visibleEdges } = useMemo(() => {
+    const sigHidden = hiddenSignalTypesStr ? new Set(hiddenSignalTypesStr.split(",")) : null;
+    const sigFiltered = sigHidden
+      ? edges.filter((e) => !sigHidden.has(e.data?.signalType ?? ""))
+      : edges;
+
+    const hiddenLayers = new Set(layers.filter((l) => !l.visible).map((l) => l.id));
+    const lockedLayers = new Set(layers.filter((l) => l.locked).map((l) => l.id));
+    if (hiddenLayers.size === 0 && lockedLayers.size === 0) {
+      return { renderNodes: nodes, visibleEdges: sigFiltered };
+    }
+
+    const layerOf = (lid: string | undefined) => lid ?? DEFAULT_LAYER_ID;
+    const nodeHidden = new Map<string, boolean>();
+    const mappedNodes = nodes.map((n) => {
+      if (n.type === "waypoint" || n.type === "stub-label") return n; // follow their edge below
+      const lid = layerOf((n.data as { layerId?: string }).layerId);
+      const hidden = hiddenLayers.has(lid);
+      const locked = lockedLayers.has(lid);
+      nodeHidden.set(n.id, hidden);
+      if (!hidden && !locked) return n;
+      return {
+        ...n,
+        ...(hidden ? { hidden: true } : {}),
+        ...(locked ? { draggable: false, selectable: false } : {}),
+      };
+    });
+
+    const mappedEdges = sigFiltered.map((e) => {
+      const hidden =
+        hiddenLayers.has(layerOf(e.data?.layerId)) ||
+        nodeHidden.get(e.source) === true ||
+        nodeHidden.get(e.target) === true;
+      return hidden ? { ...e, hidden: true } : e;
+    });
+
+    const hiddenEdgeIds = new Set(mappedEdges.filter((e) => e.hidden).map((e) => e.id));
+    const hiddenLinked = new Set(
+      mappedEdges
+        .filter((e) => e.hidden && e.data?.linkedConnectionId)
+        .map((e) => e.data!.linkedConnectionId as string),
+    );
+    const finalNodes = mappedNodes.map((n) => {
+      if (n.type === "waypoint") {
+        const eid = (n.data as { edgeId?: string }).edgeId;
+        return eid && hiddenEdgeIds.has(eid) ? { ...n, hidden: true } : n;
+      }
+      if (n.type === "stub-label") {
+        const lcid = (n.data as { linkedConnectionId?: string }).linkedConnectionId;
+        return lcid && hiddenLinked.has(lcid) ? { ...n, hidden: true } : n;
+      }
+      return n;
+    });
+    return { renderNodes: finalNodes, visibleEdges: mappedEdges };
+  }, [nodes, edges, hiddenSignalTypesStr, layers]);
 
   const autoRoute = useSchematicStore((s) => s.autoRoute);
   const edgeHitboxSize = useSchematicStore((s) => s.edgeHitboxSize);
@@ -1400,7 +1454,7 @@ function SchematicCanvas() {
         selectionDirection ? `selection-${selectionDirection}` : "",
         panMode === "pan-first" && !shiftHeld && !isMobile ? "pan-mode" : "",
       ].filter(Boolean).join(" ") || undefined}
-      nodes={nodes}
+      nodes={renderNodes}
       edges={visibleEdges}
       onNodesChange={onNodesChange}
       onNodeDragStart={onNodeDragStart}
@@ -1755,6 +1809,7 @@ export default function App() {
             <ViewOptionsPanel />
             <ShowInfoPanel />
             <SignalColorPanel />
+            <LayersPanel />
           </div>
         </div>
       ) : activePgType === "print-sheet" ? (

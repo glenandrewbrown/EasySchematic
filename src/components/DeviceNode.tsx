@@ -37,6 +37,11 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
   const setEditingNodeId = useSchematicStore((s) => s.setEditingNodeId);
   const displayLabel = useDisplayLabel();
   const useShortNames = useSchematicStore((s) => s.useShortNames);
+  const hostLabel = useSchematicStore((s) =>
+    data.hostDeviceId
+      ? ((s.nodes.find((n) => n.id === data.hostDeviceId)?.data as { label?: string } | undefined)?.label ?? null)
+      : null,
+  );
   const wrapDeviceLabels = useSchematicStore((s) => s.wrapDeviceLabels);
   const resolvedLabel = useMemo(
     () => resolveDeviceLabel(data, { useShortNames, wrapDeviceLabels }),
@@ -453,6 +458,7 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
             style={labelStyle}
             title={displayLabel(resolvedLabel.text)}
           >
+            {data.icon && <span style={{ marginRight: 4 }}>{data.icon}</span>}
             {displayLabel(resolvedLabel.text)}
           </span>
         </div>
@@ -473,6 +479,22 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
       {/* Header band — merged name strip + header aux rows. Height is always a 20-multiple
            (min 40) so the first port below stays on the pathfinding grid. */}
       {renderHeaderBand(headerAuxRows)}
+
+      {/* Software-host link badge — absolutely positioned above the node so it
+           never shifts the port grid */}
+      {hostLabel && (
+        <div
+          className="absolute -top-4 left-1/2 -translate-x-1/2 text-[8px] px-1.5 py-px rounded-full whitespace-nowrap border"
+          style={{
+            background: "var(--color-surface)",
+            borderColor: "var(--color-border)",
+            color: "var(--color-text-muted)",
+            pointerEvents: "none",
+          }}
+        >
+          ⚙ runs on {hostLabel}
+        </div>
+      )}
 
       {/* Port area — 8px top padding lands handle centers on the 20px grid:
            1px (outer top border) + headerBand(20-mult) + 1px (header border-b)

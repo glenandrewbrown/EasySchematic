@@ -11,6 +11,7 @@ import type { SchematicFile, SchematicNode, AnnotationData } from "../types";
 import ReportsDialog, { type ReportsTab } from "./ReportsDialog";
 import TitleBlockDialog from "./TitleBlockDialog";
 import AboutDialog from "./AboutDialog";
+import WhatsNewDialog from "./WhatsNewDialog";
 import PreferencesDialog from "./PreferencesDialog";
 import RoomDistancesDialog from "./RoomDistancesDialog";
 import AlignmentMenu from "./AlignmentMenu";
@@ -141,6 +142,9 @@ export default function MenuBar() {
   const [reportsTab, setReportsTab] = useState<ReportsTab | null>(null);
   const [showTitleBlockDialog, setShowTitleBlockDialog] = useState(false);
   const [showAboutDialog, setShowAboutDialog] = useState(false);
+  const [showWhatsNew, setShowWhatsNew] = useState(
+    () => localStorage.getItem("easyschematic-whatsnew-v42") !== "1",
+  );
   const [showPreferences, setShowPreferences] = useState(false);
   const [showRoomDistances, setShowRoomDistances] = useState(false);
   const [showCsvImport, setShowCsvImport] = useState(false);
@@ -645,6 +649,11 @@ export default function MenuBar() {
       },
       {
         type: "item",
+        label: "What's New...",
+        onClick: () => setShowWhatsNew(true),
+      },
+      {
+        type: "item",
         label: "About EasySchematic",
         onClick: () => setShowAboutDialog(true),
       },
@@ -990,6 +999,13 @@ export default function MenuBar() {
       {showTitleBlockDialog && (
         <TitleBlockDialog onClose={() => setShowTitleBlockDialog(false)} />
       )}
+      <WhatsNewDialog
+        open={showWhatsNew}
+        onClose={() => {
+          setShowWhatsNew(false);
+          localStorage.setItem("easyschematic-whatsnew-v42", "1");
+        }}
+      />
       {showAboutDialog && (
         <AboutDialog onClose={() => setShowAboutDialog(false)} />
       )}

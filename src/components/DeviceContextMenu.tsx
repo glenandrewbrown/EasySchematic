@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo } from "react";
 import { useSchematicStore } from "../store";
 import type { DeviceData, RackElevationPage } from "../types";
 import { useContextMenuPosition } from "../hooks/useContextMenuPosition";
+import MenuSubmenu from "./MenuSubmenu";
 import { inferRackHeightU } from "../rackUtils";
 
 export default function DeviceContextMenu() {
@@ -79,6 +80,61 @@ export default function DeviceContextMenu() {
     >
       <MenuItem label="Edit Properties..." onClick={editProperties} />
       <MenuItem label="Swap Device..." onClick={swapDevice} />
+      <MenuSubmenu label="Move to Layer">
+        {useSchematicStore.getState().layers.map((layer) => (
+          <MenuItem
+            key={layer.id}
+            label={layer.name}
+            onClick={() => {
+              const st = useSchematicStore.getState();
+              useSchematicStore.setState({
+                nodes: st.nodes.map((n) => ({ ...n, selected: n.id === nodeId })),
+                edges: st.edges.map((e) => ({ ...e, selected: false })),
+              });
+              useSchematicStore.getState().assignSelectionToLayer(layer.id);
+              useSchematicStore.setState({ deviceContextMenu: null });
+            }}
+          />
+        ))}
+      </MenuSubmenu>
+      {(() => {
+        const st = useSchematicStore.getState();
+        const hostCandidates = st.nodes.filter(
+          (n) =>
+            n.type === "device" &&
+            n.id !== nodeId &&
+            /comput|laptop|server|workstation|\bmac\b|\bpc\b/i.test(
+              `${(n.data as { deviceType?: string }).deviceType ?? ""} ${(n.data as { label?: string }).label ?? ""}`,
+            ),
+        );
+        const currentHost = deviceData?.hostDeviceId;
+        if (currentHost) {
+          return (
+            <MenuItem
+              label="Detach from Host"
+              onClick={() => {
+                useSchematicStore.getState().setDeviceHost(nodeId, undefined);
+                useSchematicStore.setState({ deviceContextMenu: null });
+              }}
+            />
+          );
+        }
+        if (hostCandidates.length === 0) return null;
+        return (
+          <MenuSubmenu label="Run Inside (Software)">
+            {hostCandidates.slice(0, 20).map((host) => (
+              <MenuItem
+                key={host.id}
+                label={(host.data as { label?: string }).label ?? host.id}
+                onClick={() => {
+                  useSchematicStore.getState().setDeviceHost(nodeId, host.id);
+                  useSchematicStore.setState({ deviceContextMenu: null });
+                }}
+              />
+            ))}
+          </MenuSubmenu>
+        );
+      })()}
 
       {deviceData && (
         <>
