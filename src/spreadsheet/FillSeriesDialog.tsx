@@ -45,7 +45,7 @@ export default function FillSeriesDialog({
       onClick={onClose}
     >
       <div
-        className="bg-white border border-[var(--color-border)] rounded-lg shadow-2xl w-[340px] p-0"
+        className="ui-dialog w-[340px]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="px-4 py-3 border-b border-[var(--color-border)]">
@@ -64,7 +64,7 @@ export default function FillSeriesDialog({
               {config.stepLabel}
             </label>
             <input
-              className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2 py-1.5 text-xs outline-none focus:border-blue-500"
+              className="ui-input w-full text-xs"
               type="number"
               value={step}
               onChange={(e) => setStep(Number(e.target.value))}
@@ -87,7 +87,7 @@ export default function FillSeriesDialog({
                 <div
                   key={i}
                   className={`px-2 py-0.5 text-xs font-mono flex items-center gap-2 ${
-                    i % 2 === 1 ? "bg-white/50" : ""
+                    i % 2 === 1 ? "bg-[var(--color-surface-raised)]/50" : ""
                   } ${invalidIndices.has(i) ? "text-red-500" : "text-[var(--color-text)]"}`}
                 >
                   <span className="text-[var(--color-text-muted)] text-[10px] w-5 text-right shrink-0">
@@ -107,16 +107,11 @@ export default function FillSeriesDialog({
         </div>
 
         <div className="px-4 py-3 border-t border-[var(--color-border)] flex justify-end gap-2">
-          <button
-            onClick={onClose}
-            className="px-3 py-1.5 text-xs rounded bg-[var(--color-surface)] text-[var(--color-text)] hover:bg-[var(--color-surface-hover)] border border-[var(--color-border)] transition-colors cursor-pointer"
-          >
-            Cancel
-          </button>
+          <button onClick={onClose} className="ui-btn ui-btn-secondary">Cancel</button>
           <button
             onClick={handleApply}
             disabled={!canApply}
-            className="px-3 py-1.5 text-xs rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer font-medium"
+            className="ui-btn ui-btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Apply
           </button>

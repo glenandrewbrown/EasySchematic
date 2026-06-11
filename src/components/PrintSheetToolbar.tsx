@@ -31,11 +31,11 @@ export default function PrintSheetToolbar({ page }: Props) {
   };
 
   return (
-    <div className="flex items-center gap-3 px-3 py-1.5 bg-blue-50 border-b border-blue-200 text-xs" data-print-hide>
+    <div className="flex items-center gap-3 px-3 py-1.5 bg-[var(--color-surface)] border-b border-[var(--ui-border)] text-xs" data-print-hide>
       {/* Paper size */}
-      <label className="text-neutral-500 uppercase tracking-wider" style={{ fontSize: 9 }}>Paper</label>
+      <label className="text-[var(--color-text-muted)] uppercase tracking-wider" style={{ fontSize: 9 }}>Paper</label>
       <select
-        className="bg-white border border-neutral-200 rounded px-2 py-0.5 text-xs outline-none focus:border-blue-400"
+        className="ui-input"
         value={page.paperId}
         onChange={(e) => setPrintSheetPaper(page.id, e.target.value, page.orientation, page.customWidthIn, page.customHeightIn)}
       >
@@ -53,7 +53,7 @@ export default function PrintSheetToolbar({ page }: Props) {
             step={0.01}
             value={page.customWidthIn ?? 24}
             onChange={(e) => setPrintSheetPaper(page.id, "custom", page.orientation, Number(e.target.value), page.customHeightIn ?? 36)}
-            className="w-16 bg-white border border-neutral-200 rounded px-2 py-0.5 text-xs outline-none focus:border-blue-400"
+            className="w-16 ui-input"
             title="Width (in)"
           />
           <span className="text-neutral-400">×</span>
@@ -64,16 +64,16 @@ export default function PrintSheetToolbar({ page }: Props) {
             step={0.01}
             value={page.customHeightIn ?? 36}
             onChange={(e) => setPrintSheetPaper(page.id, "custom", page.orientation, page.customWidthIn ?? 24, Number(e.target.value))}
-            className="w-16 bg-white border border-neutral-200 rounded px-2 py-0.5 text-xs outline-none focus:border-blue-400"
+            className="w-16 ui-input"
             title="Height (in)"
           />
-          <span className="text-neutral-500" style={{ fontSize: 9 }}>in</span>
+          <span className="text-[var(--color-text-muted)]" style={{ fontSize: 9 }}>in</span>
         </>
       )}
 
       {/* Orientation */}
       <button
-        className={`px-2 py-0.5 rounded border text-xs transition-colors ${page.orientation === "landscape" ? "bg-blue-50 border-blue-400 text-blue-700" : "bg-white border-neutral-200 text-neutral-600 hover:border-neutral-400"}`}
+        className={`px-2 py-0.5 rounded border text-xs transition-colors ${page.orientation === "landscape" ? "bg-[var(--color-accent-soft)] border-[var(--color-accent)] text-[var(--color-accent)]" : "ui-btn ui-btn-ghost"}`}
         onClick={() => setPrintSheetPaper(page.id, page.paperId, page.orientation === "landscape" ? "portrait" : "landscape")}
       >
         {page.orientation === "landscape" ? "↔ Landscape" : "↕ Portrait"}
@@ -91,17 +91,17 @@ export default function PrintSheetToolbar({ page }: Props) {
             }));
           }}
         />
-        <span className="text-neutral-600">Title Block</span>
+        <span className="text-[var(--color-text)]">Title Block</span>
       </label>
 
-      <div className="border-l border-neutral-200 h-4" />
+      <div className="border-l border-[var(--ui-border)] h-4" />
 
       {/* Auto-fill from rack */}
       {elevationPages.length > 0 && (
         <div className="flex items-center gap-1">
-          <span className="text-neutral-500">Auto-Fill from:</span>
+          <span className="text-[var(--color-text-muted)]">Auto-Fill from:</span>
           <select
-            className="bg-white border border-neutral-200 rounded px-2 py-0.5 text-xs outline-none focus:border-blue-400"
+            className="ui-input"
             defaultValue=""
             onChange={(e) => {
               const [pageId, rackId] = e.target.value.split("|");
@@ -124,9 +124,9 @@ export default function PrintSheetToolbar({ page }: Props) {
       {/* Add viewport manually */}
       {elevationPages.length > 0 && (
         <div className="flex items-center gap-1">
-          <span className="text-neutral-500">Add View:</span>
+          <span className="text-[var(--color-text-muted)]">Add View:</span>
           <select
-            className="bg-white border border-neutral-200 rounded px-2 py-0.5 text-xs outline-none focus:border-blue-400"
+            className="ui-input"
             defaultValue=""
             onChange={(e) => {
               const [kind, pageId, rackId] = e.target.value.split("|");
@@ -158,7 +158,7 @@ export default function PrintSheetToolbar({ page }: Props) {
 
       {/* Sheet count */}
       {sheetCount > 1 && (
-        <span className="text-neutral-500" style={{ fontFamily: "monospace", fontSize: 11 }}>
+        <span className="text-[var(--color-text-muted)]" style={{ fontFamily: "monospace", fontSize: 11 }}>
           Sheet {sheetIndex} of {sheetCount}
         </span>
       )}
@@ -166,7 +166,7 @@ export default function PrintSheetToolbar({ page }: Props) {
       {/* Clear all */}
       {page.viewports.length > 0 && (
         <button
-          className="px-2 py-0.5 text-xs text-red-500 hover:text-red-700 hover:bg-red-50 rounded border border-transparent hover:border-red-200 transition-colors"
+          className="ui-btn ui-btn-danger"
           onClick={() => { for (const vp of page.viewports) removeViewport(page.id, vp.id); }}
         >
           Clear All
@@ -175,7 +175,7 @@ export default function PrintSheetToolbar({ page }: Props) {
 
       {/* Export PDF — same handler as File → Export → Export Print Sheets */}
       <button
-        className="px-3 py-1 text-xs font-medium bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+        className="ui-btn ui-btn-primary"
         onClick={() => { void runPrintSheetExport(); }}
       >
         Export PDF

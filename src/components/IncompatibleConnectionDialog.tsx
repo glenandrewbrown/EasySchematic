@@ -51,7 +51,7 @@ export default function IncompatibleConnectionDialog() {
       onClick={dismiss}
     >
       <div
-        className="bg-white border border-[var(--color-border)] rounded-lg shadow-2xl w-[440px] flex flex-col"
+        className="ui-dialog w-[440px]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -113,23 +113,13 @@ export default function IncompatibleConnectionDialog() {
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-[var(--color-border)]">
-          <button
-            onClick={dismiss}
-            className="px-3 py-1.5 text-xs rounded border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer text-[var(--color-text)]"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={forceConnect}
-            className="px-3 py-1.5 text-xs rounded border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer text-[var(--color-text)]"
-          >
-            Connect Anyway
-          </button>
+        <div className="px-4 py-3 border-t border-[var(--ui-border)] flex justify-end gap-2">
+          <button onClick={dismiss} className="ui-btn ui-btn-secondary">Cancel</button>
+          <button onClick={forceConnect} className="ui-btn ui-btn-secondary">Connect Anyway</button>
           <button
             onClick={handleInsert}
             disabled={selectedIdx === null}
-            className="px-3 py-1.5 text-xs rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            className="ui-btn ui-btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Insert Adapter
           </button>

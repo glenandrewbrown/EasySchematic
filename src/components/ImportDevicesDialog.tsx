@@ -135,26 +135,20 @@ export default function ImportDevicesDialog({ open, onClose }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center"
-      style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+      className="ui-dialog-backdrop z-[9999]"
       onClick={close}
     >
       <div
-        className="rounded-lg shadow-xl w-[820px] max-w-[95vw] max-h-[92vh] flex flex-col"
-        style={{
-          backgroundColor: "var(--color-surface)",
-          color: "var(--color-text)",
-          border: "1px solid var(--color-border)",
-        }}
+        className="ui-dialog w-[820px] max-w-[95vw] max-h-[92vh]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-4 py-3 border-b" style={{ borderColor: "var(--color-border)" }}>
+        <div className="px-4 py-3 border-b border-[var(--ui-border)]">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold" style={{ color: "var(--color-text-heading)" }}>
+            <h2 className="text-sm font-semibold text-[var(--color-text-heading)]">
               Import Devices
             </h2>
-            <button onClick={close} className="text-[var(--color-text-muted)] hover:text-[var(--color-text)] cursor-pointer">✕</button>
+            <button onClick={close} className="ui-btn ui-btn-ghost">✕</button>
           </div>
           <p className="text-[11px] text-[var(--color-text-muted)] mt-1">
             Bulk-add device templates to your library. See the{" "}
@@ -170,14 +164,14 @@ export default function ImportDevicesDialog({ open, onClose }: Props) {
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b" style={{ borderColor: "var(--color-border)" }}>
+        <div className="flex border-b border-[var(--ui-border)]">
           {(["json", "csv"] as const).map((t) => (
             <button
               key={t}
               onClick={() => { setTab(t); setText(""); setSkipped(new Set()); }}
               className={`px-4 py-2 text-xs cursor-pointer ${
                 tab === t
-                  ? "border-b-2 border-blue-500 text-[var(--color-text-heading)] font-medium"
+                  ? "border-b-2 border-[var(--color-accent)] text-[var(--color-text-heading)] font-medium"
                   : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
               }`}
             >
@@ -191,13 +185,13 @@ export default function ImportDevicesDialog({ open, onClose }: Props) {
           <div className="flex items-center gap-2">
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="px-3 py-1 rounded border border-[var(--color-border)] bg-white text-xs hover:bg-[var(--color-surface-hover)] cursor-pointer"
+              className="ui-btn ui-btn-secondary"
             >
               Upload {tab === "json" ? "JSON file" : "CSV file"}
             </button>
             <button
               onClick={loadSample}
-              className="px-3 py-1 rounded border border-[var(--color-border)] bg-white text-xs hover:bg-[var(--color-surface-hover)] cursor-pointer"
+              className="ui-btn ui-btn-secondary"
             >
               Load sample
             </button>
@@ -217,8 +211,7 @@ export default function ImportDevicesDialog({ open, onClose }: Props) {
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder={tab === "json" ? "Paste device JSON here…" : "Paste CSV here…"}
-            className="w-full h-32 px-2 py-1 text-[11px] font-mono rounded border outline-none focus:border-blue-500 resize-y"
-            style={{ backgroundColor: "var(--color-bg)", borderColor: "var(--color-border)" }}
+            className="ui-input w-full h-32 text-[11px] font-mono resize-y"
           />
 
           {result && (
@@ -233,9 +226,8 @@ export default function ImportDevicesDialog({ open, onClose }: Props) {
               )}
 
               {result.templates.length > 0 && (
-                <div className="border rounded" style={{ borderColor: "var(--color-border)" }}>
-                  <div className="px-3 py-2 border-b text-[11px] text-[var(--color-text-muted)] flex items-center gap-2"
-                       style={{ borderColor: "var(--color-border)" }}>
+                <div className="border border-[var(--ui-border)] rounded">
+                  <div className="px-3 py-2 border-b border-[var(--ui-border)] text-[11px] text-[var(--color-text-muted)] flex items-center gap-2">
                     <span>
                       {result.templates.length} template{result.templates.length === 1 ? "" : "s"} parsed •{" "}
                       <span className="text-emerald-700">{result.templates.filter((t) => t.validation.ok).length} valid</span>
@@ -268,25 +260,24 @@ export default function ImportDevicesDialog({ open, onClose }: Props) {
                 value={submitterNote}
                 onChange={(e) => setSubmitterNote(e.target.value)}
                 placeholder="e.g. Imported from Extron stencil 2024.1"
-                className="w-full px-2 py-1 text-xs rounded border outline-none focus:border-blue-500"
-                style={{ backgroundColor: "var(--color-bg)", borderColor: "var(--color-border)" }}
+                className="ui-input w-full"
               />
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div className="px-4 py-3 border-t flex items-center justify-end gap-2" style={{ borderColor: "var(--color-border)" }}>
+        <div className="px-4 py-3 border-t border-[var(--ui-border)] flex items-center justify-end gap-2">
           <button
             onClick={close}
-            className="px-3 py-1.5 rounded border border-[var(--color-border)] bg-white text-xs hover:bg-[var(--color-surface-hover)] cursor-pointer"
+            className="ui-btn ui-btn-secondary"
           >
             Cancel
           </button>
           <button
             onClick={handleAddAndSubmit}
             disabled={selectedTemplates.length === 0 || submitting}
-            className="px-3 py-1.5 rounded border border-blue-300 bg-white text-xs text-blue-700 hover:bg-blue-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+            className="ui-btn ui-btn-secondary disabled:opacity-40 disabled:cursor-not-allowed"
             title="Adds to your library AND submits to the community library for review"
           >
             {submitting ? "Submitting…" : `Add & Submit (${selectedTemplates.length})`}
@@ -294,7 +285,7 @@ export default function ImportDevicesDialog({ open, onClose }: Props) {
           <button
             onClick={handleAddToLibrary}
             disabled={selectedTemplates.length === 0 || submitting}
-            className="px-4 py-1.5 rounded bg-blue-500 text-white text-xs hover:bg-blue-600 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+            className="ui-btn ui-btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Add {selectedTemplates.length} to Library
           </button>
@@ -312,10 +303,9 @@ function PreviewRow({ pt, skipped, onToggle }: { pt: ParsedTemplate; skipped: bo
 
   return (
     <div
-      className={`px-3 py-2 border-b flex items-start gap-2 text-xs ${
+      className={`px-3 py-2 border-b border-[var(--ui-border)] flex items-start gap-2 text-xs ${
         skipped ? "opacity-40" : ""
       } ${badRow ? "bg-red-50/40" : ""}`}
-      style={{ borderColor: "var(--color-border)" }}
     >
       <input
         type="checkbox"

@@ -97,10 +97,10 @@ export default function DeviceSwapDialog() {
         onClick={close}
       >
         <div
-          className="bg-white border border-[var(--color-border)] rounded-lg shadow-2xl w-[440px] flex flex-col"
+          className="ui-dialog w-[440px]"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--color-border)]">
+          <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--ui-border)]">
             <span className="text-sm font-semibold text-[var(--color-text-heading)]">
               Swap '{oldDevice.label}' for...
             </span>
@@ -160,13 +160,8 @@ export default function DeviceSwapDialog() {
               )}
             </div>
           </div>
-          <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-[var(--color-border)]">
-            <button
-              onClick={close}
-              className="px-3 py-1.5 text-xs rounded border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer text-[var(--color-text)]"
-            >
-              Cancel
-            </button>
+          <div className="px-4 py-3 border-t border-[var(--ui-border)] flex justify-end gap-2">
+            <button onClick={close} className="ui-btn ui-btn-secondary">Cancel</button>
           </div>
         </div>
       </div>
@@ -197,11 +192,11 @@ export default function DeviceSwapDialog() {
       onClick={close}
     >
       <div
-        className="bg-white border border-[var(--color-border)] rounded-lg shadow-2xl w-[720px] max-h-[85vh] flex flex-col"
+        className="ui-dialog w-[720px]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--color-border)]">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--ui-border)]">
           <span className="text-sm font-semibold text-[var(--color-text-heading)]">
             Swap '{oldDevice.label}' → '{pickedTemplate.label}'
           </span>
@@ -308,7 +303,7 @@ export default function DeviceSwapDialog() {
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between gap-2 px-5 py-3 border-t border-[var(--color-border)]">
+        <div className="flex items-center justify-between gap-2 px-5 py-3 border-t border-[var(--ui-border)]">
           <div className="text-[11px] text-[var(--color-text-muted)]">
             <span className="text-green-700 font-medium">{summary.remapped}</span> remapped
             {summary.dropped > 0 && (
@@ -316,24 +311,9 @@ export default function DeviceSwapDialog() {
             )}
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={back}
-              className="px-3 py-1.5 text-xs rounded border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer text-[var(--color-text)]"
-            >
-              ← Pick different
-            </button>
-            <button
-              onClick={close}
-              className="px-3 py-1.5 text-xs rounded border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer text-[var(--color-text)]"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={confirm}
-              className="px-3 py-1.5 text-xs rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors cursor-pointer"
-            >
-              Confirm Swap
-            </button>
+            <button onClick={back} className="ui-btn ui-btn-secondary">← Pick different</button>
+            <button onClick={close} className="ui-btn ui-btn-secondary">Cancel</button>
+            <button onClick={confirm} className="ui-btn ui-btn-primary">Confirm Swap</button>
           </div>
         </div>
       </div>
@@ -397,7 +377,7 @@ function MappingRow({
         <select
           value={newPortPreview?.id ?? ""}
           onChange={(e) => onChange(e.target.value || null)}
-          className="w-full bg-white border border-[var(--color-border)] rounded px-1.5 py-1 text-xs text-[var(--color-text-heading)] outline-none focus:border-blue-500"
+          className="ui-input w-full text-xs"
         >
           <option value="">— Drop these connections —</option>
           {(["input", "output", "bidirectional", "passthrough"] as const).map((dir) =>

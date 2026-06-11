@@ -97,7 +97,7 @@ export default function SelectionFilterBar() {
     <>
       {panelOpen && <BulkConnectionEditPanel onClose={() => setPanelOpen(false)} />}
       <div
-        className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[40] flex items-center gap-1.5 px-2 py-1.5 bg-white border border-[var(--color-border)] rounded-lg shadow-lg"
+        className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[40] flex items-center gap-1.5 px-2 py-1.5 bg-[var(--color-surface-raised)] border border-[var(--ui-border)] rounded-lg shadow-[var(--ui-shadow-raised)]"
         data-print-hide
         onMouseDown={(e) => e.stopPropagation()}
       >

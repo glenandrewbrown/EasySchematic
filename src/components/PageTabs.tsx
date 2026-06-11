@@ -92,22 +92,22 @@ export default function PageTabs() {
   };
 
   const tabClass = (isActive: boolean, isPrint = false) =>
-    `px-3 py-1 rounded-t border border-b-0 whitespace-nowrap transition-colors ${
+    `px-3 py-1 my-1 rounded-md whitespace-nowrap transition-colors cursor-pointer ${
       isActive
         ? isPrint
-          ? "bg-white border-violet-400 font-semibold text-violet-900"
-          : "bg-white border-neutral-300 font-semibold text-neutral-900"
+          ? "bg-[var(--color-surface-raised)] ring-1 ring-violet-400/60 shadow-[var(--ui-shadow-raised)] font-semibold text-violet-700 dark:text-violet-300"
+          : "bg-[var(--color-surface-raised)] ring-1 ring-[var(--ui-border-strong)] shadow-[var(--ui-shadow-raised)] font-semibold text-[var(--color-text-heading)]"
         : isPrint
-          ? "bg-violet-50 border-transparent text-violet-600 hover:bg-violet-100"
-          : "bg-neutral-200 border-transparent text-neutral-600 hover:bg-neutral-50"
+          ? "text-violet-600/80 hover:text-violet-700 hover:bg-violet-500/10 dark:text-violet-300/70 dark:hover:text-violet-300"
+          : "text-[var(--color-text-muted)] hover:text-[var(--color-text-heading)] hover:bg-[var(--color-surface-hover)]"
     }`;
 
   return (
     <>
       <div
         data-print-hide
-        className="flex items-center gap-0.5 bg-neutral-100 border-b border-neutral-300 px-2 py-0 text-xs select-none overflow-x-auto"
-        style={{ minHeight: 28 }}
+        className="flex items-center gap-1 bg-[var(--color-surface)] border-b border-[var(--ui-border)] px-2 py-0 text-xs select-none overflow-x-auto"
+        style={{ minHeight: 32 }}
       >
         {/* Schematic tab */}
         <button className={tabClass(activePage === "schematic")} onClick={() => setActivePage("schematic")}>
@@ -129,7 +129,7 @@ export default function PageTabs() {
               {editingId === page.id ? (
                 <input
                   ref={inputRef}
-                  className="bg-white border border-blue-400 rounded px-1 py-0 text-xs w-24 outline-none"
+                  className="bg-[var(--color-surface-raised)] border border-[var(--color-accent)] rounded px-1 py-0 text-xs w-24 outline-none text-[var(--color-text-heading)]"
                   value={editValue}
                   onChange={(e) => setEditValue(e.target.value)}
                   onBlur={commitRename}
@@ -149,7 +149,7 @@ export default function PageTabs() {
 
         {/* Add rack page */}
         <button
-          className="px-2 py-1 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-200 rounded"
+          className="px-2 py-1 rounded-md text-[var(--color-text-muted)] hover:text-[var(--color-text-heading)] hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer"
           onClick={() => addRackPage(`Rack Page ${pages.filter((p) => p.type === "rack-elevation").length + 1}`)}
           title="Add rack elevation page"
         >
@@ -158,7 +158,7 @@ export default function PageTabs() {
 
         {/* Add print sheet */}
         <button
-          className="px-2 py-1 text-violet-400 hover:text-violet-700 hover:bg-violet-100 rounded"
+          className="px-2 py-1 rounded-md text-violet-500/80 hover:text-violet-700 hover:bg-violet-500/10 dark:hover:text-violet-300 transition-colors cursor-pointer"
           onClick={() => addPrintSheetPage()}
           title="Add print sheet"
         >
@@ -170,28 +170,29 @@ export default function PageTabs() {
       {contextMenu && menuPage && (
         <div
           ref={menuRef}
-          className="fixed z-50 bg-white border border-gray-300 rounded shadow-lg py-1 min-w-[140px] text-xs"
+          className="chrome-menu fixed z-50 min-w-[150px] text-xs"
           style={{ left: contextMenu.x, top: contextMenu.y }}
           onMouseDown={(e) => e.stopPropagation()}
         >
-          <div className="px-3 py-1 text-[10px] uppercase tracking-wider text-neutral-400 border-b border-neutral-100 mb-1 truncate">
+          <div className="px-2.5 py-1 text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] truncate">
             {isPrintSheet ? "📄 " : ""}{menuPage.label}
           </div>
+          <div className="h-px bg-[var(--ui-border)] my-1" />
           <button
-            className="w-full text-left px-3 py-1.5 text-gray-700 hover:bg-blue-50 hover:text-blue-700 cursor-pointer"
+            className="w-full text-left px-2.5 py-1.5 rounded-md text-[var(--color-text)] hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer"
             onClick={handleRename}
           >
             Rename
           </button>
           <button
-            className="w-full text-left px-3 py-1.5 text-gray-700 hover:bg-blue-50 hover:text-blue-700 cursor-pointer"
+            className="w-full text-left px-2.5 py-1.5 rounded-md text-[var(--color-text)] hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer"
             onClick={handleDuplicate}
           >
             Duplicate
           </button>
-          <div className="border-t border-gray-100 my-1" />
+          <div className="h-px bg-[var(--ui-border)] my-1" />
           <button
-            className="w-full text-left px-3 py-1.5 text-red-600 hover:bg-red-50 hover:text-red-700 cursor-pointer"
+            className="w-full text-left px-2.5 py-1.5 rounded-md text-red-600 dark:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
             onClick={handleDelete}
           >
             Delete

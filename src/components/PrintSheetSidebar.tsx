@@ -16,24 +16,24 @@ export default function PrintSheetSidebar() {
   if (elevationPages.length === 0) return null;
 
   return (
-    <div className="w-44 bg-white border-r border-neutral-200 overflow-y-auto flex flex-col text-xs" data-print-hide>
-      <div className="px-2 pt-2 pb-1 font-semibold text-neutral-500 uppercase tracking-wider" style={{ fontSize: 9 }}>
+    <div className="w-44 bg-[var(--color-surface)] border-r border-[var(--ui-border)] overflow-y-auto flex flex-col text-xs" data-print-hide>
+      <div className="px-2 pt-2 pb-1 font-semibold text-[var(--color-text-muted)] uppercase tracking-wider" style={{ fontSize: 9 }}>
         Drag to Sheet
       </div>
       {elevationPages.map((ep) => (
         <div key={ep.id} className="mb-2">
-          <div className="px-2 py-0.5 text-neutral-600 font-medium truncate" title={ep.label}>
+          <div className="px-2 py-0.5 text-[var(--color-text)] font-medium truncate" title={ep.label}>
             {ep.label}
           </div>
           {ep.racks.map((rack) => (
             <div key={rack.id} className="ml-2 mb-1">
-              <div className="px-2 py-0.5 text-neutral-500 truncate" title={rack.label} style={{ fontSize: 10 }}>
+              <div className="px-2 py-0.5 text-[var(--color-text-muted)] truncate" title={rack.label} style={{ fontSize: 10 }}>
                 {rack.label} ({rack.heightU}U)
               </div>
               {(["rack-front", "rack-rear", "rack-side"] as const).map((kind) => (
                 <div
                   key={kind}
-                  className="ml-2 px-2 py-0.5 rounded cursor-grab text-neutral-600 hover:bg-blue-50 hover:text-blue-700 border border-transparent hover:border-blue-200 transition-colors"
+                  className="ml-2 px-2 py-0.5 rounded cursor-grab text-[var(--color-text)] hover:bg-[var(--color-accent-soft)] hover:text-[var(--color-accent)] border border-transparent hover:border-[var(--color-accent-soft)] transition-colors"
                   draggable
                   onDragStart={(e) => handleDragStart(e, ep.id, rack.id, kind)}
                   onClick={() => {

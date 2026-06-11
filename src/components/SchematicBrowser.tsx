@@ -126,27 +126,21 @@ export default function SchematicBrowser({ onClose }: { onClose: () => void }) {
 
   return (
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center"
-      style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+      className="ui-dialog-backdrop z-[9999]"
       onClick={onClose}
     >
       <div
-        className="rounded-lg shadow-xl w-[560px] max-w-[90vw] max-h-[80vh] flex flex-col"
-        style={{
-          backgroundColor: "var(--color-surface)",
-          color: "var(--color-text)",
-          border: "1px solid var(--color-border)",
-        }}
+        className="ui-dialog w-[560px] max-w-[90vw] max-h-[80vh]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-5 py-4 border-b flex items-center justify-between shrink-0" style={{ borderColor: "var(--color-border)" }}>
+        <div className="px-4 py-3 border-b border-[var(--ui-border)] flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2">
-            <h2 className="text-sm font-semibold" style={{ color: "var(--color-text-heading)" }}>
+            <h2 className="text-sm font-semibold text-[var(--color-text-heading)]">
               My Schematics
             </h2>
             {!loading && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ backgroundColor: "var(--color-bg)", color: "var(--color-text-muted)" }}>
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--color-surface)] text-[var(--color-text-muted)]">
                 {schematics.length} / 10
               </span>
             )}
@@ -175,9 +169,9 @@ export default function SchematicBrowser({ onClose }: { onClose: () => void }) {
           )}
 
           {loading ? (
-            <p className="text-xs py-8 text-center" style={{ color: "var(--color-text-muted)" }}>Loading...</p>
+            <p className="text-xs py-8 text-center text-[var(--color-text-muted)]">Loading...</p>
           ) : schematics.length === 0 ? (
-            <p className="text-xs py-8 text-center" style={{ color: "var(--color-text-muted)" }}>
+            <p className="text-xs py-8 text-center text-[var(--color-text-muted)]">
               {isOnline
                 ? "No saved schematics yet. Use File → Save to Cloud to save your first schematic."
                 : "No cached schematics available offline."
@@ -206,11 +200,11 @@ export default function SchematicBrowser({ onClose }: { onClose: () => void }) {
                         autoFocus
                       />
                     ) : (
-                      <p className="text-xs font-medium truncate" style={{ color: "var(--color-text-heading)" }}>
+                      <p className="text-xs font-medium truncate text-[var(--color-text-heading)]">
                         {s.name}
                       </p>
                     )}
-                    <p className="text-[10px] mt-0.5" style={{ color: "var(--color-text-muted)" }}>
+                    <p className="text-[10px] mt-0.5 text-[var(--color-text-muted)]">
                       {formatDate(s.updated_at)}{s.size_bytes ? ` · ${formatSize(s.size_bytes)}` : ""}
                       {s.shared ? " · Shared" : ""}
                       {s.is_template ? " · New File Template" : ""}
@@ -223,7 +217,7 @@ export default function SchematicBrowser({ onClose }: { onClose: () => void }) {
                       onClick={() => handleOpen(s)}
                       disabled={!canOpen(s)}
                       title={canOpen(s) ? undefined : "Not cached — open when online"}
-                      className="px-2 py-1 text-[10px] rounded bg-blue-600 text-white hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                      className="ui-btn ui-btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       Open
                     </button>
@@ -290,18 +284,10 @@ export default function SchematicBrowser({ onClose }: { onClose: () => void }) {
         </div>
 
         {/* Footer */}
-        <div
-          className="px-5 py-3 flex justify-end border-t shrink-0"
-          style={{ borderColor: "var(--color-border)" }}
-        >
+        <div className="px-4 py-3 border-t border-[var(--ui-border)] flex justify-end shrink-0">
           <button
             onClick={onClose}
-            className="px-3 py-1.5 text-xs rounded transition-colors cursor-pointer"
-            style={{
-              backgroundColor: "var(--color-surface)",
-              color: "var(--color-text)",
-              border: "1px solid var(--color-border)",
-            }}
+            className="ui-btn ui-btn-secondary"
           >
             Close
           </button>

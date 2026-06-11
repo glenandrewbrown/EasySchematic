@@ -15,6 +15,7 @@ import type {
   ConnectionData,
   DeviceTemplate,
   OwnedGearItem,
+  OwnedCableItem,
   Port,
   SchematicFile,
   SchematicPage,
@@ -38,6 +39,7 @@ import { defaultStubPlacement } from "./stubPlacement";
 import { getPortAbsolutePositions } from "./snapUtils";
 import { DEFAULT_SCROLL_CONFIG, DEFAULT_LABEL_CASE, DEFAULT_DISTANCE_SETTINGS, DEFAULT_PAN_MODE, DEFAULT_STUB_LABEL_SHOW_PORT, DEFAULT_STUB_LABEL_SHOW_ROOM, DEFAULT_STUB_LABEL_PAGE_MODE } from "./types";
 import { pairKey } from "./roomDistance";
+import { DEFAULT_RECT_SHAPE } from "./roomShape";
 import type { Orientation } from "./printConfig";
 import { computeAlignment, resolveAlignmentOverlaps, type AlignOperation } from "./alignUtils";
 import { CURRENT_SCHEMA_VERSION, migrateSchematic } from "./migrations";
@@ -215,6 +217,7 @@ interface SchematicState {
   creatingNodeId: string | null;
   customTemplates: DeviceTemplate[];
   ownedGear: OwnedGearItem[];
+  ownedCables: OwnedCableItem[];
   showOwnedGearPane: boolean;
   libraryActiveTab: "devices" | "owned";
 
@@ -306,6 +309,25 @@ interface SchematicState {
   removeOwnedGear: (templateKey: string) => void;
   setShowOwnedGearPane: (show: boolean) => void;
   setLibraryActiveTab: (tab: "devices" | "owned") => void;
+
+  // Owned cable inventory + per-connection assignment (cable fit)
+  addOwnedCable: (item: Omit<OwnedCableItem, "id">) => void;
+  updateOwnedCable: (id: string, patch: Partial<Omit<OwnedCableItem, "id">>) => void;
+  removeOwnedCable: (id: string) => void;
+  setEdgeAssignedCables: (edgeId: string, cableIds: string[]) => void;
+  /** Edge id currently open in the Assign Cables dialog, or null. */
+  cableAssignEdgeId: string | null;
+  setCableAssignEdgeId: (edgeId: string | null) => void;
+  /** True while the Cable Inventory dialog is open. */
+  showCableInventory: boolean;
+  setShowCableInventory: (show: boolean) => void;
+
+  // Floor-plan room shapes
+  /** Room whose floor-plan outline is being vertex-edited, or null. */
+  editingRoomShapeId: string | null;
+  setEditingRoomShape: (id: string | null) => void;
+  /** Replace a room's normalized outline. Pass undefined to reset to rectangle. */
+  updateRoomShape: (id: string, shape: { x: number; y: number }[] | undefined, recordUndo?: boolean) => void;
 
   // Custom template organization (#62)
   customTemplateGroups: CustomTemplateGroup[];
@@ -1074,6 +1096,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
   creatingNodeId: null,
   customTemplates: _initCustomTemplates,
   ownedGear: [],
+  ownedCables: [],
   showOwnedGearPane: false,
   libraryActiveTab: "devices",
   customTemplateGroups: _initCustomMeta.groups,
@@ -3014,6 +3037,98 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
     get().saveToLocalStorage();
   },
 
+  addOwnedCable: (item) => {
+    const cable: OwnedCableItem = { ...item, id: crypto.randomUUID() };
+    set({ ownedCables: [...get().ownedCables, cable] });
+    get().saveToLocalStorage();
+  },
+
+  updateOwnedCable: (id, patch) => {
+    set({
+      ownedCables: get().ownedCables.map((c) => (c.id === id ? { ...c, ...patch } : c)),
+    });
+    get().saveToLocalStorage();
+  },
+
+  removeOwnedCable: (id) => {
+    // Strip the cable from any connection chains so assignments never dangle.
+    const edges = get().edges.map((e) =>
+      e.data?.assignedCableIds?.includes(id)
+        ? { ...e, data: { ...e.data, assignedCableIds: e.data.assignedCableIds.filter((cid) => cid !== id) } }
+        : e,
+    );
+    set({ ownedCables: get().ownedCables.filter((c) => c.id !== id), edges });
+    get().saveToLocalStorage();
+  },
+
+  setEdgeAssignedCables: (edgeId, cableIds) => {
+    pushUndo({ nodes: get().nodes, edges: get().edges });
+    // Mirror the chain total into cableLength so the cable schedule, pack
+    // list, and CSV export pick the assignment up with zero extra plumbing.
+    const byId = new Map(get().ownedCables.map((c) => [c.id, c]));
+    const chain = cableIds
+      .map((cid) => byId.get(cid))
+      .filter((c): c is OwnedCableItem => !!c);
+    const total = chain.reduce((sum, c) => sum + c.length, 0);
+    const unit = get().distanceSettings?.unit ?? "ft";
+    const summary =
+      chain.length > 0
+        ? `${Number.isInteger(total) ? total : total.toFixed(1)} ${unit}${
+            chain.length > 1 ? ` (${chain.map((c) => c.length).join("+")})` : ""
+          }`
+        : undefined;
+    set({
+      edges: get().edges.map((e) =>
+        e.id === edgeId
+          ? {
+              ...e,
+              data: {
+                ...e.data!,
+                assignedCableIds: cableIds.length > 0 ? cableIds : undefined,
+                ...(summary !== undefined ? { cableLength: summary } : {}),
+              },
+            }
+          : e,
+      ),
+    });
+    get().saveToLocalStorage();
+  },
+
+  cableAssignEdgeId: null,
+  setCableAssignEdgeId: (edgeId) => set({ cableAssignEdgeId: edgeId }),
+  showCableInventory: false,
+  setShowCableInventory: (show) => set({ showCableInventory: show }),
+
+  editingRoomShapeId: null,
+  setEditingRoomShape: (id) => {
+    if (id) {
+      const node = get().nodes.find((n) => n.id === id && n.type === "room");
+      const shape = (node?.data as { shape?: { x: number; y: number }[] } | undefined)?.shape;
+      if (node && (!shape || shape.length < 3)) {
+        // Seed editing with the room's current rectangle outline.
+        get().updateRoomShape(id, DEFAULT_RECT_SHAPE.map((p) => ({ ...p })), true);
+      }
+    }
+    set({ editingRoomShapeId: id });
+  },
+
+  updateRoomShape: (id, shape, recordUndo = false) => {
+    if (recordUndo) pushUndo({ nodes: get().nodes, edges: get().edges });
+    set({
+      nodes: get().nodes.map((n) =>
+        n.id === id && n.type === "room"
+          ? ({
+              ...n,
+              data: {
+                ...n.data,
+                shape: shape && shape.length >= 3 ? shape : undefined,
+              },
+            } as SchematicNode)
+          : n,
+      ),
+    });
+  },
+
   setShowOwnedGearPane: (show) => {
     set({
       showOwnedGearPane: show,
@@ -4298,6 +4413,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
       nodes: state.nodes,
       edges: state.edges.map(({ zIndex: _, selected: _s, ...rest }) => rest) as ConnectionEdge[],
       ownedGear: state.ownedGear.length > 0 ? state.ownedGear : undefined,
+      ownedCables: state.ownedCables.length > 0 ? state.ownedCables : undefined,
       signalColors: state.signalColors,
       signalLineStyles: state.signalLineStyles,
       printPaperId: state.printPaperId,
@@ -4388,6 +4504,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
             isDemo: true,
             schematicName: data.name ?? "Demo Schematic",
             ownedGear: data.ownedGear ?? [],
+        ownedCables: data.ownedCables ?? [],
             signalColors: data.signalColors,
             signalLineStyles: data.signalLineStyles,
             printPaperId: data.printPaperId ?? "arch-d",
@@ -4465,6 +4582,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
         edges: data.edges,
         schematicName: data.name ?? "Untitled Schematic",
         ownedGear: data.ownedGear ?? [],
+        ownedCables: data.ownedCables ?? [],
         signalColors: data.signalColors,
         signalLineStyles: data.signalLineStyles,
         printPaperId: data.printPaperId ?? "arch-d",
@@ -4542,6 +4660,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
       edges: state.edges.map(({ zIndex: _, selected: _s, ...rest }) => rest) as ConnectionEdge[],
       customTemplates: state.customTemplates.length > 0 ? state.customTemplates : undefined,
       ownedGear: state.ownedGear.length > 0 ? state.ownedGear : undefined,
+      ownedCables: state.ownedCables.length > 0 ? state.ownedCables : undefined,
       signalColors: state.signalColors,
       signalLineStyles: state.signalLineStyles,
       printPaperId: state.printPaperId,
@@ -4634,6 +4753,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
       schematicName: data.name ?? "Imported Schematic",
       isDemo: false,
       ownedGear: data.ownedGear ?? [],
+        ownedCables: data.ownedCables ?? [],
       signalColors: data.signalColors,
       signalLineStyles: data.signalLineStyles,
       printPaperId: data.printPaperId ?? "arch-d",

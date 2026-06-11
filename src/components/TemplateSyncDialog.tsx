@@ -55,20 +55,20 @@ export default function TemplateSyncDialog({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
+      className="ui-dialog-backdrop"
       onClick={onCancel}
     >
       <div
-        className="bg-white border border-[var(--color-border)] rounded-lg shadow-2xl w-[480px] flex flex-col max-h-[80vh]"
+        className="ui-dialog w-[480px] max-h-[80vh]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--color-border)]">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--ui-border)]">
           <span className="text-sm font-semibold text-[var(--color-text-heading)]">
             Update from template — v{device.templateVersion} → v{template.version}
           </span>
           <button
             onClick={onCancel}
-            className="text-[var(--color-text-muted)] hover:text-[var(--color-text)] text-lg leading-none cursor-pointer"
+            className="ui-btn ui-btn-ghost text-lg leading-none"
           >
             &times;
           </button>
@@ -139,16 +139,16 @@ export default function TemplateSyncDialog({
           </section>
         </div>
 
-        <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-[var(--color-border)]">
+        <div className="px-4 py-3 border-t border-[var(--ui-border)] flex justify-end gap-2">
           <button
             onClick={onCancel}
-            className="px-3 py-1.5 text-xs rounded border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer text-[var(--color-text)]"
+            className="ui-btn ui-btn-secondary"
           >
             Cancel
           </button>
           <button
             onClick={onConfirm}
-            className="px-3 py-1.5 text-xs rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors cursor-pointer"
+            className="ui-btn ui-btn-primary"
           >
             Update
           </button>

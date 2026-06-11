@@ -71,11 +71,11 @@ export default function RackSidebar({ page }: RackSidebarProps) {
   }, []);
 
   return (
-    <div className="w-56 bg-white border-r border-neutral-300 flex flex-col text-xs overflow-hidden">
+    <div className="w-56 bg-[var(--color-surface)] border-r border-[var(--ui-border)] flex flex-col text-xs overflow-hidden">
       {/* Add Rack section */}
-      <div className="p-2 border-b border-neutral-200">
+      <div className="p-2 border-b border-[var(--ui-border)]">
         <button
-          className="w-full px-2 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium"
+          className="ui-btn ui-btn-primary w-full"
           onClick={() => setShowAddRack(true)}
         >
           + Add Rack
@@ -84,13 +84,13 @@ export default function RackSidebar({ page }: RackSidebarProps) {
 
       {/* Page totals */}
       {pageStats && (
-        <div className="p-2 border-b border-neutral-200 bg-neutral-50">
-          <div className="font-semibold text-neutral-500 mb-1 uppercase tracking-wider" style={{ fontSize: 9 }}>
+        <div className="p-2 border-b border-[var(--ui-border)] bg-[var(--color-surface)]">
+          <div className="font-semibold text-[var(--color-text-muted)] mb-1 uppercase tracking-wider" style={{ fontSize: 9 }}>
             Page Totals
           </div>
-          <div className="text-neutral-700 text-[11px] leading-tight">{formatStatsLine(pageStats)}</div>
+          <div className="text-[var(--color-text)] text-[11px] leading-tight">{formatStatsLine(pageStats)}</div>
           {(pageStats.unknownDepthCount > 0 || pageStats.unknownWeightCount > 0 || pageStats.unknownPowerCount > 0) && (
-            <div className="text-neutral-400 text-[10px] mt-0.5">
+            <div className="text-[var(--color-text-muted)] text-[10px] mt-0.5">
               {[
                 pageStats.unknownDepthCount > 0 ? `${pageStats.unknownDepthCount} unknown depth` : null,
                 pageStats.unknownWeightCount > 0 ? `${pageStats.unknownWeightCount} unknown weight` : null,
@@ -103,18 +103,18 @@ export default function RackSidebar({ page }: RackSidebarProps) {
 
       {/* Racks on this page */}
       {page.racks.length > 0 && (
-        <div className="p-2 border-b border-neutral-200">
-          <div className="font-semibold text-neutral-500 mb-1 uppercase tracking-wider" style={{ fontSize: 9 }}>
+        <div className="p-2 border-b border-[var(--ui-border)]">
+          <div className="font-semibold text-[var(--color-text-muted)] mb-1 uppercase tracking-wider" style={{ fontSize: 9 }}>
             Racks
           </div>
           {page.racks.map((rack) => {
             const placementCount = page.placements.filter((p) => p.rackId === rack.id).length;
             const isEditing = editingRackId === rack.id;
             return (
-              <div key={rack.id} className="flex items-center justify-between py-0.5 text-neutral-700 group">
+              <div key={rack.id} className="flex items-center justify-between py-0.5 text-[var(--color-text)] group">
                 {isEditing ? (
                   <input
-                    className="flex-1 min-w-0 bg-white border border-blue-400 rounded px-1 py-0 text-xs outline-none"
+                    className="flex-1 min-w-0 bg-[var(--color-surface-raised)] border border-[var(--color-accent)] rounded px-1 py-0 text-xs outline-none"
                     value={editingRackLabel}
                     autoFocus
                     onChange={(e) => setEditingRackLabel(e.target.value)}
@@ -137,23 +137,23 @@ export default function RackSidebar({ page }: RackSidebarProps) {
                     {rack.label} ({rack.heightU}U)
                   </span>
                 )}
-                <span className="text-neutral-400 text-[10px] shrink-0 ml-1 flex items-center gap-1">
+                <span className="text-[var(--color-text-muted)] text-[10px] shrink-0 ml-1 flex items-center gap-1">
                   {placementCount > 0 && <span>{placementCount} dev</span>}
                   {otherElevationPages.length > 0 && (
                     <div className="relative">
                       <button
-                        className="text-neutral-300 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="text-[var(--color-text-muted)] hover:text-[var(--color-accent)] opacity-0 group-hover:opacity-100 transition-opacity"
                         title="Move to page"
                         onClick={(e) => { e.stopPropagation(); setMoveMenuRackId(moveMenuRackId === rack.id ? null : rack.id); }}
                       >
                         →
                       </button>
                       {moveMenuRackId === rack.id && (
-                        <div className="absolute right-0 top-5 z-50 bg-white border border-neutral-200 rounded shadow-lg py-1 min-w-[120px]">
+                        <div className="absolute right-0 top-5 z-50 bg-[var(--color-surface-raised)] border border-[var(--ui-border)] rounded shadow-[var(--ui-shadow-menu)] py-1 min-w-[120px]">
                           {otherElevationPages.map((p) => (
                             <button
                               key={p.id}
-                              className="w-full text-left px-3 py-1 text-xs text-neutral-700 hover:bg-blue-50 hover:text-blue-700"
+                              className="w-full text-left px-3 py-1 text-xs text-[var(--color-text)] hover:bg-[var(--color-accent-soft)] hover:text-[var(--color-accent)]"
                               onClick={() => { moveRackToPage(page.id, rack.id, p.id); setMoveMenuRackId(null); }}
                             >
                               {p.label}
@@ -164,7 +164,7 @@ export default function RackSidebar({ page }: RackSidebarProps) {
                     </div>
                   )}
                   <button
-                    className="text-neutral-300 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="text-[var(--color-text-muted)] hover:text-[var(--color-accent)] opacity-0 group-hover:opacity-100 transition-opacity"
                     title={`Edit ${rack.label}`}
                     onClick={() => setEditRack(rack)}
                   >
@@ -192,7 +192,7 @@ export default function RackSidebar({ page }: RackSidebarProps) {
       <div className="flex-1 overflow-y-auto p-2 flex flex-col gap-2">
         {unrackedDevices.length > 0 && (
           <input
-            className="w-full bg-neutral-50 border border-neutral-200 rounded px-2 py-1 text-xs outline-none focus:border-blue-400"
+            className="w-full bg-[var(--color-surface)] border border-[var(--ui-border)] rounded px-2 py-1 text-xs outline-none focus:border-blue-400"
             placeholder="Search devices…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -200,7 +200,7 @@ export default function RackSidebar({ page }: RackSidebarProps) {
           />
         )}
         {unrackedDevices.length === 0 ? (
-          <div className="text-neutral-400 py-2">All devices placed</div>
+          <div className="text-[var(--color-text-muted)] py-2">All devices placed</div>
         ) : (() => {
           const q = search.trim().toLowerCase();
           const matchesSearch = (node: typeof unrackedDevices[number]) => {
@@ -220,14 +220,14 @@ export default function RackSidebar({ page }: RackSidebarProps) {
             return (
               <div
                 key={node.id}
-                className="flex items-center justify-between px-2 py-1 rounded bg-neutral-50 border border-neutral-200 cursor-grab hover:bg-blue-50 hover:border-blue-300"
+                className="flex items-center justify-between px-2 py-1 rounded bg-[var(--color-surface)] border border-[var(--ui-border)] cursor-grab hover:bg-[var(--color-accent-soft)] hover:border-[var(--color-accent)]"
                 draggable
                 onDragStart={(e) => handleDragStart(e, node.id, heightU)}
                 onDragEnd={handleDragEnd}
                 title={needsShelf ? `No height set — drop on a shelf accessory · ${data.label}` : data.label}
               >
                 <span className="truncate">{resolved.text}</span>
-                <span className="text-neutral-400 ml-1 shrink-0">
+                <span className="text-[var(--color-text-muted)] ml-1 shrink-0">
                   {needsShelf ? <span className="text-amber-600" title="needs shelf">⬚</span> : `${heightU}U`}
                 </span>
               </div>
@@ -264,7 +264,7 @@ export default function RackSidebar({ page }: RackSidebarProps) {
               ))}
               {otherUnracked.length > 0 && (
                 <div>
-                  <div className="font-semibold text-neutral-500 mb-0.5 uppercase tracking-wider" style={{ fontSize: 8 }}>
+                  <div className="font-semibold text-[var(--color-text-muted)] mb-0.5 uppercase tracking-wider" style={{ fontSize: 8 }}>
                     {groups.length > 0 ? `Other Unracked (${otherUnracked.length})` : `Unracked Devices (${otherUnracked.length})`}
                   </div>
                   <div className="flex flex-col gap-0.5">
@@ -320,13 +320,13 @@ function EditRackDialog({ pageId, rack, onClose }: { pageId: string; rack: RackD
 
   return (
     <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50" onClick={onClose}>
-      <form className="bg-white rounded-lg shadow-xl p-4 w-80 text-xs" onClick={(e) => e.stopPropagation()} onSubmit={handleSubmit}>
+      <form className="bg-[var(--color-surface-raised)] rounded-lg shadow-[var(--ui-shadow-raised)] p-4 w-80 text-xs" onClick={(e) => e.stopPropagation()} onSubmit={handleSubmit}>
         <h3 className="font-semibold text-sm mb-3">Edit Rack</h3>
 
         <label className="block mb-2">
-          <span className="text-neutral-600">Label</span>
+          <span className="text-[var(--color-text)]">Label</span>
           <input
-            className="mt-0.5 w-full border border-neutral-300 rounded px-2 py-1 outline-none focus:border-blue-400"
+            className="mt-0.5 w-full ui-input"
             value={label}
             onChange={(e) => setLabel(e.target.value)}
             onKeyDown={(e) => e.stopPropagation()}
@@ -335,9 +335,9 @@ function EditRackDialog({ pageId, rack, onClose }: { pageId: string; rack: RackD
         </label>
 
         <label className="block mb-2">
-          <span className="text-neutral-600">Type</span>
+          <span className="text-[var(--color-text)]">Type</span>
           <select
-            className="mt-0.5 w-full border border-neutral-300 rounded px-2 py-1 outline-none focus:border-blue-400"
+            className="mt-0.5 w-full ui-input"
             value={rackType}
             onChange={(e) => setRackType(e.target.value as RackType)}
           >
@@ -349,10 +349,10 @@ function EditRackDialog({ pageId, rack, onClose }: { pageId: string; rack: RackD
 
         <div className="flex gap-2 mb-3">
           <label className="block flex-1">
-            <span className="text-neutral-600">Height (U)</span>
+            <span className="text-[var(--color-text)]">Height (U)</span>
             <input
               type="number"
-              className="mt-0.5 w-full border border-neutral-300 rounded px-2 py-1 outline-none focus:border-blue-400"
+              className="mt-0.5 w-full ui-input"
               value={heightU}
               onChange={(e) => setHeightU(Number(e.target.value))}
               onKeyDown={(e) => e.stopPropagation()}
@@ -361,10 +361,10 @@ function EditRackDialog({ pageId, rack, onClose }: { pageId: string; rack: RackD
             />
           </label>
           <label className="block flex-1">
-            <span className="text-neutral-600">Depth (mm)</span>
+            <span className="text-[var(--color-text)]">Depth (mm)</span>
             <input
               type="number"
-              className="mt-0.5 w-full border border-neutral-300 rounded px-2 py-1 outline-none focus:border-blue-400"
+              className="mt-0.5 w-full ui-input"
               value={depthMm}
               onChange={(e) => setDepthMm(Number(e.target.value))}
               onKeyDown={(e) => e.stopPropagation()}
@@ -375,14 +375,14 @@ function EditRackDialog({ pageId, rack, onClose }: { pageId: string; rack: RackD
           </label>
         </div>
 
-        <p className="text-neutral-400 text-[10px] mb-3">
+        <p className="text-[var(--color-text-muted)] text-[10px] mb-3">
           Reducing the U height does not delete devices already placed at higher U positions —
           they'll just sit outside the visible frame until you move or remove them.
         </p>
 
         <div className="flex justify-end gap-2">
-          <button type="button" className="px-3 py-1 rounded border border-neutral-300 hover:bg-neutral-50" onClick={onClose}>Cancel</button>
-          <button type="submit" className="px-3 py-1 rounded bg-blue-600 text-white hover:bg-blue-700">Save</button>
+          <button type="button" className="ui-btn ui-btn-secondary" onClick={onClose}>Cancel</button>
+          <button type="submit" className="ui-btn ui-btn-primary">Save</button>
         </div>
       </form>
     </div>
@@ -445,18 +445,18 @@ function AddRackDialog({ pageId, rackCount, onClose }: { pageId: string; rackCou
 
   return (
     <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-white rounded-lg shadow-xl p-4 w-80 text-xs" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-[var(--color-surface-raised)] rounded-lg shadow-[var(--ui-shadow-raised)] p-4 w-80 text-xs" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-semibold text-sm">Add Rack</h3>
-          <div className="flex rounded overflow-hidden border border-neutral-300">
+          <div className="flex rounded overflow-hidden border border-[var(--ui-border-strong)]">
             <button
-              className={`px-2 py-0.5 ${mode === "presets" ? "bg-blue-600 text-white" : "bg-white text-neutral-600"}`}
+              className={`px-2 py-0.5 ${mode === "presets" ? "bg-blue-600 text-white" : "bg-[var(--color-surface-raised)] text-[var(--color-text)]"}`}
               onClick={() => setMode("presets")}
             >
               Presets
             </button>
             <button
-              className={`px-2 py-0.5 ${mode === "custom" ? "bg-blue-600 text-white" : "bg-white text-neutral-600"}`}
+              className={`px-2 py-0.5 ${mode === "custom" ? "bg-blue-600 text-white" : "bg-[var(--color-surface-raised)] text-[var(--color-text)]"}`}
               onClick={() => setMode("custom")}
             >
               Custom
@@ -469,23 +469,23 @@ function AddRackDialog({ pageId, rackCount, onClose }: { pageId: string; rackCou
             {RACK_PRESETS.map((preset) => (
               <button
                 key={preset.label}
-                className="flex items-center justify-between px-3 py-2 rounded border border-neutral-200 hover:border-blue-400 hover:bg-blue-50 text-left transition-colors"
+                className="flex items-center justify-between px-3 py-2 rounded border border-[var(--ui-border)] hover:border-[var(--color-accent)] hover:bg-[var(--color-accent-soft)] text-left transition-colors"
                 onClick={() => applyPreset(preset)}
               >
                 <div>
-                  <div className="font-medium text-neutral-800">{preset.label}</div>
-                  <div className="text-neutral-400 text-[10px]">{preset.description}</div>
+                  <div className="font-medium text-[var(--color-text-heading)]">{preset.label}</div>
+                  <div className="text-[var(--color-text-muted)] text-[10px]">{preset.description}</div>
                 </div>
-                <span className="text-neutral-400 shrink-0 ml-2">{preset.heightU}U</span>
+                <span className="text-[var(--color-text-muted)] shrink-0 ml-2">{preset.heightU}U</span>
               </button>
             ))}
           </div>
         ) : (
           <form onSubmit={handleCustomSubmit}>
             <label className="block mb-2">
-              <span className="text-neutral-600">Label</span>
+              <span className="text-[var(--color-text)]">Label</span>
               <input
-                className="mt-0.5 w-full border border-neutral-300 rounded px-2 py-1 outline-none focus:border-blue-400"
+                className="mt-0.5 w-full ui-input"
                 value={label}
                 onChange={(e) => setLabel(e.target.value)}
                 autoFocus
@@ -493,9 +493,9 @@ function AddRackDialog({ pageId, rackCount, onClose }: { pageId: string; rackCou
             </label>
 
             <label className="block mb-2">
-              <span className="text-neutral-600">Type</span>
+              <span className="text-[var(--color-text)]">Type</span>
               <select
-                className="mt-0.5 w-full border border-neutral-300 rounded px-2 py-1 outline-none focus:border-blue-400"
+                className="mt-0.5 w-full ui-input"
                 value={rackType}
                 onChange={(e) => setRackType(e.target.value as RackType)}
               >
@@ -507,10 +507,10 @@ function AddRackDialog({ pageId, rackCount, onClose }: { pageId: string; rackCou
 
             <div className="flex gap-2 mb-3">
               <label className="block flex-1">
-                <span className="text-neutral-600">Height (U)</span>
+                <span className="text-[var(--color-text)]">Height (U)</span>
                 <input
                   type="number"
-                  className="mt-0.5 w-full border border-neutral-300 rounded px-2 py-1 outline-none focus:border-blue-400"
+                  className="mt-0.5 w-full ui-input"
                   value={heightU}
                   onChange={(e) => setHeightU(Number(e.target.value))}
                   min={2}
@@ -518,10 +518,10 @@ function AddRackDialog({ pageId, rackCount, onClose }: { pageId: string; rackCou
                 />
               </label>
               <label className="block flex-1">
-                <span className="text-neutral-600">Depth (mm)</span>
+                <span className="text-[var(--color-text)]">Depth (mm)</span>
                 <input
                   type="number"
-                  className="mt-0.5 w-full border border-neutral-300 rounded px-2 py-1 outline-none focus:border-blue-400"
+                  className="mt-0.5 w-full ui-input"
                   value={depthMm}
                   onChange={(e) => setDepthMm(Number(e.target.value))}
                   min={100}
@@ -532,10 +532,10 @@ function AddRackDialog({ pageId, rackCount, onClose }: { pageId: string; rackCou
             </div>
 
             <div className="flex justify-end gap-2">
-              <button type="button" className="px-3 py-1 rounded border border-neutral-300 hover:bg-neutral-50" onClick={onClose}>
+              <button type="button" className="px-3 py-1 rounded border border-[var(--ui-border-strong)] hover:bg-[var(--color-surface)]" onClick={onClose}>
                 Cancel
               </button>
-              <button type="submit" className="px-3 py-1 rounded bg-blue-600 text-white hover:bg-blue-700">
+              <button type="submit" className="ui-btn ui-btn-primary">
                 Add
               </button>
             </div>
@@ -544,7 +544,7 @@ function AddRackDialog({ pageId, rackCount, onClose }: { pageId: string; rackCou
 
         {mode === "presets" && (
           <div className="flex justify-end mt-2">
-            <button className="px-3 py-1 rounded border border-neutral-300 hover:bg-neutral-50" onClick={onClose}>
+            <button className="px-3 py-1 rounded border border-[var(--ui-border-strong)] hover:bg-[var(--color-surface)]" onClick={onClose}>
               Cancel
             </button>
           </div>

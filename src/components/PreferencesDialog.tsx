@@ -14,7 +14,7 @@ const ACTION_LABELS: Record<ScrollAction, string> = {
 const ACTION_OPTIONS: ScrollAction[] = ["zoom", "pan-x", "pan-y"];
 
 const selectClass =
-  "bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2 py-1 text-xs outline-none cursor-pointer w-[140px]";
+  "ui-input cursor-pointer w-[140px]";
 
 function ScrollRow({
   label,
@@ -61,7 +61,7 @@ function SensitivityRow({
           step={0.25}
           value={value}
           onChange={(e) => onChange(Number(e.target.value))}
-          className="w-[100px] accent-blue-600 cursor-pointer"
+          className="w-[100px] accent-[var(--color-accent)] cursor-pointer"
         />
         <span className="text-xs text-[var(--color-text-muted)] w-[32px] text-right">
           {value.toFixed(value % 1 === 0 ? 1 : 2)}x
@@ -124,35 +124,35 @@ export default function PreferencesDialog({ onClose }: { onClose: () => void }) 
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
+      className="ui-dialog-backdrop"
       onClick={onClose}
     >
       <div
-        className="bg-white border border-[var(--color-border)] rounded-lg shadow-2xl w-[420px] flex flex-col max-h-[calc(100vh-4rem)]"
+        className="ui-dialog w-[420px]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--color-border)] shrink-0">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--ui-border)] shrink-0">
           <span className="text-sm font-semibold text-[var(--color-text-heading)]">
             Preferences
           </span>
           <button
             onClick={onClose}
-            className="text-[var(--color-text-muted)] hover:text-[var(--color-text)] text-lg leading-none cursor-pointer"
+            className="ui-btn ui-btn-ghost text-lg leading-none"
           >
             &times;
           </button>
         </div>
 
         {/* Tab strip */}
-        <div className="flex border-b border-[var(--color-border)] px-5 shrink-0">
+        <div className="flex border-b border-[var(--ui-border)] px-4 shrink-0">
           {(Object.keys(TAB_LABELS) as PrefTab[]).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={`px-3 py-2 text-xs font-medium -mb-px border-b-2 transition-colors cursor-pointer ${
                 activeTab === tab
-                  ? "border-blue-600 text-blue-600"
+                  ? "border-[var(--color-accent)] text-[var(--color-accent)]"
                   : "border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
               }`}
             >
@@ -255,7 +255,7 @@ export default function PreferencesDialog({ onClose }: { onClose: () => void }) 
                     type="checkbox"
                     checked={scrollConfig.trackpadEnabled}
                     onChange={(e) => update({ trackpadEnabled: e.target.checked })}
-                    className="accent-blue-600 cursor-pointer"
+                    className="accent-[var(--color-accent)] cursor-pointer"
                   />
                 </label>
                 <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">
@@ -278,7 +278,7 @@ export default function PreferencesDialog({ onClose }: { onClose: () => void }) 
                       step={2}
                       value={edgeHitboxSize}
                       onChange={(e) => setEdgeHitboxSize(Number(e.target.value))}
-                      className="w-[100px] accent-blue-600 cursor-pointer"
+                      className="w-[100px] accent-[var(--color-accent)] cursor-pointer"
                     />
                     <span className="text-xs text-[var(--color-text-muted)] w-[32px] text-right">
                       {edgeHitboxSize}px
@@ -348,7 +348,7 @@ export default function PreferencesDialog({ onClose }: { onClose: () => void }) 
                     type="checkbox"
                     checked={useShortNames}
                     onChange={(e) => setUseShortNames(e.target.checked)}
-                    className="cursor-pointer accent-blue-600"
+                    className="cursor-pointer accent-[var(--color-accent)]"
                   />
                 </div>
                 <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">
@@ -360,7 +360,7 @@ export default function PreferencesDialog({ onClose }: { onClose: () => void }) 
                     type="checkbox"
                     checked={wrapDeviceLabels}
                     onChange={(e) => setWrapDeviceLabels(e.target.checked)}
-                    className="cursor-pointer accent-blue-600"
+                    className="cursor-pointer accent-[var(--color-accent)]"
                   />
                 </div>
                 <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">
@@ -379,7 +379,7 @@ export default function PreferencesDialog({ onClose }: { onClose: () => void }) 
                     type="checkbox"
                     checked={stubLabelShowPort}
                     onChange={(e) => setStubLabelShowPort(e.target.checked)}
-                    className="cursor-pointer accent-blue-600"
+                    className="cursor-pointer accent-[var(--color-accent)]"
                   />
                 </div>
                 <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">
@@ -391,7 +391,7 @@ export default function PreferencesDialog({ onClose }: { onClose: () => void }) 
                     type="checkbox"
                     checked={stubLabelShowRoom}
                     onChange={(e) => setStubLabelShowRoom(e.target.checked)}
-                    className="cursor-pointer accent-blue-600"
+                    className="cursor-pointer accent-[var(--color-accent)]"
                   />
                 </div>
                 <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">
@@ -450,7 +450,7 @@ export default function PreferencesDialog({ onClose }: { onClose: () => void }) 
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-5 py-3 border-t border-[var(--color-border)] shrink-0">
+        <div className="px-4 py-3 border-t border-[var(--ui-border)] flex items-center justify-between shrink-0">
           {!isDefault ? (
             <button
               onClick={() => {
@@ -464,7 +464,7 @@ export default function PreferencesDialog({ onClose }: { onClose: () => void }) 
                 setStubLabelShowPort(DEFAULT_STUB_LABEL_SHOW_PORT);
                 setStubLabelPageMode(DEFAULT_STUB_LABEL_PAGE_MODE);
               }}
-              className="text-[10px] text-[var(--color-text-muted)] hover:text-[var(--color-text)] cursor-pointer"
+              className="ui-btn ui-btn-ghost text-[10px]"
             >
               Reset to defaults
             </button>
@@ -473,7 +473,7 @@ export default function PreferencesDialog({ onClose }: { onClose: () => void }) 
           )}
           <button
             onClick={onClose}
-            className="px-3 py-1.5 text-xs rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors cursor-pointer"
+            className="ui-btn ui-btn-primary"
           >
             Close
           </button>

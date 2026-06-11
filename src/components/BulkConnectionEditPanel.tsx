@@ -125,7 +125,7 @@ export default function BulkConnectionEditPanel({ onClose }: Props) {
 
   return (
     <div
-      className="fixed bottom-16 left-1/2 -translate-x-1/2 z-[40] bg-white border border-[var(--color-border)] rounded-lg shadow-lg p-3 w-72"
+      className="fixed bottom-16 left-1/2 -translate-x-1/2 z-[40] bg-[var(--color-surface-raised)] border border-[var(--ui-border)] rounded-lg shadow-[var(--ui-shadow-raised)] p-3 w-72"
       data-print-hide
       onMouseDown={(e) => e.stopPropagation()}
     >
@@ -241,7 +241,7 @@ export default function BulkConnectionEditPanel({ onClose }: Props) {
               type="color"
               value={sharedColor || "#9ca3af"}
               onChange={(e) => applyColor(e.target.value)}
-              className="w-8 h-7 cursor-pointer border border-[var(--color-border)] rounded p-0.5 bg-white"
+              className="w-8 h-7 cursor-pointer border border-[var(--ui-border)] rounded p-0.5 bg-[var(--color-surface-raised)]"
               title={sharedColor ? `Override: ${sharedColor}` : "Pick a custom cable color"}
             />
             <span className="flex-1 text-[11px] text-[var(--color-text-muted)] truncate">

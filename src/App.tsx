@@ -30,6 +30,8 @@ import ShowInfoPanel from "./components/ShowInfoPanel";
 import ViewOptionsPanel from "./components/ViewOptionsPanel";
 import MenuBar from "./components/MenuBar";
 import EdgeContextMenu from "./components/EdgeContextMenu";
+import CableAssignDialog from "./components/CableAssignDialog";
+import CableInventoryDialog from "./components/CableInventoryDialog";
 import IncompatibleConnectionDialog from "./components/IncompatibleConnectionDialog";
 import DeviceSwapDialog from "./components/DeviceSwapDialog";
 import MobileGate from "./components/MobileGate";
@@ -131,8 +133,8 @@ function AutoRouteChip() {
     <div
       className={`absolute top-3 right-3 z-50 text-xs px-3 py-1.5 rounded-full cursor-pointer select-none transition-colors ${
         autoRoute
-          ? "bg-black/50 text-white/90 hover:bg-black/70"
-          : "bg-black/20 text-white/50 hover:bg-black/40"
+          ? "bg-slate-900/75 text-white ring-1 ring-white/15 backdrop-blur-sm hover:bg-slate-900/90"
+          : "bg-slate-900/30 text-white/60 ring-1 ring-white/10 backdrop-blur-sm hover:bg-slate-900/50"
       }`}
       onClick={toggleAutoRoute}
       title={autoRoute
@@ -1586,10 +1588,12 @@ function SchematicCanvas() {
         </div>
       )}
       {!printView && <CanvasOriginOverlay />}
-      <Background variant={BackgroundVariant.Dots} gap={GRID_SIZE} size={1} color={isDark ? "#374151" : "#d4d4d4"} />
+      <Background variant={BackgroundVariant.Dots} gap={GRID_SIZE} size={1.4} color={isDark ? "#3b4a66" : "#c6cad2"} />
       <Controls position="bottom-right" />
       <AutoRouteChip />
       <AutoRouteConfirmDialog />
+      <CableAssignDialog />
+      <CableInventoryDialog />
       <MiniMap
         position="bottom-left"
         pannable
@@ -1646,13 +1650,13 @@ function DemoBanner() {
   if (!isDemo || dismissed) return null;
 
   return (
-    <div className="bg-slate-700 text-slate-200 text-sm px-4 py-2 flex items-center justify-between gap-4" data-print-hide>
+    <div className="bg-[var(--color-accent-soft)] border-b border-[var(--ui-border)] text-[var(--color-text)] text-xs px-4 py-2 flex items-center justify-between gap-4" data-print-hide>
       <span>
-        You&apos;re viewing a demo schematic. Start fresh with{" "}
-        <strong>File &gt; New</strong>, or explore to see what EasySchematic can do.
+        <span className="font-semibold text-[var(--color-accent)]">Demo schematic.</span>{" "}
+        Start fresh with <strong>File &gt; New</strong>, or explore to see what EasySchematic can do.
       </span>
       <button
-        className="text-slate-400 hover:text-white shrink-0"
+        className="text-[var(--color-text-muted)] hover:text-[var(--color-text-heading)] shrink-0 cursor-pointer"
         onClick={() => {
           setDismissed(true);
           localStorage.setItem("easyschematic-demo-dismissed", "1");

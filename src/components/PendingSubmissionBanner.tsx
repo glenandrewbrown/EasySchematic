@@ -97,7 +97,7 @@ export default function PendingSubmissionBanner() {
         <button
           onClick={handleSubmit}
           disabled={submitting}
-          className="px-3 py-1 text-xs rounded bg-blue-600 text-white hover:bg-blue-500 transition-colors cursor-pointer disabled:opacity-50"
+          className="ui-btn ui-btn-primary disabled:opacity-50"
         >
           {submitting ? "Submitting..." : "Submit now"}
         </button>

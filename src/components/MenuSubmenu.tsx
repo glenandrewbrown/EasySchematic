@@ -85,18 +85,18 @@ export default function MenuSubmenu({ label, children, minWidth = 160 }: Props) 
       <button
         ref={triggerRef}
         type="button"
-        className="w-full text-left px-3 py-1.5 text-xs text-gray-700 hover:bg-blue-50 hover:text-blue-700 cursor-pointer flex items-center justify-between gap-2"
+        className="w-full text-left px-2.5 py-1.5 text-xs text-[var(--color-text)] hover:bg-[var(--color-surface-hover)] rounded-md transition-colors cursor-pointer flex items-center justify-between gap-2"
         onMouseEnter={openNow}
         onMouseLeave={scheduleClose}
         onClick={(e) => e.stopPropagation()}
       >
         <span>{label}</span>
-        <span className="text-gray-400">▶</span>
+        <span className="text-[var(--color-text-muted)]">▶</span>
       </button>
       {open && (
         <div
           ref={submenuRef}
-          className="fixed z-50 bg-white border border-gray-300 rounded shadow-lg py-1"
+          className="chrome-menu fixed z-50"
           style={{
             left: pos.x,
             top: pos.y,

@@ -793,10 +793,8 @@ export default function DeviceEditor() {
   const passthroughPorts = ports.filter((p) => p.direction === "passthrough");
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onMouseDown={(e) => { if (e.target === e.currentTarget) close(); }} onKeyDownCapture={onCtrlEnter}>
-      <div
-        className="bg-[var(--color-bg)] border border-[var(--color-border)] rounded-lg shadow-2xl w-[560px] max-h-[85vh] flex flex-col"
-      >
+    <div className="ui-dialog-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) close(); }} onKeyDownCapture={onCtrlEnter}>
+      <div className="ui-dialog w-[560px]">
         {/* Header */}
         <div className="px-4 py-3 border-b border-[var(--color-border)] flex items-center justify-between">
           <h2 className="text-sm font-semibold text-[var(--color-text-heading)]">Device Properties</h2>
@@ -828,7 +826,7 @@ export default function DeviceEditor() {
           <div className="grid grid-cols-2 gap-3">
             <Field label="Device Name">
               <input
-                className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2 py-1.5 text-xs text-[var(--color-text-heading)] outline-none focus:border-blue-500"
+                className="ui-input w-full text-xs"
                 value={label}
                 onChange={(e) => setLabel(e.target.value)}
                 placeholder="e.g. Camera 1"
@@ -841,7 +839,7 @@ export default function DeviceEditor() {
             </Field>
             <Field label="Short Name">
               <input
-                className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2 py-1.5 text-xs text-[var(--color-text-heading)] outline-none focus:border-blue-500"
+                className="ui-input w-full text-xs"
                 value={shortName}
                 onChange={(e) => setShortName(e.target.value)}
                 placeholder="e.g. HDC-5500"
@@ -884,7 +882,7 @@ export default function DeviceEditor() {
             </div>
             <Field label="Device Type">
               <input
-                className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2 py-1.5 text-xs text-[var(--color-text-heading)] outline-none focus:border-blue-500"
+                className="ui-input w-full text-xs"
                 value={deviceType}
                 onChange={(e) => setDeviceType(e.target.value)}
                 placeholder="e.g. camera"
@@ -892,7 +890,7 @@ export default function DeviceEditor() {
             </Field>
             <Field label="Manufacturer">
               <input
-                className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2 py-1.5 text-xs text-[var(--color-text-heading)] outline-none focus:border-blue-500"
+                className="ui-input w-full text-xs"
                 value={manufacturer}
                 onChange={(e) => setManufacturer(e.target.value)}
                 placeholder="e.g. Sony"
@@ -900,7 +898,7 @@ export default function DeviceEditor() {
             </Field>
             <Field label="Model Number">
               <input
-                className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2 py-1.5 text-xs text-[var(--color-text-heading)] outline-none focus:border-blue-500"
+                className="ui-input w-full text-xs"
                 value={modelNumber}
                 onChange={(e) => setModelNumber(e.target.value)}
                 placeholder="e.g. FX9"
@@ -908,7 +906,7 @@ export default function DeviceEditor() {
             </Field>
             <Field label="Category">
               <input
-                className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2 py-1.5 text-xs text-[var(--color-text-heading)] outline-none focus:border-blue-500"
+                className="ui-input w-full text-xs"
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
                 placeholder="e.g. video"
@@ -917,7 +915,7 @@ export default function DeviceEditor() {
             <Field label="Reference URL">
               <input
                 type="url"
-                className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2 py-1.5 text-xs text-[var(--color-text-heading)] outline-none focus:border-blue-500"
+                className="ui-input w-full text-xs"
                 value={referenceUrl}
                 onChange={(e) => setReferenceUrl(e.target.value)}
                 placeholder="https://…"
@@ -1078,7 +1076,7 @@ export default function DeviceEditor() {
           <div className="flex items-center gap-2 mt-2">
             <span className="text-[10px] text-[var(--color-text-muted)] shrink-0">Hostname:</span>
             <input
-              className="flex-1 bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-1.5 py-0.5 text-xs outline-none focus:border-blue-500"
+              className="ui-input flex-1 text-xs"
               value={hostname}
               onChange={(e) => setHostname(e.target.value)}
               placeholder="e.g. nvx-room101"
@@ -1098,7 +1096,7 @@ export default function DeviceEditor() {
                 </label>
                 <input
                   type="number"
-                  className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-1.5 py-1 text-xs outline-none focus:border-blue-500"
+                  className="ui-input w-full text-xs"
                   value={heightMm ?? ""}
                   onChange={(e) => setHeightMm(e.target.value ? Number(e.target.value) : undefined)}
                   placeholder="e.g. 44"
@@ -1113,7 +1111,7 @@ export default function DeviceEditor() {
                 </label>
                 <input
                   type="number"
-                  className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-1.5 py-1 text-xs outline-none focus:border-blue-500"
+                  className="ui-input w-full text-xs"
                   value={widthMm ?? ""}
                   onChange={(e) => setWidthMm(e.target.value ? Number(e.target.value) : undefined)}
                   placeholder="e.g. 482"
@@ -1128,7 +1126,7 @@ export default function DeviceEditor() {
                 </label>
                 <input
                   type="number"
-                  className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-1.5 py-1 text-xs outline-none focus:border-blue-500"
+                  className="ui-input w-full text-xs"
                   value={depthMm ?? ""}
                   onChange={(e) => setDepthMm(e.target.value ? Number(e.target.value) : undefined)}
                   placeholder="e.g. 350"
@@ -1143,7 +1141,7 @@ export default function DeviceEditor() {
                 </label>
                 <input
                   type="number"
-                  className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-1.5 py-1 text-xs outline-none focus:border-blue-500"
+                  className="ui-input w-full text-xs"
                   value={weightKg ?? ""}
                   onChange={(e) => setWeightKg(e.target.value ? Number(e.target.value) : undefined)}
                   placeholder="e.g. 2.5"
@@ -1170,7 +1168,7 @@ export default function DeviceEditor() {
                 </label>
                 {poeBudgetW != null && (
                   <input
-                    className="w-20 bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-1.5 py-0.5 text-xs outline-none focus:border-blue-500"
+                    className="ui-input w-20 text-xs"
                     type="number"
                     value={poeBudgetW || ""}
                     onChange={(e) => setPoeBudgetW(e.target.value ? Number(e.target.value) : 0)}
@@ -1192,7 +1190,7 @@ export default function DeviceEditor() {
                 </label>
                 {poeDrawW != null && (
                   <input
-                    className="w-20 bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-1.5 py-0.5 text-xs outline-none focus:border-blue-500"
+                    className="ui-input w-20 text-xs"
                     type="number"
                     value={poeDrawW || ""}
                     onChange={(e) => setPoeDrawW(e.target.value ? Number(e.target.value) : 0)}
@@ -1234,7 +1232,7 @@ export default function DeviceEditor() {
                   </label>
                   <input
                     type="number"
-                    className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2 py-1 text-xs outline-none focus:border-blue-500"
+                    className="ui-input w-full text-xs"
                     value={powerDrawW ?? ""}
                     onChange={(e) => setPowerDrawW(e.target.value ? Number(e.target.value) : undefined)}
                     placeholder="0"
@@ -1247,7 +1245,7 @@ export default function DeviceEditor() {
                   </label>
                   <input
                     type="text"
-                    className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2 py-1 text-xs outline-none focus:border-blue-500"
+                    className="ui-input w-full text-xs"
                     value={voltage ?? ""}
                     onChange={(e) => setVoltage(e.target.value || undefined)}
                     placeholder="100-240V"
@@ -1263,7 +1261,7 @@ export default function DeviceEditor() {
                   </label>
                   <input
                     type="number"
-                    className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2 py-1 text-xs outline-none focus:border-blue-500"
+                    className="ui-input w-full text-xs"
                     value={thermalBtuh ?? ""}
                     onChange={(e) => setThermalBtuh(e.target.value ? Number(e.target.value) : undefined)}
                     placeholder={(() => {
@@ -1280,7 +1278,7 @@ export default function DeviceEditor() {
                     </label>
                     <input
                       type="number"
-                      className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2 py-1 text-xs outline-none focus:border-blue-500"
+                      className="ui-input w-full text-xs"
                       value={powerCapacityW ?? ""}
                       onChange={(e) => setPowerCapacityW(e.target.value ? Number(e.target.value) : undefined)}
                       placeholder="0"
@@ -1303,7 +1301,7 @@ export default function DeviceEditor() {
               </p>
               <input
                 type="text"
-                className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2 py-1 text-xs outline-none focus:border-blue-500"
+                className="ui-input w-full text-xs"
                 value={searchTermsRaw}
                 onChange={(e) => setSearchTermsRaw(e.target.value)}
                 placeholder="e.g. matrix, router, video switcher"
@@ -1323,7 +1321,7 @@ export default function DeviceEditor() {
               </label>
               <input
                 type="number"
-                className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2 py-1 text-xs outline-none focus:border-blue-500"
+                className="ui-input w-full text-xs"
                 value={unitCost ?? ""}
                 onChange={(e) => setUnitCost(e.target.value ? Number(e.target.value) : undefined)}
                 placeholder="0.00"
@@ -1381,7 +1379,7 @@ export default function DeviceEditor() {
                         <input
                           ref={(el) => { auxInputRefs.current[i] = el; }}
                           type="text"
-                          className="flex-1 min-w-0 bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2 py-1 text-xs outline-none focus:border-blue-500"
+                          className="ui-input flex-1 min-w-0 text-xs"
                           value={text}
                           onChange={(e) => setRow({ text: e.target.value })}
                           placeholder="Auxiliary Data"
@@ -1390,7 +1388,7 @@ export default function DeviceEditor() {
                         <button
                           type="button"
                           title="Insert device field"
-                          className="px-2 py-1 text-xs rounded bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-[var(--color-text)] cursor-pointer shrink-0"
+                          className="ui-btn ui-btn-ghost text-xs shrink-0"
                           onClick={() => setAuxFieldMenuIdx(auxFieldMenuIdx === i ? null : i)}
                         >
                           +
@@ -1398,7 +1396,7 @@ export default function DeviceEditor() {
                         <button
                           type="button"
                           title={position === "header" ? "Pinned to header — click to move to footer" : "Pinned to footer — click to move to header"}
-                          className={`px-2 py-1 text-[10px] font-semibold rounded border cursor-pointer shrink-0 w-7 ${position === "header" ? "bg-blue-500 border-blue-500 text-white" : "bg-[var(--color-surface)] border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-[var(--color-text)]"}`}
+                          className={`ui-btn shrink-0 w-7 text-[10px] font-semibold ${position === "header" ? "ui-btn-primary" : "ui-btn-ghost"}`}
                           onClick={() => setRow({ position: position === "header" ? "footer" : "header" })}
                         >
                           {position === "header" ? "H" : "F"}
@@ -1492,7 +1490,7 @@ export default function DeviceEditor() {
                   <select
                     value={adapterVisibility}
                     onChange={(e) => setAdapterVisibility(e.target.value as "default" | "force-show" | "force-hide")}
-                    className="text-xs border border-[var(--color-border)] rounded px-1.5 py-0.5 bg-[var(--color-surface)] text-[var(--color-text)] cursor-pointer"
+                    className="ui-input text-xs cursor-pointer"
                   >
                     <option value="default">Default</option>
                     <option value="force-show">Always Show</option>
@@ -1514,71 +1512,37 @@ export default function DeviceEditor() {
         </div>
 
         {/* Footer */}
-        <div className="px-4 py-3 border-t border-[var(--color-border)] flex items-center gap-2">
-          <button
-            onClick={handleSaveAsTemplate}
-            className="px-3 py-1.5 text-xs rounded bg-[var(--color-surface)] text-[var(--color-text)] hover:text-[var(--color-text-heading)] border border-[var(--color-border)] transition-colors cursor-pointer"
-            title="Save this device configuration as a reusable user template"
-          >
+        <div className="px-4 py-3 border-t border-[var(--ui-border)] flex items-center gap-2">
+          <button onClick={handleSaveAsTemplate} className="ui-btn ui-btn-ghost" title="Save this device configuration as a reusable user template">
             Save as User Template
           </button>
           {(!templateId || dirtyVsTemplate || customTemplates.some((t) => t.id === templateId)) && ports.some((p) => p.label.trim()) && (
-            <button
-              onClick={handleSubmitToCommunity}
-              className="px-3 py-1.5 text-xs rounded bg-[var(--color-surface)] text-[var(--color-text)] hover:text-[var(--color-text-heading)] border border-[var(--color-border)] transition-colors cursor-pointer"
-              title="Submit this device to the community device library"
-            >
+            <button onClick={handleSubmitToCommunity} className="ui-btn ui-btn-ghost" title="Submit this device to the community device library">
               Submit to Community
             </button>
           )}
           {templateId && customTemplates.some((t) => t.id === templateId) ? (
-            <button
-              onClick={handleUpdateUserTemplate}
-              className="px-3 py-1.5 text-xs rounded bg-[var(--color-surface)] text-[var(--color-text)] hover:text-[var(--color-text-heading)] border border-[var(--color-border)] transition-colors cursor-pointer"
-              title="Overwrite the saved user template with this configuration"
-            >
+            <button onClick={handleUpdateUserTemplate} className="ui-btn ui-btn-ghost" title="Overwrite the saved user template with this configuration">
               Update User Template
             </button>
           ) : templateId ? (
-            <button
-              onClick={handleSaveAsPreset}
-              className="px-3 py-1.5 text-xs rounded bg-[var(--color-surface)] text-[var(--color-text)] hover:text-[var(--color-text-heading)] border border-[var(--color-border)] transition-colors cursor-pointer"
-              title="Set this configuration as the project default for this template"
-            >
+            <button onClick={handleSaveAsPreset} className="ui-btn ui-btn-ghost" title="Set this configuration as the project default for this template">
               Save as Preset
             </button>
           ) : null}
           {hasPreset && dirtyVsPreset && (
-            <button
-              onClick={handleRevertToPreset}
-              className="px-3 py-1.5 text-xs rounded bg-[var(--color-surface)] text-[var(--color-text)] hover:text-[var(--color-text-heading)] border border-[var(--color-border)] transition-colors cursor-pointer"
-              title="Reset ports and visibility to the project preset"
-            >
+            <button onClick={handleRevertToPreset} className="ui-btn ui-btn-ghost" title="Reset ports and visibility to the project preset">
               Revert to Preset
             </button>
           )}
           {dirtyVsTemplate && (
-            <button
-              onClick={handleRevertToTemplate}
-              className="px-3 py-1.5 text-xs rounded bg-[var(--color-surface)] text-[var(--color-text)] hover:text-[var(--color-text-heading)] border border-[var(--color-border)] transition-colors cursor-pointer"
-              title="Reset ports and visibility to the original template defaults"
-            >
+            <button onClick={handleRevertToTemplate} className="ui-btn ui-btn-ghost" title="Reset ports and visibility to the original template defaults">
               Revert to Template
             </button>
           )}
           <div className="flex-1" />
-          <button
-            onClick={close}
-            className="px-3 py-1.5 text-xs rounded bg-[var(--color-surface)] text-[var(--color-text)] hover:text-[var(--color-text-heading)] border border-[var(--color-border)] transition-colors cursor-pointer"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            className="px-3 py-1.5 text-xs rounded bg-blue-600 text-white hover:bg-blue-500 transition-colors cursor-pointer"
-          >
-            Apply
-          </button>
+          <button onClick={close} className="ui-btn ui-btn-secondary">Cancel</button>
+          <button onClick={handleSave} className="ui-btn ui-btn-primary">Apply</button>
         </div>
       </div>
       <LoginDialog open={showLoginDialog} onClose={() => setShowLoginDialog(false)} />

@@ -1,13 +1,24 @@
 :root {
   --color-bg: #ffffff;
-  --color-surface: #f8f8f8;
-  --color-surface-hover: #f0f0f0;
+  --color-surface: #fafafa;
+  --color-surface-hover: #f0f0f1;
   --color-border: #a3a3a3;
   --color-text: #374151;
   --color-text-heading: #111827;
   --color-text-muted: #6b7280;
   /* Canvas origin overlay — slightly darker than bg to mark non-printable zone */
   --color-canvas-origin: #e5e5e5;
+
+  /* ── UI chrome tokens (menus, panels, tabs) ──────────────────────
+     Separate from --color-border, which device nodes and canvas content
+     use and which must stay strong for print/export legibility. */
+  --color-surface-raised: #ffffff;
+  --color-accent: #2563eb;
+  --color-accent-soft: rgba(37, 99, 235, 0.08);
+  --ui-border: #e4e4e7;
+  --ui-border-strong: #d4d4d8;
+  --ui-shadow-menu: 0 12px 32px -12px rgba(24, 24, 27, 0.22), 0 4px 12px -6px rgba(24, 24, 27, 0.1);
+  --ui-shadow-raised: 0 1px 2px rgba(24, 24, 27, 0.06);
 
   /* Signal type colors — max distinction at a glance, print-friendly on white */
   --color-sdi: #2563eb;       /* blue — broadcast standard */
@@ -84,6 +95,15 @@
   --color-text: #cbd5e1;
   --color-text-heading: #f1f5f9;
   --color-text-muted: #94a3b8;
+
+  /* UI chrome tokens, dark */
+  --color-surface-raised: #243247;
+  --color-accent: #3b82f6;
+  --color-accent-soft: rgba(59, 130, 246, 0.14);
+  --ui-border: #2c3a52;
+  --ui-border-strong: #3b4a66;
+  --ui-shadow-menu: 0 12px 32px -8px rgba(2, 6, 23, 0.65), 0 4px 12px -6px rgba(2, 6, 23, 0.4);
+  --ui-shadow-raised: 0 1px 2px rgba(2, 6, 23, 0.4);
   /* Power colors adjusted for dark backgrounds */
   --color-power-neutral: #b0b0b0;
   --color-power-l1: #e5e5e5;

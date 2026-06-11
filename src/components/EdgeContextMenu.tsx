@@ -418,7 +418,7 @@ export default function EdgeContextMenu() {
     return (
       <div
         ref={menuRef}
-        className="fixed z-50 bg-white border border-gray-300 rounded shadow-lg p-2 min-w-[200px]"
+        className="chrome-menu fixed z-50 p-2 min-w-[200px]"
         style={{
           left: menuPos.x,
           top: menuPos.y,
@@ -428,14 +428,14 @@ export default function EdgeContextMenu() {
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="text-xs text-gray-500 mb-1">
+        <div className="text-xs text-[var(--color-text-muted)] mb-1">
           {editingLabel === "multicable" ? "Cable Label"
             : editingLabel === "source" ? "Source-end Label"
             : editingLabel === "target" ? "Target-end Label"
             : "Midpoint Label"}
         </div>
         <input
-          className="w-full bg-gray-50 border border-gray-300 rounded px-2 py-1 text-xs outline-none focus:border-blue-500"
+          className="ui-input w-full text-xs"
           value={labelValue}
           onChange={(e) => setLabelValue(e.target.value)}
           onKeyDown={(e) => {
@@ -452,13 +452,13 @@ export default function EdgeContextMenu() {
         <div className="flex justify-end gap-1 mt-1.5">
           <button
             onClick={() => { setEditingLabel(false); useSchematicStore.setState({ edgeContextMenu: null }); }}
-            className="px-2 py-0.5 text-[10px] text-gray-500 hover:text-gray-700 cursor-pointer"
+            className="ui-btn ui-btn-ghost text-[10px] px-2 py-0.5"
           >
             Cancel
           </button>
           <button
             onClick={commitLabel}
-            className="px-2 py-0.5 text-[10px] bg-blue-600 text-white rounded hover:bg-blue-500 cursor-pointer"
+            className="ui-btn ui-btn-primary text-[10px] px-2 py-0.5"
           >
             Set
           </button>
@@ -470,7 +470,7 @@ export default function EdgeContextMenu() {
   return (
     <div
       ref={menuRef}
-      className="fixed z-50 bg-white border border-gray-300 rounded shadow-lg py-1 min-w-[160px]"
+      className="chrome-menu fixed z-50 min-w-[160px]"
       style={{
         left: menuPos.x,
         top: menuPos.y,
@@ -486,17 +486,25 @@ export default function EdgeContextMenu() {
       )}
       {hasManual && (
         <>
-          <div className="h-px bg-gray-200 my-1" />
+          <div className="h-px bg-[var(--ui-border)] my-1" />
           <MenuItem label="Reset Route" onClick={resetRoute} />
         </>
       )}
-      <div className="h-px bg-gray-200 my-1" />
+      <div className="h-px bg-[var(--ui-border)] my-1" />
       <MenuItem label="Set Source-end Label..." onClick={setSourceEndLabel} />
       <MenuItem label="Set Midpoint Label..." onClick={setConnectionLabel} />
       <MenuItem label="Set Target-end Label..." onClick={setTargetEndLabel} />
       {isTrunkEdge && (
         <MenuItem label="Set Cable Label..." onClick={setCableLabel} />
       )}
+      <MenuItem
+        label="Assign Cables..."
+        onClick={() => {
+          if (!menu) return;
+          useSchematicStore.getState().setCableAssignEdgeId(menu.edgeId);
+          useSchematicStore.setState({ edgeContextMenu: null });
+        }}
+      />
       <MenuItem
         label={isCableIdHidden ? "Show Cable ID" : "Hide Cable ID"}
         onClick={toggleHideCableId}
@@ -523,21 +531,21 @@ export default function EdgeContextMenu() {
       )}
       {!isDirectAttach && (
         <>
-          <div className="h-px bg-gray-200 my-1" />
-          <div className="px-3 py-1.5 flex items-center gap-2">
-            <span className="text-xs text-gray-700 flex-1">Cable Color</span>
+          <div className="h-px bg-[var(--ui-border)] my-1" />
+          <div className="px-2.5 py-1.5 flex items-center gap-2">
+            <span className="text-xs text-[var(--color-text)] flex-1">Cable Color</span>
             <input
               type="color"
               value={customColor || "#9ca3af"}
               onChange={(e) => setEdgeColor(e.target.value)}
               onClick={(e) => e.stopPropagation()}
-              className="w-6 h-5 cursor-pointer border border-gray-300 rounded p-0.5 bg-white"
+              className="w-6 h-5 cursor-pointer border border-[var(--ui-border)] rounded p-0.5 bg-[var(--color-surface-raised)]"
               title={customColor ? `Override: ${customColor}` : "Pick a custom cable color"}
             />
             {customColor && (
               <button
                 onClick={clearEdgeColor}
-                className="text-[10px] text-gray-500 hover:text-red-600 underline cursor-pointer"
+                className="text-[10px] text-[var(--color-text-muted)] hover:text-red-600 underline cursor-pointer"
                 title="Reset to signal-type color"
               >
                 reset
@@ -546,15 +554,15 @@ export default function EdgeContextMenu() {
           </div>
         </>
       )}
-      <div className="h-px bg-gray-200 my-1" />
+      <div className="h-px bg-[var(--ui-border)] my-1" />
       <MenuSubmenu label={`Line Style: ${LINE_STYLE_LABELS[currentLineStyle]}`} minWidth={180}>
         {(["solid", "dashed", "dotted", "dash-dot"] as LineStyle[]).map((ls) => (
           <button
             key={ls}
-            className={`w-full text-left px-3 py-1.5 text-xs flex items-center gap-2 cursor-pointer ${
+            className={`w-full text-left px-2.5 py-1.5 text-xs flex items-center gap-2 cursor-pointer rounded-md transition-colors ${
               currentLineStyle === ls
-                ? "text-blue-700 bg-blue-50"
-                : "text-gray-700 hover:bg-blue-50 hover:text-blue-700"
+                ? "text-[var(--color-accent)] bg-[var(--color-accent-soft)]"
+                : "text-[var(--color-text)] hover:bg-[var(--color-surface-hover)]"
             }`}
             onClick={() => setLineStyle(ls)}
           >
@@ -570,7 +578,7 @@ export default function EdgeContextMenu() {
           </button>
         ))}
       </MenuSubmenu>
-      <div className="h-px bg-gray-200 my-1" />
+      <div className="h-px bg-[var(--ui-border)] my-1" />
       <MenuItem label="Go to Source" onClick={() => goToNode(edge?.source)} />
       <MenuItem label="Go to Destination" onClick={() => goToNode(edge?.target)} />
     </div>
@@ -580,7 +588,7 @@ export default function EdgeContextMenu() {
 function MenuItem({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <button
-      className="w-full text-left px-3 py-1.5 text-xs text-gray-700 hover:bg-blue-50 hover:text-blue-700 cursor-pointer"
+      className="w-full text-left px-2.5 py-1.5 text-xs text-[var(--color-text)] hover:bg-[var(--color-surface-hover)] rounded-md transition-colors cursor-pointer"
       onClick={onClick}
     >
       {label}

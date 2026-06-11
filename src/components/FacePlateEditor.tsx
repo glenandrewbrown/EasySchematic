@@ -520,9 +520,9 @@ export default function FacePlateEditor({ deviceData, onSave, onClose }: FacePla
   const selStroke = 0.4;
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={onClose} onWheel={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
+    <div className="ui-dialog-backdrop" onClick={onClose} onWheel={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
       <div
-        className="bg-white rounded-lg shadow-xl flex flex-col text-xs"
+        className="ui-dialog bg-[var(--color-surface-raised)] text-xs"
         style={{ width: "90vw", height: "90vh", maxWidth: 1400 }}
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => {
@@ -545,21 +545,21 @@ export default function FacePlateEditor({ deviceData, onSave, onClose }: FacePla
         tabIndex={-1}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-200">
+        <div className="px-4 py-3 border-b border-[var(--ui-border)] flex items-center justify-between shrink-0">
           <div>
             <h3 className="font-semibold text-sm">Face-Plate Layout</h3>
-            <span className="text-neutral-400">{deviceData.label} — {heightU}U</span>
+            <span className="text-[var(--color-text-muted)]">{deviceData.label} — {heightU}U</span>
           </div>
           <div className="flex items-center gap-2">
             <button
-              className="px-2 py-1 rounded border border-neutral-300 hover:bg-neutral-50 text-xs"
+              className="ui-btn ui-btn-ghost"
               onClick={handleResetLayout}
               title="Reset all positions to auto-layout"
             >
               Reset
             </button>
             <button
-              className="text-neutral-400 hover:text-neutral-600 text-lg leading-none"
+              className="text-[var(--color-text-muted)] hover:text-[var(--color-text-heading)] text-lg leading-none cursor-pointer"
               onClick={onClose}
             >
               ×
@@ -568,7 +568,7 @@ export default function FacePlateEditor({ deviceData, onSave, onClose }: FacePla
         </div>
 
         {/* Canvas — renders at canonical rack dimensions, viewBox scales up */}
-        <div className="flex-1 overflow-hidden bg-neutral-100 relative" style={{ minHeight: 0 }}>
+        <div className="flex-1 overflow-hidden bg-[var(--color-surface)] relative" style={{ minHeight: 0 }}>
           <svg
             ref={svgRef}
             width="100%"
@@ -760,7 +760,7 @@ export default function FacePlateEditor({ deviceData, onSave, onClose }: FacePla
         </div>
 
         {/* Footer controls */}
-        <div className="flex items-center justify-between px-4 py-3 border-t border-neutral-200">
+        <div className="px-4 py-3 border-t border-[var(--ui-border)] flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
             <label className="flex items-center gap-1.5 cursor-pointer select-none">
               <input
@@ -773,7 +773,7 @@ export default function FacePlateEditor({ deviceData, onSave, onClose }: FacePla
             </label>
             {snapEnabled && (
               <select
-                className="border border-neutral-300 rounded px-1.5 py-0.5 text-xs"
+                className="ui-input"
                 value={gridSize}
                 onChange={(e) => setGridSize(Number(e.target.value))}
               >
@@ -783,16 +783,16 @@ export default function FacePlateEditor({ deviceData, onSave, onClose }: FacePla
               </select>
             )}
             <button
-              className="px-2 py-1 rounded border border-neutral-300 hover:bg-neutral-50"
+              className="ui-btn ui-btn-ghost"
               onClick={handleAddLabel}
             >
               + Label
             </button>
-            <span className="text-neutral-400">|</span>
-            <span className="text-neutral-500">{Math.round(zoom * 100)}%</span>
+            <span className="text-[var(--color-text-muted)]">|</span>
+            <span className="text-[var(--color-text-muted)]">{Math.round(zoom * 100)}%</span>
             {(zoom !== 1 || pan.x !== 0 || pan.y !== 0) && (
               <button
-                className="px-2 py-1 rounded border border-neutral-300 hover:bg-neutral-50"
+                className="ui-btn ui-btn-ghost"
                 onClick={handleResetView}
               >
                 Reset View
@@ -802,27 +802,27 @@ export default function FacePlateEditor({ deviceData, onSave, onClose }: FacePla
             {/* Align / distribute — visible when 2+ items selected */}
             {selectedIds.size >= 2 && (
               <>
-                <span className="text-neutral-400">|</span>
-                <span className="text-neutral-500">Align:</span>
-                <button className="px-1.5 py-0.5 rounded border border-neutral-300 hover:bg-neutral-50" onClick={() => handleAlign("x", "min")} title="Align left">L</button>
-                <button className="px-1.5 py-0.5 rounded border border-neutral-300 hover:bg-neutral-50" onClick={() => handleAlign("x", "mid")} title="Align center horizontally">CX</button>
-                <button className="px-1.5 py-0.5 rounded border border-neutral-300 hover:bg-neutral-50" onClick={() => handleAlign("x", "max")} title="Align right">R</button>
-                <button className="px-1.5 py-0.5 rounded border border-neutral-300 hover:bg-neutral-50" onClick={() => handleAlign("y", "min")} title="Align top">T</button>
-                <button className="px-1.5 py-0.5 rounded border border-neutral-300 hover:bg-neutral-50" onClick={() => handleAlign("y", "mid")} title="Align center vertically">CY</button>
-                <button className="px-1.5 py-0.5 rounded border border-neutral-300 hover:bg-neutral-50" onClick={() => handleAlign("y", "max")} title="Align bottom">B</button>
+                <span className="text-[var(--color-text-muted)]">|</span>
+                <span className="text-[var(--color-text-muted)]">Align:</span>
+                <button className="ui-btn ui-btn-ghost" onClick={() => handleAlign("x", "min")} title="Align left">L</button>
+                <button className="ui-btn ui-btn-ghost" onClick={() => handleAlign("x", "mid")} title="Align center horizontally">CX</button>
+                <button className="ui-btn ui-btn-ghost" onClick={() => handleAlign("x", "max")} title="Align right">R</button>
+                <button className="ui-btn ui-btn-ghost" onClick={() => handleAlign("y", "min")} title="Align top">T</button>
+                <button className="ui-btn ui-btn-ghost" onClick={() => handleAlign("y", "mid")} title="Align center vertically">CY</button>
+                <button className="ui-btn ui-btn-ghost" onClick={() => handleAlign("y", "max")} title="Align bottom">B</button>
                 {selectedIds.size >= 3 && (
                   <>
-                    <span className="text-neutral-400">|</span>
-                    <span className="text-neutral-500">Distribute:</span>
-                    <button className="px-1.5 py-0.5 rounded border border-neutral-300 hover:bg-neutral-50" onClick={() => handleDistribute("x")} title="Distribute horizontally">H</button>
-                    <button className="px-1.5 py-0.5 rounded border border-neutral-300 hover:bg-neutral-50" onClick={() => handleDistribute("y")} title="Distribute vertically">V</button>
+                    <span className="text-[var(--color-text-muted)]">|</span>
+                    <span className="text-[var(--color-text-muted)]">Distribute:</span>
+                    <button className="ui-btn ui-btn-ghost" onClick={() => handleDistribute("x")} title="Distribute horizontally">H</button>
+                    <button className="ui-btn ui-btn-ghost" onClick={() => handleDistribute("y")} title="Distribute vertically">V</button>
                   </>
                 )}
               </>
             )}
 
             {/* Status bar */}
-            <span className="text-neutral-400 ml-2">
+            <span className="text-[var(--color-text-muted)] ml-2">
               {selectedIds.size > 1
                 ? `${selectedIds.size} items selected`
                 : isDeviceLabelSelected
@@ -838,7 +838,7 @@ export default function FacePlateEditor({ deviceData, onSave, onClose }: FacePla
             {/* Device label font size control */}
             {isDeviceLabelSelected && (
               <div className="flex items-center gap-1 mr-2">
-                <span className="text-neutral-500">Size</span>
+                <span className="text-[var(--color-text-muted)]">Size</span>
                 <input
                   type="range"
                   min={6}
@@ -848,13 +848,13 @@ export default function FacePlateEditor({ deviceData, onSave, onClose }: FacePla
                   onChange={(e) => setDeviceLabelPos((prev) => ({ ...prev, fontSize: Number(e.target.value) }))}
                   className="w-20 accent-blue-600"
                 />
-                <span className="text-neutral-500 w-6 text-right">{deviceLabelPos.fontSize}</span>
+                <span className="text-[var(--color-text-muted)] w-6 text-right">{deviceLabelPos.fontSize}</span>
               </div>
             )}
             {/* Inline label text editor */}
             {selectedLabel && (
               <input
-                className="border border-neutral-300 rounded px-2 py-0.5 text-xs w-28"
+                className="ui-input w-28"
                 value={selectedLabel.text}
                 autoFocus
                 onChange={(e) => {
@@ -871,13 +871,13 @@ export default function FacePlateEditor({ deviceData, onSave, onClose }: FacePla
               />
             )}
             <button
-              className="px-3 py-1 rounded border border-neutral-300 hover:bg-neutral-50"
+              className="ui-btn ui-btn-secondary"
               onClick={onClose}
             >
               Cancel
             </button>
             <button
-              className="px-3 py-1 rounded bg-blue-600 text-white hover:bg-blue-700"
+              className="ui-btn ui-btn-primary"
               onClick={handleSave}
             >
               Save

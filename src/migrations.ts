@@ -16,7 +16,7 @@ import { defaultStubPlacement } from "./stubPlacement";
 import { getPortAbsolutePositions } from "./snapUtils";
 import type { SchematicNode } from "./types";
 
-export const CURRENT_SCHEMA_VERSION = 39;
+export const CURRENT_SCHEMA_VERSION = 41;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Migration = (data: any) => any;
@@ -482,6 +482,19 @@ const migrations: Record<number, Migration> = {
     delete data.customLabelGap;
     delete data.customLabelMidOffset;
     data.version = 39;
+    return data;
+  },
+  39: (data) => {
+    // v39 → v40: cable-fit feature. Adds optional fields only — ownedCables
+    // inventory on the file, assignedCableIds on edges, widthM/depthM on rooms.
+    // No data transform needed for existing files.
+    data.version = 40;
+    return data;
+  },
+  40: (data) => {
+    // v40 → v41: floor-plan rooms. Adds optional heightM and shape (normalized
+    // polygon vertices) to RoomData. No data transform needed.
+    data.version = 41;
     return data;
   },
 

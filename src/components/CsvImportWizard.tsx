@@ -141,14 +141,13 @@ export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
 
   // ---------- Render ----------
 
-  const btnClass = "px-3 py-1.5 text-xs font-medium rounded border transition-colors";
-  const btnPrimary = `${btnClass} bg-blue-500 text-white border-blue-500 hover:bg-blue-600`;
-  const btnSecondary = `${btnClass} bg-white text-[var(--color-text)] border-[var(--color-border)] hover:bg-gray-50`;
+  const btnPrimary = "ui-btn ui-btn-primary";
+  const btnSecondary = "ui-btn ui-btn-secondary";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
       <div
-        className="bg-white rounded-lg shadow-xl w-[700px] max-w-[90vw] max-h-[85vh] flex flex-col"
+        className="ui-dialog w-[700px] max-w-[90vw]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -235,14 +234,14 @@ function Step1({
       {/* Upload / Paste */}
       <div className="space-y-2">
         <div className="flex items-center gap-3">
-          <label className={`px-3 py-1.5 text-xs font-medium rounded border border-[var(--color-border)] bg-white hover:bg-gray-50 cursor-pointer transition-colors`}>
+          <label className="ui-btn ui-btn-secondary cursor-pointer">
             Choose CSV File
             <input type="file" accept=".csv,.tsv,.txt" onChange={onFileUpload} className="hidden" />
           </label>
           <span className="text-[10px] text-[var(--color-text-muted)]">or paste below</span>
         </div>
         <textarea
-          className="w-full h-24 text-xs font-mono border border-[var(--color-border)] rounded p-2 resize-none focus:outline-none focus:border-blue-500"
+          className="ui-input w-full h-24 text-xs font-mono resize-none"
           placeholder="Paste CSV data here..."
           value={pasteText}
           onChange={(e) => setPasteText(e.target.value)}
@@ -263,7 +262,7 @@ function Step1({
           <div className="overflow-x-auto border border-[var(--color-border)] rounded">
             <table className="w-full text-[10px]">
               <thead>
-                <tr className="bg-gray-50">
+                <tr className="bg-[var(--color-surface)]">
                   {parseResult.headers.map((h, i) => (
                     <th key={i} className="px-2 py-1 text-left font-medium text-[var(--color-text-muted)] border-b border-[var(--color-border)] whitespace-nowrap">
                       {h}
@@ -302,7 +301,7 @@ function Step1({
                 <select
                   value={mapping[key]}
                   onChange={(e) => onUpdateMapping(key, Number(e.target.value))}
-                  className="flex-1 text-xs border border-[var(--color-border)] rounded px-1.5 py-1 focus:outline-none focus:border-blue-500"
+                  className="ui-input flex-1 text-xs"
                 >
                   <option value={-1}>(ignore)</option>
                   {parseResult.headers.map((h, i) => (
@@ -415,7 +414,7 @@ function Step2({
                   type="text"
                   value={searchQuery}
                   onChange={(e) => onSearchQueryChange(e.target.value)}
-                  className="w-full text-xs border border-[var(--color-border)] rounded px-2 py-1 focus:outline-none focus:border-blue-500"
+                  className="ui-input w-full text-xs"
                   placeholder="Search templates..."
                   autoFocus
                 />

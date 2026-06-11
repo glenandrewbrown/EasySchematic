@@ -196,7 +196,7 @@ export default function PortContextMenu() {
   return (
     <div
       ref={menuRef}
-      className="fixed z-50 bg-white border border-gray-300 rounded shadow-lg py-1 min-w-[160px]"
+      className="chrome-menu fixed z-50 min-w-[160px]"
       style={{
         left: menuPos.x,
         top: menuPos.y,
@@ -209,7 +209,7 @@ export default function PortContextMenu() {
       <MenuItem label={flipLabel} onClick={flipPort} />
       <MenuItem label="Flip All Ports" onClick={flipAllPorts} />
       {(canConvert || canConvertAll) && (
-        <div className="border-t border-gray-200 my-1" />
+        <div className="h-px bg-[var(--ui-border)] my-1" />
       )}
       {canConvert && (
         <MenuItem label="Convert to Passthrough Circuit" onClick={convertToPassthrough} />
@@ -217,7 +217,7 @@ export default function PortContextMenu() {
       {canConvertAll && (
         <MenuItem label="Convert All Ports to Passthrough" onClick={convertAllToPassthrough} />
       )}
-      <div className="border-t border-gray-200 my-1" />
+      <div className="h-px bg-[var(--ui-border)] my-1" />
       <MenuItem label="Edit Device..." onClick={editDevice} />
     </div>
   );
@@ -226,7 +226,7 @@ export default function PortContextMenu() {
 function MenuItem({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <button
-      className="w-full text-left px-3 py-1.5 text-xs text-gray-700 hover:bg-blue-50 hover:text-blue-700 cursor-pointer"
+      className="w-full text-left px-2.5 py-1.5 text-xs text-[var(--color-text)] hover:bg-[var(--color-surface-hover)] rounded-md transition-colors cursor-pointer"
       onClick={onClick}
     >
       {label}

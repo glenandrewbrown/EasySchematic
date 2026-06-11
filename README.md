@@ -33,6 +33,8 @@
 - **Custom devices** — design any device from scratch with a guided builder (matrix routers, breakout panels, anything with structured I/O sections)
 - **Notes & annotations** — text annotations on the canvas with rectangle and ellipse shapes
 - **Rooms** — resizable dashed-border containers for grouping devices, with lock/unlock to prevent accidental moves
+- **Room dimensions** — give a room its real width × depth × ceiling height in meters; dimensions display on the canvas and scale intra-room cable-length estimates from actual device positions
+- **Custom room shapes** — right-click a room → Edit Shape to drag corners, add corners on any wall, and build L-shaped or irregular floor plans; each wall shows its real length in meters, updating live as you reshape
 - **Auto-numbering** — dropped devices auto-increment (Camera → Camera 1, Camera 2, …)
 - **Dark mode** — toggle light/dark themes from the menu bar; saved automatically, respects OS setting on first visit
 - **Mobile support** — mobile detection with hamburger menu and touch-friendly pan controls
@@ -55,6 +57,9 @@
 - **Manual route editing** — right-click a connection to add draggable waypoints; A\* routes each leg between waypoints while other connections yield
 - **Cable length** — editable per-connection field, tracked in cable schedule and pack list
 - **Estimated cable length** — auto-populated from room-to-room distances when both endpoints are inside placed rooms; flows into the cable schedule, patch panel schedule, and pack list
+- **Cable inventory** — track the exact cables you own (label, length in m/ft, quantity) per schematic, with live free-stock counts (View → Cable Inventory)
+- **Cable assignment & chaining** — right-click a connection → Assign Cables to cover a run with cables from your stock, chaining several through couplers (10 m + 5 m = one 15 m run); assignments deduct from stock globally and the chain total flows into the cable schedule
+- **Cable fit validation** — required run length (from room distances, or device positions inside a dimensioned room) is compared against the assigned chain: too short / fits / wastefully long, with a best-fit suggestion from remaining stock
 - **Multicable support** — cable accessory templates (snakes, socapex), trunk ports, break-in/break-out devices
 - **Cable ID labels** — auto-assigned with type-prefix naming (e.g. "SDI-1", "HDMI-2") or sequential ("Cable 1", "Cable 2")
 - **Line jump arcs** at connection crossings

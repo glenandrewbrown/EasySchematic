@@ -78,28 +78,23 @@ export default function UserMenuButton() {
       </button>
       {dropdownOpen && (
         <div
-          className="absolute right-0 mt-1 w-48 rounded-lg shadow-lg py-1 z-50"
-          style={{
-            backgroundColor: "var(--color-surface)",
-            border: "1px solid var(--color-border)",
-          }}
+          className="chrome-menu absolute right-0 mt-1 w-48 z-50"
         >
-          <div className="px-3 py-2 border-b" style={{ borderColor: "var(--color-border)" }}>
-            <p className="text-xs truncate" style={{ color: "var(--color-text-muted)" }}>{user.email}</p>
+          <div className="px-2.5 py-2 border-b border-[var(--ui-border)]">
+            <p className="text-xs text-[var(--color-text-muted)] truncate">{user.email}</p>
           </div>
           <a
             href="https://devices.easyschematic.live"
             target="_blank"
             rel="noopener noreferrer"
             onClick={() => setDropdownOpen(false)}
-            className="block px-3 py-2 text-xs hover:bg-[var(--color-surface-hover)] transition-colors"
-            style={{ color: "var(--color-text)" }}
+            className="block px-2.5 py-1.5 text-xs text-[var(--color-text)] hover:bg-[var(--color-surface-hover)] rounded-md transition-colors"
           >
             Device Library ↗
           </a>
           <button
             onClick={handleLogout}
-            className="w-full text-left px-3 py-2 text-xs text-red-500 hover:bg-red-50 transition-colors cursor-pointer"
+            className="w-full text-left px-2.5 py-1.5 text-xs text-red-600 dark:text-red-400 hover:bg-red-500/10 rounded-md transition-colors cursor-pointer"
           >
             Log out
           </button>

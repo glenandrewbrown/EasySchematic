@@ -45,7 +45,7 @@ type MenuEntry = MenuItemDef | MenuSeparatorDef;
 // ─── Sub-components ──────────────────────────────────────────────
 
 function MenuSeparator() {
-  return <div className="h-px bg-[var(--color-border)] my-1" />;
+  return <div className="h-px bg-[var(--ui-border)] my-1" />;
 }
 
 function MenuItem({
@@ -68,7 +68,7 @@ function MenuItem({
       disabled={disabled}
       onClick={onClick}
       title={title}
-      className="flex items-center w-full px-2 py-1.5 text-xs rounded hover:bg-[var(--color-surface-hover)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer text-left gap-2"
+      className="flex items-center w-full px-2 py-1.5 text-xs rounded-md hover:bg-[var(--color-surface-hover)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer text-left gap-2"
     >
       <span className="w-4 text-center shrink-0 text-[10px]">
         {checked != null ? (checked ? "✓" : "") : ""}
@@ -85,7 +85,7 @@ function MenuItem({
 
 function MenuDropdown({ items, onClose }: { items: MenuEntry[]; onClose: () => void }) {
   return (
-    <div className="absolute top-full left-0 mt-0.5 min-w-[220px] bg-white border border-[var(--color-border)] rounded-lg shadow-lg p-1 z-50">
+    <div className="chrome-menu absolute top-full left-0 mt-1 min-w-[230px] z-50">
       {items.map((entry, i) => {
         if (entry.type === "separator") return <MenuSeparator key={i} />;
         return (
@@ -621,6 +621,7 @@ export default function MenuBar() {
       { type: "item", label: "Power Report...", onClick: () => setReportsTab("power") },
       { type: "separator" },
       { type: "item", label: "Room Distances...", onClick: () => setShowRoomDistances(true) },
+      { type: "item", label: "Cable Inventory...", onClick: () => useSchematicStore.getState().setShowCableInventory(true) },
     ],
     Help: [
       {
@@ -703,7 +704,7 @@ export default function MenuBar() {
   return (
     <div ref={menuBarRef}>
       {/* Desktop menu bar */}
-      <div className="hidden md:flex h-10 bg-[var(--color-surface)] border-b border-[var(--color-border)] items-center px-1 shrink-0 select-none">
+      <div className="hidden md:flex h-10 bg-[var(--color-surface)] border-b border-[var(--ui-border)] items-center px-1 shrink-0 select-none">
         {/* Left: logo + brand + menus */}
         <div className="flex items-center">
           <div className="flex items-center gap-2 px-3 shrink-0">
@@ -712,11 +713,11 @@ export default function MenuBar() {
               EasySchematic
             </span>
           </div>
-          <div className="w-px h-5 bg-[var(--color-border)]" />
+          <div className="w-px h-4 bg-[var(--ui-border-strong)]" />
           {menuNames.map((name) => (
             <div key={name} className="relative">
               <button
-                className={`px-3 py-1.5 text-xs rounded transition-colors cursor-pointer ${
+                className={`px-3 py-1.5 text-xs rounded-md transition-colors cursor-pointer ${
                   openMenu === name
                     ? "bg-[var(--color-surface-hover)] text-[var(--color-text-heading)]"
                     : "text-[var(--color-text)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-heading)]"
@@ -816,9 +817,9 @@ export default function MenuBar() {
               <path d="M10 4l3 3-3 3" />
             </svg>
           </button>
-          <div className="w-px h-5 bg-[var(--color-border)] mx-1" />
+          <div className="w-px h-4 bg-[var(--ui-border-strong)] mx-1" />
           <AlignmentMenu />
-          <div className="w-px h-5 bg-[var(--color-border)] mx-1" />
+          <div className="w-px h-4 bg-[var(--ui-border-strong)] mx-1" />
           <button
             onClick={toggleTheme}
             title={isDark ? "Switch to light mode" : "Switch to dark mode"}
@@ -835,7 +836,7 @@ export default function MenuBar() {
               </svg>
             )}
           </button>
-          <div className="w-px h-5 bg-[var(--color-border)] mx-1" />
+          <div className="w-px h-4 bg-[var(--ui-border-strong)] mx-1" />
           <UserMenuButton />
         </div>
       </div>

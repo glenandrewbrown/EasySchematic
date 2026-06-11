@@ -47,21 +47,15 @@ export default function LoginDialog({ open, onClose }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center"
-      style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+      className="ui-dialog-backdrop z-[9999]"
       onClick={handleClose}
     >
       <div
-        className="rounded-lg shadow-xl w-[380px] max-w-[90vw]"
-        style={{
-          backgroundColor: "var(--color-surface)",
-          color: "var(--color-text)",
-          border: "1px solid var(--color-border)",
-        }}
+        className="ui-dialog w-[380px] max-w-[90vw]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="px-5 py-4 border-b" style={{ borderColor: "var(--color-border)" }}>
-          <h2 className="text-sm font-semibold" style={{ color: "var(--color-text-heading)" }}>
+        <div className="px-4 py-3 border-b border-[var(--ui-border)]">
+          <h2 className="text-sm font-semibold text-[var(--color-text-heading)]">
             Log in to submit
           </h2>
         </div>
@@ -95,12 +89,7 @@ export default function LoginDialog({ open, onClose }: Props) {
                   const returnTo = encodeURIComponent(window.location.href);
                   window.location.href = `${API_URL}/auth/google/start?returnTo=${returnTo}`;
                 }}
-                className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs rounded transition-colors cursor-pointer"
-                style={{
-                  backgroundColor: "var(--color-bg)",
-                  color: "var(--color-text)",
-                  border: "1px solid var(--color-border)",
-                }}
+                className="ui-btn ui-btn-secondary w-full flex items-center justify-center gap-2"
               >
                 <svg className="w-3.5 h-3.5" viewBox="0 0 24 24">
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" />
@@ -121,12 +110,7 @@ export default function LoginDialog({ open, onClose }: Props) {
                 onChange={(e) => setEmail(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSend()}
                 placeholder="you@example.com"
-                className="w-full px-3 py-2 text-xs rounded"
-                style={{
-                  backgroundColor: "var(--color-bg)",
-                  color: "var(--color-text)",
-                  border: "1px solid var(--color-border)",
-                }}
+                className="ui-input w-full"
                 autoFocus
               />
               {error && (
@@ -135,18 +119,10 @@ export default function LoginDialog({ open, onClose }: Props) {
             </>
           )}
         </div>
-        <div
-          className="px-5 py-3 flex justify-end gap-2 border-t"
-          style={{ borderColor: "var(--color-border)" }}
-        >
+        <div className="px-4 py-3 border-t border-[var(--ui-border)] flex justify-end gap-2">
           <button
             onClick={handleClose}
-            className="px-3 py-1.5 text-xs rounded transition-colors cursor-pointer"
-            style={{
-              backgroundColor: "var(--color-surface)",
-              color: "var(--color-text)",
-              border: "1px solid var(--color-border)",
-            }}
+            className="ui-btn ui-btn-secondary"
           >
             {sent ? "Close" : "Cancel"}
           </button>
@@ -154,7 +130,7 @@ export default function LoginDialog({ open, onClose }: Props) {
             <button
               onClick={handleSend}
               disabled={sending}
-              className="px-3 py-1.5 text-xs rounded bg-blue-600 text-white hover:bg-blue-500 transition-colors cursor-pointer disabled:opacity-50"
+              className="ui-btn ui-btn-primary disabled:opacity-50"
             >
               {sending ? "Sending..." : "Send login link"}
             </button>

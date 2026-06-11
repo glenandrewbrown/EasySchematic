@@ -68,12 +68,11 @@ function ReportsDialog({ initialTab, onClose }: ReportsDialogProps) {
   const tabClass = (t: ReportsTab) =>
     `px-3 py-1.5 text-xs rounded-t cursor-pointer border border-b-0 transition-colors ${
       tab === t
-        ? "bg-white text-[var(--color-text-heading)] font-semibold border-[var(--color-border)]"
+        ? "bg-[var(--color-surface-raised)] text-[var(--color-text-heading)] font-semibold border-[var(--ui-border)]"
         : "bg-[var(--color-surface)] text-[var(--color-text-muted)] border-transparent hover:text-[var(--color-text)]"
     }`;
 
-  const btnClass =
-    "px-3 py-1 text-xs rounded bg-[var(--color-surface)] text-[var(--color-text)] hover:text-[var(--color-text-heading)] hover:bg-[var(--color-surface-hover)] border border-[var(--color-border)] transition-colors cursor-pointer";
+  const btnClass = "ui-btn ui-btn-secondary";
 
   const handleCsvExport = useCallback(() => {
     const ownedGear = useSchematicStore.getState().ownedGear;
@@ -123,19 +122,19 @@ function ReportsDialog({ initialTab, onClose }: ReportsDialogProps) {
   return (
     <>
       <div
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
+        className="ui-dialog-backdrop"
         onClick={onClose}
       >
         <div
-          className={`bg-white border border-[var(--color-border)] shadow-2xl flex flex-col transition-all duration-200 ${
+          className={`ui-dialog bg-[var(--color-surface-raised)] transition-all duration-200 ${
             maximized
-              ? "w-[calc(100%-2rem)] h-[calc(100%-2rem)] rounded-lg"
-              : "w-[900px] h-[80vh] rounded-lg"
+              ? "w-[calc(100%-2rem)] h-[calc(100%-2rem)]"
+              : "w-[900px] h-[80vh]"
           }`}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="px-4 py-3 border-b border-[var(--color-border)] flex items-center gap-3 shrink-0">
+          <div className="px-4 py-3 border-b border-[var(--ui-border)] flex items-center gap-3 shrink-0">
             <h2 className="text-sm font-semibold text-[var(--color-text-heading)]">
               Reports
             </h2>
@@ -193,7 +192,7 @@ function ReportsDialog({ initialTab, onClose }: ReportsDialogProps) {
           </div>
 
           {/* Tabs */}
-          <div className="px-4 pt-2 flex items-center gap-1 border-b border-[var(--color-border)]">
+          <div className="px-4 pt-2 flex items-center gap-1 border-b border-[var(--ui-border)]">
             {(Object.keys(tabLabels) as ReportsTab[]).map((t) => (
               <button key={t} className={tabClass(t)} onClick={() => setTab(t)}>
                 {tabLabels[t]}
@@ -300,7 +299,7 @@ export default memo(ReportsDialog);
 // ─── Shared styling ────────────────────────────────────────────
 
 const thClass =
-  "text-left text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wide py-1.5 px-2 border-b border-[var(--color-border)] cursor-pointer hover:text-[var(--color-text)] select-none";
+  "text-left text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wide py-1.5 px-2 border-b border-[var(--ui-border)] cursor-pointer hover:text-[var(--color-text)] select-none";
 const tdClass = "py-1 px-2 text-xs text-[var(--color-text)]";
 const rowClass = (i: number) =>
   i % 2 === 1 ? "bg-[var(--color-surface)]" : "";
@@ -555,8 +554,8 @@ function NetworkReportTab() {
     <>
       {/* DHCP Servers summary */}
       {dhcpServers.length > 0 && (
-        <div className="mb-4 border border-[var(--color-border)] rounded overflow-hidden">
-          <div className="px-3 py-1.5 bg-[var(--color-surface)] border-b border-[var(--color-border)]">
+        <div className="mb-4 border border-[var(--ui-border)] rounded overflow-hidden">
+          <div className="px-3 py-1.5 bg-[var(--color-surface)] border-b border-[var(--ui-border)]">
             <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">DHCP Servers</span>
           </div>
           <table className="w-full border-collapse">
@@ -586,8 +585,8 @@ function NetworkReportTab() {
 
       {/* PoE Budget summary */}
       {poeBudgets.length > 0 && (
-        <div className="mb-4 border border-[var(--color-border)] rounded overflow-hidden">
-          <div className="px-3 py-1.5 bg-[var(--color-surface)] border-b border-[var(--color-border)]">
+        <div className="mb-4 border border-[var(--ui-border)] rounded overflow-hidden">
+          <div className="px-3 py-1.5 bg-[var(--color-surface)] border-b border-[var(--ui-border)]">
             <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">PoE Budget</span>
           </div>
           <table className="w-full border-collapse">
@@ -640,7 +639,7 @@ function NetworkReportTab() {
 
       <div className="mb-3">
         <input
-          className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2 py-1 text-xs outline-none focus:border-blue-500"
+          className="w-full bg-[var(--color-surface)] border border-[var(--ui-border)] rounded px-2 py-1 text-xs outline-none focus:border-blue-500"
           placeholder="Filter by device, port, room, or IP..."
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
@@ -1243,7 +1242,7 @@ function DeviceReportTab() {
 
       <div className="mb-3">
         <input
-          className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2 py-1 text-xs outline-none focus:border-blue-500"
+          className="w-full bg-[var(--color-surface)] border border-[var(--ui-border)] rounded px-2 py-1 text-xs outline-none focus:border-blue-500"
           placeholder="Filter by name, type, manufacturer, or room..."
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
@@ -1658,14 +1657,14 @@ function CableScheduleTabInline() {
 
       <div className="flex items-center gap-2 mb-3">
         <input
-          className="flex-1 bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2 py-1 text-xs outline-none focus:border-blue-500"
+          className="flex-1 bg-[var(--color-surface)] border border-[var(--ui-border)] rounded px-2 py-1 text-xs outline-none focus:border-blue-500"
           placeholder="Filter by device, port, cable type, signal, room..."
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
           onKeyDown={(e) => e.stopPropagation()}
         />
         <select
-          className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2 py-1 text-xs outline-none cursor-pointer"
+          className="bg-[var(--color-surface)] border border-[var(--ui-border)] rounded px-2 py-1 text-xs outline-none cursor-pointer"
           value={groupByKey}
           onChange={(e) => setGroupByKey(e.target.value as CableGroupBy)}
         >
@@ -1846,7 +1845,7 @@ function renderGroupedCableSchedule(
       <tr key={`h-${group}`}>
         <td
           colSpan={15}
-          className="pt-3 pb-1 px-2 text-xs font-semibold text-[var(--color-text-heading)] border-b border-[var(--color-border)]"
+          className="pt-3 pb-1 px-2 text-xs font-semibold text-[var(--color-text-heading)] border-b border-[var(--ui-border)]"
         >
           {group}
         </td>
@@ -1996,14 +1995,14 @@ function PatchPanelScheduleTabInline() {
     <>
       <div className="flex items-center gap-2 mb-3 flex-wrap">
         <input
-          className="flex-1 min-w-[240px] bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2 py-1 text-xs outline-none focus:border-blue-500"
+          className="flex-1 min-w-[240px] bg-[var(--color-surface)] border border-[var(--ui-border)] rounded px-2 py-1 text-xs outline-none focus:border-blue-500"
           placeholder="Filter by panel, port, device, cable, signal, room..."
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
           onKeyDown={(e) => e.stopPropagation()}
         />
         <select
-          className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2 py-1 text-xs outline-none cursor-pointer"
+          className="bg-[var(--color-surface)] border border-[var(--ui-border)] rounded px-2 py-1 text-xs outline-none cursor-pointer"
           value={groupByKey}
           onChange={(e) => setGroupByKey(e.target.value as PatchPanelGroupBy)}
           title="Group by"
@@ -2032,7 +2031,7 @@ function PatchPanelScheduleTabInline() {
           return (
             <div
               key={p.label}
-              className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2 py-1 text-[10px]"
+              className="bg-[var(--color-surface)] border border-[var(--ui-border)] rounded px-2 py-1 text-[10px]"
               title={`${p.connected} of ${p.total} ports used`}
             >
               <span className="font-semibold text-[var(--color-text-heading)]">{p.label}</span>
@@ -2192,7 +2191,7 @@ function PackListTabInline() {
     }`;
 
   const plThClass =
-    "text-left text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wide py-1.5 px-2 border-b border-[var(--color-border)]";
+    "text-left text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wide py-1.5 px-2 border-b border-[var(--ui-border)]";
 
   return (
     <>
@@ -2226,7 +2225,7 @@ function PackListTabInline() {
             <select
               value={cableGrouping}
               onChange={(e) => setCableGrouping(e.target.value as CableGrouping)}
-              className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-1.5 py-0.5 text-[10px] text-[var(--color-text)] outline-none cursor-pointer"
+              className="bg-[var(--color-surface)] border border-[var(--ui-border)] rounded px-1.5 py-0.5 text-[10px] text-[var(--color-text)] outline-none cursor-pointer"
             >
               <option value="">None</option>
               <option value="path">Path</option>
@@ -2237,7 +2236,7 @@ function PackListTabInline() {
       </div>
 
       {totalCost > 0 && (
-        <div className="mb-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-3 py-2 inline-block">
+        <div className="mb-3 bg-[var(--color-surface)] border border-[var(--ui-border)] rounded px-3 py-2 inline-block">
           <div className="text-[10px] text-[var(--color-text-muted)] uppercase tracking-wide">Project Total</div>
           <div className="text-sm font-semibold text-[var(--color-text-heading)]">
             ${totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -2328,7 +2327,7 @@ function PackListTabInline() {
                                 <tr>
                                   <td
                                     colSpan={99}
-                                    className="pt-3 pb-1 px-2 text-xs font-semibold text-[var(--color-text-heading)] border-b border-[var(--color-border)]"
+                                    className="pt-3 pb-1 px-2 text-xs font-semibold text-[var(--color-text-heading)] border-b border-[var(--ui-border)]"
                                   >
                                     {group.category} ({group.total} cable{group.total !== 1 ? "s" : ""})
                                   </td>
@@ -2344,7 +2343,7 @@ function PackListTabInline() {
                           <tr>
                             <td
                               colSpan={99}
-                              className="pt-3 pb-1 px-2 text-xs font-semibold text-[var(--color-text-heading)] border-b border-[var(--color-border)]"
+                              className="pt-3 pb-1 px-2 text-xs font-semibold text-[var(--color-text-heading)] border-b border-[var(--ui-border)]"
                             >
                               Adapters ({data.adapters.reduce((sum, a) => sum + a.count, 0)})
                             </td>
@@ -2451,7 +2450,7 @@ function renderGroupedDevices(devices: PackListDevice[], currency = "USD") {
       <tr key={`h-${room}`}>
         <td
           colSpan={99}
-          className="pt-3 pb-1 px-2 text-xs font-semibold text-[var(--color-text-heading)] border-b border-[var(--color-border)]"
+          className="pt-3 pb-1 px-2 text-xs font-semibold text-[var(--color-text-heading)] border-b border-[var(--ui-border)]"
         >
           {room}
         </td>
@@ -2562,7 +2561,7 @@ function PowerReportTab() {
     <div className="space-y-6">
       {/* Summary */}
       <div className="flex gap-4 text-xs">
-        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-3 py-2">
+        <div className="bg-[var(--color-surface)] border border-[var(--ui-border)] rounded px-3 py-2">
           <div className="text-[10px] text-[var(--color-text-muted)] uppercase tracking-wide">Total Power</div>
           <div className="text-sm font-semibold text-[var(--color-text-heading)]">{report.totalPowerW.toLocaleString()}W</div>
           <div className="text-[10px] text-[var(--color-text-muted)]">
@@ -2571,7 +2570,7 @@ function PowerReportTab() {
         </div>
         {report.totalThermalBtuh > 0 && (
           <div
-            className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-3 py-2"
+            className="bg-[var(--color-surface)] border border-[var(--ui-border)] rounded px-3 py-2"
             title="Thermal load for HVAC sizing. Auto-derived from power draw (× 3.412) where not explicitly entered."
           >
             <div className="text-[10px] text-[var(--color-text-muted)] uppercase tracking-wide">Total Thermal</div>
@@ -2596,7 +2595,7 @@ function PowerReportTab() {
           <div className="text-[10px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)] mb-2">
             Distribution Loading
           </div>
-          <table className="w-full border-collapse border border-[var(--color-border)] rounded overflow-hidden">
+          <table className="w-full border-collapse border border-[var(--ui-border)] rounded overflow-hidden">
             <thead>
               <tr>
                 <th className={thClass}>Distro</th>
@@ -2636,7 +2635,7 @@ function PowerReportTab() {
         <div className="text-[10px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)] mb-2">
           Device Power Draw
         </div>
-        <table className="w-full border-collapse border border-[var(--color-border)] rounded overflow-hidden">
+        <table className="w-full border-collapse border border-[var(--ui-border)] rounded overflow-hidden">
           <thead>
             <tr>
               <th className={thClass}>Qty</th>

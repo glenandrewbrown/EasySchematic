@@ -48,21 +48,21 @@ export default function AboutDialog({ onClose }: { onClose: () => void }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
+      className="ui-dialog-backdrop"
       onClick={onClose}
     >
       <div
-        className="bg-white border border-[var(--color-border)] rounded-lg shadow-2xl w-[420px] flex flex-col"
+        className="ui-dialog w-[420px]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--color-border)]">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--ui-border)]">
           <span className="text-sm font-semibold text-[var(--color-text-heading)]">
             About EasySchematic
           </span>
           <button
             onClick={onClose}
-            className="text-[var(--color-text-muted)] hover:text-[var(--color-text)] text-lg leading-none cursor-pointer"
+            className="ui-btn ui-btn-ghost text-lg leading-none"
           >
             &times;
           </button>
@@ -100,7 +100,7 @@ export default function AboutDialog({ onClose }: { onClose: () => void }) {
             <span>68 signal types</span>
           </div>
 
-          <div className="w-full h-px bg-[var(--color-border)]" />
+          <div className="w-full h-px bg-[var(--ui-border)]" />
 
           <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 text-xs">
             {[
@@ -124,7 +124,7 @@ export default function AboutDialog({ onClose }: { onClose: () => void }) {
             ))}
           </div>
 
-          <div className="w-full h-px bg-[var(--color-border)]" />
+          <div className="w-full h-px bg-[var(--ui-border)]" />
 
           <div className="text-[11px] text-[var(--color-text-muted)] leading-relaxed">
             <div>AGPL-3.0 &middot; &copy; 2025–2026 EasySchematic</div>
@@ -133,25 +133,25 @@ export default function AboutDialog({ onClose }: { onClose: () => void }) {
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between gap-2 px-5 py-3 border-t border-[var(--color-border)]">
+        <div className="px-4 py-3 border-t border-[var(--ui-border)] flex items-center justify-between gap-2">
           <button
             onClick={handleForceUpdate}
             disabled={resetting}
             title="Unregister the service worker, clear app cache, and reload. Schematic data is preserved."
-            className="px-3 py-1.5 text-xs rounded border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer text-[var(--color-text-muted)] disabled:opacity-50 disabled:cursor-wait"
+            className="ui-btn ui-btn-secondary disabled:opacity-50 disabled:cursor-wait"
           >
             {resetting ? "Reloading…" : "Force Update"}
           </button>
           <div className="flex items-center gap-2">
             <button
               onClick={copyDebugInfo}
-              className="px-3 py-1.5 text-xs rounded border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer text-[var(--color-text)]"
+              className="ui-btn ui-btn-secondary"
             >
               {copied ? "Copied!" : "Copy Debug Info"}
             </button>
             <button
               onClick={onClose}
-              className="px-3 py-1.5 text-xs rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors cursor-pointer"
+              className="ui-btn ui-btn-primary"
             >
               Close
             </button>

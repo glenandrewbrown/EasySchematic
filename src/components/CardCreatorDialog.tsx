@@ -125,8 +125,7 @@ export default function CardCreatorDialog({
         value={p.label}
         onChange={(e) => updatePort(p.id, { label: e.target.value })}
         placeholder="Label"
-        className="flex-1 min-w-0 px-1.5 py-0.5 text-xs rounded border outline-none focus:border-blue-500"
-        style={{ backgroundColor: "var(--color-bg)", borderColor: "var(--color-border)" }}
+        className="ui-input flex-1 min-w-0 text-xs"
       />
       <select
         value={p.signalType}
@@ -134,8 +133,7 @@ export default function CardCreatorDialog({
           const sig = e.target.value as SignalType;
           updatePort(p.id, { signalType: sig, connectorType: DEFAULT_CONNECTOR[sig] });
         }}
-        className="px-1 py-0.5 text-[10px] rounded border outline-none focus:border-blue-500"
-        style={{ backgroundColor: "var(--color-bg)", borderColor: "var(--color-border)" }}
+        className="ui-input text-[10px]"
       >
         {ALL_SIGNALS.map((s) => (
           <option key={s} value={s}>{SIGNAL_LABELS[s]}</option>
@@ -144,8 +142,7 @@ export default function CardCreatorDialog({
       <select
         value={p.connectorType ?? ""}
         onChange={(e) => updatePort(p.id, { connectorType: (e.target.value || undefined) as ConnectorType | undefined })}
-        className="px-1 py-0.5 text-[10px] rounded border outline-none focus:border-blue-500"
-        style={{ backgroundColor: "var(--color-bg)", borderColor: "var(--color-border)" }}
+        className="ui-input text-[10px]"
       >
         <option value="">—</option>
         {ALL_CONNECTORS.map((c) => (
@@ -186,23 +183,17 @@ export default function CardCreatorDialog({
 
   return (
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center"
-      style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+      className="ui-dialog-backdrop"
       onClick={close}
     >
       <div
-        className="rounded-lg shadow-xl w-[520px] max-w-[92vw] max-h-[90vh] overflow-y-auto"
-        style={{
-          backgroundColor: "var(--color-surface)",
-          color: "var(--color-text)",
-          border: "1px solid var(--color-border)",
-        }}
+        className="ui-dialog w-[520px] max-w-[92vw]"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => e.stopPropagation()}
       >
-        <div className="px-4 pt-3 pb-2 border-b" style={{ borderColor: "var(--color-border)" }}>
-          <div className="text-sm font-semibold">Create Custom Card</div>
-          <div className="text-[10px]" style={{ color: "var(--color-text-muted)" }}>
+        <div className="px-4 pt-3 pb-2 border-b border-[var(--ui-border)]">
+          <div className="text-sm font-semibold text-[var(--color-text-heading)]">Create Custom Card</div>
+          <div className="text-[10px] text-[var(--color-text-muted)]">
             This card will be saved to your custom templates and installed in the slot.
           </div>
         </div>
@@ -216,14 +207,13 @@ export default function CardCreatorDialog({
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               placeholder="e.g. Fiber SFP+ Module"
-              className="w-full px-2 py-1 text-xs rounded border outline-none focus:border-blue-500"
-              style={{ backgroundColor: "var(--color-bg)", borderColor: "var(--color-border)" }}
+              className="ui-input w-full text-xs"
               autoFocus
             />
           </div>
 
           <div>
-            <label className="block text-[10px] uppercase tracking-wider mb-0.5" style={{ color: "var(--color-text-muted)" }}>
+            <label className="block text-[10px] uppercase tracking-wider mb-0.5 text-[var(--color-text-muted)]">
               Slot Family <span className="text-red-500">*</span>
             </label>
             <input
@@ -231,8 +221,7 @@ export default function CardCreatorDialog({
               onChange={(e) => setSlotFamily(e.target.value)}
               placeholder="e.g. disguise-vfc, my-custom-family"
               list="card-creator-families"
-              className="w-full px-2 py-1 text-xs rounded border outline-none focus:border-blue-500"
-              style={{ backgroundColor: "var(--color-bg)", borderColor: "var(--color-border)" }}
+              className="ui-input w-full text-xs"
             />
             <datalist id="card-creator-families">
               {familySuggestions.map((f) => <option key={f} value={f} />)}
@@ -241,31 +230,29 @@ export default function CardCreatorDialog({
 
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="block text-[10px] uppercase tracking-wider mb-0.5" style={{ color: "var(--color-text-muted)" }}>
+              <label className="block text-[10px] uppercase tracking-wider mb-0.5 text-[var(--color-text-muted)]">
                 Manufacturer
               </label>
               <input
                 value={manufacturer}
                 onChange={(e) => setManufacturer(e.target.value)}
-                className="w-full px-2 py-1 text-xs rounded border outline-none focus:border-blue-500"
-                style={{ backgroundColor: "var(--color-bg)", borderColor: "var(--color-border)" }}
+                className="ui-input w-full text-xs"
               />
             </div>
             <div>
-              <label className="block text-[10px] uppercase tracking-wider mb-0.5" style={{ color: "var(--color-text-muted)" }}>
+              <label className="block text-[10px] uppercase tracking-wider mb-0.5 text-[var(--color-text-muted)]">
                 Model Number
               </label>
               <input
                 value={modelNumber}
                 onChange={(e) => setModelNumber(e.target.value)}
-                className="w-full px-2 py-1 text-xs rounded border outline-none focus:border-blue-500"
-                style={{ backgroundColor: "var(--color-bg)", borderColor: "var(--color-border)" }}
+                className="ui-input w-full text-xs"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-[10px] uppercase tracking-wider mb-0.5" style={{ color: "var(--color-text-muted)" }}>
+            <label className="block text-[10px] uppercase tracking-wider mb-0.5 text-[var(--color-text-muted)]">
               Unit Cost (USD)
             </label>
             <input
@@ -274,36 +261,25 @@ export default function CardCreatorDialog({
               onChange={(e) => setUnitCost(e.target.value)}
               placeholder="0"
               min={0}
-              className="w-32 px-2 py-1 text-xs rounded border outline-none focus:border-blue-500"
-              style={{ backgroundColor: "var(--color-bg)", borderColor: "var(--color-border)" }}
+              className="ui-input w-32 text-xs"
             />
           </div>
 
-          <div className="pt-2 mt-2 border-t" style={{ borderColor: "var(--color-border)" }}>
-            <div className="text-xs font-semibold mb-2">Ports</div>
+          <div className="pt-2 mt-2 border-t border-[var(--ui-border)]">
+            <div className="text-xs font-semibold mb-2 text-[var(--color-text-heading)]">Ports</div>
             {portSection("Inputs", "input", inputs)}
             {portSection("Outputs", "output", outputs)}
             {portSection("Bidirectional", "bidirectional", bidir)}
           </div>
         </div>
 
-        <div
-          className="px-4 py-2 flex items-center justify-end gap-2 border-t"
-          style={{ borderColor: "var(--color-border)" }}
-        >
-          <button
-            type="button"
-            onClick={close}
-            className="px-3 py-1 text-xs rounded border cursor-pointer"
-            style={{ borderColor: "var(--color-border)", color: "var(--color-text)" }}
-          >
-            Cancel
-          </button>
+        <div className="px-4 py-3 border-t border-[var(--ui-border)] flex justify-end gap-2">
+          <button type="button" onClick={close} className="ui-btn ui-btn-secondary">Cancel</button>
           <button
             type="button"
             onClick={handleSave}
             disabled={!canSave}
-            className="px-3 py-1 text-xs rounded bg-blue-500 text-white cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-600"
+            className="ui-btn ui-btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Create &amp; Install
           </button>

@@ -104,7 +104,7 @@ export default function AnnotationEditor() {
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
       onMouseDown={(e) => { if (e.target === e.currentTarget) close(); }}
     >
-      <div className="bg-white border border-[var(--color-border)] rounded-lg shadow-2xl w-[340px] flex flex-col">
+      <div className="ui-dialog w-[340px]">
         <div className="px-4 py-3 border-b border-[var(--color-border)] flex items-center justify-between">
           <h2 className="text-sm font-semibold text-[var(--color-text-heading)]">Annotation Properties</h2>
           <button
@@ -250,13 +250,13 @@ export default function AnnotationEditor() {
         <div className="px-4 py-3 border-t border-[var(--color-border)] flex justify-end gap-2">
           <button
             onClick={close}
-            className="px-3 py-1.5 text-xs rounded border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] hover:text-[var(--color-text-heading)] cursor-pointer transition-colors"
+            className="ui-btn ui-btn-secondary"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
-            className="px-3 py-1.5 text-xs rounded border border-blue-400 bg-blue-50 text-blue-700 hover:bg-blue-100 cursor-pointer transition-colors"
+            className="ui-btn ui-btn-primary"
           >
             Save
           </button>

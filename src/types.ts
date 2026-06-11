@@ -325,6 +325,15 @@ export interface RoomData {
   isEquipmentRack?: boolean;
   linkedRackPageId?: string;
   linkedRackId?: string;
+  /** Real-world room width in meters. Enables on-canvas dimensions and intra-room cable estimates. */
+  widthM?: number;
+  /** Real-world room depth in meters. */
+  depthM?: number;
+  /** Real-world ceiling height in meters. */
+  heightM?: number;
+  /** Custom floor-plan outline: normalized polygon vertices (0..1 relative to the
+   *  node box), in draw order. Absent = plain rectangle. Minimum 3 points. */
+  shape?: { x: number; y: number }[];
 }
 
 export type RoomNode = Node<RoomData, "room">;
@@ -397,6 +406,9 @@ export interface ConnectionData {
   connectorMismatch?: boolean;
   cableId?: string;
   cableLength?: string;
+  /** Owned-cable ids (OwnedCableItem.id) assigned to this run, in chain order.
+   *  More than one id means physically chained cables (joined via couplers). */
+  assignedCableIds?: string[];
   multicableLabel?: string;
   /** User-defined label displayed on the connection line (#5) */
   label?: string;
@@ -499,6 +511,20 @@ export interface TemplatePreset {
 
 export interface OwnedGearItem {
   template: DeviceTemplate;
+  quantity: number;
+}
+
+/** A physical cable (or stock of identical cables) the user owns. */
+export interface OwnedCableItem {
+  id: string;
+  /** Display name, e.g. "BNC 12G 10 m" */
+  label: string;
+  /** Optional construction/type note, e.g. "BNC 12G-SDI", "Cat6A S/FTP" */
+  cableType?: string;
+  /** Optional signal type this cable stock is intended for (used for filtering) */
+  signalType?: SignalType;
+  /** Exact length in the schematic's distance unit (DistanceSettings.unit) */
+  length: number;
   quantity: number;
 }
 
@@ -679,6 +705,7 @@ export interface SchematicFile {
   edges: ConnectionEdge[];
   customTemplates?: DeviceTemplate[];
   ownedGear?: OwnedGearItem[];
+  ownedCables?: OwnedCableItem[];
   signalColors?: Partial<Record<SignalType, string>>;
   signalLineStyles?: Partial<Record<SignalType, LineStyle>>;
   printPaperId?: string;

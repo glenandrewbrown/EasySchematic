@@ -101,7 +101,7 @@ export default function DeviceCreatorPicker({
       }}
     >
       <div
-        className="absolute bg-white border border-[var(--color-border)] rounded-lg shadow-2xl w-72 flex flex-col overflow-hidden"
+        className="absolute ui-dialog w-72 overflow-hidden"
         style={{ left: "50%", top: "30%", transform: "translateX(-50%)" }}
       >
         <div className="px-3 pt-3 pb-1">

@@ -173,40 +173,40 @@ export default function TitleBlockDialog({ onClose }: TitleBlockDialogProps) {
   }, []);
 
   const inputClass =
-    "w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2 py-1 text-xs text-[var(--color-text-heading)] outline-none focus:border-blue-500";
+    "ui-input w-full";
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
+      className="ui-dialog-backdrop"
       onClick={handleCancel}
     >
       <div
-        className="bg-white border border-[var(--color-border)] rounded-lg shadow-2xl w-[620px] max-h-[85vh] flex flex-col"
+        className="ui-dialog w-[620px] max-h-[85vh]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-4 py-3 border-b border-[var(--color-border)] flex items-center justify-between shrink-0">
+        <div className="px-4 py-3 border-b border-[var(--ui-border)] flex items-center justify-between shrink-0">
           <h2 className="text-sm font-semibold text-[var(--color-text-heading)]">
             Title Block Editor
           </h2>
           <button
             onClick={handleCancel}
-            className="text-[var(--color-text-muted)] hover:text-[var(--color-text-heading)] text-lg leading-none cursor-pointer"
+            className="ui-btn ui-btn-ghost text-lg leading-none"
           >
             &times;
           </button>
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-[var(--color-border)] shrink-0">
+        <div className="flex border-b border-[var(--ui-border)] shrink-0">
           <button
-            className={`px-4 py-2 text-xs font-medium cursor-pointer ${activeTab === "data" ? "text-blue-600 border-b-2 border-blue-600" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-heading)]"}`}
+            className={`px-4 py-2 text-xs font-medium cursor-pointer ${activeTab === "data" ? "text-[var(--color-accent)] border-b-2 border-[var(--color-accent)]" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-heading)]"}`}
             onClick={() => setActiveTab("data")}
           >
             Data & Logo
           </button>
           <button
-            className={`px-4 py-2 text-xs font-medium cursor-pointer ${activeTab === "layout" ? "text-blue-600 border-b-2 border-blue-600" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-heading)]"}`}
+            className={`px-4 py-2 text-xs font-medium cursor-pointer ${activeTab === "layout" ? "text-[var(--color-accent)] border-b-2 border-[var(--color-accent)]" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-heading)]"}`}
             onClick={() => setActiveTab("layout")}
           >
             Layout
@@ -239,16 +239,16 @@ export default function TitleBlockDialog({ onClose }: TitleBlockDialogProps) {
         </div>
 
         {/* Footer */}
-        <div className="px-4 py-3 border-t border-[var(--color-border)] flex justify-end gap-2 shrink-0">
+        <div className="px-4 py-3 border-t border-[var(--ui-border)] flex justify-end gap-2 shrink-0">
           <button
             onClick={handleCancel}
-            className="px-3 py-1.5 text-xs rounded bg-[var(--color-surface)] text-[var(--color-text)] hover:text-[var(--color-text-heading)] border border-[var(--color-border)] transition-colors cursor-pointer"
+            className="ui-btn ui-btn-secondary"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
-            className="px-3 py-1.5 text-xs rounded bg-blue-600 text-white hover:bg-blue-500 transition-colors cursor-pointer"
+            className="ui-btn ui-btn-primary"
           >
             Save
           </button>
@@ -297,7 +297,7 @@ function DataTab({
     <div className="p-4 flex gap-4">
       {/* Logo */}
       <div className="w-[140px] shrink-0 flex flex-col items-center gap-2">
-        <div className="w-[140px] h-[90px] border border-dashed border-[var(--color-border)] rounded flex items-center justify-center bg-gray-50 overflow-hidden">
+        <div className="w-[140px] h-[90px] border border-dashed border-[var(--ui-border)] rounded flex items-center justify-center bg-[var(--color-surface)] overflow-hidden">
           {draft.logo ? (
             <img src={draft.logo} alt="Logo preview" className="max-w-full max-h-full object-contain" />
           ) : (
@@ -307,14 +307,14 @@ function DataTab({
         <div className="flex gap-1.5">
           <button
             onClick={handleUpload}
-            className="px-2 py-1 text-[10px] rounded bg-[var(--color-surface)] text-[var(--color-text)] hover:text-[var(--color-text-heading)] border border-[var(--color-border)] transition-colors cursor-pointer"
+            className="ui-btn ui-btn-secondary"
           >
             Upload
           </button>
           {draft.logo && (
             <button
               onClick={handleRemoveLogo}
-              className="px-2 py-1 text-[10px] rounded bg-[var(--color-surface)] text-red-500 hover:text-red-700 border border-[var(--color-border)] transition-colors cursor-pointer"
+              className="ui-btn ui-btn-danger"
             >
               Remove
             </button>
@@ -379,9 +379,9 @@ function DataTab({
 /* ─── Layout Tab (Interactive Grid Editor) ─────────────── */
 
 const smallInput =
-  "bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-1.5 py-0.5 text-xs text-[var(--color-text-heading)] outline-none focus:border-blue-500 w-14";
+  "ui-input w-14";
 const smallSelect =
-  "bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-1 py-0.5 text-xs text-[var(--color-text-heading)] outline-none focus:border-blue-500";
+  "ui-input";
 
 const FONT_MAP: Record<string, string> = {
   "sans-serif": "'Inter', system-ui, sans-serif",
@@ -848,31 +848,31 @@ function LayoutTab({
 
         <div className="h-4 w-px bg-[var(--color-border)]" />
 
-        <button onClick={addRow} className="px-2 py-0.5 text-[10px] rounded border border-[var(--color-border)] text-[var(--color-text)] hover:bg-gray-100 cursor-pointer">
+        <button onClick={addRow} className="ui-btn ui-btn-secondary">
           + Row
         </button>
-        <button onClick={addColumn} className="px-2 py-0.5 text-[10px] rounded border border-[var(--color-border)] text-[var(--color-text)] hover:bg-gray-100 cursor-pointer">
+        <button onClick={addColumn} className="ui-btn ui-btn-secondary">
           + Column
         </button>
 
         <button
           onClick={mergeCells}
           disabled={!canMerge}
-          className={`px-2 py-0.5 text-[10px] rounded border cursor-pointer ${canMerge ? "border-blue-400 text-blue-600 hover:bg-blue-50" : "border-[var(--color-border)] text-[var(--color-text-muted)] opacity-40 cursor-default"}`}
+          className={`ui-btn ${canMerge ? "ui-btn-secondary" : "ui-btn-ghost opacity-40 cursor-default"}`}
         >
           Merge
         </button>
         <button
           onClick={unmergeCells}
           disabled={!canUnmerge}
-          className={`px-2 py-0.5 text-[10px] rounded border cursor-pointer ${canUnmerge ? "border-blue-400 text-blue-600 hover:bg-blue-50" : "border-[var(--color-border)] text-[var(--color-text-muted)] opacity-40 cursor-default"}`}
+          className={`ui-btn ${canUnmerge ? "ui-btn-secondary" : "ui-btn-ghost opacity-40 cursor-default"}`}
         >
           Unmerge
         </button>
 
         <button
           onClick={resetLayout}
-          className="px-2 py-0.5 text-[10px] rounded border border-[var(--color-border)] text-red-500 hover:bg-red-50 cursor-pointer ml-auto"
+          className="ui-btn ui-btn-danger ml-auto"
         >
           Reset Default
         </button>
@@ -881,7 +881,7 @@ function LayoutTab({
       {/* Interactive Grid */}
       <div
         ref={gridRef}
-        className="relative border border-gray-800 bg-white select-none"
+        className="relative border border-[var(--ui-border-strong)] bg-[var(--color-surface-raised)] select-none"
         style={{ width: gridW, height: gridH }}
         onPointerMove={resizing ? handleResizePointerMove : undefined}
         onPointerUp={resizing ? handleResizePointerUp : handleGridPointerUp}
@@ -926,10 +926,10 @@ function LayoutTab({
             return (
               <div
                 key={cell.id}
-                className={`border border-gray-300 overflow-hidden flex items-center cursor-pointer transition-colors ${
+                className={`border border-[var(--ui-border)] overflow-hidden flex items-center cursor-pointer transition-colors ${
                   isSelected
-                    ? "bg-blue-50 outline outline-2 outline-blue-500 -outline-offset-2 z-10"
-                    : "hover:bg-gray-50"
+                    ? "bg-[var(--color-accent-soft)] outline outline-2 outline-[var(--color-accent)] -outline-offset-2 z-10"
+                    : "hover:bg-[var(--color-surface-hover)]"
                 }`}
                 style={{
                   gridColumn: `${cell.col + 1} / span ${cell.colSpan}`,
@@ -951,7 +951,7 @@ function LayoutTab({
                       style={{ pointerEvents: "none" }}
                     />
                   ) : (
-                    <span className="text-[10px] text-gray-400">[Logo]</span>
+                    <span className="text-[10px] text-[var(--color-text-muted)]">[Logo]</span>
                   )
                 ) : (
                   <span
@@ -1015,7 +1015,7 @@ function LayoutTab({
       {/* Context Menu */}
       {contextMenu && ctxCell && (
         <div
-          className="fixed z-[60] bg-white border border-gray-300 rounded shadow-lg py-1 min-w-[180px]"
+          className="chrome-menu fixed z-[60] py-1 min-w-[180px]"
           style={{ left: contextMenu.x, top: contextMenu.y }}
           onClick={(e) => e.stopPropagation()}
         >
@@ -1036,7 +1036,7 @@ function LayoutTab({
             onClick={() => { insertColumnAt(ctxCell.col + ctxCell.colSpan); setContextMenu(null); }}
           />
 
-          <div className="h-px bg-gray-200 my-1" />
+          <div className="h-px bg-[var(--ui-border)] my-1" />
 
           <ContextMenuItem
             label="Delete Row"
@@ -1049,7 +1049,7 @@ function LayoutTab({
             onClick={() => { deleteColumn(ctxCell.col); setContextMenu(null); }}
           />
 
-          <div className="h-px bg-gray-200 my-1" />
+          <div className="h-px bg-[var(--ui-border)] my-1" />
 
           {canMerge && (
             <ContextMenuItem
@@ -1126,7 +1126,7 @@ function LayoutTab({
             </>
           )}
 
-          <div className="h-px bg-gray-200 my-1" />
+          <div className="h-px bg-[var(--ui-border)] my-1" />
 
           <ContextMenuSub label="Set Content">
             <ContextMenuItem
@@ -1172,8 +1172,8 @@ function ContextMenuItem({
     <button
       className={`w-full text-left px-3 py-1 text-xs cursor-pointer ${
         disabled
-          ? "text-gray-300 cursor-default"
-          : "text-gray-700 hover:bg-gray-100"
+          ? "text-[var(--color-text-muted)] opacity-40 cursor-default"
+          : "text-[var(--color-text)] hover:bg-[var(--color-surface-hover)]"
       }`}
       onClick={disabled ? undefined : onClick}
       disabled={disabled}
@@ -1191,12 +1191,12 @@ function ContextMenuSub({ label, children }: { label: string; children: React.Re
       onMouseEnter={() => setOpen(true)}
       onMouseLeave={() => setOpen(false)}
     >
-      <button className="w-full text-left px-3 py-1 text-xs text-gray-700 hover:bg-gray-100 cursor-pointer flex items-center justify-between">
+      <button className="w-full text-left px-3 py-1 text-xs text-[var(--color-text)] hover:bg-[var(--color-surface-hover)] cursor-pointer flex items-center justify-between">
         {label}
         <span className="text-[10px] ml-2">&#9656;</span>
       </button>
       {open && (
-        <div className="absolute left-full top-0 bg-white border border-gray-300 rounded shadow-lg py-1 min-w-[140px] z-[61]">
+        <div className="chrome-menu absolute left-full top-0 py-1 min-w-[140px] z-[61]">
           {children}
         </div>
       )}
@@ -1216,7 +1216,7 @@ function CellPropertiesPanel({
   tbDraft: TitleBlock;
 }) {
   return (
-    <div className="border border-[var(--color-border)] rounded p-2 bg-gray-50 space-y-2">
+    <div className="border border-[var(--ui-border)] rounded p-2 bg-[var(--color-surface)] space-y-2">
       <div className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] font-semibold">
         Selected Cell
         {(cell.colSpan > 1 || cell.rowSpan > 1) && (
@@ -1307,7 +1307,7 @@ function CellPropertiesPanel({
         </label>
 
         <button
-          className={`px-1.5 py-0.5 text-[10px] rounded border cursor-pointer ${cell.fontWeight === "bold" ? "bg-blue-600 text-white border-blue-600" : "bg-white text-[var(--color-text-muted)] border-[var(--color-border)]"}`}
+          className={`px-1.5 py-0.5 text-[10px] rounded border cursor-pointer ${cell.fontWeight === "bold" ? "bg-[var(--color-accent)] text-white border-[var(--color-accent)]" : "bg-[var(--color-surface-raised)] text-[var(--color-text-muted)] border-[var(--ui-border)]"}`}
           onClick={() => updateCell(cell.id, { fontWeight: cell.fontWeight === "bold" ? "normal" : "bold" })}
         >
           B
@@ -1320,7 +1320,7 @@ function CellPropertiesPanel({
           {(["left", "center", "right"] as const).map((a) => (
             <button
               key={a}
-              className={`px-1.5 py-0.5 text-[10px] rounded border cursor-pointer ${cell.align === a ? "bg-blue-600 text-white border-blue-600" : "bg-white text-[var(--color-text-muted)] border-[var(--color-border)]"}`}
+              className={`px-1.5 py-0.5 text-[10px] rounded border cursor-pointer ${cell.align === a ? "bg-[var(--color-accent)] text-white border-[var(--color-accent)]" : "bg-[var(--color-surface-raised)] text-[var(--color-text-muted)] border-[var(--ui-border)]"}`}
               onClick={() => updateCell(cell.id, { align: a })}
             >
               {a === "left" ? "L" : a === "center" ? "C" : "R"}

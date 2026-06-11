@@ -46,6 +46,184 @@ html, body, #root {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
+/* ===== UI chrome polish ===== */
+
+/* Keyboard focus ring (focus-visible only — no rings on mouse clicks) */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+  border-radius: 4px;
+}
+
+/* Themed thin scrollbars for panels and lists */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--ui-border-strong) transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--ui-border-strong);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+/* Shared floating-menu panel (menu bar dropdowns, context menus) */
+.chrome-menu {
+  background: var(--color-surface-raised);
+  border: 1px solid var(--ui-border);
+  border-radius: 10px;
+  box-shadow: var(--ui-shadow-menu);
+  padding: 4px;
+}
+
+/* ── Shared UI kit: one control language for every dialog and panel ── */
+
+.ui-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(2, 6, 23, 0.45);
+  backdrop-filter: blur(2px);
+}
+
+.ui-dialog {
+  background: var(--color-surface-raised);
+  border: 1px solid var(--ui-border);
+  border-radius: 14px;
+  box-shadow: var(--ui-shadow-menu);
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.ui-input {
+  background: var(--color-surface-raised);
+  border: 1px solid var(--ui-border-strong);
+  border-radius: 8px;
+  color: var(--color-text);
+  padding: 6px 10px;
+  font-size: 12px;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.ui-input:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-soft);
+}
+.ui-input::placeholder {
+  color: var(--color-text-muted);
+}
+
+.ui-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 14px;
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s, transform 0.1s;
+  border: 1px solid transparent;
+}
+.ui-btn:active {
+  transform: scale(0.98);
+}
+.ui-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.ui-btn-primary {
+  background: var(--color-accent);
+  color: #ffffff;
+}
+.ui-btn-primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-accent) 88%, white);
+}
+
+.ui-btn-secondary {
+  background: var(--color-surface-raised);
+  border-color: var(--ui-border-strong);
+  color: var(--color-text);
+}
+.ui-btn-secondary:hover:not(:disabled) {
+  background: var(--color-surface-hover);
+}
+
+.ui-btn-ghost {
+  background: transparent;
+  color: var(--color-text-muted);
+}
+.ui-btn-ghost:hover:not(:disabled) {
+  background: var(--color-surface-hover);
+  color: var(--color-text);
+}
+
+.ui-btn-danger {
+  background: #dc2626;
+  color: #ffffff;
+}
+.ui-btn-danger:hover:not(:disabled) {
+  background: #b91c1c;
+}
+
+/* ===== Landing page ===== */
+
+/* Signal-type pill marquee: continuous scroll, two copies of the row */
+@keyframes landing-marquee-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.landing-marquee {
+  display: flex;
+  width: max-content;
+  animation: landing-marquee-scroll 60s linear infinite;
+}
+.landing-marquee:hover {
+  animation-play-state: paused;
+}
+
+/* Hero entrance: gentle rise, runs once */
+@keyframes landing-rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.landing-rise {
+  animation: landing-rise 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.landing-rise-delay {
+  animation: landing-rise 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-marquee {
+    animation: none;
+    width: auto;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .landing-marquee > [aria-hidden] {
+    display: none;
+  }
+  .landing-rise,
+  .landing-rise-delay {
+    animation: none;
+  }
+}
+
 /* React Flow overrides */
 .react-flow {
   overscroll-behavior: none;
@@ -61,14 +239,16 @@ html, body, #root {
 
 .react-flow__minimap {
   background: var(--color-surface) !important;
-  border: 1px solid var(--color-border) !important;
-  border-radius: 6px !important;
+  border: 1px solid var(--ui-border-strong) !important;
+  border-radius: 10px !important;
+  box-shadow: var(--ui-shadow-raised);
 }
 
 .react-flow__controls {
-  border: 1px solid var(--color-border) !important;
-  border-radius: 6px !important;
+  border: 1px solid var(--ui-border-strong) !important;
+  border-radius: 10px !important;
   overflow: hidden;
+  box-shadow: var(--ui-shadow-raised) !important;
 }
 
 .react-flow__controls button {

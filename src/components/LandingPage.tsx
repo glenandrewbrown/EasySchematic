@@ -3,48 +3,53 @@ import { sponsors } from "../sponsors";
 
 const features = [
   {
-    title: "Drag-and-Drop Device Library",
+    title: "Drag-and-drop device library",
     description:
-      "2,000+ professional AV device templates — cameras, switchers, routers, audio consoles, media servers, displays, and more. Drag devices onto the canvas and connect them in seconds.",
+      "2,000+ professional AV templates: cameras, switchers, routers, consoles, media servers, and displays. Drop a device and connect it in seconds.",
   },
   {
-    title: "Color-Coded Signal Types",
+    title: "Pack lists & cable schedules",
     description:
-      "68 signal types including SDI, HDMI, NDI, Dante, AVB, AES67, MADI, DMX, Analog Audio, HDBaseT, ST 2110, and more — each with a distinct color so signal paths are instantly readable.",
+      "Generate paperwork straight from the schematic: pack lists, cable schedules with signal types and cable IDs. No separate spreadsheets.",
   },
   {
-    title: "Smart Connection Routing",
+    title: "Rack builder",
     description:
-      "Connections route around devices automatically. Shared vertical paths, consistent spacing, and overlap avoidance keep your system diagrams clean and professional.",
-  },
-  {
-    title: "Room Grouping",
-    description:
-      "Organize devices into rooms, racks, or logical groups. Move and resize groups freely. Nest rooms to represent control rooms, stages, OB trucks, and equipment closets.",
-  },
-  {
-    title: "Pack Lists & Cable Schedules",
-    description:
-      "Generate paperwork straight from your schematic — pack lists with every device and its details, cable schedules with signal types, source/destination, and cable IDs. No more maintaining separate spreadsheets.",
+      "Drag devices into rack elevations with front, rear, and side views. Racks stay linked to the schematic, so edits sync both ways.",
   },
   {
     title: "Export to DXF, PDF & PNG",
     description:
-      "Export your AV schematics as DXF for AutoCAD, PDF for print, or PNG for presentations. Configurable page sizes, title blocks, and print layouts built for AV integration shops.",
+      "DXF for AutoCAD and Vectorworks, PDF for print, PNG for decks. Configurable page sizes and title blocks built for integration shops.",
   },
   {
-    title: "Community Device Database",
+    title: "Room grouping",
     description:
-      "Browse and contribute to a growing library of real-world AV device templates. Search by manufacturer, model, or signal type. Every template includes accurate port layouts and connector specs.",
+      "Organize devices into rooms, racks, and nested groups: control rooms, stages, OB trucks, and equipment closets.",
   },
   {
-    title: "Free & Browser-Based",
+    title: "Community device database",
     description:
-      "No installs, no accounts, no subscriptions. Your schematics stay in your browser. Share via link, import/export JSON files, or use the public API.",
+      "Browse and contribute real-world device templates with accurate port layouts and connector specs. Open REST API included.",
   },
 ];
 
-const signalSamples = [
+const useCases = [
+  {
+    heading: "Broadcast & live production",
+    text: "Map SDI, NDI, and MADI signal paths through cameras, switchers, multiviewers, and routers. Document entire OB trucks and control rooms.",
+  },
+  {
+    heading: "AV integration & install",
+    text: "Design hook-up sheets, system block diagrams, and AV schematics for conference rooms, auditoriums, and venues. Export DXF for CAD workflows.",
+  },
+  {
+    heading: "Event & rental",
+    text: "Plan signal flow for live events, rental packages, and temporary installs. Share schematics with your crew via link.",
+  },
+];
+
+const marqueeSignals = [
   { name: "SDI", color: "var(--color-sdi)" },
   { name: "HDMI", color: "var(--color-hdmi)" },
   { name: "NDI", color: "var(--color-ndi)" },
@@ -53,15 +58,77 @@ const signalSamples = [
   { name: "MADI", color: "var(--color-madi)" },
   { name: "DMX", color: "var(--color-dmx)" },
   { name: "HDBaseT", color: "var(--color-hdbaset)" },
-  { name: "Analog", color: "var(--color-analog-audio)" },
+  { name: "Analog Audio", color: "var(--color-analog-audio)" },
   { name: "ST 2110", color: "var(--color-sdi)" },
   { name: "USB", color: "var(--color-usb)" },
   { name: "Ethernet", color: "var(--color-ethernet)" },
+  { name: "Fiber", color: "var(--color-fiber)" },
+  { name: "DisplayPort", color: "var(--color-displayport)" },
+  { name: "Genlock", color: "var(--color-genlock)" },
+  { name: "Timecode", color: "var(--color-timecode)" },
+  { name: "MIDI", color: "var(--color-midi)" },
+  { name: "sACN", color: "var(--color-sacn)" },
+  { name: "Thunderbolt", color: "var(--color-thunderbolt)" },
+  { name: "Word Clock", color: "var(--color-wordclock)" },
 ];
 
 function openEditor() {
   localStorage.setItem("easyschematic-skip-landing", "1");
   window.location.href = "/";
+}
+
+function SignalPill({ name, color }: { name: string; color: string }) {
+  return (
+    <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-slate-800 bg-slate-900/80 text-sm font-medium text-slate-200 whitespace-nowrap">
+      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
+      {name}
+    </span>
+  );
+}
+
+/* Miniature of the editor's actual device-node rendering: two device cards
+   joined by orthogonal, signal-colored cables. Built from the same visual
+   vocabulary the canvas uses, so the preview stays truthful. */
+function MiniSchematic() {
+  const port = (color: string) => (
+    <span className="w-2 h-2 rounded-full border border-slate-500 shrink-0" style={{ backgroundColor: color }} />
+  );
+  return (
+    <div className="relative select-none" aria-hidden>
+      <svg viewBox="0 0 440 220" className="w-full h-auto">
+        {/* cables: orthogonal, like the A* router draws them */}
+        <path d="M150 62 H210 V58 H290" fill="none" stroke="var(--color-sdi)" strokeWidth="2.5" />
+        <path d="M150 92 H196 V104 H290" fill="none" stroke="var(--color-dante)" strokeWidth="2.5" />
+        <path d="M150 122 H182 V150 H290" fill="none" stroke="var(--color-ndi)" strokeWidth="2.5" />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-between">
+        {/* source device */}
+        <div className="w-[34%] rounded-lg border border-slate-600 bg-slate-900 shadow-xl shadow-slate-950/50 overflow-hidden">
+          <div className="px-3 py-2 border-b border-slate-700 bg-slate-800">
+            <p className="text-[11px] font-bold text-slate-100 leading-tight">Camera 1</p>
+            <p className="text-[9px] text-slate-400">Cinema Camera</p>
+          </div>
+          <div className="px-3 py-2 space-y-2">
+            <div className="flex items-center justify-end gap-1.5 text-[9px] text-slate-300">SDI Out {port("var(--color-sdi)")}</div>
+            <div className="flex items-center justify-end gap-1.5 text-[9px] text-slate-300">Audio {port("var(--color-dante)")}</div>
+            <div className="flex items-center justify-end gap-1.5 text-[9px] text-slate-300">NDI {port("var(--color-ndi)")}</div>
+          </div>
+        </div>
+        {/* destination device */}
+        <div className="w-[34%] rounded-lg border border-slate-600 bg-slate-900 shadow-xl shadow-slate-950/50 overflow-hidden">
+          <div className="px-3 py-2 border-b border-slate-700 bg-slate-800">
+            <p className="text-[11px] font-bold text-slate-100 leading-tight">Switcher</p>
+            <p className="text-[9px] text-slate-400">Production Switcher</p>
+          </div>
+          <div className="px-3 py-2 space-y-2">
+            <div className="flex items-center gap-1.5 text-[9px] text-slate-300">{port("var(--color-sdi)")} In 1</div>
+            <div className="flex items-center gap-1.5 text-[9px] text-slate-300">{port("var(--color-dante)")} In 2</div>
+            <div className="flex items-center gap-1.5 text-[9px] text-slate-300">{port("var(--color-ndi)")} In 3</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function LandingPage() {
@@ -78,183 +145,220 @@ export default function LandingPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-white text-gray-900" style={{ overflow: "auto", fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}>
-      {/* Top bar */}
-      <nav className="bg-slate-800 border-b border-slate-700">
-        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center gap-3">
-          <img src="/favicon.svg" alt="" className="w-10 h-10 rounded-lg" />
-          <span className="text-xl font-bold tracking-tight text-white">EasySchematic</span>
+    <div
+      className="min-h-screen bg-slate-950 text-slate-100"
+      style={{ overflow: "auto", fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}
+    >
+      {/* Nav */}
+      <nav className="border-b border-slate-800/80 sticky top-0 z-40 bg-slate-950/90 backdrop-blur-sm">
+        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+          <span className="flex items-center gap-2.5">
+            <img src="/favicon.svg" alt="" className="w-8 h-8 rounded-lg" />
+            <span className="text-base font-bold tracking-tight text-white">EasySchematic</span>
+          </span>
+          <div className="hidden sm:flex items-center gap-6 text-sm text-slate-400">
+            <a href="https://docs.easyschematic.live" className="hover:text-white transition-colors">Docs</a>
+            <a href="https://devices.easyschematic.live" className="hover:text-white transition-colors">Devices</a>
+            <a href="https://github.com/duremovich/EasySchematic" className="hover:text-white transition-colors">GitHub</a>
+            <button
+              onClick={openEditor}
+              className="bg-blue-600 hover:bg-blue-500 active:scale-[0.98] text-white font-semibold px-4 py-2 rounded-lg transition-all cursor-pointer"
+            >
+              Open Editor
+            </button>
+          </div>
         </div>
       </nav>
 
-      {/* Hero */}
-      <header className="bg-slate-900 text-white">
-        <div className="max-w-5xl mx-auto px-6 py-16 md:py-24">
-          <h1 className="text-2xl md:text-3xl font-semibold leading-tight mb-4 text-slate-300">
-            AV Signal Flow Diagram Tool
-          </h1>
-          <p className="text-base md:text-lg text-slate-400 max-w-2xl mb-3">
-            Design AV system diagrams, block diagrams, and signal flow schematics for
-            broadcast, live production, and AV integration. Free and browser-based.
-          </p>
-          <p className="text-slate-500 mb-8">
-            2,000+ device templates &middot; 68 signal types &middot;
-            Smart edge routing &middot; DXF/PDF/PNG export
-          </p>
-          <button
-            onClick={openEditor}
-            className="inline-block bg-blue-600 hover:bg-blue-700 text-white font-semibold px-8 py-3 rounded-lg text-lg transition-colors cursor-pointer"
-          >
-            Open Editor
-          </button>
+      {/* Hero: asymmetric split, screenshot carries the right side */}
+      <header className="relative overflow-hidden">
+        <div className="max-w-6xl mx-auto px-6 pt-16 pb-20 lg:pt-20 grid lg:grid-cols-12 gap-12 items-center">
+          <div className="lg:col-span-5 landing-rise">
+            <h1 className="text-4xl md:text-5xl font-bold tracking-tight leading-[1.05] text-white mb-5">
+              AV Signal Flow Diagram Tool
+            </h1>
+            <p className="text-lg text-slate-400 leading-relaxed mb-8 max-w-md">
+              Design signal flow schematics for broadcast, live production, and AV integration. Free and browser-based.
+            </p>
+            <div className="flex flex-wrap items-center gap-4">
+              <button
+                onClick={openEditor}
+                className="bg-blue-600 hover:bg-blue-500 active:scale-[0.98] text-white font-semibold px-7 py-3 rounded-lg text-base transition-all cursor-pointer"
+              >
+                Open Editor
+              </button>
+              <a
+                href="https://devices.easyschematic.live"
+                className="text-slate-300 hover:text-white font-medium px-2 py-3 transition-colors"
+              >
+                Browse the device library
+              </a>
+            </div>
+          </div>
+          <div className="lg:col-span-7 landing-rise-delay">
+            <div className="relative">
+              <div
+                className="absolute -inset-6 rounded-3xl opacity-30 blur-3xl"
+                style={{
+                  background:
+                    "radial-gradient(40% 50% at 30% 40%, rgba(37,99,235,0.5), transparent), radial-gradient(40% 50% at 70% 60%, rgba(22,163,74,0.35), transparent)",
+                }}
+                aria-hidden
+              />
+              <img
+                src="/landing-screenshot.png"
+                alt="EasySchematic editor showing a signal flow diagram with Thunderbolt, HDMI, SDI, and USB connections between Mac Studios, adapters, video wall controllers, and converters"
+                className="relative w-full rounded-xl ring-1 ring-slate-700/80 shadow-2xl shadow-slate-950/80"
+                loading="eager"
+              />
+            </div>
+          </div>
         </div>
       </header>
 
-      {/* Screenshot / OG image */}
-      <section className="bg-slate-50 border-b border-slate-200">
-        <div className="max-w-5xl mx-auto px-6 py-12">
-          <img
-            src="/landing-screenshot.png"
-            alt="EasySchematic editor showing a signal flow diagram with Thunderbolt, HDMI, SDI, and USB connections between Mac Studios, adapters, video wall controllers, and converters"
-            className="w-full rounded-lg shadow-lg border border-slate-200"
-            loading="eager"
-          />
+      {/* Stat band */}
+      <section className="border-y border-slate-800/80 bg-slate-900/40">
+        <div className="max-w-6xl mx-auto px-6 py-10 grid grid-cols-2 lg:grid-cols-4 gap-y-8">
+          {[
+            { value: "2,000+", label: "device templates" },
+            { value: "68", label: "color-coded signal types" },
+            { value: "DXF, PDF, PNG", label: "export formats" },
+            { value: "$0", label: "no account required" },
+          ].map((stat, i) => (
+            <div key={stat.label} className={`px-2 lg:px-8 ${i > 0 ? "lg:border-l lg:border-slate-800" : ""}`}>
+              <p className="text-2xl md:text-3xl font-bold text-white tracking-tight">{stat.value}</p>
+              <p className="text-sm text-slate-400 mt-1">{stat.label}</p>
+            </div>
+          ))}
         </div>
       </section>
 
-      {/* Supported by */}
-      <section className="border-b border-slate-200">
-        <div className="max-w-5xl mx-auto px-6 py-8 text-center">
-          <p className="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-4">
+      {/* Signal type marquee */}
+      <section className="py-14 overflow-hidden" aria-label="Supported signal types">
+        <h2 className="text-center text-xl font-bold text-white mb-8 px-6">
+          Every signal type in your AV system, color-coded
+        </h2>
+        <div className="relative">
+          <div className="landing-marquee gap-3 px-3">
+            <div className="flex gap-3">
+              {marqueeSignals.map((s) => (
+                <SignalPill key={s.name} name={s.name} color={s.color} />
+              ))}
+            </div>
+            <div className="flex gap-3" aria-hidden>
+              {marqueeSignals.map((s) => (
+                <SignalPill key={`${s.name}-dup`} name={s.name} color={s.color} />
+              ))}
+            </div>
+          </div>
+          <div className="pointer-events-none absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-slate-950 to-transparent" />
+          <div className="pointer-events-none absolute inset-y-0 right-0 w-24 bg-gradient-to-l from-slate-950 to-transparent" />
+        </div>
+        <p className="text-center text-sm text-slate-500 mt-8 px-6">
+          48 more, from AES50 to Word Clock. Recolor any of them per project.
+        </p>
+      </section>
+
+      {/* Smart routing: split feature with live-style preview */}
+      <section className="border-t border-slate-800/80">
+        <div className="max-w-6xl mx-auto px-6 py-20 grid lg:grid-cols-2 gap-14 items-center">
+          <div className="order-2 lg:order-1 rounded-2xl border border-slate-800 bg-slate-900/40 p-6 md:p-10">
+            <MiniSchematic />
+          </div>
+          <div className="order-1 lg:order-2">
+            <h2 className="text-3xl font-bold tracking-tight text-white mb-4">
+              Connections that route themselves
+            </h2>
+            <p className="text-slate-400 leading-relaxed mb-6 max-w-lg">
+              Click a port, click a destination. Pathfinding routes every cable around devices with clean
+              orthogonal lines, parallel spacing, and crossing arcs. When you want control, drop waypoints
+              and route it by hand.
+            </p>
+            <ul className="space-y-3 text-slate-300">
+              <li className="flex gap-3">
+                <span className="text-blue-400 font-bold shrink-0">01</span>
+                Snap-to-port connecting with live compatibility checks
+              </li>
+              <li className="flex gap-3">
+                <span className="text-blue-400 font-bold shrink-0">02</span>
+                Automatic adapter insertion between mismatched connectors
+              </li>
+              <li className="flex gap-3">
+                <span className="text-blue-400 font-bold shrink-0">03</span>
+                Cable IDs, lengths, and labels tracked for the cable schedule
+              </li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      {/* Feature grid: hairline rows, no cards */}
+      <section className="border-t border-slate-800/80 bg-slate-900/30">
+        <div className="max-w-6xl mx-auto px-6 py-20">
+          <h2 className="text-3xl font-bold tracking-tight text-white mb-12 max-w-xl">
+            Everything you need to document a system
+          </h2>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-x-12 gap-y-10">
+            {features.map((f) => (
+              <div key={f.title} className="border-t border-slate-800 pt-5">
+                <h3 className="text-base font-semibold text-white mb-2">{f.title}</h3>
+                <p className="text-sm text-slate-400 leading-relaxed">{f.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Use cases: definition rows */}
+      <section className="border-t border-slate-800/80">
+        <div className="max-w-6xl mx-auto px-6 py-20">
+          <h2 className="text-3xl font-bold tracking-tight text-white mb-12">
+            Built for AV professionals
+          </h2>
+          <div className="divide-y divide-slate-800">
+            {useCases.map((uc) => (
+              <div key={uc.heading} className="grid md:grid-cols-12 gap-3 md:gap-8 py-7">
+                <h3 className="md:col-span-4 text-lg font-semibold text-white">{uc.heading}</h3>
+                <p className="md:col-span-8 text-slate-400 leading-relaxed max-w-2xl">{uc.text}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Sponsors */}
+      <section className="border-t border-slate-800/80 bg-slate-900/30">
+        <div className="max-w-6xl mx-auto px-6 py-12 text-center">
+          <p className="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-6">
             Supported by
           </p>
-          <div className="flex justify-center gap-8 mb-6">
+          <div className="flex justify-center gap-8">
             {sponsors.filter((s) => s.kind === "organization").map((s) => (
-              <a
-                key={s.name}
-                href={s.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                title={s.name}
-              >
-                <img
-                  src={s.logo}
-                  alt={s.name}
-                  className="h-16 rounded-lg"
-                />
+              <a key={s.name} href={s.url} target="_blank" rel="noopener noreferrer" title={s.name}>
+                <img src={s.logo} alt={s.name} className="h-14 rounded-lg opacity-90 hover:opacity-100 transition-opacity" />
               </a>
             ))}
           </div>
           {sponsors.some((s) => s.kind === "individual") && (
-            <div>
-              <p className="text-xs uppercase tracking-widest text-slate-400 mb-2">
-                Individual supporters
-              </p>
-              <p className="text-sm text-slate-500">
-                {sponsors
-                  .filter((s) => s.kind === "individual")
-                  .map((s) => s.name)
-                  .join(" · ")}
-              </p>
-            </div>
+            <p className="text-sm text-slate-500 mt-6">
+              {sponsors.filter((s) => s.kind === "individual").map((s) => s.name).join(", ")}
+            </p>
           )}
         </div>
       </section>
 
-      {/* Signal type badges */}
-      <section className="border-b border-slate-200">
-        <div className="max-w-5xl mx-auto px-6 py-10">
-          <h2 className="text-xl font-semibold text-center mb-6 text-gray-800">
-            Built for Every Signal Type in Your AV System
-          </h2>
-          <div className="flex flex-wrap justify-center gap-3">
-            {signalSamples.map((s) => (
-              <span
-                key={s.name}
-                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-50 border border-slate-200 text-sm font-medium text-black"
-              >
-                <span
-                  className="w-3 h-3 rounded-full shrink-0"
-                  style={{ backgroundColor: s.color }}
-                />
-                {s.name}
-              </span>
-            ))}
-            <span className="inline-flex items-center px-3 py-1.5 rounded-full bg-slate-50 border border-slate-200 text-sm text-gray-500">
-              + 23 more
-            </span>
-          </div>
-        </div>
-      </section>
-
-      {/* Features */}
-      <section className="border-b border-slate-200">
-        <div className="max-w-5xl mx-auto px-6 py-16">
-          <h2 className="text-2xl font-bold text-center mb-12 text-gray-900">
-            Everything You Need to Document AV Signal Flow
-          </h2>
-          <div className="grid md:grid-cols-2 gap-8">
-            {features.map((f) => (
-              <div key={f.title}>
-                <h3 className="text-lg font-semibold mb-2 text-gray-900">
-                  {f.title}
-                </h3>
-                <p className="text-gray-600 leading-relaxed">{f.description}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Use cases / SEO content */}
-      <section className="border-b border-slate-200 bg-slate-50">
-        <div className="max-w-5xl mx-auto px-6 py-16">
-          <h2 className="text-2xl font-bold text-center mb-4 text-gray-900">
-            Built for AV Professionals
-          </h2>
-          <p className="text-center text-gray-600 max-w-2xl mx-auto mb-10">
-            Whether you're drawing a broadcast truck block diagram, documenting a
-            corporate AV install, or building hook-up sheets for a live event,
-            EasySchematic helps you create clean, readable AV schematics.
-          </p>
-          <div className="grid md:grid-cols-3 gap-6 text-center">
-            {[
-              {
-                heading: "Broadcast & Live Production",
-                text: "Map SDI, NDI, and MADI signal paths through cameras, switchers, multiviewers, and routers. Document entire OB trucks and control rooms.",
-              },
-              {
-                heading: "AV Integration & Install",
-                text: "Design hook-up sheets, system block diagrams, and AV schematics for conference rooms, auditoriums, and venues. Export DXF for CAD workflows.",
-              },
-              {
-                heading: "Event & Rental",
-                text: "Plan signal flow for live events, rental packages, and temporary installations. Share schematics with your crew via link.",
-              },
-            ].map((uc) => (
-              <div key={uc.heading} className="bg-white rounded-lg p-6 border border-slate-200">
-                <h3 className="font-semibold mb-2 text-gray-900">
-                  {uc.heading}
-                </h3>
-                <p className="text-sm text-gray-600">{uc.text}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* CTA */}
-      <section className="bg-slate-900 text-white">
-        <div className="max-w-5xl mx-auto px-6 py-16 text-center">
-          <h2 className="text-2xl font-bold mb-4">
-            Start Drawing Your Signal Flow
+      <section className="border-t border-slate-800/80">
+        <div className="max-w-6xl mx-auto px-6 py-24 text-center">
+          <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-white mb-4">
+            Start drawing your signal flow
           </h2>
-          <p className="text-slate-400 mb-8">
+          <p className="text-slate-400 mb-9 max-w-md mx-auto">
             No signup required. Your work is saved locally in your browser.
           </p>
           <button
             onClick={openEditor}
-            className="inline-block bg-blue-600 hover:bg-blue-700 text-white font-semibold px-8 py-3 rounded-lg text-lg transition-colors cursor-pointer"
+            className="bg-blue-600 hover:bg-blue-500 active:scale-[0.98] text-white font-semibold px-8 py-3.5 rounded-lg text-lg transition-all cursor-pointer"
           >
             Open Editor
           </button>
@@ -262,23 +366,13 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-slate-950 text-slate-400 text-sm">
-        <div className="max-w-5xl mx-auto px-6 py-8 flex flex-wrap gap-x-8 gap-y-2 justify-center">
-          <a href="https://docs.easyschematic.live" className="hover:text-white transition-colors">
-            Documentation
-          </a>
-          <a href="https://devices.easyschematic.live" className="hover:text-white transition-colors">
-            Device Database
-          </a>
-          <a href="https://github.com/duremovich/EasySchematic" className="hover:text-white transition-colors">
-            GitHub
-          </a>
-          <a href="https://discord.gg/dxXn3Jk2a6" className="hover:text-white transition-colors">
-            Discord
-          </a>
-          <a href="mailto:support@easyschematic.live" className="hover:text-white transition-colors">
-            Support
-          </a>
+      <footer className="border-t border-slate-800/80 text-slate-400 text-sm">
+        <div className="max-w-6xl mx-auto px-6 py-10 flex flex-wrap gap-x-8 gap-y-3 justify-center">
+          <a href="https://docs.easyschematic.live" className="hover:text-white transition-colors">Documentation</a>
+          <a href="https://devices.easyschematic.live" className="hover:text-white transition-colors">Device Database</a>
+          <a href="https://github.com/duremovich/EasySchematic" className="hover:text-white transition-colors">GitHub</a>
+          <a href="https://discord.gg/dxXn3Jk2a6" className="hover:text-white transition-colors">Discord</a>
+          <a href="mailto:support@easyschematic.live" className="hover:text-white transition-colors">Support</a>
         </div>
       </footer>
     </div>

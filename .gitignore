@@ -75,3 +75,13 @@ devices/src/**/*.js
 # Local dev
 start-dev.sh
 email-signature.html
+
+# Desktop (Electron) wrapper build artifacts
+desktop/node_modules/
+desktop/dist/
+desktop/out/
+desktop/icon.iconset/
+desktop/icon.icns
+
+# Local tool state
+.omc/

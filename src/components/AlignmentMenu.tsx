@@ -157,12 +157,12 @@ export default function AlignmentMenu() {
       <button
         onClick={() => setOpen(!open)}
         title="Align & Distribute"
-        className="px-2.5 py-1 text-xs rounded bg-white text-[var(--color-text)] hover:text-[var(--color-text-heading)] hover:bg-[var(--color-surface-hover)] border border-[var(--color-border)] transition-colors cursor-pointer"
+        className="px-2.5 py-1 text-xs rounded bg-[var(--color-surface-raised)] text-[var(--color-text)] hover:text-[var(--color-text-heading)] hover:bg-[var(--color-surface-hover)] border border-[var(--ui-border)] transition-colors cursor-pointer"
       >
         Align
       </button>
       {open && (
-        <div className="absolute top-full right-0 mt-1 bg-white border border-[var(--color-border)] rounded-lg shadow-lg p-1.5 z-50 w-44">
+        <div className="chrome-menu absolute top-full right-0 mt-1 z-50 w-44">
           <div className="text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wide px-2 py-1">
             Align
           </div>
@@ -176,7 +176,7 @@ export default function AlignmentMenu() {
               />
             ))}
           </div>
-          <div className="h-px bg-[var(--color-border)] my-1" />
+          <div className="h-px bg-[var(--ui-border)] my-1" />
           <div className="text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wide px-2 py-1">
             Distribute
           </div>

@@ -330,15 +330,15 @@ function ReportPreviewDialog({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
+      className="ui-dialog-backdrop"
       onClick={onClose}
     >
       <div
-        className="bg-white border border-[var(--color-border)] rounded-lg shadow-2xl max-w-[1200px] w-[95vw] max-h-[90vh] flex flex-col"
+        className="ui-dialog bg-[var(--color-surface-raised)] max-w-[1200px] w-[95vw]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Dialog header */}
-        <div className="px-4 py-3 border-b border-[var(--color-border)] flex items-center gap-3 shrink-0">
+        <div className="px-4 py-3 border-b border-[var(--ui-border)] flex items-center gap-3 shrink-0">
           <h2 className="text-sm font-semibold text-[var(--color-text-heading)]">
             Print Preview
           </h2>
@@ -353,7 +353,7 @@ function ReportPreviewDialog({
 
         <div className="flex flex-1 min-h-0">
           {/* Sidebar */}
-          <div className="w-[280px] border-r border-[var(--color-border)] overflow-y-auto p-3 shrink-0 flex flex-col gap-4">
+          <div className="w-[280px] border-r border-[var(--ui-border)] overflow-y-auto p-3 shrink-0 flex flex-col gap-4">
             {/* Page section */}
             <SidebarSection title="Page">
               <div className="flex gap-1 mb-2">
@@ -363,7 +363,7 @@ function ReportPreviewDialog({
                     className={`flex-1 px-2 py-1 text-xs rounded border cursor-pointer transition-colors ${
                       layout.orientation === o
                         ? "bg-blue-50 border-blue-300 text-blue-700 font-medium"
-                        : "bg-[var(--color-surface)] border-[var(--color-border)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)]"
+                        : "bg-[var(--color-surface)] border-[var(--ui-border)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)]"
                     }`}
                     onClick={() => setLayout((prev) => ({ ...prev, orientation: o }))}
                   >
@@ -374,7 +374,7 @@ function ReportPreviewDialog({
               <select
                 value={layout.paperSize}
                 onChange={(e) => setLayout((prev) => ({ ...prev, paperSize: e.target.value as PaperSize }))}
-                className="w-full px-2 py-1 text-xs border border-[var(--color-border)] rounded bg-white text-[var(--color-text)] cursor-pointer"
+                className="w-full px-2 py-1 text-xs border border-[var(--ui-border)] rounded bg-[var(--color-surface-raised)] text-[var(--color-text)] cursor-pointer"
               >
                 {(Object.keys(PAPER_LABELS) as PaperSize[]).map((ps) => (
                   <option key={ps} value={ps}>{PAPER_LABELS[ps]}</option>
@@ -393,7 +393,7 @@ function ReportPreviewDialog({
                       className={`flex-1 px-2 py-1 text-xs rounded border cursor-pointer transition-colors ${
                         isActive
                           ? "bg-blue-50 border-blue-300 text-blue-700 font-medium"
-                          : "bg-[var(--color-surface)] border-[var(--color-border)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)]"
+                          : "bg-[var(--color-surface)] border-[var(--ui-border)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)]"
                       }`}
                       onClick={() => {
                         if (mode === "global") {
@@ -427,7 +427,7 @@ function ReportPreviewDialog({
                       className={`flex-1 px-2 py-1 text-xs rounded border cursor-pointer transition-colors ${
                         isActive
                           ? "bg-blue-50 border-blue-300 text-blue-700 font-medium"
-                          : "bg-[var(--color-surface)] border-[var(--color-border)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)]"
+                          : "bg-[var(--color-surface)] border-[var(--ui-border)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)]"
                       }`}
                       onClick={() => {
                         if (mode === "global") {
@@ -512,7 +512,7 @@ function ReportPreviewDialog({
                           groupBy: e.target.value || null,
                         })
                       }
-                      className="w-full mt-0.5 px-2 py-1 text-xs border border-[var(--color-border)] rounded bg-white text-[var(--color-text)] cursor-pointer"
+                      className="w-full mt-0.5 px-2 py-1 text-xs border border-[var(--ui-border)] rounded bg-[var(--color-surface-raised)] text-[var(--color-text)] cursor-pointer"
                     >
                       {tableDef.groupByOptions.map((opt) => (
                         <option key={opt.key} value={opt.key}>
@@ -532,7 +532,7 @@ function ReportPreviewDialog({
                       onChange={(e) =>
                         updateTable(tableDef.id, { sortBy: e.target.value || null })
                       }
-                      className="flex-1 px-2 py-1 text-xs border border-[var(--color-border)] rounded bg-white text-[var(--color-text)] cursor-pointer"
+                      className="flex-1 px-2 py-1 text-xs border border-[var(--ui-border)] rounded bg-[var(--color-surface-raised)] text-[var(--color-text)] cursor-pointer"
                     >
                       <option value="">None</option>
                       {tableDef.columns.filter((c) => c.visible).map((col) => (
@@ -546,7 +546,7 @@ function ReportPreviewDialog({
                             sortDir: tableDef.sortDir === "asc" ? "desc" : "asc",
                           })
                         }
-                        className="px-2 py-1 text-xs border border-[var(--color-border)] rounded bg-[var(--color-surface)] text-[var(--color-text)] hover:bg-[var(--color-surface-hover)] cursor-pointer"
+                        className="px-2 py-1 text-xs border border-[var(--ui-border)] rounded bg-[var(--color-surface)] text-[var(--color-text)] hover:bg-[var(--color-surface-hover)] cursor-pointer"
                         title={tableDef.sortDir === "asc" ? "Ascending" : "Descending"}
                       >
                         {tableDef.sortDir === "asc" ? "\u2191" : "\u2193"}
@@ -563,7 +563,7 @@ function ReportPreviewDialog({
                     onChange={(e) =>
                       updateTable(tableDef.id, { borderStyle: e.target.value as TableBorderStyle })
                     }
-                    className="w-full mt-0.5 px-2 py-1 text-xs border border-[var(--color-border)] rounded bg-white text-[var(--color-text)] cursor-pointer"
+                    className="w-full mt-0.5 px-2 py-1 text-xs border border-[var(--ui-border)] rounded bg-[var(--color-surface-raised)] text-[var(--color-text)] cursor-pointer"
                   >
                     <option value="none">None</option>
                     <option value="horizontal">Horizontal</option>
@@ -576,22 +576,22 @@ function ReportPreviewDialog({
 
             <button
               onClick={handleExportPdf}
-              className="mt-auto px-4 py-2 text-sm font-medium rounded bg-blue-600 text-white hover:bg-blue-700 cursor-pointer transition-colors"
+              className="ui-btn ui-btn-primary mt-auto"
             >
               Export PDF
             </button>
           </div>
 
           {/* Preview pane */}
-          <div className="flex-1 overflow-auto bg-neutral-100 flex flex-col min-h-0">
+          <div className="flex-1 overflow-auto bg-[var(--color-surface)] flex flex-col min-h-0">
             {/* Toolbar: page nav + zoom */}
-            <div className="flex items-center justify-center gap-4 py-2 shrink-0 border-b border-[var(--color-border)] bg-neutral-50">
+            <div className="flex items-center justify-center gap-4 py-2 shrink-0 border-b border-[var(--ui-border)] bg-[var(--color-surface)]">
               {/* Page navigation */}
               <div className="flex items-center gap-1.5">
                 <button
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                   disabled={safePage <= 1}
-                  className={`px-2 py-0.5 text-xs rounded border border-[var(--color-border)] bg-white cursor-pointer ${safePage <= 1 ? "text-gray-300 cursor-default" : "text-[var(--color-text)] hover:bg-gray-100"}`}
+                  className={`px-2 py-0.5 text-xs rounded border border-[var(--ui-border)] bg-[var(--color-surface-raised)] cursor-pointer ${safePage <= 1 ? "text-[var(--color-text-muted)] opacity-40 cursor-default" : "text-[var(--color-text)] hover:bg-[var(--color-surface-hover)]"}`}
                 >
                   &#9664;
                 </button>
@@ -601,7 +601,7 @@ function ReportPreviewDialog({
                 <button
                   onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                   disabled={safePage >= totalPages}
-                  className={`px-2 py-0.5 text-xs rounded border border-[var(--color-border)] bg-white cursor-pointer ${safePage >= totalPages ? "text-gray-300 cursor-default" : "text-[var(--color-text)] hover:bg-gray-100"}`}
+                  className={`px-2 py-0.5 text-xs rounded border border-[var(--ui-border)] bg-[var(--color-surface-raised)] cursor-pointer ${safePage >= totalPages ? "text-[var(--color-text-muted)] opacity-40 cursor-default" : "text-[var(--color-text)] hover:bg-[var(--color-surface-hover)]"}`}
                 >
                   &#9654;
                 </button>
@@ -613,7 +613,7 @@ function ReportPreviewDialog({
               <div className="flex items-center gap-1.5">
                 <button
                   onClick={() => setZoom((z) => Math.max(0.25, z - 0.25))}
-                  className="px-2 py-0.5 text-xs rounded border border-[var(--color-border)] bg-white text-[var(--color-text)] hover:bg-gray-100 cursor-pointer"
+                  className="px-2 py-0.5 text-xs rounded border border-[var(--ui-border)] bg-[var(--color-surface-raised)] text-[var(--color-text)] hover:bg-[var(--color-surface-hover)] cursor-pointer"
                 >
                   &minus;
                 </button>
@@ -622,13 +622,13 @@ function ReportPreviewDialog({
                 </span>
                 <button
                   onClick={() => setZoom((z) => Math.min(3, z + 0.25))}
-                  className="px-2 py-0.5 text-xs rounded border border-[var(--color-border)] bg-white text-[var(--color-text)] hover:bg-gray-100 cursor-pointer"
+                  className="px-2 py-0.5 text-xs rounded border border-[var(--ui-border)] bg-[var(--color-surface-raised)] text-[var(--color-text)] hover:bg-[var(--color-surface-hover)] cursor-pointer"
                 >
                   +
                 </button>
                 <button
                   onClick={() => setZoom(1)}
-                  className="px-2 py-0.5 text-xs rounded border border-[var(--color-border)] bg-white text-[var(--color-text-muted)] hover:bg-gray-100 cursor-pointer"
+                  className="px-2 py-0.5 text-xs rounded border border-[var(--ui-border)] bg-[var(--color-surface-raised)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)] cursor-pointer"
                 >
                   Reset
                 </button>
@@ -693,9 +693,9 @@ const BUILTIN_FIELD_OPTIONS: { value: string; label: string }[] = [
 ];
 
 const smallSelect =
-  "bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-1 py-0.5 text-xs text-[var(--color-text-heading)] outline-none focus:border-blue-500";
+  "bg-[var(--color-surface)] border border-[var(--ui-border)] rounded px-1 py-0.5 text-xs text-[var(--color-text-heading)] outline-none focus:border-blue-500";
 const smallInput =
-  "bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-1.5 py-0.5 text-xs text-[var(--color-text-heading)] outline-none focus:border-blue-500 w-14";
+  "bg-[var(--color-surface)] border border-[var(--ui-border)] rounded px-1.5 py-0.5 text-xs text-[var(--color-text-heading)] outline-none focus:border-blue-500 w-14";
 
 function makeEmptyCell(row: number, col: number): TitleBlockCell {
   return {
@@ -724,7 +724,7 @@ function CellPropertiesPanel({
   titleBlock: TitleBlock;
 }) {
   return (
-    <div className="border border-[var(--color-border)] rounded p-2 bg-gray-50 space-y-2">
+    <div className="border border-[var(--ui-border)] rounded p-2 bg-[var(--color-surface)] space-y-2">
       <div className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] font-semibold">
         Selected Cell
         {(cell.colSpan > 1 || cell.rowSpan > 1) && (
@@ -800,7 +800,7 @@ function CellPropertiesPanel({
         </label>
 
         <button
-          className={`px-1.5 py-0.5 text-[10px] rounded border cursor-pointer ${cell.fontWeight === "bold" ? "bg-blue-600 text-white border-blue-600" : "bg-white text-[var(--color-text-muted)] border-[var(--color-border)]"}`}
+          className={`px-1.5 py-0.5 text-[10px] rounded border cursor-pointer ${cell.fontWeight === "bold" ? "bg-[var(--color-accent)] text-white border-[var(--color-accent)]" : "bg-[var(--color-surface-raised)] text-[var(--color-text-muted)] border-[var(--ui-border)]"}`}
           onClick={() => updateCell(cell.id, { fontWeight: cell.fontWeight === "bold" ? "normal" : "bold" })}
         >
           B
@@ -810,7 +810,7 @@ function CellPropertiesPanel({
           {(["left", "center", "right"] as const).map((a) => (
             <button
               key={a}
-              className={`px-1.5 py-0.5 text-[10px] rounded border cursor-pointer ${cell.align === a ? "bg-blue-600 text-white border-blue-600" : "bg-white text-[var(--color-text-muted)] border-[var(--color-border)]"}`}
+              className={`px-1.5 py-0.5 text-[10px] rounded border cursor-pointer ${cell.align === a ? "bg-[var(--color-accent)] text-white border-[var(--color-accent)]" : "bg-[var(--color-surface-raised)] text-[var(--color-text-muted)] border-[var(--ui-border)]"}`}
               onClick={() => updateCell(cell.id, { align: a })}
             >
               {a === "left" ? "L" : a === "center" ? "C" : "R"}
@@ -820,7 +820,7 @@ function CellPropertiesPanel({
 
         <input
           type="color"
-          className="w-5 h-5 border border-[var(--color-border)] rounded cursor-pointer"
+          className="w-5 h-5 border border-[var(--ui-border)] rounded cursor-pointer"
           value={cell.color}
           onChange={(e) => updateCell(cell.id, { color: e.target.value })}
         />
@@ -1608,7 +1608,7 @@ function ContextMenuItem({ label, onClick, disabled }: { label: string; onClick?
   return (
     <button
       className={`w-full text-left px-3 py-1 text-xs cursor-pointer ${
-        disabled ? "text-gray-300 cursor-default" : "text-gray-700 hover:bg-gray-100"
+        disabled ? "text-[var(--color-text-muted)] opacity-40 cursor-default" : "text-[var(--color-text)] hover:bg-[var(--color-surface-hover)]"
       }`}
       onClick={disabled ? undefined : onClick}
       disabled={disabled}
@@ -1626,7 +1626,7 @@ function ContextMenuSub({ label, children }: { label: string; children: React.Re
       onMouseEnter={() => setOpen(true)}
       onMouseLeave={() => setOpen(false)}
     >
-      <button className="w-full text-left px-3 py-1 text-xs text-gray-700 hover:bg-gray-100 cursor-pointer flex items-center justify-between">
+      <button className="w-full text-left px-3 py-1 text-xs text-[var(--color-text)] hover:bg-[var(--color-surface-hover)] cursor-pointer flex items-center justify-between">
         {label}
         <span className="text-[10px] ml-2">&#9656;</span>
       </button>

@@ -67,7 +67,7 @@ export default function DeviceContextMenu() {
   return (
     <div
       ref={menuRef}
-      className="fixed z-50 bg-white border border-gray-300 rounded shadow-lg py-1 min-w-[160px]"
+      className="chrome-menu fixed z-50 min-w-[160px]"
       style={{
         left: menuPos.x,
         top: menuPos.y,
@@ -82,7 +82,7 @@ export default function DeviceContextMenu() {
 
       {deviceData && (
         <>
-          <div className="border-t border-gray-200 my-1" />
+          <div className="h-px bg-[var(--ui-border)] my-1" />
           {placement ? (
             <MenuItem
               label={`Show in Rack (${placement.page.label})`}
@@ -93,7 +93,7 @@ export default function DeviceContextMenu() {
             />
           ) : pages.length > 0 ? (
             <>
-              <div className="px-3 py-1 text-neutral-400 text-[10px] uppercase tracking-wider">
+              <div className="px-2.5 py-1 text-[var(--color-text-muted)] text-[10px] uppercase tracking-wider">
                 Place in Rack
               </div>
               {pages.map((page) =>
@@ -129,7 +129,7 @@ export default function DeviceContextMenu() {
         </>
       )}
 
-      <div className="border-t border-gray-200 my-1" />
+      <div className="h-px bg-[var(--ui-border)] my-1" />
       <MenuItem label="Delete Device" onClick={deleteDevice} danger />
     </div>
   );
@@ -148,10 +148,10 @@ function MenuItem({
 }) {
   return (
     <button
-      className={`w-full text-left py-1.5 text-xs cursor-pointer ${indent ? "px-5" : "px-3"} ${
+      className={`w-full text-left py-1.5 text-xs cursor-pointer rounded-md transition-colors ${indent ? "px-5" : "px-2.5"} ${
         danger
-          ? "text-red-600 hover:bg-red-50 hover:text-red-700"
-          : "text-gray-700 hover:bg-blue-50 hover:text-blue-700"
+          ? "text-red-600 dark:text-red-400 hover:bg-red-500/10"
+          : "text-[var(--color-text)] hover:bg-[var(--color-surface-hover)]"
       }`}
       onClick={onClick}
     >

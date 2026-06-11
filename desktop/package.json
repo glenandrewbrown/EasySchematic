@@ -1,0 +1,16 @@
+{
+  "name": "EasySchematic",
+  "productName": "EasySchematic",
+  "private": true,
+  "version": "0.39.0",
+  "description": "EasySchematic desktop wrapper — serves the built web app locally with persistent storage",
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "package": "electron-packager . EasySchematic --platform=darwin --out=out --overwrite --icon=icon.icns"
+  },
+  "devDependencies": {
+    "@electron/packager": "^18.3.6",
+    "electron": "^37.2.0"
+  }
+}

@@ -40,6 +40,9 @@ export default function RoomEditor() {
   const [isEquipmentRack, setIsEquipmentRack] = useState(false);
   const [linkedRackPageId, setLinkedRackPageId] = useState<string>("");
   const [linkedRackId, setLinkedRackId] = useState<string>("");
+  const [widthMStr, setWidthMStr] = useState<string>("");
+  const [depthMStr, setDepthMStr] = useState<string>("");
+  const [heightMStr, setHeightMStr] = useState<string>("");
 
   /* eslint-disable react-hooks/set-state-in-effect -- syncing props to local editor state */
   useEffect(() => {
@@ -53,6 +56,9 @@ export default function RoomEditor() {
     setIsEquipmentRack(node.data.isEquipmentRack ?? false);
     setLinkedRackPageId(node.data.linkedRackPageId ?? "");
     setLinkedRackId(node.data.linkedRackId ?? "");
+    setWidthMStr(node.data.widthM != null ? String(node.data.widthM) : "");
+    setDepthMStr(node.data.depthM != null ? String(node.data.depthM) : "");
+    setHeightMStr(node.data.heightM != null ? String(node.data.heightM) : "");
   }, [node]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
@@ -70,10 +76,14 @@ export default function RoomEditor() {
       ...(labelSize !== 12 ? { labelSize } : {}),
       ...(isEquipmentRack ? { isEquipmentRack: true } : {}),
       ...(isEquipmentRack && linkedRackPageId && linkedRackId ? { linkedRackPageId, linkedRackId } : {}),
+      ...(parseFloat(widthMStr) > 0 ? { widthM: parseFloat(widthMStr) } : {}),
+      ...(parseFloat(depthMStr) > 0 ? { depthM: parseFloat(depthMStr) } : {}),
+      ...(parseFloat(heightMStr) > 0 ? { heightM: parseFloat(heightMStr) } : {}),
+      ...(node?.data.shape ? { shape: node.data.shape } : {}),
     };
     updateRoom(editingNodeId, data);
     close();
-  }, [editingNodeId, label, color, borderColor, borderStyle, labelSize, isEquipmentRack, linkedRackPageId, linkedRackId, updateRoom, close]);
+  }, [editingNodeId, node, label, color, borderColor, borderStyle, labelSize, isEquipmentRack, linkedRackPageId, linkedRackId, widthMStr, depthMStr, heightMStr, updateRoom, close]);
 
   if (!editingNodeId || !node) return null;
 
@@ -82,7 +92,7 @@ export default function RoomEditor() {
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
       onMouseDown={(e) => { if (e.target === e.currentTarget) close(); }}
     >
-      <div className="bg-white border border-[var(--color-border)] rounded-lg shadow-2xl w-[360px] flex flex-col">
+      <div className="ui-dialog w-[360px]">
         {/* Header */}
         <div className="px-4 py-3 border-b border-[var(--color-border)] flex items-center justify-between">
           <h2 className="text-sm font-semibold text-[var(--color-text-heading)]">Room Properties</h2>
@@ -111,6 +121,52 @@ export default function RoomEditor() {
             />
           </div>
 
+          {/* Real-world dimensions */}
+          <div>
+            <label className="block text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mb-1">
+              Real Dimensions (meters)
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                className="ui-input w-24"
+                type="number"
+                min="0"
+                step="0.1"
+                placeholder="Width"
+                value={widthMStr}
+                onChange={(e) => setWidthMStr(e.target.value)}
+                onKeyDown={(e) => { e.stopPropagation(); if (e.key === "Enter") handleSave(); }}
+              />
+              <span className="text-xs text-[var(--color-text-muted)]">×</span>
+              <input
+                className="ui-input w-24"
+                type="number"
+                min="0"
+                step="0.1"
+                placeholder="Depth"
+                value={depthMStr}
+                onChange={(e) => setDepthMStr(e.target.value)}
+                onKeyDown={(e) => { e.stopPropagation(); if (e.key === "Enter") handleSave(); }}
+              />
+              <span className="text-xs text-[var(--color-text-muted)]">×</span>
+              <input
+                className="ui-input w-20"
+                type="number"
+                min="0"
+                step="0.1"
+                placeholder="Height"
+                value={heightMStr}
+                onChange={(e) => setHeightMStr(e.target.value)}
+                onKeyDown={(e) => { e.stopPropagation(); if (e.key === "Enter") handleSave(); }}
+              />
+              <span className="text-xs text-[var(--color-text-muted)]">m</span>
+            </div>
+            <p className="text-[10px] text-[var(--color-text-muted)] mt-1">
+              Width × depth × ceiling height. Shown on the room and used to estimate cable runs
+              between devices inside it. Right-click the room → Edit Shape for non-rectangular layouts.
+            </p>
+          </div>
+
           {/* Lock */}
           <div>
             <label className="block text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mb-1">
@@ -122,11 +178,7 @@ export default function RoomEditor() {
                 toggleRoomLock(editingNodeId);
                 setLocked(!locked);
               }}
-              className={`px-3 py-1 text-xs rounded border cursor-pointer transition-colors ${
-                locked
-                  ? "bg-blue-50 border-blue-400 text-blue-700"
-                  : "bg-[var(--color-surface)] border-[var(--color-border)] text-[var(--color-text)] hover:text-[var(--color-text-heading)]"
-              }`}
+              className={`ui-btn ${locked ? "ui-btn-primary" : "ui-btn-secondary"}`}
             >
               {locked ? "Locked" : "Unlocked"}
             </button>
@@ -139,11 +191,7 @@ export default function RoomEditor() {
             </label>
             <button
               onClick={() => { setIsEquipmentRack(!isEquipmentRack); if (isEquipmentRack) { setLinkedRackPageId(""); setLinkedRackId(""); } }}
-              className={`px-3 py-1 text-xs rounded border cursor-pointer transition-colors ${
-                isEquipmentRack
-                  ? "bg-blue-50 border-blue-400 text-blue-700"
-                  : "bg-[var(--color-surface)] border-[var(--color-border)] text-[var(--color-text)] hover:text-[var(--color-text-heading)]"
-              }`}
+              className={`ui-btn ${isEquipmentRack ? "ui-btn-primary" : "ui-btn-secondary"}`}
             >
               {isEquipmentRack ? "Yes" : "No"}
             </button>
@@ -156,7 +204,7 @@ export default function RoomEditor() {
                 Linked Rack
               </label>
               <select
-                className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2 py-1 text-xs outline-none focus:border-blue-500"
+                className="ui-input text-xs"
                 value={linkedRackPageId}
                 onChange={(e) => { setLinkedRackPageId(e.target.value); setLinkedRackId(""); }}
               >
@@ -165,7 +213,7 @@ export default function RoomEditor() {
               </select>
               {selectedPage && (
                 <select
-                  className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2 py-1 text-xs outline-none focus:border-blue-500"
+                  className="ui-input text-xs"
                   value={linkedRackId}
                   onChange={(e) => setLinkedRackId(e.target.value)}
                 >
@@ -238,11 +286,7 @@ export default function RoomEditor() {
                 <button
                   key={bs.value}
                   onClick={() => setBorderStyle(bs.value)}
-                  className={`px-3 py-1 text-xs rounded border cursor-pointer transition-colors ${
-                    borderStyle === bs.value
-                      ? "bg-blue-50 border-blue-400 text-blue-700"
-                      : "bg-[var(--color-surface)] border-[var(--color-border)] text-[var(--color-text)] hover:text-[var(--color-text-heading)]"
-                  }`}
+                  className={`ui-btn ${borderStyle === bs.value ? "ui-btn-primary" : "ui-btn-secondary"}`}
                 >
                   {bs.label}
                 </button>
@@ -280,18 +324,8 @@ export default function RoomEditor() {
 
         {/* Footer */}
         <div className="px-4 py-3 border-t border-[var(--color-border)] flex items-center justify-end gap-2">
-          <button
-            onClick={close}
-            className="px-3 py-1.5 text-xs rounded bg-[var(--color-surface)] text-[var(--color-text)] hover:text-[var(--color-text-heading)] border border-[var(--color-border)] transition-colors cursor-pointer"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            className="px-3 py-1.5 text-xs rounded bg-blue-600 text-white hover:bg-blue-500 transition-colors cursor-pointer"
-          >
-            Apply
-          </button>
+          <button onClick={close} className="ui-btn ui-btn-secondary">Cancel</button>
+          <button onClick={handleSave} className="ui-btn ui-btn-primary">Apply</button>
         </div>
       </div>
     </div>

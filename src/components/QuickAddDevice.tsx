@@ -235,7 +235,7 @@ export default function QuickAddDevice({
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
-        className="absolute bg-[var(--color-bg)] border border-[var(--color-border)] rounded-lg shadow-2xl w-72 flex flex-col overflow-hidden"
+        className="absolute bg-[var(--color-surface-raised)] border border-[var(--ui-border)] rounded-xl shadow-[var(--ui-shadow-menu)] w-72 flex flex-col overflow-hidden"
         style={{ left: "50%", top: "30%", transform: "translateX(-50%)" }}
       >
         <div className="px-2 pt-2 pb-1.5">
@@ -246,10 +246,10 @@ export default function QuickAddDevice({
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Add device, note, room..."
-            className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2.5 py-1.5 text-xs text-[var(--color-text-heading)] outline-none focus:border-blue-500 placeholder:text-[var(--color-text-muted)]"
+            className="ui-input w-full text-[var(--color-text-heading)]"
           />
         </div>
-        <div className="px-2 pb-2 border-b border-[var(--color-border)]">
+        <div className="px-2 pb-2 border-b border-[var(--ui-border)]">
           <div className="flex gap-1.5">
             <div className={`flex-1 min-w-0 flex items-center rounded border transition-colors ${
                 openPanel === "category"

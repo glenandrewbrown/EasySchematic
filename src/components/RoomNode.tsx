@@ -1,8 +1,18 @@
-import { memo, useState, useCallback } from "react";
-import { NodeResizer, type NodeProps } from "@xyflow/react";
+import { memo, useState, useCallback, useRef, useEffect } from "react";
+import { NodeResizer, useStore, type NodeProps } from "@xyflow/react";
 import type { RoomNode as RoomNodeType, SchematicNode } from "../types";
 import { useSchematicStore } from "../store";
 import { computeResizeSnap } from "../snapUtils";
+import {
+  shapeToPx,
+  polygonPointsAttr,
+  edgeLengthsM,
+  edgeMidpointsPx,
+  insertVertex,
+  removeVertex,
+  clampPoint,
+  type ShapePoint,
+} from "../roomShape";
 
 function RackIcon() {
   return (
@@ -35,16 +45,58 @@ function UnlockIcon() {
   );
 }
 
-function RoomNodeComponent({ id, data, selected }: NodeProps<RoomNodeType>) {
+const DASH_BY_STYLE: Record<string, string | undefined> = {
+  dashed: "8 6",
+  dotted: "2 4",
+  solid: undefined,
+};
+
+/** Small measurement tag used on room edges, e.g. "6.5 m". */
+function DimTag({ x, y, text }: { x: number; y: number; text: string }) {
+  return (
+    <div
+      className="absolute text-[9px] leading-none px-1 py-0.5 rounded border tabular-nums whitespace-nowrap"
+      style={{
+        left: x,
+        top: y,
+        transform: "translate(-50%, -50%)",
+        pointerEvents: "none",
+        background: "var(--color-bg)",
+        borderColor: "color-mix(in srgb, var(--color-border) 40%, transparent)",
+        color: "var(--color-text-muted)",
+      }}
+    >
+      {text}
+    </div>
+  );
+}
+
+function RoomNodeComponent({ id, data, selected, width, height }: NodeProps<RoomNodeType>) {
   const updateRoomLabel = useSchematicStore((s) => s.updateRoomLabel);
   const toggleRoomLock = useSchematicStore((s) => s.toggleRoomLock);
   const setResizeGuides = useSchematicStore((s) => s.setResizeGuides);
   const onRoomResizeEnd = useSchematicStore((s) => s.onRoomResizeEnd);
   const isSubroom = useSchematicStore((s) => !!s.nodes.find((n) => n.id === id)?.parentId);
+  const isEditingShape = useSchematicStore((s) => s.editingRoomShapeId === id);
+  const updateRoomShape = useSchematicStore((s) => s.updateRoomShape);
+  const setEditingRoomShape = useSchematicStore((s) => s.setEditingRoomShape);
+  const zoom = useStore((s) => s.transform[2]);
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(data.label);
 
   const locked = data.locked ?? false;
+  const w = width ?? 200;
+  const h = height ?? 150;
+
+  // Exit shape editing with Escape
+  useEffect(() => {
+    if (!isEditingShape) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setEditingRoomShape(null);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [isEditingShape, setEditingRoomShape]);
 
   const handleResize = useCallback(
     (_event: unknown, params: { x: number; y: number; width: number; height: number; direction: number[] }) => {
@@ -77,6 +129,41 @@ function RoomNodeComponent({ id, data, selected }: NodeProps<RoomNodeType>) {
     setEditing(false);
   };
 
+  // ── Vertex dragging (shape edit mode) ──────────────────────────
+  const dragRef = useRef<{ index: number; startX: number; startY: number; startShape: ShapePoint[]; moved: boolean } | null>(null);
+
+  const onVertexPointerDown = useCallback(
+    (e: React.PointerEvent, index: number) => {
+      e.stopPropagation();
+      e.preventDefault();
+      const shape = (data.shape ?? []) as ShapePoint[];
+      dragRef.current = { index, startX: e.clientX, startY: e.clientY, startShape: shape.map((p) => ({ ...p })), moved: false };
+      (e.target as Element).setPointerCapture(e.pointerId);
+    },
+    [data.shape],
+  );
+
+  const onVertexPointerMove = useCallback(
+    (e: React.PointerEvent) => {
+      const drag = dragRef.current;
+      if (!drag) return;
+      const dxPx = (e.clientX - drag.startX) / zoom;
+      const dyPx = (e.clientY - drag.startY) / zoom;
+      const start = drag.startShape[drag.index];
+      const next = drag.startShape.map((p, i) =>
+        i === drag.index ? clampPoint({ x: start.x + dxPx / w, y: start.y + dyPx / h }) : p,
+      );
+      updateRoomShape(id, next, !drag.moved); // record undo once, on first movement
+      drag.moved = true;
+    },
+    [id, zoom, w, h, updateRoomShape],
+  );
+
+  const onVertexPointerUp = useCallback(() => {
+    if (dragRef.current?.moved) useSchematicStore.getState().saveToLocalStorage();
+    dragRef.current = null;
+  }, []);
+
   const isRack = data.isEquipmentRack ?? false;
   const borderStyleVal = isRack ? "solid" : (data.borderStyle ?? (isSubroom ? "solid" : "dashed"));
   const borderColorVal = selected ? undefined : data.borderColor;
@@ -85,10 +172,37 @@ function RoomNodeComponent({ id, data, selected }: NodeProps<RoomNodeType>) {
   const bgAlpha = isSubroom ? "33" : "1a"; // 20% vs 10% opacity
   const fontSize = data.labelSize ?? 12;
 
+  const shape = (data.shape && data.shape.length >= 3 ? data.shape : null) as ShapePoint[] | null;
+  const shapePx = shape ? shapeToPx(shape, w, h) : null;
+  const strokeColor = selected
+    ? "#60a5fa"
+    : borderColorVal || (isRack ? "#6b7280" : "var(--color-border)");
+  const fillColor = bgColor
+    ? `${bgColor}${bgAlpha}`
+    : isRack
+      ? "rgba(55,65,81,0.12)"
+      : "rgba(var(--color-surface-rgb, 245,245,245),0.3)";
+
+  // Edge measurement labels (need a real-world scale → widthM)
+  const showDims = !!data.widthM && data.widthM > 0;
+  const dimLabels: { x: number; y: number; text: string }[] = [];
+  if (showDims) {
+    if (shape && shapePx) {
+      const lengths = edgeLengthsM(shape, w, h, data.widthM!);
+      edgeMidpointsPx(shapePx).forEach((mid, i) => {
+        dimLabels.push({ x: mid.x, y: mid.y, text: `${lengths[i].toFixed(1)} m` });
+      });
+    } else {
+      const depth = data.depthM ?? (data.widthM! * h) / w;
+      dimLabels.push({ x: w / 2, y: h, text: `${data.widthM!.toFixed(1)} m` });
+      dimLabels.push({ x: w, y: h / 2, text: `${depth.toFixed(1)} m` });
+    }
+  }
+
   return (
     <>
       <NodeResizer
-        isVisible={selected && !locked}
+        isVisible={selected && !locked && !isEditingShape}
         minWidth={200}
         minHeight={150}
         onResize={handleResize}
@@ -97,22 +211,109 @@ function RoomNodeComponent({ id, data, selected }: NodeProps<RoomNodeType>) {
         handleStyle={{ width: 8, height: 8, borderRadius: 2, backgroundColor: "var(--color-border)" }}
       />
       <div
-        className={`w-full h-full rounded-lg border-2 ${
-          selected ? "border-blue-400" : ""
+        className={`w-full h-full ${shape ? "" : "rounded-lg border-2"} ${
+          !shape && selected ? "border-blue-400" : ""
         }`}
         style={{
           pointerEvents: "none",
-          borderStyle: borderStyleVal,
-          ...(!selected ? { borderColor: borderColorVal || (isRack ? "#6b7280" : "var(--color-border)") } : {}),
-          backgroundColor: bgColor
-            ? `${bgColor}${bgAlpha}`
-            : isRack
-            ? "rgba(55,65,81,0.12)"
-            : selected
-            ? "rgba(239,246,255,0.3)"
-            : "rgba(var(--color-surface-rgb, 245,245,245),0.3)",
+          ...(shape
+            ? {}
+            : {
+                borderStyle: borderStyleVal,
+                ...(!selected ? { borderColor: borderColorVal || (isRack ? "#6b7280" : "var(--color-border)") } : {}),
+                backgroundColor: fillColor === "rgba(var(--color-surface-rgb, 245,245,245),0.3)" && selected
+                  ? "rgba(239,246,255,0.3)"
+                  : fillColor,
+              }),
         }}
       >
+        {/* Custom floor-plan outline */}
+        {shape && shapePx && (
+          <svg className="absolute inset-0 w-full h-full" style={{ overflow: "visible", pointerEvents: "none" }}>
+            <polygon
+              points={polygonPointsAttr(shapePx)}
+              fill={fillColor}
+              stroke={strokeColor}
+              strokeWidth={2}
+              strokeDasharray={DASH_BY_STYLE[borderStyleVal]}
+              strokeLinejoin="round"
+            />
+            {isEditingShape && (
+              <>
+                {/* Add-vertex handles at edge midpoints */}
+                {edgeMidpointsPx(shapePx).map((mid, i) => (
+                  <rect
+                    key={`mid-${i}`}
+                    className="nodrag"
+                    x={mid.x - 4}
+                    y={mid.y - 4}
+                    width={8}
+                    height={8}
+                    rx={2}
+                    fill="var(--color-surface-raised)"
+                    stroke="var(--color-accent)"
+                    strokeWidth={1.5}
+                    style={{ pointerEvents: "auto", cursor: "copy" }}
+                    onPointerDown={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      updateRoomShape(id, insertVertex(shape, i), true);
+                    }}
+                  >
+                    <title>Click to add a corner</title>
+                  </rect>
+                ))}
+                {/* Draggable vertices */}
+                {shapePx.map((p, i) => (
+                  <circle
+                    key={`v-${i}`}
+                    className="nodrag"
+                    cx={p.x}
+                    cy={p.y}
+                    r={6}
+                    fill="var(--color-accent)"
+                    stroke="var(--color-surface-raised)"
+                    strokeWidth={2}
+                    style={{ pointerEvents: "auto", cursor: "grab", touchAction: "none" }}
+                    onPointerDown={(e) => onVertexPointerDown(e, i)}
+                    onPointerMove={onVertexPointerMove}
+                    onPointerUp={onVertexPointerUp}
+                    onDoubleClick={(e) => {
+                      e.stopPropagation();
+                      updateRoomShape(id, removeVertex(shape, i), true);
+                    }}
+                  >
+                    <title>Drag to move · double-click to remove</title>
+                  </circle>
+                ))}
+              </>
+            )}
+          </svg>
+        )}
+
+        {/* Edge measurements */}
+        {dimLabels.map((d, i) => (
+          <DimTag key={i} x={d.x} y={d.y} text={d.text} />
+        ))}
+
+        {/* Shape-editing toolbar */}
+        {isEditingShape && (
+          <div
+            className="absolute left-1/2 -top-9 -translate-x-1/2 flex items-center gap-1 chrome-menu !p-1"
+            style={{ pointerEvents: "auto" }}
+          >
+            <span className="text-[10px] text-[var(--color-text-muted)] px-1.5 whitespace-nowrap">
+              Drag corners · click □ to add · 2×click to remove
+            </span>
+            <button
+              className="nodrag text-[10px] font-semibold px-2 py-1 rounded-md bg-[var(--color-accent)] text-white cursor-pointer"
+              onClick={(e) => { e.stopPropagation(); setEditingRoomShape(null); }}
+            >
+              Done
+            </button>
+          </div>
+        )}
+
         <div
           className="absolute top-0 left-0 px-2 py-1"
           style={{ pointerEvents: "auto" }}
@@ -127,7 +328,7 @@ function RoomNodeComponent({ id, data, selected }: NodeProps<RoomNodeType>) {
         >
           {editing ? (
             <input
-              className="font-semibold text-[var(--color-text-muted)] bg-white border border-[var(--color-border)] rounded px-1 outline-none"
+              className="font-semibold text-[var(--color-text-muted)] bg-[var(--color-surface-raised)] border border-[var(--ui-border-strong)] rounded px-1 outline-none"
               style={{ fontSize }}
               value={value}
               onChange={(e) => setValue(e.target.value)}
@@ -148,6 +349,12 @@ function RoomNodeComponent({ id, data, selected }: NodeProps<RoomNodeType>) {
             >
               {isRack && <RackIcon />}
               {data.label}
+              {(data.widthM || data.depthM || data.heightM) && (
+                <span className="normal-case tracking-normal font-normal opacity-70" style={{ fontSize: Math.max(9, fontSize - 3) }}>
+                  {data.widthM ?? "?"} × {data.depthM ?? "?"}
+                  {data.heightM ? ` × h${data.heightM}` : ""} m
+                </span>
+              )}
             </span>
           )}
         </div>

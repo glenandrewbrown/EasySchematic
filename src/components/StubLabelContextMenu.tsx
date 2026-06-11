@@ -89,7 +89,7 @@ export default function StubLabelContextMenu() {
   return (
     <div
       ref={menuRef}
-      className="fixed z-50 bg-white border border-gray-300 rounded shadow-lg py-1 min-w-[200px]"
+      className="chrome-menu fixed z-50 min-w-[200px]"
       style={{
         left: menuPos.x,
         top: menuPos.y,
@@ -102,7 +102,7 @@ export default function StubLabelContextMenu() {
       <MenuItem label={showPortLabel} onClick={() => cycleBool("showPort")} />
       <MenuItem label={showRoomLabel} onClick={() => cycleBool("showRoom")} />
       <MenuItem label={pageModeLabel} onClick={cyclePageMode} />
-      <div className="border-t border-gray-200 my-1" />
+      <div className="h-px bg-[var(--ui-border)] my-1" />
       <MenuItem label="Show Full Connection" onClick={collapseStubs} />
     </div>
   );
@@ -122,7 +122,7 @@ function pageModeItemLabel(override: StubLabelPageMode | undefined, globalVal: S
 function MenuItem({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <button
-      className="w-full text-left px-3 py-1.5 text-xs cursor-pointer text-gray-700 hover:bg-blue-50 hover:text-blue-700"
+      className="w-full text-left px-2.5 py-1.5 text-xs cursor-pointer text-[var(--color-text)] hover:bg-[var(--color-surface-hover)] rounded-md transition-colors"
       onClick={onClick}
     >
       {label}

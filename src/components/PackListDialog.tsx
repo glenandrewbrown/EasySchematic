@@ -39,25 +39,24 @@ function PackListDialog({ onClose }: PackListDialogProps) {
   const tabClass = (t: Tab) =>
     `px-3 py-1.5 text-xs rounded-t cursor-pointer border border-b-0 transition-colors ${
       tab === t
-        ? "bg-white text-[var(--color-text-heading)] font-semibold border-[var(--color-border)]"
+        ? "bg-[var(--color-surface-raised)] text-[var(--color-text-heading)] font-semibold border-[var(--ui-border)]"
         : "bg-[var(--color-surface)] text-[var(--color-text-muted)] border-transparent hover:text-[var(--color-text)]"
     }`;
 
-  const btnClass =
-    "px-3 py-1 text-xs rounded bg-[var(--color-surface)] text-[var(--color-text)] hover:text-[var(--color-text-heading)] hover:bg-[var(--color-surface-hover)] border border-[var(--color-border)] transition-colors cursor-pointer";
+  const btnClass = "ui-btn ui-btn-secondary";
 
   return (
     <>
       <div
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
+        className="ui-dialog-backdrop"
         onClick={onClose}
       >
         <div
-          className="bg-white border border-[var(--color-border)] rounded-lg shadow-2xl w-[700px] max-h-[80vh] flex flex-col"
+          className="ui-dialog bg-[var(--color-surface-raised)] w-[700px]"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="px-4 py-3 border-b border-[var(--color-border)] flex items-center gap-3">
+          <div className="px-4 py-3 border-b border-[var(--ui-border)] flex items-center gap-3">
             <h2 className="text-sm font-semibold text-[var(--color-text-heading)]">
               Pack List
             </h2>
@@ -83,7 +82,7 @@ function PackListDialog({ onClose }: PackListDialogProps) {
           </div>
 
           {/* Tabs */}
-          <div className="px-4 pt-2 flex items-center gap-1 border-b border-[var(--color-border)]">
+          <div className="px-4 pt-2 flex items-center gap-1 border-b border-[var(--ui-border)]">
             <button className={tabClass("devices")} onClick={() => setTab("devices")}>
               Devices
             </button>
@@ -149,7 +148,7 @@ export default memo(PackListDialog);
 // ─── Table styling ───
 
 const thClass =
-  "text-left text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wide py-1.5 px-2 border-b border-[var(--color-border)]";
+  "text-left text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wide py-1.5 px-2 border-b border-[var(--ui-border)]";
 const tdClass = "py-1 px-2 text-xs text-[var(--color-text)]";
 const rowClass = (i: number) =>
   i % 2 === 1 ? "bg-[var(--color-surface)]" : "";
@@ -159,7 +158,7 @@ function RoomHeader({ room }: { room: string }) {
     <tr>
       <td
         colSpan={99}
-        className="pt-3 pb-1 px-2 text-xs font-semibold text-[var(--color-text-heading)] border-b border-[var(--color-border)]"
+        className="pt-3 pb-1 px-2 text-xs font-semibold text-[var(--color-text-heading)] border-b border-[var(--ui-border)]"
       >
         {room}
       </td>
@@ -270,7 +269,7 @@ function CablesTab({
       <tr>
         <td
           colSpan={99}
-          className="pt-3 pb-1 px-2 text-xs font-semibold text-[var(--color-text-heading)] border-b border-[var(--color-border)]"
+          className="pt-3 pb-1 px-2 text-xs font-semibold text-[var(--color-text-heading)] border-b border-[var(--ui-border)]"
         >
           Adapters ({adapters.reduce((sum, a) => sum + a.count, 0)})
         </td>

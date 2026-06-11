@@ -29,19 +29,19 @@ export default function RoomDistancesDialog({ onClose }: RoomDistancesDialogProp
 
   const labelClass = "block text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mb-1";
   const inputClass =
-    "bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2 py-1 text-xs text-[var(--color-text-heading)] outline-none focus:border-blue-500";
+    "ui-input";
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
+      className="ui-dialog-backdrop"
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="bg-white border border-[var(--color-border)] rounded-lg shadow-2xl w-[520px] max-h-[80vh] flex flex-col">
-        <div className="px-4 py-3 border-b border-[var(--color-border)] flex items-center justify-between">
+      <div className="ui-dialog w-[520px] max-h-[80vh]">
+        <div className="px-4 py-3 border-b border-[var(--ui-border)] flex items-center justify-between">
           <h2 className="text-sm font-semibold text-[var(--color-text-heading)]">Room Distances</h2>
           <button
             onClick={onClose}
-            className="text-[var(--color-text-muted)] hover:text-[var(--color-text-heading)] text-lg leading-none cursor-pointer"
+            className="ui-btn ui-btn-ghost text-lg leading-none"
           >
             &times;
           </button>
@@ -63,10 +63,10 @@ export default function RoomDistancesDialog({ onClose }: RoomDistancesDialogProp
                   <button
                     key={u}
                     onClick={() => setDistanceSettings({ unit: u })}
-                    className={`px-3 py-1 text-xs rounded border cursor-pointer transition-colors ${
+                    className={`ui-btn cursor-pointer transition-colors ${
                       settings.unit === u
-                        ? "bg-blue-50 border-blue-400 text-blue-700"
-                        : "bg-[var(--color-surface)] border-[var(--color-border)] text-[var(--color-text)] hover:text-[var(--color-text-heading)]"
+                        ? "ui-btn-primary"
+                        : "ui-btn-secondary"
                     }`}
                   >
                     {u}
@@ -100,7 +100,7 @@ export default function RoomDistancesDialog({ onClose }: RoomDistancesDialogProp
             </div>
           </div>
 
-          <div className="pt-2 border-t border-[var(--color-border)]">
+          <div className="pt-2 border-t border-[var(--ui-border)]">
             <div className={labelClass}>Room pairs ({settings.unit})</div>
             {rooms.length < 2 ? (
               <p className="text-xs text-[var(--color-text-muted)] mt-2">
@@ -137,10 +137,10 @@ export default function RoomDistancesDialog({ onClose }: RoomDistancesDialogProp
           </div>
         </div>
 
-        <div className="px-4 py-3 border-t border-[var(--color-border)] flex items-center justify-end">
+        <div className="px-4 py-3 border-t border-[var(--ui-border)] flex justify-end">
           <button
             onClick={onClose}
-            className="px-3 py-1.5 text-xs rounded bg-blue-600 text-white hover:bg-blue-500 transition-colors cursor-pointer"
+            className="ui-btn ui-btn-primary"
           >
             Done
           </button>

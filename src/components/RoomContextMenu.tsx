@@ -70,7 +70,7 @@ export default function RoomContextMenu() {
   return (
     <div
       ref={menuRef}
-      className="fixed z-50 bg-white border border-gray-300 rounded shadow-lg py-1 min-w-[160px]"
+      className="chrome-menu fixed z-50 min-w-[160px]"
       style={{
         left: menuPos.x,
         top: menuPos.y,
@@ -81,12 +81,30 @@ export default function RoomContextMenu() {
       onClick={(e) => e.stopPropagation()}
     >
       <MenuItem label="Edit Properties..." onClick={editProperties} />
+      <MenuItem
+        label="Edit Shape"
+        onClick={() => {
+          if (!menu) return;
+          useSchematicStore.getState().setEditingRoomShape(menu.nodeId);
+          useSchematicStore.setState({ roomContextMenu: null });
+        }}
+      />
+      {!!roomData?.shape && (
+        <MenuItem
+          label="Reset to Rectangle"
+          onClick={() => {
+            if (!menu) return;
+            useSchematicStore.getState().updateRoomShape(menu.nodeId, undefined, true);
+            useSchematicStore.setState({ roomContextMenu: null, editingRoomShapeId: null });
+          }}
+        />
+      )}
       <MenuItem label={isLocked ? "Unlock Room" : "Lock Room"} onClick={toggleLock} />
       <MenuItem
         label={isEquipmentRack ? "Remove Equipment Rack" : "Mark as Equipment Rack"}
         onClick={toggleEquipmentRack}
       />
-      <div className="border-t border-gray-200 my-1" />
+      <div className="h-px bg-[var(--ui-border)] my-1" />
       <MenuItem label="Delete Room" onClick={deleteRoom} danger />
       <MenuItem label="Delete Room & Contents" onClick={deleteRoomAndContents} danger />
     </div>
@@ -96,10 +114,10 @@ export default function RoomContextMenu() {
 function MenuItem({ label, onClick, danger }: { label: string; onClick: () => void; danger?: boolean }) {
   return (
     <button
-      className={`w-full text-left px-3 py-1.5 text-xs cursor-pointer ${
+      className={`w-full text-left px-2.5 py-1.5 text-xs cursor-pointer rounded-md transition-colors ${
         danger
-          ? "text-red-600 hover:bg-red-50 hover:text-red-700"
-          : "text-gray-700 hover:bg-blue-50 hover:text-blue-700"
+          ? "text-red-600 dark:text-red-400 hover:bg-red-500/10"
+          : "text-[var(--color-text)] hover:bg-[var(--color-surface-hover)]"
       }`}
       onClick={onClick}
     >
