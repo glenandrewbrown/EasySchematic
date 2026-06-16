@@ -942,6 +942,20 @@ function SchematicCanvas() {
         return;
       }
 
+      // Shift+1 → fit all content; Shift+2 → zoom to selection (e.code is layout-independent).
+      if (e.shiftKey && (e.code === "Digit1" || e.code === "Digit2")) {
+        e.preventDefault();
+        if (e.code === "Digit2") {
+          const selected = rfInstance.getNodes().filter((n) => n.selected && !n.hidden);
+          if (selected.length > 0) {
+            rfInstance.fitView({ nodes: selected, duration: 250, padding: 0.3 });
+            return;
+          }
+        }
+        rfInstance.fitView({ duration: 250, padding: 0.15 });
+        return;
+      }
+
       if (e.key === "Delete" || e.key === "Backspace") {
         removeSelected();
       } else if ((e.ctrlKey || e.metaKey) && e.key === "c") {
@@ -974,7 +988,7 @@ function SchematicCanvas() {
       window.removeEventListener("keyup", handleKeyUp);
       window.removeEventListener("blur", handleBlur);
     };
-  }, [removeSelected, copySelected, pasteClipboard, clearClickConnect]);
+  }, [removeSelected, copySelected, pasteClipboard, clearClickConnect, rfInstance]);
 
   const onDragOver = useCallback((event: DragEvent) => {
     event.preventDefault();
@@ -1835,7 +1849,9 @@ function SchematicCanvas() {
           position="bottom-left"
           pannable
           zoomable
-          nodeColor={(node) => node.type === "room" ? (isDark ? "#334155" : "#e5e7eb") : "#3b82f6"}
+          /* Clear the 48px tool rail so the minimap never overlaps the left panels. */
+          style={{ left: 56 }}
+          nodeColor={(node) => node.type === "room" ? (isDark ? "#334155" : "#e5e7eb") : "#4f46e5"}
         />
       )}
       <RoutingDebugOverlay />
