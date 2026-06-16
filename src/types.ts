@@ -936,6 +936,7 @@ export interface SchematicFile {
   templateHiddenSignals?: Record<string, SignalType[]>;
   templatePresets?: Record<string, TemplatePreset>;
   favoriteTemplates?: string[];
+  recentTemplates?: string[];
   // Report layout preferences (pack list PDF, etc.) keyed by report ID
   reportLayouts?: Record<string, unknown>;
   globalReportHeaderLayout?: TitleBlockLayout;

@@ -234,6 +234,9 @@ let hydrated = false;
 export { GRID_SIZE } from "./gridConstants";
 import { GRID_SIZE } from "./gridConstants";
 
+/** How many recently-used templates to remember for quick re-add. */
+const RECENT_TEMPLATES_CAP = 12;
+
 /** Snap all node positions to the grid. Mutates the array in place.
  *  Stub labels are skipped — they store sub-grid Y to center the box on a
  *  port row (box height ≈13–14px, half of which would round away). Snapping
@@ -301,6 +304,8 @@ interface SchematicState {
 
   // Actions
   addDevice: (template: DeviceTemplate, position: { x: number; y: number }) => void;
+  /** Place many devices in a single undo entry (bulk / rapid add). */
+  addDevices: (items: { template: DeviceTemplate; position: { x: number; y: number } }[]) => void;
   removeSelected: () => void;
   deleteNode: (nodeId: string) => void;
   deleteNodeAndChildren: (nodeId: string) => void;
@@ -679,6 +684,10 @@ interface SchematicState {
   // Favorite templates
   favoriteTemplates: string[];
   toggleFavoriteTemplate: (templateKey: string) => void;
+
+  // Recently-used templates (most-recent-first, capped) for quick re-add
+  recentTemplates: string[];
+  pushRecentTemplate: (templateKey: string) => void;
 
   // Scroll behavior (#19)
   scrollConfig: ScrollConfig;
@@ -1112,6 +1121,96 @@ function renumberNodes(nodes: SchematicNode[]): SchematicNode[] {
   });
 }
 
+/**
+ * Build a fresh DeviceNode for a template at a position, applying any project
+ * preset for that template. Pure aside from nextNodeId() — shared by addDevice
+ * (single) and addDevices (batch) so placement stays identical across both paths.
+ */
+function createDeviceNode(
+  template: DeviceTemplate,
+  position: { x: number; y: number },
+  templatePresets: Record<string, TemplatePreset>,
+): DeviceNode {
+  const preset = template.id ? templatePresets[template.id] : undefined;
+
+  let ports: Port[];
+  let hiddenPorts: string[] | undefined;
+  let color = template.color;
+
+  if (preset) {
+    // Clone preset ports, then map preset hiddenPorts through old→new ID mapping
+    const cloned = clonePorts(preset.ports);
+    const idMap = new Map<string, string>();
+    preset.ports.forEach((p, i) => {
+      idMap.set(p.id, cloned[i].id);
+      // Preserve templatePortId across the preset → placement clone.
+      if (p.templatePortId) cloned[i].templatePortId = p.templatePortId;
+    });
+    ports = cloned;
+    hiddenPorts = preset.hiddenPorts?.map((id) => idMap.get(id) ?? id).filter((id) => cloned.some((p) => p.id === id));
+    color = preset.color ?? template.color;
+  } else {
+    ports = clonePorts(template.ports);
+    // Stamp templatePortId so sync can reconcile even if port IDs drift.
+    ports.forEach((p, i) => { p.templatePortId = template.ports[i].id; });
+  }
+
+  // Initialize expansion slots from template (recursively handles sub-slots)
+  let installedSlots: InstalledSlot[] | undefined;
+  if (template.slots && template.slots.length > 0) {
+    const result = processTemplateSlots(template.slots);
+    installedSlots = result.installedSlots;
+    ports = [...ports, ...result.ports];
+  }
+
+  return {
+    id: nextNodeId(),
+    type: "device",
+    position,
+    data: {
+      label: template.label,
+      deviceType: template.deviceType,
+      ports,
+      color,
+      baseLabel: template.label,
+      model: template.label,
+      ...(template.shortName ? { shortName: template.shortName } : {}),
+      ...(template.id ? { templateId: template.id } : {}),
+      ...(template.version ? { templateVersion: template.version } : {}),
+      ...(template.manufacturer ? { manufacturer: template.manufacturer } : {}),
+      ...(template.modelNumber ? { modelNumber: template.modelNumber } : {}),
+      ...(template.referenceUrl ? { referenceUrl: template.referenceUrl } : {}),
+      ...(template.category ? { category: template.category } : {}),
+      ...(template.powerDrawW != null ? { powerDrawW: template.powerDrawW } : {}),
+      ...(template.powerCapacityW != null ? { powerCapacityW: template.powerCapacityW } : {}),
+      ...(template.voltage ? { voltage: template.voltage } : {}),
+      ...(template.poeBudgetW != null ? { poeBudgetW: template.poeBudgetW } : {}),
+      ...(template.poeDrawW != null ? { poeDrawW: template.poeDrawW } : {}),
+      ...(template.unitCost != null ? { unitCost: template.unitCost } : {}),
+      ...(template.thermalBtuh != null ? { thermalBtuh: template.thermalBtuh } : {}),
+      ...(template.searchTerms?.length ? { searchTerms: [...template.searchTerms] } : {}),
+      ...(template.heightMm != null ? { heightMm: template.heightMm } : {}),
+      ...(template.widthMm != null ? { widthMm: template.widthMm } : {}),
+      ...(template.depthMm != null ? { depthMm: template.depthMm } : {}),
+      ...(template.weightKg != null ? { weightKg: template.weightKg } : {}),
+      ...(template.hostname ? { hostname: template.hostname } : {}),
+      ...(hiddenPorts && hiddenPorts.length > 0 ? { hiddenPorts } : {}),
+      ...(template.isVenueProvided ? { isVenueProvided: true } : {}),
+      ...(template.deviceType === "cable-accessory" ? { isCableAccessory: true } : {}),
+      ...(template.deviceType === "cable-accessory" &&
+        template.ports.some((p) => p.isMulticable && p.connectorType === "none")
+        ? { integratedWithCable: true }
+        : {}),
+      ...(installedSlots && installedSlots.length > 0 ? { slots: installedSlots } : {}),
+      // Aux data: carry template's rows, or seed a default {{deviceType}} header row so
+      // new placements match the unified aux-data model from schema v27.
+      ...(template.auxiliaryData?.length
+        ? { auxiliaryData: template.auxiliaryData.map((r) => ({ ...r })) }
+        : { auxiliaryData: [{ text: "{{deviceType}}", position: "header" as const }] }),
+    },
+  };
+}
+
 /** Ensure parent nodes appear before their children in the array (topological sort). */
 function sortNodesParentFirst(nodes: SchematicNode[]): SchematicNode[] {
   const nodeMap = new Map(nodes.map((n) => [n.id, n]));
@@ -1367,6 +1466,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
   templateHiddenSignals: {},
   templatePresets: {},
   favoriteTemplates: [],
+  recentTemplates: [],
   scrollConfig: { ...DEFAULT_SCROLL_CONFIG },
   cableNamingScheme: "type-prefix" as "sequential" | "type-prefix",
   labelCase: DEFAULT_LABEL_CASE,
@@ -1577,87 +1677,22 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
   addDevice: (template, position) => {
     const state = get();
     pushUndo({ nodes: state.nodes, edges: state.edges });
-
-    // Check for a project preset for this template
-    const preset = template.id ? state.templatePresets[template.id] : undefined;
-
-    let ports: Port[];
-    let hiddenPorts: string[] | undefined;
-    let color = template.color;
-
-    if (preset) {
-      // Clone preset ports, then map preset hiddenPorts through old→new ID mapping
-      const cloned = clonePorts(preset.ports);
-      const idMap = new Map<string, string>();
-      preset.ports.forEach((p, i) => {
-        idMap.set(p.id, cloned[i].id);
-        // Preserve templatePortId across the preset → placement clone.
-        if (p.templatePortId) cloned[i].templatePortId = p.templatePortId;
-      });
-      ports = cloned;
-      hiddenPorts = preset.hiddenPorts?.map((id) => idMap.get(id) ?? id).filter((id) => cloned.some((p) => p.id === id));
-      color = preset.color ?? template.color;
-    } else {
-      ports = clonePorts(template.ports);
-      // Stamp templatePortId so sync can reconcile even if port IDs drift.
-      ports.forEach((p, i) => { p.templatePortId = template.ports[i].id; });
-    }
-
-    // Initialize expansion slots from template (recursively handles sub-slots)
-    let installedSlots: InstalledSlot[] | undefined;
-    if (template.slots && template.slots.length > 0) {
-      const result = processTemplateSlots(template.slots);
-      installedSlots = result.installedSlots;
-      ports = [...ports, ...result.ports];
-    }
-
-    const newNode: DeviceNode = {
-      id: nextNodeId(),
-      type: "device",
-      position,
-      data: {
-        label: template.label,
-        deviceType: template.deviceType,
-        ports,
-        color,
-        baseLabel: template.label,
-        model: template.label,
-        ...(template.shortName ? { shortName: template.shortName } : {}),
-        ...(template.id ? { templateId: template.id } : {}),
-        ...(template.version ? { templateVersion: template.version } : {}),
-        ...(template.manufacturer ? { manufacturer: template.manufacturer } : {}),
-        ...(template.modelNumber ? { modelNumber: template.modelNumber } : {}),
-        ...(template.referenceUrl ? { referenceUrl: template.referenceUrl } : {}),
-        ...(template.category ? { category: template.category } : {}),
-        ...(template.powerDrawW != null ? { powerDrawW: template.powerDrawW } : {}),
-        ...(template.powerCapacityW != null ? { powerCapacityW: template.powerCapacityW } : {}),
-        ...(template.voltage ? { voltage: template.voltage } : {}),
-        ...(template.poeBudgetW != null ? { poeBudgetW: template.poeBudgetW } : {}),
-        ...(template.poeDrawW != null ? { poeDrawW: template.poeDrawW } : {}),
-        ...(template.unitCost != null ? { unitCost: template.unitCost } : {}),
-        ...(template.thermalBtuh != null ? { thermalBtuh: template.thermalBtuh } : {}),
-        ...(template.searchTerms?.length ? { searchTerms: [...template.searchTerms] } : {}),
-        ...(template.heightMm != null ? { heightMm: template.heightMm } : {}),
-        ...(template.widthMm != null ? { widthMm: template.widthMm } : {}),
-        ...(template.depthMm != null ? { depthMm: template.depthMm } : {}),
-        ...(template.weightKg != null ? { weightKg: template.weightKg } : {}),
-        ...(template.hostname ? { hostname: template.hostname } : {}),
-        ...(hiddenPorts && hiddenPorts.length > 0 ? { hiddenPorts } : {}),
-        ...(template.isVenueProvided ? { isVenueProvided: true } : {}),
-        ...(template.deviceType === "cable-accessory" ? { isCableAccessory: true } : {}),
-        ...(template.deviceType === "cable-accessory" &&
-          template.ports.some((p) => p.isMulticable && p.connectorType === "none")
-          ? { integratedWithCable: true }
-          : {}),
-        ...(installedSlots && installedSlots.length > 0 ? { slots: installedSlots } : {}),
-        // Aux data: carry template's rows, or seed a default {{deviceType}} header row so
-        // new placements match the unified aux-data model from schema v27.
-        ...(template.auxiliaryData?.length
-          ? { auxiliaryData: template.auxiliaryData.map((r) => ({ ...r })) }
-          : { auxiliaryData: [{ text: "{{deviceType}}", position: "header" as const }] }),
-      },
-    };
+    const newNode = createDeviceNode(template, position, state.templatePresets);
     set({ nodes: renumberNodes([...get().nodes, newNode]) });
+    get().pushRecentTemplate(template.id ?? template.deviceType);
+    get().saveToLocalStorage();
+  },
+
+  addDevices: (items) => {
+    if (items.length === 0) return;
+    const state = get();
+    pushUndo({ nodes: state.nodes, edges: state.edges });
+    const newNodes = items.map((item) => createDeviceNode(item.template, item.position, state.templatePresets));
+    set({ nodes: renumberNodes([...get().nodes, ...newNodes]) });
+    // Record recents most-recent-last so the final order matches placement order.
+    for (const item of items) {
+      get().pushRecentTemplate(item.template.id ?? item.template.deviceType);
+    }
     get().saveToLocalStorage();
   },
 
@@ -4240,6 +4275,15 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
     get().saveToLocalStorage();
   },
 
+  pushRecentTemplate: (templateKey) => {
+    if (!templateKey) return;
+    const current = get().recentTemplates;
+    // Move to front, dedupe, cap at RECENT_TEMPLATES_CAP.
+    const next = [templateKey, ...current.filter((k) => k !== templateKey)].slice(0, RECENT_TEMPLATES_CAP);
+    set({ recentTemplates: next });
+    get().saveToLocalStorage();
+  },
+
   setScrollConfig: (v) => {
     set({ scrollConfig: v });
     get().saveToLocalStorage();
@@ -5056,6 +5100,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
       templateHiddenSignals: Object.keys(state.templateHiddenSignals).length > 0 ? state.templateHiddenSignals : undefined,
       templatePresets: Object.keys(state.templatePresets).length > 0 ? state.templatePresets : undefined,
       favoriteTemplates: state.favoriteTemplates.length > 0 ? state.favoriteTemplates : undefined,
+      recentTemplates: state.recentTemplates.length > 0 ? state.recentTemplates : undefined,
       reportLayouts: Object.keys(state.reportLayouts).length > 0 ? state.reportLayouts : undefined,
       globalReportHeaderLayout: state.globalReportHeaderLayout ?? undefined,
       globalReportFooterLayout: state.globalReportFooterLayout ?? undefined,
@@ -5155,6 +5200,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
             templateHiddenSignals: data.templateHiddenSignals ?? {},
             templatePresets: data.templatePresets ?? {},
             favoriteTemplates: data.favoriteTemplates ?? [],
+            recentTemplates: data.recentTemplates ?? [],
             reportLayouts: data.reportLayouts ?? {},
             globalReportHeaderLayout: data.globalReportHeaderLayout ?? null,
             globalReportFooterLayout: data.globalReportFooterLayout ?? null,
@@ -5241,6 +5287,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
         templateHiddenSignals: data.templateHiddenSignals ?? {},
         templatePresets: data.templatePresets ?? {},
         favoriteTemplates: data.favoriteTemplates ?? [],
+        recentTemplates: data.recentTemplates ?? [],
         reportLayouts: data.reportLayouts ?? {},
         globalReportHeaderLayout: data.globalReportHeaderLayout ?? null,
         globalReportFooterLayout: data.globalReportFooterLayout ?? null,
@@ -5327,6 +5374,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
       templateHiddenSignals: Object.keys(state.templateHiddenSignals).length > 0 ? state.templateHiddenSignals : undefined,
       templatePresets: Object.keys(state.templatePresets).length > 0 ? state.templatePresets : undefined,
       favoriteTemplates: state.favoriteTemplates.length > 0 ? state.favoriteTemplates : undefined,
+      recentTemplates: state.recentTemplates.length > 0 ? state.recentTemplates : undefined,
       reportLayouts: Object.keys(state.reportLayouts).length > 0 ? state.reportLayouts : undefined,
       globalReportHeaderLayout: state.globalReportHeaderLayout ?? undefined,
       globalReportFooterLayout: state.globalReportFooterLayout ?? undefined,
@@ -5428,6 +5476,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
       templateHiddenSignals: data.templateHiddenSignals ?? {},
       templatePresets: data.templatePresets ?? {},
       favoriteTemplates: data.favoriteTemplates ?? [],
+      recentTemplates: data.recentTemplates ?? [],
       reportLayouts: data.reportLayouts ?? {},
       globalReportHeaderLayout: data.globalReportHeaderLayout ?? null,
       globalReportFooterLayout: data.globalReportFooterLayout ?? null,
@@ -5535,6 +5584,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
         templateHiddenSignals: {},
         templatePresets: {},
         favoriteTemplates: [],
+        recentTemplates: [],
         reportLayouts: {},
         globalReportHeaderLayout: null,
         globalReportFooterLayout: null,
