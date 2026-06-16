@@ -10,18 +10,18 @@ const FEATURES: { title: string; where: string; how: string }[] = [
     how: "A step-by-step coach for venue work: calibrate a room, place your speakers, see their coverage, then review the cable BOM. Steps tick off as you go, and you can reopen it anytime from Help.",
   },
   {
-    title: "To-scale plan view",
-    where: "Top-center — Schematic / Plan toggle",
+    title: "To-scale Layout view",
+    where: "Top-center — Schematic / Layout toggle",
     how: "Flip from the signal-flow schematic to a top-down, to-scale floor plan. Devices become footprints sized from their real dimensions, inside rooms you've given a real width and depth.",
   },
   {
     title: "Speaker coverage",
-    where: "Plan view → Coverage toggle",
+    where: "Layout view → Coverage toggle",
     how: "Each loudspeaker casts a nominal coverage wedge (on-axis, direct-field) aimed along its rotation, so you can see what it covers. Set sensitivity, power and angle when you edit the device.",
   },
   {
     title: "Rotate & aim devices",
-    where: "Plan view → right-click a device → Rotate",
+    where: "Layout view → right-click a device → Rotate",
     how: "Aim speakers and orient gear: rotate 90° either way, 180°, or reset to 0°. The footprint, symbol and coverage wedge all turn together.",
   },
   {

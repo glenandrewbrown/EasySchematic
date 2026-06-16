@@ -302,6 +302,14 @@ export interface DeviceData {
   /** Search terms used to find this device in the library; editable per-placement so
    *  improved terms can ride the "save as template" submission flow. */
   searchTerms?: string[];
+  /** Physical serial number of the specific unit placed on the canvas. */
+  serialNumber?: string;
+  /** User-defined classification tags (e.g. ["rental","audio","FOH"]) for filtering, search, and reports. */
+  tags?: string[];
+  /** Custom Layout-view graphic: sanitized SVG asset id (SchematicFile.svgAssets key). */
+  layoutSvgAssetId?: string;
+  /** Colour-zone membership (ZoneData node id) for Layout-view tinting. */
+  zoneId?: string;
   /** Custom face-plate connector layout (overrides auto-layout) */
   facePlateLayout?: FacePlateLayout;
 }
@@ -418,7 +426,59 @@ export interface WaypointData {
 
 export type WaypointNode = Node<WaypointData, "waypoint">;
 
-export type SchematicNode = DeviceNode | RoomNode | NoteNode | AnnotationNode | StubLabelNode | WaypointNode;
+/** A non-electrical furniture / room object placed in the Layout view (sofa, table,
+ *  chair, light, staging). No ports, no connections; excluded from the schematic,
+ *  pack list, validation, and reports. Participates in room (parentId) nesting and
+ *  layer visibility. */
+export interface ObjectData {
+  [key: string]: unknown;
+  /** Display label (e.g. "Conference Table"). */
+  label: string;
+  /** Catalog entry id from FURNITURE_CATALOG; absent for custom-SVG objects. */
+  catalogId?: string;
+  /** Sanitized SVG asset id (SchematicFile.svgAssets key) — when set, renders the vector. */
+  svgAssetId?: string;
+  /** Fill colour. Falls back to zone colour, then catalog default. */
+  color?: string;
+  /** Border colour override. */
+  borderColor?: string;
+  /** Rotation in degrees (same convention as DeviceData.rotationDeg). */
+  rotationDeg?: number;
+  /** Layer membership (SchematicLayer.id). Absent = default layer. */
+  layerId?: string;
+  /** Colour-zone membership (ZoneData node id). */
+  zoneId?: string;
+  /** Logical group membership. */
+  groupId?: string;
+  /** Real-world width in metres. */
+  widthM?: number;
+  /** Real-world depth in metres. */
+  depthM?: number;
+}
+
+export type ObjectNode = Node<ObjectData, "object">;
+
+/** A colour-coded zone region for the Layout view (acoustic areas, seating sections,
+ *  purpose zones). Rendered as a tinted fill beneath rooms and objects; carries no
+ *  physical-scale meaning. Layout-view only. */
+export interface ZoneData {
+  [key: string]: unknown;
+  /** Display name shown on hover / in the legend (e.g. "Zone A — Orchestra"). */
+  label: string;
+  /** Fill colour (a translucent CSS colour is fine, e.g. "#38bdf833"). */
+  color: string;
+  /** Border colour. */
+  borderColor?: string;
+  /** Layer membership (SchematicLayer.id). Absent = default layer. */
+  layerId?: string;
+  /** Custom polygon outline: normalized 0..1 vertices (same schema as RoomData.shape).
+   *  Absent = the node's bounding rectangle. */
+  shape?: { x: number; y: number }[];
+}
+
+export type ZoneNode = Node<ZoneData, "zone">;
+
+export type SchematicNode = DeviceNode | RoomNode | NoteNode | AnnotationNode | StubLabelNode | WaypointNode | ObjectNode | ZoneNode;
 
 export interface ConnectionData {
   [key: string]: unknown;
@@ -545,6 +605,9 @@ export interface SchematicLayer {
   name: string;
   visible: boolean;
   locked: boolean;
+  /** Optional colour swatch for the layer (hex or CSS colour); used in the Layers panel
+   *  and for optional on-canvas tinting of member nodes. */
+  color?: string;
 }
 
 /** The implicit layer that unassigned content belongs to. */
@@ -567,6 +630,102 @@ export interface OwnedCableItem {
 export interface OwnedGearFile {
   version: 1;
   ownedGear: OwnedGearItem[];
+}
+
+export type GearUnitCondition = "excellent" | "good" | "fair" | "poor";
+
+/** A single physical unit of owned gear — one specific piece of hardware with its own
+ *  identity, condition record, optional photo, and optional link to a placed device.
+ *  Lives at SchematicFile.gearUnits[] and coexists with the quantity-aggregate ownedGear. */
+export interface GearUnit {
+  /** Stable UUID generated at creation. */
+  id: string;
+  /** Source template id when created from a library template. */
+  templateId?: string;
+  /** Denormalized manufacturer for display when no template is available. */
+  manufacturer?: string;
+  /** Make/model label (always present for display). */
+  model: string;
+  /** Physical serial number as printed on the unit. */
+  serialNumber?: string;
+  /** Asset tag / barcode for venue or rental tracking. */
+  assetTag?: string;
+  /** Compressed photo as a data URL (JPEG, capped on import). */
+  photo?: string;
+  /** Free-text condition notes. */
+  notes?: string;
+  /** Condition tier for quick filtering. */
+  condition?: GearUnitCondition;
+  /** Links this unit to a placed device node (DeviceNode id). Cleared when that node is deleted. */
+  assignedNodeId?: string;
+}
+
+/** Per-field autocomplete suggestion pools, keyed by the DeviceData field they serve. */
+export interface FieldSuggestions {
+  manufacturer?: string[];
+  category?: string[];
+  deviceType?: string[];
+}
+
+/** Grid scale + snap settings. Per-document: affects ruler labels and CAD export. */
+export interface GridSettings {
+  /** Snap step in canvas pixels (schematic view). Default 20 (GRID_SIZE). */
+  snapStep: number;
+  /** Whether nodes snap to the grid on drag. Default true. */
+  snapEnabled: boolean;
+  /** Whether the dot grid is drawn. Default true. */
+  gridVisible: boolean;
+  /** Layout-view grid real-world unit. Default "m". */
+  layoutGridUnit: "m" | "ft";
+  /** Layout-view grid real-world size per cell, in layoutGridUnit. Default 1. */
+  layoutGridStep: number;
+}
+
+export const DEFAULT_GRID_SETTINGS: GridSettings = {
+  snapStep: 20,
+  snapEnabled: true,
+  gridVisible: true,
+  layoutGridUnit: "m",
+  layoutGridStep: 1,
+};
+
+/** A load-in/load-out checklist phase. */
+export type TransportPhase = "load-out" | "off-load" | "setup" | "pull-down" | "repack";
+
+export const TRANSPORT_PHASES: readonly TransportPhase[] = [
+  "load-out",
+  "off-load",
+  "setup",
+  "pull-down",
+  "repack",
+];
+
+export const TRANSPORT_PHASE_LABELS: Record<TransportPhase, string> = {
+  "load-out": "Load Out",
+  "off-load": "Off-Load",
+  setup: "Setup",
+  "pull-down": "Pull Down",
+  repack: "Repack",
+};
+
+/** One item packed into a transport container. */
+export interface TransportItem {
+  /** "device" → DeviceNode id; "cable" → packList cable key (cableType|signalType|length). */
+  kind: "device" | "cable";
+  refId: string;
+  qty: number;
+}
+
+/** A transport container (case, cart, bag) grouping items for load-in/load-out, with a
+ *  five-phase checklist. Lives at SchematicFile.containers[]. */
+export interface TransportContainer {
+  id: string;
+  name: string;
+  /** Optional swatch colour. */
+  color?: string;
+  items: TransportItem[];
+  /** Per-phase, per-item checked state. Absent entry = unchecked. */
+  checklist: Partial<Record<TransportPhase, Record<string, boolean>>>;
 }
 
 export interface CustomField {
@@ -834,6 +993,21 @@ export interface SchematicFile {
   /** Wrap long device labels across two lines instead of truncating with ellipsis.
    *  New files default true; undefined on loaded files = legacy single-line truncate. */
   wrapDeviceLabels?: boolean;
+  /** Sanitized custom SVG graphics, keyed by UUID; referenced by
+   *  DeviceData.layoutSvgAssetId / ObjectData.svgAssetId. */
+  svgAssets?: Record<string, string>;
+  /** Per-unit physical gear inventory (coexists with the ownedGear quantity view). */
+  gearUnits?: GearUnit[];
+  /** Document-level tag suggestion pool (unioned with per-device tags for the combobox). */
+  tagSuggestions?: string[];
+  /** Per-field autocomplete suggestion pools (manufacturer / category / deviceType). */
+  fieldSuggestions?: FieldSuggestions;
+  /** Validation issue ids the user has dismissed. */
+  dismissedIssueIds?: string[];
+  /** Grid scale + snap settings for this document. */
+  gridSettings?: GridSettings;
+  /** Transport containers for load-in/load-out tracking. */
+  containers?: TransportContainer[];
 }
 
 export type LabelCaseMode = "as-typed" | "uppercase" | "lowercase" | "capitalize";
@@ -842,14 +1016,15 @@ export const DEFAULT_LABEL_CASE: LabelCaseMode = "as-typed";
 export type PanMode = "select-first" | "pan-first";
 export const DEFAULT_PAN_MODE: PanMode = "select-first";
 
-/** Canvas render mode — schematic (signal-flow diagram), to-scale plan (top-down floor
- *  view), or schedule (full-page cable BOM / schedule data view).
- *  Session/UI preference only (persisted to localStorage); never written to SchematicFile. */
-export type CanvasViewMode = "schematic" | "plan" | "schedule";
+/** Canvas render mode — schematic (signal-flow diagram), to-scale layout (top-down floor
+ *  view with vector graphics, furniture, and zones), or schedule (full-page cable BOM).
+ *  Session/UI preference only (persisted to localStorage); never written to SchematicFile.
+ *  Note: the legacy value "plan" is migrated to "layout" on read (see readInitialCanvasViewMode). */
+export type CanvasViewMode = "schematic" | "layout" | "schedule";
 export const DEFAULT_CANVAS_VIEW_MODE: CanvasViewMode = "schematic";
 
 /** All known canvas view modes, in display order. */
-export const CANVAS_VIEW_MODES: readonly CanvasViewMode[] = ["schematic", "plan", "schedule"];
+export const CANVAS_VIEW_MODES: readonly CanvasViewMode[] = ["schematic", "layout", "schedule"];
 
 /** Validate a persisted/raw canvas-view-mode value at the localStorage boundary.
  *  Returns the value only when it is a known mode; otherwise the default. */

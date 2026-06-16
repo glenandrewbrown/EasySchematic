@@ -35,11 +35,11 @@ import type {
   CustomTemplateMeta,
 } from "./types";
 import type { ReactFlowInstance } from "@xyflow/react";
-import type { SignalType, ScrollConfig, LineStyle, LabelCaseMode, DistanceSettings, PanMode, StubLabelPageMode, CanvasViewMode } from "./types";
+import type { SignalType, ScrollConfig, LineStyle, LabelCaseMode, DistanceSettings, PanMode, StubLabelPageMode, CanvasViewMode, GearUnit, FieldSuggestions, GridSettings, TransportContainer } from "./types";
 import { DEFAULT_TOOL, type ToolId } from "./toolMode";
 import { defaultStubPlacement } from "./stubPlacement";
 import { getPortAbsolutePositions } from "./snapUtils";
-import { DEFAULT_LAYER_ID, DEFAULT_SCROLL_CONFIG, DEFAULT_LABEL_CASE, DEFAULT_DISTANCE_SETTINGS, DEFAULT_PAN_MODE, DEFAULT_STUB_LABEL_SHOW_PORT, DEFAULT_STUB_LABEL_SHOW_ROOM, DEFAULT_STUB_LABEL_PAGE_MODE, DEFAULT_CANVAS_VIEW_MODE, parseCanvasViewMode } from "./types";
+import { DEFAULT_LAYER_ID, DEFAULT_SCROLL_CONFIG, DEFAULT_LABEL_CASE, DEFAULT_DISTANCE_SETTINGS, DEFAULT_PAN_MODE, DEFAULT_STUB_LABEL_SHOW_PORT, DEFAULT_STUB_LABEL_SHOW_ROOM, DEFAULT_STUB_LABEL_PAGE_MODE, DEFAULT_CANVAS_VIEW_MODE, parseCanvasViewMode, DEFAULT_GRID_SETTINGS } from "./types";
 import { pairKey } from "./roomDistance";
 import { DEFAULT_RECT_SHAPE } from "./roomShape";
 import { withGroupId, withoutGroupId, groupIdOf } from "./grouping";
@@ -101,7 +101,13 @@ const CANVAS_VIEW_MODE_KEY = "easyschematic-canvas-view-mode";
 /** Read the persisted canvas view mode (session/UI pref). Guards SSR/test envs with no localStorage. */
 function readInitialCanvasViewMode(): CanvasViewMode {
   if (typeof localStorage === "undefined") return DEFAULT_CANVAS_VIEW_MODE;
-  return parseCanvasViewMode(localStorage.getItem(CANVAS_VIEW_MODE_KEY));
+  const stored = localStorage.getItem(CANVAS_VIEW_MODE_KEY);
+  // Legacy value "plan" was renamed to "layout" — migrate the stored pref once on read.
+  if (stored === "plan") {
+    localStorage.setItem(CANVAS_VIEW_MODE_KEY, "layout");
+    return "layout";
+  }
+  return parseCanvasViewMode(stored);
 }
 
 const COVERAGE_VISIBLE_KEY = "easyschematic-coverage-visible";
@@ -119,6 +125,14 @@ const DEVICE_DRAWER_PINNED_KEY = "easyschematic-device-drawer-pinned";
 function readInitialDeviceDrawerPinned(): boolean {
   if (typeof localStorage === "undefined") return true;
   return localStorage.getItem(DEVICE_DRAWER_PINNED_KEY) !== "0";
+}
+
+const MINIMAP_VISIBLE_KEY = "easyschematic-minimap-visible";
+
+/** Read the persisted minimap visibility pref (per-user UI; not part of the file). Default visible. */
+function readInitialMiniMapVisible(): boolean {
+  if (typeof localStorage === "undefined") return true;
+  return localStorage.getItem(MINIMAP_VISIBLE_KEY) !== "0";
 }
 
 export const CATEGORY_ORDER_DEFAULT: string[] = [
@@ -381,6 +395,24 @@ interface SchematicState {
   setEditingRoomShape: (id: string | null) => void;
   /** Replace a room's normalized outline. Pass undefined to reset to rectangle. */
   updateRoomShape: (id: string, shape: { x: number; y: number }[] | undefined, recordUndo?: boolean) => void;
+
+  // Venue-CAD / Figma redesign state (schema v43)
+  /** Per-unit gear inventory (Phase 4). */
+  gearUnits: GearUnit[];
+  /** Sanitized custom SVG graphics keyed by id (Phase 6). */
+  svgAssets: Record<string, string>;
+  /** Document-level tag suggestion pool (Phase 3). */
+  tagSuggestions: string[];
+  /** Per-field autocomplete suggestion pools (Phase 3). */
+  fieldSuggestions: FieldSuggestions;
+  /** Validation issue ids the user has dismissed (Phase 1). */
+  dismissedIssueIds: string[];
+  /** Grid scale + snap settings (Phase 1). */
+  gridSettings: GridSettings;
+  /** Transport containers (Phase 7). */
+  containers: TransportContainer[];
+  /** Minimap visibility (per-user; localStorage-backed; not in SchematicFile). */
+  showMiniMap: boolean;
 
   // Layers (Photoshop-style show/hide/lock)
   layers: SchematicLayer[];
@@ -1182,6 +1214,14 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
   customTemplates: _initCustomTemplates,
   ownedGear: [],
   ownedCables: [],
+  gearUnits: [],
+  svgAssets: {},
+  tagSuggestions: [],
+  fieldSuggestions: {},
+  dismissedIssueIds: [],
+  gridSettings: DEFAULT_GRID_SETTINGS,
+  containers: [],
+  showMiniMap: readInitialMiniMapVisible(),
   layers: [{ id: DEFAULT_LAYER_ID, name: "Base", visible: true, locked: false }],
   showOwnedGearPane: false,
   libraryActiveTab: "devices",
@@ -4679,6 +4719,13 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
       ownedGear: state.ownedGear.length > 0 ? state.ownedGear : undefined,
       ownedCables: state.ownedCables.length > 0 ? state.ownedCables : undefined,
       layers: state.layers,
+      gearUnits: state.gearUnits.length > 0 ? state.gearUnits : undefined,
+      svgAssets: Object.keys(state.svgAssets).length > 0 ? state.svgAssets : undefined,
+      tagSuggestions: state.tagSuggestions.length > 0 ? state.tagSuggestions : undefined,
+      fieldSuggestions: Object.keys(state.fieldSuggestions).length > 0 ? state.fieldSuggestions : undefined,
+      dismissedIssueIds: state.dismissedIssueIds.length > 0 ? state.dismissedIssueIds : undefined,
+      gridSettings: JSON.stringify(state.gridSettings) !== JSON.stringify(DEFAULT_GRID_SETTINGS) ? state.gridSettings : undefined,
+      containers: state.containers.length > 0 ? state.containers : undefined,
       signalColors: state.signalColors,
       signalLineStyles: state.signalLineStyles,
       printPaperId: state.printPaperId,
@@ -4771,6 +4818,13 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
             ownedGear: data.ownedGear ?? [],
         ownedCables: data.ownedCables ?? [],
         layers: data.layers ?? [{ id: DEFAULT_LAYER_ID, name: "Base", visible: true, locked: false }],
+        gearUnits: data.gearUnits ?? [],
+        svgAssets: data.svgAssets ?? {},
+        tagSuggestions: data.tagSuggestions ?? [],
+        fieldSuggestions: data.fieldSuggestions ?? {},
+        dismissedIssueIds: data.dismissedIssueIds ?? [],
+        gridSettings: data.gridSettings ?? DEFAULT_GRID_SETTINGS,
+        containers: data.containers ?? [],
             signalColors: data.signalColors,
             signalLineStyles: data.signalLineStyles,
             printPaperId: data.printPaperId ?? "arch-d",
@@ -4850,6 +4904,13 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
         ownedGear: data.ownedGear ?? [],
         ownedCables: data.ownedCables ?? [],
         layers: data.layers ?? [{ id: DEFAULT_LAYER_ID, name: "Base", visible: true, locked: false }],
+        gearUnits: data.gearUnits ?? [],
+        svgAssets: data.svgAssets ?? {},
+        tagSuggestions: data.tagSuggestions ?? [],
+        fieldSuggestions: data.fieldSuggestions ?? {},
+        dismissedIssueIds: data.dismissedIssueIds ?? [],
+        gridSettings: data.gridSettings ?? DEFAULT_GRID_SETTINGS,
+        containers: data.containers ?? [],
         signalColors: data.signalColors,
         signalLineStyles: data.signalLineStyles,
         printPaperId: data.printPaperId ?? "arch-d",
@@ -4929,6 +4990,13 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
       ownedGear: state.ownedGear.length > 0 ? state.ownedGear : undefined,
       ownedCables: state.ownedCables.length > 0 ? state.ownedCables : undefined,
       layers: state.layers,
+      gearUnits: state.gearUnits.length > 0 ? state.gearUnits : undefined,
+      svgAssets: Object.keys(state.svgAssets).length > 0 ? state.svgAssets : undefined,
+      tagSuggestions: state.tagSuggestions.length > 0 ? state.tagSuggestions : undefined,
+      fieldSuggestions: Object.keys(state.fieldSuggestions).length > 0 ? state.fieldSuggestions : undefined,
+      dismissedIssueIds: state.dismissedIssueIds.length > 0 ? state.dismissedIssueIds : undefined,
+      gridSettings: JSON.stringify(state.gridSettings) !== JSON.stringify(DEFAULT_GRID_SETTINGS) ? state.gridSettings : undefined,
+      containers: state.containers.length > 0 ? state.containers : undefined,
       signalColors: state.signalColors,
       signalLineStyles: state.signalLineStyles,
       printPaperId: state.printPaperId,
@@ -5023,6 +5091,13 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
       ownedGear: data.ownedGear ?? [],
         ownedCables: data.ownedCables ?? [],
         layers: data.layers ?? [{ id: DEFAULT_LAYER_ID, name: "Base", visible: true, locked: false }],
+        gearUnits: data.gearUnits ?? [],
+        svgAssets: data.svgAssets ?? {},
+        tagSuggestions: data.tagSuggestions ?? [],
+        fieldSuggestions: data.fieldSuggestions ?? {},
+        dismissedIssueIds: data.dismissedIssueIds ?? [],
+        gridSettings: data.gridSettings ?? DEFAULT_GRID_SETTINGS,
+        containers: data.containers ?? [],
       signalColors: data.signalColors,
       signalLineStyles: data.signalLineStyles,
       printPaperId: data.printPaperId ?? "arch-d",
@@ -5128,6 +5203,13 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
         isDemo: false,
         ownedGear: [],
         ownedCables: [],
+        gearUnits: [],
+        svgAssets: {},
+        tagSuggestions: [],
+        fieldSuggestions: {},
+        dismissedIssueIds: [],
+        gridSettings: DEFAULT_GRID_SETTINGS,
+        containers: [],
         layers: [{ id: DEFAULT_LAYER_ID, name: "Base", visible: true, locked: false }],
         cloudSchematicId: null,
         cloudSavedAt: null,

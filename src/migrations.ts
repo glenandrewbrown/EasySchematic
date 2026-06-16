@@ -16,7 +16,7 @@ import { defaultStubPlacement } from "./stubPlacement";
 import { getPortAbsolutePositions } from "./snapUtils";
 import type { SchematicNode } from "./types";
 
-export const CURRENT_SCHEMA_VERSION = 42;
+export const CURRENT_SCHEMA_VERSION = 43;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Migration = (data: any) => any;
@@ -502,6 +502,17 @@ const migrations: Record<number, Migration> = {
     // array with the default layer; everything else is optional fields.
     data.layers ??= [{ id: "default", name: "Base", visible: true, locked: false }];
     data.version = 42;
+    return data;
+  },
+  42: (data) => {
+    // v42 → v43: venue-CAD + Figma redesign release. Adds only optional fields across the
+    // whole feature set — per-unit gear inventory, device tags/serial, layer colour,
+    // custom Layout-view SVG assets, colour zones, furniture "object" nodes, transport
+    // containers, dismissed-validation ids, grid settings, and suggestion pools. Every new
+    // field has a sensible runtime default, so no per-node/file backfill is required.
+    // (Custom SVG assets are re-sanitized in the store load path, not here, to keep this
+    // migration free of browser-only APIs for the node test environment.)
+    data.version = 43;
     return data;
   },
 

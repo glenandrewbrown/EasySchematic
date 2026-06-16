@@ -86,7 +86,7 @@ export function evaluateGuidedSteps(state: GuidedSetupState): boolean[] {
   return [
     isRoomCalibrated(state.rooms),
     hasSpeaker(state.devices),
-    state.canvasViewMode === "plan" && state.coverageVisible,
+    state.canvasViewMode === "layout" && state.coverageVisible,
     state.cableBomOpened,
   ];
 }

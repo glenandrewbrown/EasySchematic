@@ -146,7 +146,7 @@ export default function DeviceContextMenu() {
         );
       })()}
 
-      {deviceData && canvasViewMode === "plan" && (
+      {deviceData && canvasViewMode === "layout" && (
         <>
           <div className="h-px bg-[var(--ui-border)] my-1" />
           <MenuSubmenu label={`Rotate  (${rotationDeg}°)`}>

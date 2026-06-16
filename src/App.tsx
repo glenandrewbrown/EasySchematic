@@ -610,7 +610,7 @@ function SchematicCanvas() {
   const { renderNodes, visibleEdges } = useMemo(() => {
     // Plan (to-scale) view hides signal connections — to-scale footprints carry no port
     // handles to anchor edges to, and routing belongs to the schematic view.
-    const planHideEdges = canvasViewMode === "plan";
+    const planHideEdges = canvasViewMode === "layout";
     const sigHidden = hiddenSignalTypesStr ? new Set(hiddenSignalTypesStr.split(",")) : null;
     const sigFiltered = sigHidden
       ? edges.filter((e) => !sigHidden.has(e.data?.signalType ?? ""))

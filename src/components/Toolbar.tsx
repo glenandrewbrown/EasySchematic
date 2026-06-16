@@ -124,12 +124,12 @@ export default function Toolbar() {
   const edges = useSchematicStore((s) => s.edges);
   const issueCounts = useMemo(() => countIssues(validateSchematic(nodes, edges)), [nodes, edges]);
 
-  const segBtn = (mode: "schematic" | "plan" | "schedule", text: string) => (
+  const segBtn = (mode: "schematic" | "layout" | "schedule", text: string) => (
     <button
       type="button"
       onClick={() => setCanvasViewMode(mode)}
       aria-pressed={canvasViewMode === mode}
-      title={mode === "schematic" ? "Signal-flow diagram view" : mode === "plan" ? "To-scale floor-plan view" : "Cable schedule & BOM"}
+      title={mode === "schematic" ? "Signal-flow diagram view" : mode === "layout" ? "To-scale layout view — floor plan, vectors, furniture" : "Cable schedule & BOM"}
       className={`px-3 h-7 text-xs font-medium transition-colors cursor-pointer ${
         canvasViewMode === mode
           ? "bg-[var(--color-accent)] text-white"
@@ -161,14 +161,14 @@ export default function Toolbar() {
 
       <div className="flex rounded-md border border-[var(--ui-border-strong)] overflow-hidden" role="group" aria-label="Canvas view">
         {segBtn("schematic", "Schematic")}
-        {segBtn("plan", "Plan")}
+        {segBtn("layout", "Layout")}
         {segBtn("schedule", "Schedule")}
       </div>
       <ToolButton
-        label={canvasViewMode === "plan" ? "Toggle speaker coverage" : "Coverage (switch to Plan first)"}
+        label={canvasViewMode === "layout" ? "Toggle speaker coverage" : "Coverage (switch to Layout first)"}
         name="coverage"
-        active={coverageVisible && canvasViewMode === "plan"}
-        disabled={canvasViewMode !== "plan"}
+        active={coverageVisible && canvasViewMode === "layout"}
+        disabled={canvasViewMode !== "layout"}
         onClick={() => setCoverageVisible(!coverageVisible)}
       />
       <ToolButton label="Fit to screen" name="fit" onClick={() => fire("easyschematic:fit-view")} />

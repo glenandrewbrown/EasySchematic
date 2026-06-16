@@ -290,7 +290,7 @@ function RoomBody({ node }: { node: SchematicNode }) {
         <Field label="Height m" value={data.heightM} onCommit={(v) => patch({ heightM: numOrUndef(v) })} type="number" step={0.1} />
       </div>
       <div className="text-[10px] text-[var(--color-text-muted)] leading-relaxed">
-        Setting a width scales the room to scale in Plan view and powers cable-run + coverage estimates.
+        Setting a width scales the room to scale in Layout view and powers cable-run + coverage estimates.
       </div>
     </div>
   );

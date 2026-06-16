@@ -21,7 +21,7 @@ export default function CoverageSplReadout() {
   const coverageVisible = useSchematicStore((s) => s.coverageVisible);
   const nodes = useSchematicStore((s) => s.nodes);
 
-  if (canvasViewMode !== "plan" || !coverageVisible) return null;
+  if (canvasViewMode !== "layout" || !coverageVisible) return null;
 
   const speakers = nodes.filter(
     (n) => n.type === "device" && n.selected && isSpeaker(n.data as DeviceData),

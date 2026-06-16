@@ -7,7 +7,7 @@ import {
 
 describe("parseCanvasViewMode", () => {
   it("accepts every known canvas view mode verbatim", () => {
-    const modes: CanvasViewMode[] = ["schematic", "plan", "schedule"];
+    const modes: CanvasViewMode[] = ["schematic", "layout", "schedule"];
     for (const mode of modes) {
       expect(parseCanvasViewMode(mode)).toBe(mode);
     }

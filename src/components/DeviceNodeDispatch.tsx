@@ -13,7 +13,7 @@ import DevicePlanNode from "./DevicePlanNode";
  */
 function DeviceNodeDispatch(props: NodeProps<DeviceNodeType>) {
   const canvasViewMode = useSchematicStore((s) => s.canvasViewMode);
-  return canvasViewMode === "plan" ? <DevicePlanNode {...props} /> : <DeviceNode {...props} />;
+  return canvasViewMode === "layout" ? <DevicePlanNode {...props} /> : <DeviceNode {...props} />;
 }
 
 export default memo(DeviceNodeDispatch);

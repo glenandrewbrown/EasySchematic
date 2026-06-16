@@ -86,10 +86,10 @@ describe("evaluateGuidedSteps", () => {
 
   it("marks the coverage step done only in plan view with coverage on", () => {
     expect(
-      evaluateGuidedSteps({ ...base, canvasViewMode: "plan", coverageVisible: true })[2],
+      evaluateGuidedSteps({ ...base, canvasViewMode: "layout", coverageVisible: true })[2],
     ).toBe(true);
     expect(
-      evaluateGuidedSteps({ ...base, canvasViewMode: "plan", coverageVisible: false })[2],
+      evaluateGuidedSteps({ ...base, canvasViewMode: "layout", coverageVisible: false })[2],
     ).toBe(false);
     expect(
       evaluateGuidedSteps({ ...base, canvasViewMode: "schematic", coverageVisible: true })[2],
@@ -100,7 +100,7 @@ describe("evaluateGuidedSteps", () => {
     const state: GuidedSetupState = {
       rooms: [{ widthM: 8 }],
       devices: [{ deviceType: "speaker" }],
-      canvasViewMode: "plan",
+      canvasViewMode: "layout",
       coverageVisible: true,
       cableBomOpened: true,
     };

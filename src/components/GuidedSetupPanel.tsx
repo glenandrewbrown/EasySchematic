@@ -66,7 +66,7 @@ export default function GuidedSetupPanel() {
   const doneCount = completed.filter(Boolean).length;
 
   const showCoverage = () => {
-    setCanvasViewMode("plan");
+    setCanvasViewMode("layout");
     setCoverageVisible(true);
   };
 
