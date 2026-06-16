@@ -5,6 +5,8 @@ import NoteNodeComponent from "./components/NoteNode";
 import AnnotationNodeComponent from "./components/AnnotationNode";
 import StubLabelNodeComponent from "./components/StubLabelNode";
 import WaypointNodeComponent from "./components/WaypointNode";
+import ObjectPlanNode from "./components/ObjectPlanNode";
+import ZoneNode from "./components/ZoneNode";
 import OffsetEdgeComponent from "./components/OffsetEdge";
 
 export const nodeTypes: NodeTypes = {
@@ -14,6 +16,8 @@ export const nodeTypes: NodeTypes = {
   annotation: AnnotationNodeComponent,
   "stub-label": StubLabelNodeComponent,
   waypoint: WaypointNodeComponent,
+  object: ObjectPlanNode,
+  zone: ZoneNode,
 };
 
 export const edgeTypes: EdgeTypes = {

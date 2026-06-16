@@ -8,7 +8,7 @@
  */
 
 /** The active canvas interaction tool. */
-export type ToolId = "select" | "device" | "room" | "connect" | "note" | "pan";
+export type ToolId = "select" | "device" | "room" | "connect" | "note" | "pan" | "object" | "zone";
 
 /** The tool the canvas starts in — direct selection/manipulation. */
 export const DEFAULT_TOOL: ToolId = "select";
@@ -21,6 +21,8 @@ export interface ToolDef {
   hotkey: string;
   /** Tooltip description of what the tool does. */
   title: string;
+  /** When true, the tool is only available in the to-scale Layout view. */
+  layoutOnly?: boolean;
 }
 
 /** Tools in top-to-bottom rail order. */
@@ -30,6 +32,8 @@ export const TOOL_DEFS: readonly ToolDef[] = [
   { id: "room", label: "Room", hotkey: "R", title: "Draw a room (R)" },
   { id: "connect", label: "Connect", hotkey: "C", title: "Connect ports — signal-aware (C)" },
   { id: "note", label: "Note", hotkey: "N", title: "Add a note (N)" },
+  { id: "object", label: "Object", hotkey: "O", title: "Place a room object — furniture, fixtures (O) · Layout view", layoutOnly: true },
+  { id: "zone", label: "Zone", hotkey: "Z", title: "Draw a colour-coded zone (Z) · Layout view", layoutOnly: true },
   { id: "pan", label: "Pan", hotkey: "", title: "Pan the canvas (hold Space or middle-drag)" },
 ];
 

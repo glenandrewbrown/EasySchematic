@@ -51,6 +51,15 @@ const ICON: Record<ToolId, ReactNode> = {
   ),
   // Hand (pan).
   pan: <path d="M5 8V4.6a1 1 0 0 1 2 0V7m0-.4a1 1 0 0 1 2 0V7m0-.2a1 1 0 0 1 2 0V8m0-.2a1 1 0 0 1 1.6 0v3.2a3 3 0 0 1-3 3H8.5a3 3 0 0 1-2.4-1.2L3.6 9.5a1 1 0 0 1 1.4-1.4z" />,
+  // Furniture / room object (top-down seat).
+  object: (
+    <>
+      <rect x="3.5" y="5" width="9" height="7" rx="1" />
+      <path d="M3.5 8.6h9" />
+    </>
+  ),
+  // Colour zone (dashed region).
+  zone: <rect x="2.8" y="2.8" width="10.4" height="10.4" rx="1.5" strokeDasharray="2 1.8" />,
 };
 
 /** Shared svg wrapper — identical stroke conventions to Toolbar's `Icon`. */
@@ -74,6 +83,9 @@ function Icon({ id }: { id: ToolId }) {
 export default function ToolRail() {
   const activeTool = useSchematicStore((s) => s.activeTool);
   const setActiveTool = useSchematicStore((s) => s.setActiveTool);
+  const canvasViewMode = useSchematicStore((s) => s.canvasViewMode);
+  // Layout-only tools (Object/Zone) appear only in the to-scale Layout view.
+  const tools = TOOL_DEFS.filter((t) => !t.layoutOnly || canvasViewMode === "layout");
 
   return (
     <div
@@ -82,7 +94,7 @@ export default function ToolRail() {
       role="toolbar"
       aria-label="Tools"
     >
-      {TOOL_DEFS.map((tool) => {
+      {tools.map((tool) => {
         const isActive = activeTool === tool.id;
         return (
           <button

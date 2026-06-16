@@ -9,6 +9,9 @@ import { cableTypesForSignal } from "../cableRules";
 import { computeCableSchedule } from "../cableSchedule";
 import { connectionRun } from "../connectionRunLength";
 import { validateSchematic, countIssues } from "../validation";
+import { buildDeviceSuggestions } from "../deviceSuggestions";
+import Combobox from "./ui/Combobox";
+import TagInput from "./ui/TagInput";
 
 /**
  * Figma-style contextual inspector: edits the currently-selected device or room
@@ -78,6 +81,24 @@ function Field({ label, value, onCommit, type = "text", placeholder, suffix, min
   );
 }
 
+interface ComboFieldProps {
+  label: string;
+  value: string;
+  onCommit: (v: string) => void;
+  suggestions: string[];
+  placeholder?: string;
+}
+
+/** Muted-label wrapper around the compact Combobox, matching Field's layout. */
+function ComboField({ label, value, onCommit, suggestions, placeholder }: ComboFieldProps) {
+  return (
+    <label className="block">
+      <span className="block text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mb-0.5">{label}</span>
+      <Combobox value={value} onCommit={onCommit} suggestions={suggestions} placeholder={placeholder} compact />
+    </label>
+  );
+}
+
 function DeviceBody({ node }: { node: SchematicNode }) {
   const data = node.data as DeviceData;
   const layers = useSchematicStore((s) => s.layers);
@@ -87,7 +108,14 @@ function DeviceBody({ node }: { node: SchematicNode }) {
   const setEditingNodeId = useSchematicStore((s) => s.setEditingNodeId);
   const allNodes = useSchematicStore((s) => s.nodes);
   const edges = useSchematicStore((s) => s.edges);
+  const tagSuggestions = useSchematicStore((s) => s.tagSuggestions);
+  const fieldSuggestions = useSchematicStore((s) => s.fieldSuggestions);
+  const recordSuggestions = useSchematicStore((s) => s.recordSuggestions);
   const portInfos = useMemo(() => describeDevicePorts(node.id, allNodes, edges), [node.id, allNodes, edges]);
+  const suggestions = useMemo(
+    () => buildDeviceSuggestions(allNodes, { tagSuggestions, fieldSuggestions }),
+    [allNodes, tagSuggestions, fieldSuggestions],
+  );
   const selectDevice = (id: string) =>
     useSchematicStore.setState((s) => ({
       nodes: s.nodes.map((n) => ({ ...n, selected: n.id === id })),
@@ -118,13 +146,55 @@ function DeviceBody({ node }: { node: SchematicNode }) {
       <Field label="Label" value={data.label} onCommit={(v) => patch({ label: v, baseLabel: undefined })} placeholder="Device name" />
       <Field label="Short name" value={data.shortName} onCommit={(v) => patch({ shortName: v || undefined })} placeholder="e.g. 8040b" />
       <div className="grid grid-cols-2 gap-2">
-        <Field label="Manufacturer" value={data.manufacturer} onCommit={(v) => patch({ manufacturer: v || undefined })} placeholder="Genelec" />
+        <ComboField
+          label="Manufacturer"
+          value={data.manufacturer ?? ""}
+          suggestions={suggestions.manufacturer}
+          placeholder="Genelec"
+          onCommit={(v) => {
+            patch({ manufacturer: v || undefined });
+            if (v) recordSuggestions({ manufacturer: v });
+          }}
+        />
         <Field label="Model" value={data.modelNumber} onCommit={(v) => patch({ modelNumber: v || undefined })} placeholder="8040b" />
       </div>
       <div className="grid grid-cols-2 gap-2">
-        <Field label="Type" value={data.deviceType} onCommit={(v) => patch({ deviceType: v })} />
+        <ComboField
+          label="Type"
+          value={data.deviceType ?? ""}
+          suggestions={suggestions.deviceType}
+          placeholder="speaker"
+          onCommit={(v) => {
+            patch({ deviceType: v });
+            if (v) recordSuggestions({ deviceType: v });
+          }}
+        />
         <Field label="Icon" value={data.icon} onCommit={(v) => patch({ icon: v || undefined })} placeholder="🔊" />
       </div>
+      <ComboField
+        label="Category"
+        value={data.category ?? ""}
+        suggestions={suggestions.category}
+        placeholder="audio"
+        onCommit={(v) => {
+          patch({ category: v || undefined });
+          if (v) recordSuggestions({ category: v });
+        }}
+      />
+      <Field label="Serial No." value={data.serialNumber} onCommit={(v) => patch({ serialNumber: v || undefined })} placeholder="e.g. SN-00421" />
+      <label className="block">
+        <span className="block text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mb-0.5">Tags</span>
+        <TagInput
+          tags={data.tags ?? []}
+          suggestions={suggestions.tags}
+          placeholder="Add tag…"
+          onChange={(tags) => patch({ tags: tags.length > 0 ? tags : undefined })}
+          onBlur={() => {
+            const tags = data.tags ?? [];
+            if (tags.length > 0) recordSuggestions({ tags });
+          }}
+        />
+      </label>
 
       <div className="h-px bg-[var(--ui-border)]" />
       <SectionTitle>Physical &amp; placement</SectionTitle>

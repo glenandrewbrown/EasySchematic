@@ -35,7 +35,10 @@ import type {
   CustomTemplateMeta,
 } from "./types";
 import type { ReactFlowInstance } from "@xyflow/react";
-import type { SignalType, ScrollConfig, LineStyle, LabelCaseMode, DistanceSettings, PanMode, StubLabelPageMode, CanvasViewMode, GearUnit, FieldSuggestions, GridSettings, TransportContainer } from "./types";
+import type { SignalType, ScrollConfig, LineStyle, LabelCaseMode, DistanceSettings, PanMode, StubLabelPageMode, CanvasViewMode, GearUnit, FieldSuggestions, GridSettings, TransportContainer, TransportItem, TransportPhase, ObjectData, ZoneData } from "./types";
+import { addUnit, updateUnit, removeUnit, assignUnit, unassignUnit, clearAssignmentsForNode } from "./gearInventory";
+import { setItemChecked as setContainerItemCheckedPure } from "./logistics";
+import type { FurnitureCatalogEntry } from "./furnitureCatalog";
 import { DEFAULT_TOOL, type ToolId } from "./toolMode";
 import { defaultStubPlacement } from "./stubPlacement";
 import { getPortAbsolutePositions } from "./snapUtils";
@@ -420,6 +423,38 @@ interface SchematicState {
   dismissIssue: (id: string) => void;
   undismissIssue: (id: string) => void;
   clearDismissedIssues: () => void;
+  /** Merge committed device field values into the persisted suggestion pools (for comboboxes). */
+  recordSuggestions: (patch: { tags?: string[]; manufacturer?: string; category?: string; deviceType?: string }) => void;
+
+  // Per-unit gear inventory (Phase 4)
+  showGearInventory: boolean;
+  setShowGearInventory: (open: boolean) => void;
+  addGearUnit: (unit: Omit<GearUnit, "id">) => void;
+  updateGearUnit: (id: string, patch: Partial<GearUnit>) => void;
+  removeGearUnit: (id: string) => void;
+  assignGearUnit: (unitId: string, nodeId: string) => void;
+  unassignGearUnit: (unitId: string) => void;
+  // Custom SVG assets (Phase 6) — addSvgAsset returns the generated asset id
+  addSvgAsset: (svg: string) => string;
+  removeSvgAsset: (id: string) => void;
+  // Layout objects (furniture) + colour zones (Phase 5)
+  pendingObjectPlacement: FurnitureCatalogEntry | null;
+  setPendingObjectPlacement: (entry: FurnitureCatalogEntry | null) => void;
+  addObject: (position: { x: number; y: number }, entry: FurnitureCatalogEntry, svgAssetId?: string) => void;
+  addZone: (position: { x: number; y: number }, size?: { width: number; height: number }) => void;
+  updateObjectData: (id: string, patch: Partial<ObjectData>) => void;
+  updateZoneData: (id: string, patch: Partial<ZoneData>) => void;
+  // Transport / logistics containers (Phase 7)
+  showLogistics: boolean;
+  setShowLogistics: (open: boolean) => void;
+  addContainer: (name: string) => void;
+  removeContainer: (id: string) => void;
+  renameContainer: (id: string, name: string) => void;
+  setContainerColor: (id: string, color: string | undefined) => void;
+  addItemToContainer: (id: string, item: TransportItem) => void;
+  removeItemFromContainer: (id: string, itemKey: string) => void;
+  setContainerItemChecked: (id: string, phase: TransportPhase, itemKey: string, checked: boolean) => void;
+  clearContainerPhase: (id: string, phase: TransportPhase) => void;
 
   // Layers (Photoshop-style show/hide/lock)
   layers: SchematicLayer[];
@@ -428,6 +463,8 @@ interface SchematicState {
   removeLayer: (id: string) => void;
   toggleLayerVisible: (id: string) => void;
   toggleLayerLocked: (id: string) => void;
+  /** Set or clear a layer's colour swatch (persists; not undoable). */
+  setLayerColor: (id: string, color: string | undefined) => void;
   /** Move all currently-selected nodes and edges onto a layer. */
   assignSelectionToLayer: (layerId: string) => void;
   /** Group all selected nodes under a new shared groupId (needs 2+ selected). */
@@ -1699,11 +1736,18 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
       nextDistances = Object.keys(filtered).length > 0 ? filtered : undefined;
     }
 
+    // Clear any gear-unit assignments that pointed at a deleted device.
+    let nextGearUnits = state.gearUnits;
+    if (nextGearUnits.length > 0 && selectedNodeIds.size > 0) {
+      for (const nid of selectedNodeIds) nextGearUnits = clearAssignmentsForNode(nextGearUnits, nid);
+    }
+
     set({
       nodes: renumberNodes(reconciledNodes),
       edges: edgesAfterSplice,
       pages,
       ...(nextDistances !== state.roomDistances ? { roomDistances: nextDistances } : {}),
+      ...(nextGearUnits !== state.gearUnits ? { gearUnits: nextGearUnits } : {}),
     });
     get().saveToLocalStorage();
   },
@@ -3266,6 +3310,183 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
     get().saveToLocalStorage();
   },
 
+  recordSuggestions: (patch) => {
+    const state = get();
+    const mergeUnique = (existing: string[], incoming: string[]): string[] => {
+      const seen = new Set(existing);
+      const next = [...existing];
+      for (const raw of incoming) {
+        const v = raw.trim();
+        if (v && !seen.has(v)) { seen.add(v); next.push(v); }
+      }
+      return next.length === existing.length ? existing : next;
+    };
+    const fs = state.fieldSuggestions;
+    const tagSuggestions = patch.tags?.length ? mergeUnique(state.tagSuggestions, patch.tags) : state.tagSuggestions;
+    const manufacturer = patch.manufacturer ? mergeUnique(fs.manufacturer ?? [], [patch.manufacturer]) : fs.manufacturer;
+    const category = patch.category ? mergeUnique(fs.category ?? [], [patch.category]) : fs.category;
+    const deviceType = patch.deviceType ? mergeUnique(fs.deviceType ?? [], [patch.deviceType]) : fs.deviceType;
+    const changed =
+      tagSuggestions !== state.tagSuggestions ||
+      manufacturer !== fs.manufacturer ||
+      category !== fs.category ||
+      deviceType !== fs.deviceType;
+    if (!changed) return;
+    set({ tagSuggestions, fieldSuggestions: { manufacturer, category, deviceType } });
+    get().saveToLocalStorage();
+  },
+
+  // ── Per-unit gear inventory (Phase 4) — not undoable (like ownedGear/ownedCables) ──
+  showGearInventory: false,
+  setShowGearInventory: (open) => set({ showGearInventory: open }),
+  addGearUnit: (unit) => {
+    set({ gearUnits: addUnit(get().gearUnits, unit, crypto.randomUUID()) });
+    get().saveToLocalStorage();
+  },
+  updateGearUnit: (id, patch) => {
+    set({ gearUnits: updateUnit(get().gearUnits, id, patch) });
+    get().saveToLocalStorage();
+  },
+  removeGearUnit: (id) => {
+    set({ gearUnits: removeUnit(get().gearUnits, id) });
+    get().saveToLocalStorage();
+  },
+  assignGearUnit: (unitId, nodeId) => {
+    set({ gearUnits: assignUnit(get().gearUnits, unitId, nodeId) });
+    get().saveToLocalStorage();
+  },
+  unassignGearUnit: (unitId) => {
+    set({ gearUnits: unassignUnit(get().gearUnits, unitId) });
+    get().saveToLocalStorage();
+  },
+
+  // ── Custom SVG assets (Phase 6) — project resource, not undoable ──
+  addSvgAsset: (svg) => {
+    const id = crypto.randomUUID();
+    set({ svgAssets: { ...get().svgAssets, [id]: svg } });
+    get().saveToLocalStorage();
+    return id;
+  },
+  removeSvgAsset: (id) => {
+    const next = { ...get().svgAssets };
+    delete next[id];
+    set({ svgAssets: next });
+    get().saveToLocalStorage();
+  },
+
+  // ── Layout objects (furniture) + colour zones (Phase 5) — undoable canvas changes ──
+  pendingObjectPlacement: null,
+  setPendingObjectPlacement: (entry) => set({ pendingObjectPlacement: entry }),
+  addObject: (position, entry, svgAssetId) => {
+    const state = get();
+    pushUndo({ nodes: state.nodes, edges: state.edges });
+    const id = crypto.randomUUID();
+    const newObject: SchematicNode = {
+      id,
+      type: "object",
+      position,
+      data: {
+        label: entry.label,
+        catalogId: entry.id,
+        widthM: entry.defaultWidthM,
+        depthM: entry.defaultDepthM,
+        color: entry.defaultColor,
+        ...(svgAssetId ? { svgAssetId } : {}),
+      },
+      selected: true,
+    };
+    const deselected = state.nodes.map((n) => (n.selected ? { ...n, selected: false } : n));
+    set({ nodes: [...deselected, newObject] });
+    // Nest the object in whatever room it was dropped into (same spatial rule as devices).
+    get().reparentNode(id, position, { skipUndo: true });
+    get().saveToLocalStorage();
+  },
+  addZone: (position, size) => {
+    const state = get();
+    pushUndo({ nodes: state.nodes, edges: state.edges });
+    const newZone: SchematicNode = {
+      id: crypto.randomUUID(),
+      type: "zone",
+      position,
+      data: { label: "Zone", color: "#38bdf833" },
+      style: { width: size?.width ?? 320, height: size?.height ?? 220 },
+      selected: true,
+      zIndex: -2, // beneath rooms (-1) and devices
+    };
+    const deselected = state.nodes.map((n) => (n.selected ? { ...n, selected: false } : n));
+    set({ nodes: [newZone, ...deselected] });
+    get().saveToLocalStorage();
+  },
+  updateObjectData: (id, patch) => {
+    pushUndo({ nodes: get().nodes, edges: get().edges });
+    set({
+      nodes: get().nodes.map((n) =>
+        n.id === id && n.type === "object" ? ({ ...n, data: { ...n.data, ...patch } } as SchematicNode) : n,
+      ),
+    });
+    get().saveToLocalStorage();
+  },
+  updateZoneData: (id, patch) => {
+    pushUndo({ nodes: get().nodes, edges: get().edges });
+    set({
+      nodes: get().nodes.map((n) =>
+        n.id === id && n.type === "zone" ? ({ ...n, data: { ...n.data, ...patch } } as SchematicNode) : n,
+      ),
+    });
+    get().saveToLocalStorage();
+  },
+
+  // ── Transport / logistics containers (Phase 7) — operational state, not undoable ──
+  showLogistics: false,
+  setShowLogistics: (open) => set({ showLogistics: open }),
+  addContainer: (name) => {
+    set({ containers: [...get().containers, { id: crypto.randomUUID(), name, items: [], checklist: {} }] });
+    get().saveToLocalStorage();
+  },
+  removeContainer: (id) => {
+    set({ containers: get().containers.filter((c) => c.id !== id) });
+    get().saveToLocalStorage();
+  },
+  renameContainer: (id, name) => {
+    set({ containers: get().containers.map((c) => (c.id === id ? { ...c, name } : c)) });
+    get().saveToLocalStorage();
+  },
+  setContainerColor: (id, color) => {
+    set({ containers: get().containers.map((c) => (c.id === id ? { ...c, color: color || undefined } : c)) });
+    get().saveToLocalStorage();
+  },
+  addItemToContainer: (id, item) => {
+    const key = `${item.kind}:${item.refId}`;
+    set({
+      containers: get().containers.map((c) => {
+        if (c.id !== id) return c;
+        if (c.items.some((it) => `${it.kind}:${it.refId}` === key)) return c;
+        return { ...c, items: [...c.items, item] };
+      }),
+    });
+    get().saveToLocalStorage();
+  },
+  removeItemFromContainer: (id, itemKey) => {
+    set({
+      containers: get().containers.map((c) =>
+        c.id === id ? { ...c, items: c.items.filter((it) => `${it.kind}:${it.refId}` !== itemKey) } : c,
+      ),
+    });
+    get().saveToLocalStorage();
+  },
+  setContainerItemChecked: (id, phase, itemKey, checked) => {
+    set({
+      containers: get().containers.map((c) => (c.id === id ? setContainerItemCheckedPure(c, phase, itemKey, checked) : c)),
+    });
+    get().saveToLocalStorage();
+  },
+  clearContainerPhase: (id, phase) => {
+    set({
+      containers: get().containers.map((c) => (c.id === id ? { ...c, checklist: { ...c.checklist, [phase]: {} } } : c)),
+    });
+    get().saveToLocalStorage();
+  },
+
   activeTool: DEFAULT_TOOL,
   setActiveTool: (tool) => set({ activeTool: tool }),
   deviceDrawerPinned: readInitialDeviceDrawerPinned(),
@@ -3342,6 +3563,11 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
 
   toggleLayerLocked: (id) => {
     set({ layers: get().layers.map((l) => (l.id === id ? { ...l, locked: !l.locked } : l)) });
+    get().saveToLocalStorage();
+  },
+
+  setLayerColor: (id, color) => {
+    set({ layers: get().layers.map((l) => (l.id === id ? { ...l, color: color || undefined } : l)) });
     get().saveToLocalStorage();
   },
 

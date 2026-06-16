@@ -31,6 +31,9 @@ import FacePlateEditor from "./FacePlateEditor";
 import type { FacePlateLayout } from "../types";
 import { AUX_FIELD_GROUPS, normalizeAuxRows, resolveAuxiliaryLine, trimTrailingEmpty } from "../auxiliaryData";
 import { deriveThermalBtuh } from "../thermal";
+import { buildDeviceSuggestions } from "../deviceSuggestions";
+import Combobox from "./ui/Combobox";
+import TagInput from "./ui/TagInput";
 
 const ALL_SIGNAL_TYPES = (Object.keys(SIGNAL_LABELS) as SignalType[]).sort(
   (a, b) => SIGNAL_LABELS[a].localeCompare(SIGNAL_LABELS[b]),
@@ -131,8 +134,16 @@ export default function DeviceEditor() {
   const templatePresets = useSchematicStore((s) => s.templatePresets);
   const setTemplatePreset = useSchematicStore((s) => s.setTemplatePreset);
   const patchDeviceData = useSchematicStore((s) => s.patchDeviceData);
+  const tagSuggestions = useSchematicStore((s) => s.tagSuggestions);
+  const fieldSuggestions = useSchematicStore((s) => s.fieldSuggestions);
+  const recordSuggestions = useSchematicStore((s) => s.recordSuggestions);
 
   const node = nodes.find((n) => n.id === editingNodeId && n.type === "device") as DeviceNode | undefined;
+
+  const suggestions = useMemo(
+    () => buildDeviceSuggestions(nodes, { tagSuggestions, fieldSuggestions }),
+    [nodes, tagSuggestions, fieldSuggestions],
+  );
 
   const [label, setLabel] = useState("");
   const [shortName, setShortName] = useState("");
@@ -146,6 +157,8 @@ export default function DeviceEditor() {
   const [modelNumber, setModelNumber] = useState("");
   const [referenceUrl, setReferenceUrl] = useState("");
   const [category, setCategory] = useState("");
+  const [serialNumber, setSerialNumber] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
   const [color, setColor] = useState<string | undefined>(undefined);
   const [headerColor, setHeaderColor] = useState<string | undefined>(undefined);
   const [ports, setPorts] = useState<PortDraft[]>([]);
@@ -285,6 +298,8 @@ export default function DeviceEditor() {
     setAdapterVisibility(node.data.adapterVisibility ?? "default");
     setAuxiliaryData(normalizeAuxRows(node.data.auxiliaryData));
     setSearchTermsRaw((node.data.searchTerms ?? []).join(", "));
+    setSerialNumber(node.data.serialNumber ?? "");
+    setTags(node.data.tags ?? []);
   }, [node]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
@@ -375,11 +390,24 @@ export default function DeviceEditor() {
         return trimmed.some((r) => r.text.trim()) ? { auxiliaryData: trimmed } : {};
       })()),
       ...(() => { const t = searchTermsRaw.split(",").map((s) => s.trim()).filter(Boolean).slice(0, 20); return t.length > 0 ? { searchTerms: t } : {}; })(),
+      // Per-instance identity fields — preserved/rebuilt so editor saves don't wipe them.
+      ...(serialNumber.trim() ? { serialNumber: serialNumber.trim() } : {}),
+      ...(tags.length > 0 ? { tags } : {}),
+      // No editor UI yet — carry through opaquely (like groupId) so saves don't drop them.
+      ...(existing?.layoutSvgAssetId ? { layoutSvgAssetId: existing.layoutSvgAssetId } : {}),
+      ...(existing?.zoneId ? { zoneId: existing.zoneId } : {}),
     };
     updateDevice(editingNodeId, data);
+    // Persist any newly-introduced field values / tags as document suggestions.
+    recordSuggestions({
+      ...(manufacturer.trim() ? { manufacturer: manufacturer.trim() } : {}),
+      ...(category.trim() ? { category: category.trim() } : {}),
+      ...(deviceType.trim() ? { deviceType: deviceType.trim() } : {}),
+      ...(tags.length > 0 ? { tags } : {}),
+    });
     setCreatingNodeId(null); // commit the node — close won't undo it
     close();
-  }, [editingNodeId, ports, label, shortName, icon, useShortName, wrapLabel, hostname, deviceType, manufacturer, modelNumber, referenceUrl, category, color, headerColor, node, updateDevice, close, setCreatingNodeId, showAllPorts, hiddenPorts, dhcpServer, powerDrawW, powerCapacityW, voltage, thermalBtuh, poeBudgetW, poeDrawW, unitCost, heightMm, widthMm, depthMm, weightKg, isCableAccessory, integratedWithCable, isVenueProvided, adapterVisibility, speakerSensitivityDb, speakerMaxPowerW, speakerCoverageAngleDeg, auxiliaryData, searchTermsRaw]);
+  }, [editingNodeId, ports, label, shortName, icon, useShortName, wrapLabel, hostname, deviceType, manufacturer, modelNumber, referenceUrl, category, serialNumber, tags, color, headerColor, node, updateDevice, recordSuggestions, close, setCreatingNodeId, showAllPorts, hiddenPorts, dhcpServer, powerDrawW, powerCapacityW, voltage, thermalBtuh, poeBudgetW, poeDrawW, unitCost, heightMm, widthMm, depthMm, weightKg, isCableAccessory, integratedWithCable, isVenueProvided, adapterVisibility, speakerSensitivityDb, speakerMaxPowerW, speakerCoverageAngleDeg, auxiliaryData, searchTermsRaw]);
 
   // Ctrl+Enter anywhere in the editor → Apply & Close
   const onCtrlEnter = useCallback((e: React.KeyboardEvent) => {
@@ -927,18 +955,18 @@ export default function DeviceEditor() {
               </label>
             </div>
             <Field label="Device Type">
-              <input
-                className="ui-input w-full text-xs"
+              <Combobox
                 value={deviceType}
-                onChange={(e) => setDeviceType(e.target.value)}
+                onCommit={setDeviceType}
+                suggestions={suggestions.deviceType}
                 placeholder="e.g. camera"
               />
             </Field>
             <Field label="Manufacturer">
-              <input
-                className="ui-input w-full text-xs"
+              <Combobox
                 value={manufacturer}
-                onChange={(e) => setManufacturer(e.target.value)}
+                onCommit={setManufacturer}
+                suggestions={suggestions.manufacturer}
                 placeholder="e.g. Sony"
               />
             </Field>
@@ -951,11 +979,20 @@ export default function DeviceEditor() {
               />
             </Field>
             <Field label="Category">
+              <Combobox
+                value={category}
+                onCommit={setCategory}
+                suggestions={suggestions.category}
+                placeholder="e.g. video"
+              />
+            </Field>
+            <Field label="Serial Number">
               <input
                 className="ui-input w-full text-xs"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                placeholder="e.g. video"
+                value={serialNumber}
+                onChange={(e) => setSerialNumber(e.target.value)}
+                placeholder="e.g. SN-00421"
+                onKeyDown={(e) => e.stopPropagation()}
               />
             </Field>
             <Field label="Reference URL">
@@ -967,6 +1004,16 @@ export default function DeviceEditor() {
                 placeholder="https://…"
               />
             </Field>
+            <div className="col-span-2">
+              <Field label="Tags">
+                <TagInput
+                  tags={tags}
+                  onChange={setTags}
+                  suggestions={suggestions.tags}
+                  placeholder="e.g. rental, FOH"
+                />
+              </Field>
+            </div>
           </div>
 
           {/* Header color picker */}

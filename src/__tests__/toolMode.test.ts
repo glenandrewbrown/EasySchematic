@@ -7,15 +7,22 @@ import {
 } from "../toolMode";
 
 describe("toolMode", () => {
-  it("defines the six tools in rail order", () => {
+  it("defines the tools in rail order (Object/Zone are Layout-only)", () => {
     expect(TOOL_DEFS.map((t) => t.id)).toEqual([
       "select",
       "device",
       "room",
       "connect",
       "note",
+      "object",
+      "zone",
       "pan",
     ]);
+  });
+
+  it("flags Object and Zone as Layout-only tools", () => {
+    const layoutOnly = TOOL_DEFS.filter((t) => t.layoutOnly).map((t) => t.id);
+    expect(layoutOnly).toEqual(["object", "zone"]);
   });
 
   it("defaults to the Select tool", () => {
@@ -52,6 +59,8 @@ describe("toolMode", () => {
     expect(toolForHotkey("c")).toBe("connect");
     expect(toolForHotkey("n")).toBe("note");
     expect(toolForHotkey("N")).toBe("note");
+    expect(toolForHotkey("o")).toBe("object");
+    expect(toolForHotkey("z")).toBe("zone");
   });
 
   it("returns undefined for unmapped keys (incl. pan, which has no letter)", () => {

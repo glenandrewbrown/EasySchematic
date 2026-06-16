@@ -25,6 +25,7 @@ import PageBoundaryOverlay from "./components/PageBoundaryOverlay";
 import PrintViewBar from "./components/PrintViewBar";
 import ToolRail from "./components/ToolRail";
 import DeviceDrawer from "./components/DeviceDrawer";
+import ObjectDrawer from "./components/ObjectDrawer";
 import { toolForHotkey } from "./toolMode";
 import { validateSchematic, type IssueSeverity } from "./validation";
 import DeviceEditor from "./components/DeviceEditor";
@@ -34,6 +35,8 @@ import MenuBar from "./components/MenuBar";
 import EdgeContextMenu from "./components/EdgeContextMenu";
 import CableAssignDialog from "./components/CableAssignDialog";
 import CableInventoryDialog from "./components/CableInventoryDialog";
+import GearInventoryDialog from "./components/GearInventoryDialog";
+import LogisticsDialog from "./components/LogisticsDialog";
 import GuidedSetupPanel from "./components/GuidedSetupPanel";
 import CoverageSplReadout from "./components/CoverageSplReadout";
 import Toolbar from "./components/Toolbar";
@@ -261,6 +264,10 @@ function SchematicCanvas() {
     flushPendingSnapshot,
     reparentNode,
     reparentAllDevices,
+    addObject,
+    addZone,
+    pendingObjectPlacement,
+    setPendingObjectPlacement,
     loadFromLocalStorage,
   } = useSchematicStore();
 
@@ -629,7 +636,12 @@ function SchematicCanvas() {
     const hasItemOverrides =
       hiddenNodeIds.length > 0 || lockedNodeIds.length > 0 || effectiveSolo !== null;
     if (hiddenLayers.size === 0 && lockedLayers.size === 0 && !hasItemOverrides) {
-      return { renderNodes: nodes, visibleEdges: planHideEdges ? [] : sigFiltered };
+      // Objects + colour zones live only in the Layout view; hide them elsewhere.
+      const needLayoutHide = canvasViewMode !== "layout" && nodes.some((n) => n.type === "object" || n.type === "zone");
+      const base = needLayoutHide
+        ? nodes.map((n) => ((n.type === "object" || n.type === "zone") ? { ...n, hidden: true } : n))
+        : nodes;
+      return { renderNodes: base, visibleEdges: planHideEdges ? [] : sigFiltered };
     }
 
     const layerOf = (lid: string | undefined) => lid ?? DEFAULT_LAYER_ID;
@@ -648,6 +660,7 @@ function SchematicCanvas() {
       },
     );
     const mappedNodes = nodes.map((n) => {
+      if (canvasViewMode !== "layout" && (n.type === "object" || n.type === "zone")) return { ...n, hidden: true };
       if (n.type === "waypoint" || n.type === "stub-label") return n; // follow their edge below
       const hidden = hiddenSet.has(n.id);
       const locked = lockedSet.has(n.id);
@@ -1265,9 +1278,17 @@ function SchematicCanvas() {
   const onPaneClick = useCallback(
     (event: React.MouseEvent) => {
       // Tool-rail one-shot placement: Room/Note place at the click point, then revert to Select.
-      if (activeTool === "room" || activeTool === "note") {
+      // Armed furniture placement from the Object drawer drops at the click point.
+      if (pendingObjectPlacement) {
+        const pos = screenToFlowPosition({ x: event.clientX, y: event.clientY });
+        addObject(pos, pendingObjectPlacement);
+        setPendingObjectPlacement(null);
+        return;
+      }
+      if (activeTool === "room" || activeTool === "note" || activeTool === "zone") {
         const pos = screenToFlowPosition({ x: event.clientX, y: event.clientY });
         if (activeTool === "room") addRoom("Room", pos);
+        else if (activeTool === "zone") addZone(pos);
         else addNote(pos);
         setActiveTool("select");
         return;
@@ -1293,7 +1314,7 @@ function SchematicCanvas() {
       }
       lastPaneClickRef.current = { time: now, x: event.clientX, y: event.clientY };
     },
-    [clearClickConnect, rfStore, screenToFlowPosition, activeTool, addRoom, addNote, setActiveTool],
+    [clearClickConnect, rfStore, screenToFlowPosition, activeTool, addRoom, addNote, setActiveTool, pendingObjectPlacement, addObject, addZone, setPendingObjectPlacement],
   );
 
   const onNodeDragStart = useCallback(() => {
@@ -1752,6 +1773,7 @@ function SchematicCanvas() {
       <AutoRouteConfirmDialog />
       <CableAssignDialog />
       <CableInventoryDialog />
+      <GearInventoryDialog />
       {showMiniMap && (
         <MiniMap
           position="bottom-left"
@@ -1874,8 +1896,11 @@ export default function App() {
       if (!e.ctrlKey && !e.metaKey && !e.altKey) {
         const tool = toolForHotkey(e.key);
         if (tool) {
+          const st = useSchematicStore.getState();
+          // Object/Zone tools only apply in the Layout view.
+          if ((tool === "object" || tool === "zone") && st.canvasViewMode !== "layout") return;
           e.preventDefault();
-          useSchematicStore.getState().setActiveTool(tool);
+          st.setActiveTool(tool);
           return;
         }
       }
@@ -1937,6 +1962,11 @@ export default function App() {
                 <DeviceDrawer />
               </div>
             )}
+            {canvasViewMode === "layout" && activeTool === "object" && (
+              <div data-print-hide data-mobile-hide>
+                <ObjectDrawer />
+              </div>
+            )}
             <div className="flex-1">
               <SchematicCanvas />
             </div>
@@ -1951,6 +1981,7 @@ export default function App() {
         <RackPage />
       )}
       <DeviceEditor />
+      <LogisticsDialog />
       <RoomEditor />
       <AnnotationEditor />
       <EdgeContextMenu />
