@@ -8,6 +8,7 @@ import { describeDevicePorts } from "../portConnections";
 import { cableTypesForSignal } from "../cableRules";
 import { computeCableSchedule } from "../cableSchedule";
 import { connectionRun } from "../connectionRunLength";
+import { validateSchematic, countIssues } from "../validation";
 
 /**
  * Figma-style contextual inspector: edits the currently-selected device or room
@@ -26,6 +27,16 @@ function SectionTitle({ children }: { children: ReactNode }) {
   return (
     <div className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] font-semibold pt-1">
       {children}
+    </div>
+  );
+}
+
+/** Read-only muted-label + value row (no input), for derived/contextual info. */
+function ReadRow({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="flex items-baseline gap-2">
+      <span className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] shrink-0">{label}</span>
+      <span className="text-xs text-[var(--color-text)] truncate text-right flex-1 min-w-0">{value}</span>
     </div>
   );
 }
@@ -205,6 +216,55 @@ function DeviceBody({ node }: { node: SchematicNode }) {
         </>
       )}
 
+      {(data.powerDrawW != null ||
+        data.powerCapacityW != null ||
+        (data.voltage != null && data.voltage !== "") ||
+        data.poeDrawW != null ||
+        data.poeBudgetW != null) && (
+        <>
+          <div className="h-px bg-[var(--ui-border)]" />
+          <SectionTitle>Power</SectionTitle>
+          <div className="flex flex-col gap-1">
+            {data.powerDrawW != null && <ReadRow label="Draw" value={`${data.powerDrawW} W`} />}
+            {data.powerCapacityW != null && <ReadRow label="Capacity" value={`${data.powerCapacityW} W`} />}
+            {data.voltage != null && data.voltage !== "" && <ReadRow label="Voltage" value={data.voltage} />}
+            {data.poeDrawW != null && <ReadRow label="PoE draw" value={`${data.poeDrawW} W`} />}
+            {data.poeBudgetW != null && <ReadRow label="PoE budget" value={`${data.poeBudgetW} W`} />}
+          </div>
+        </>
+      )}
+
+      {(() => {
+        const ipPorts = data.ports.filter((p) => p.networkConfig?.ip);
+        const hasHostname = data.hostname != null && data.hostname !== "";
+        if (!hasHostname && ipPorts.length === 0) return null;
+        return (
+          <>
+            <div className="h-px bg-[var(--ui-border)]" />
+            <SectionTitle>Network</SectionTitle>
+            <div className="flex flex-col gap-1">
+              {hasHostname && <ReadRow label="Host" value={data.hostname} />}
+              {ipPorts.map((p) => {
+                const net = p.networkConfig;
+                const extras = [
+                  net?.subnetMask ? net.subnetMask : null,
+                  net?.vlan != null ? `VLAN ${net.vlan}` : null,
+                ].filter(Boolean);
+                return (
+                  <div key={p.id} className="flex items-baseline gap-2">
+                    <span className="text-[11px] text-[var(--color-text)] truncate shrink-0 max-w-[7rem]">{p.label}</span>
+                    <span className="text-[11px] text-[var(--color-text-muted)] truncate text-right flex-1 min-w-0">
+                      {net?.ip}
+                      {extras.length > 0 ? ` · ${extras.join(" · ")}` : ""}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        );
+      })()}
+
       <div className="h-px bg-[var(--ui-border)]" />
       <button className="ui-btn ui-btn-secondary w-full text-xs" onClick={() => setEditingNodeId(node.id)}>
         Edit details…
@@ -328,6 +388,42 @@ function ConnectionBody({ edge, nodes }: { edge: ConnectionEdge; nodes: Schemati
   );
 }
 
+/** Nothing-selected fallback: a compact document overview with validation summary. */
+function DocumentOverview({ nodes, edges }: { nodes: SchematicNode[]; edges: ConnectionEdge[] }) {
+  const deviceCount = nodes.filter((n) => n.type === "device").length;
+  const roomCount = nodes.filter((n) => n.type === "room").length;
+  const connectionCount = edges.length;
+  const issues = useMemo(() => countIssues(validateSchematic(nodes, edges)), [nodes, edges]);
+  const clean = issues.total === 0;
+  const dotClass = issues.errors > 0 ? "bg-red-500" : issues.warnings > 0 ? "bg-amber-500" : "bg-green-500";
+
+  return (
+    <div className="flex flex-col gap-3 px-3 py-3 overflow-y-auto">
+      <SectionTitle>Document</SectionTitle>
+      <div className="flex flex-col gap-1">
+        <ReadRow label="Devices" value={deviceCount} />
+        <ReadRow label="Rooms" value={roomCount} />
+        <ReadRow label="Connections" value={connectionCount} />
+      </div>
+
+      <div className="h-px bg-[var(--ui-border)]" />
+      <SectionTitle>Validation</SectionTitle>
+      <div className="flex items-center gap-2">
+        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dotClass}`} />
+        <span className="text-xs text-[var(--color-text)]">
+          {clean
+            ? "No issues"
+            : `${issues.errors} error${issues.errors === 1 ? "" : "s"} · ${issues.warnings} warning${issues.warnings === 1 ? "" : "s"}`}
+        </span>
+      </div>
+
+      <div className="text-[11px] text-[var(--color-text-muted)] leading-relaxed pt-1">
+        Select a device, room, or connection to edit it here.
+      </div>
+    </div>
+  );
+}
+
 /** Right-rail contextual inspector — shows when exactly one device, room, or connection is selected. */
 export default function Inspector({ embedded = false }: { embedded?: boolean } = {}) {
   const nodes = useSchematicStore((s) => s.nodes);
@@ -354,8 +450,8 @@ export default function Inspector({ embedded = false }: { embedded?: boolean } =
         </div>
       );
     return (
-      <div className="h-full flex items-center justify-center px-5 text-center text-[11px] text-[var(--color-text-muted)] leading-relaxed">
-        Select a device, room, or connection to edit it here.
+      <div className="h-full overflow-y-auto">
+        <DocumentOverview nodes={nodes} edges={edges} />
       </div>
     );
   }

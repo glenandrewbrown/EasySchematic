@@ -292,6 +292,34 @@ html, body, #root {
 .react-flow__node.node-error::after { background: #ef4444; }
 .react-flow__node.node-warning::after { background: #f59e0b; }
 
+/* ===== Device-node states (most-seen object — keep conservative) =====
+   React Flow's default selected/hover box-shadow is scoped to its built-in node
+   types only (.react-flow__node-default/-input/-output/-group), so .react-flow__node-device
+   has no wrapper-level ring of its own — these rules add one additively. box-shadow
+   (not outline) traces the wrapper's box, so the ring hugs the device card. Shadows are
+   slate-tinted via existing tokens (never pure black). The validation corner dot
+   (::after, top/right:-5px, z-index 6, own --color-bg halo) sits outside the 1.5px ring,
+   so it stays readable — left untouched. */
+
+/* Subtle hover lift — understated, and never while selected or mid-drag so it
+   can't compete with the accent ring or flicker during a move. */
+.react-flow__node-device:not(.selected):not(.dragging):hover {
+  box-shadow: 0 2px 6px -1px rgba(15, 23, 42, 0.12), 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+/* Selected — clean hairline accent ring over the existing raised shadow.
+   Uses --color-accent so it tracks the light/dark theme automatically, and keeps
+   working for every node in a multi-select (per-node .selected, no group box). */
+.react-flow__node-device.selected {
+  box-shadow: var(--ui-shadow-raised), 0 0 0 1.5px var(--color-accent);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .react-flow__node-device {
+    transition: box-shadow 0.14s var(--ui-ease);
+  }
+}
+
 .react-flow__background {
   background: var(--color-bg) !important;
 }
