@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { useSchematicStore } from "../store";
 import { DEFAULT_LAYER_ID, SIGNAL_LABELS, SIGNAL_COLORS } from "../types";
-import type { ConnectionData, ConnectionEdge, DeviceData, RoomData, SchematicNode } from "../types";
+import type { ConnectionData, ConnectionEdge, DeviceData, RoomData, ObjectData, ZoneData, SchematicNode } from "../types";
 import { isSpeaker, resolveSpeakerSpec } from "../speakerSpec";
 import { splAtDistanceDb } from "../speakerCoverage";
 import { describeDevicePorts } from "../portConnections";
@@ -378,6 +378,86 @@ function RoomBody({ node }: { node: SchematicNode }) {
   );
 }
 
+/** 6-digit #RRGGBB for a native colour input (strips any alpha suffix). */
+function hexOf(c: string | undefined, fallback: string): string {
+  return c && /^#[0-9a-f]{6}/i.test(c) ? c.slice(0, 7) : fallback;
+}
+
+function ObjectBody({ node }: { node: SchematicNode }) {
+  const data = node.data as ObjectData;
+  const updateObjectData = useSchematicStore((s) => s.updateObjectData);
+  const layers = useSchematicStore((s) => s.layers);
+  const setSvgImportTarget = useSchematicStore((s) => s.setSvgImportTarget);
+  const patch = (p: Partial<ObjectData>) => updateObjectData(node.id, p);
+  const numOrUndef = (s: string) => (s.trim() === "" ? undefined : Number(s));
+  return (
+    <div className="flex flex-col gap-3 px-3 py-3 overflow-y-auto">
+      <SectionTitle>Object</SectionTitle>
+      <Field label="Label" value={data.label} onCommit={(v) => patch({ label: v })} placeholder="Object name" />
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="Width m" value={data.widthM} onCommit={(v) => patch({ widthM: numOrUndef(v) })} type="number" step={0.1} />
+        <Field label="Depth m" value={data.depthM} onCommit={(v) => patch({ depthM: numOrUndef(v) })} type="number" step={0.1} />
+      </div>
+      <Field label="Rotation°" value={data.rotationDeg ?? 0} onCommit={(v) => patch({ rotationDeg: Number(v) || 0 })} type="number" step={15} />
+      <label className="block">
+        <span className="block text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mb-0.5">Fill colour</span>
+        <input className="w-full h-7 cursor-pointer rounded border border-[var(--ui-border)] bg-transparent" type="color" value={hexOf(data.color, "#e2e8f0")} onChange={(e) => patch({ color: e.target.value })} />
+      </label>
+      <label className="block">
+        <span className="block text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mb-0.5">Layer</span>
+        <select className="ui-input w-full text-xs" value={data.layerId ?? DEFAULT_LAYER_ID} onChange={(e) => patch({ layerId: e.target.value === DEFAULT_LAYER_ID ? undefined : e.target.value })}>
+          {layers.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+        </select>
+      </label>
+      <div>
+        <span className="block text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mb-0.5">Custom graphic</span>
+        <button className="ui-btn ui-btn-secondary w-full text-xs" onClick={() => setSvgImportTarget(node.id)}>
+          {data.svgAssetId ? "Replace SVG…" : "Import SVG…"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ZoneBody({ node }: { node: SchematicNode }) {
+  const data = node.data as ZoneData;
+  const updateZoneData = useSchematicStore((s) => s.updateZoneData);
+  const layers = useSchematicStore((s) => s.layers);
+  const patch = (p: Partial<ZoneData>) => updateZoneData(node.id, p);
+  return (
+    <div className="flex flex-col gap-3 px-3 py-3 overflow-y-auto">
+      <SectionTitle>Zone</SectionTitle>
+      <Field label="Label" value={data.label} onCommit={(v) => patch({ label: v })} placeholder="Zone name" />
+      <label className="block">
+        <span className="block text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mb-0.5">Fill colour</span>
+        {/* Zones store a translucent fill (#RRGGBB + alpha); keep ~33% alpha on edit. */}
+        <input className="w-full h-7 cursor-pointer rounded border border-[var(--ui-border)] bg-transparent" type="color" value={hexOf(data.color, "#38bdf8")} onChange={(e) => patch({ color: e.target.value + "55" })} />
+      </label>
+      <label className="block">
+        <span className="block text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mb-0.5">Border colour</span>
+        <input className="w-full h-7 cursor-pointer rounded border border-[var(--ui-border)] bg-transparent" type="color" value={hexOf(data.borderColor, "#0284c7")} onChange={(e) => patch({ borderColor: e.target.value })} />
+      </label>
+      <label className="block">
+        <span className="block text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mb-0.5">Layer</span>
+        <select className="ui-input w-full text-xs" value={data.layerId ?? DEFAULT_LAYER_ID} onChange={(e) => patch({ layerId: e.target.value === DEFAULT_LAYER_ID ? undefined : e.target.value })}>
+          {layers.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+        </select>
+      </label>
+    </div>
+  );
+}
+
+/** Picks the right body for a selected node type (device/room/object/zone). */
+function NodeBody({ node }: { node: SchematicNode }) {
+  switch (node.type) {
+    case "device": return <DeviceBody node={node} />;
+    case "room": return <RoomBody node={node} />;
+    case "object": return <ObjectBody node={node} />;
+    case "zone": return <ZoneBody node={node} />;
+    default: return null;
+  }
+}
+
 function ConnectionBody({ edge, nodes }: { edge: ConnectionEdge; nodes: SchematicNode[] }) {
   const setCableAssignEdgeId = useSchematicStore((s) => s.setCableAssignEdgeId);
   const data = (edge.data ?? { signalType: "custom" }) as ConnectionData;
@@ -512,7 +592,8 @@ export default function Inspector({ embedded = false }: { embedded?: boolean } =
   const edges = useSchematicStore((s) => s.edges);
   const selected = nodes.filter((n) => n.selected);
   const single =
-    selected.length === 1 && (selected[0].type === "device" || selected[0].type === "room")
+    selected.length === 1 &&
+    (selected[0].type === "device" || selected[0].type === "room" || selected[0].type === "object" || selected[0].type === "zone")
       ? selected[0]
       : null;
   const selectedEdges = edges.filter((e) => e.selected);
@@ -522,7 +603,7 @@ export default function Inspector({ embedded = false }: { embedded?: boolean } =
     if (single)
       return (
         <div className="h-full overflow-y-auto">
-          {single.type === "device" ? <DeviceBody key={single.id} node={single} /> : <RoomBody key={single.id} node={single} />}
+          <NodeBody key={single.id} node={single} />
         </div>
       );
     if (singleEdge)
@@ -540,7 +621,7 @@ export default function Inspector({ embedded = false }: { embedded?: boolean } =
 
   if (!single) return null;
   const node = single;
-  const title = node.type === "device" ? "Device" : "Room";
+  const title = node.type === "device" ? "Device" : node.type === "room" ? "Room" : node.type === "object" ? "Object" : "Zone";
 
   return (
     <div className="w-60 bg-[var(--color-surface)] border-l border-[var(--color-border)] flex flex-col h-full overflow-hidden" data-print-hide>
@@ -548,7 +629,7 @@ export default function Inspector({ embedded = false }: { embedded?: boolean } =
         <h2 className="text-xs font-semibold text-[var(--color-text-heading)] uppercase tracking-wider">{title}</h2>
       </div>
       <div className="flex-1 overflow-y-auto">
-        {node.type === "device" ? <DeviceBody key={node.id} node={node} /> : <RoomBody key={node.id} node={node} />}
+        <NodeBody key={node.id} node={node} />
       </div>
     </div>
   );

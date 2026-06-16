@@ -39,6 +39,7 @@ import type { SignalType, ScrollConfig, LineStyle, LabelCaseMode, DistanceSettin
 import { addUnit, updateUnit, removeUnit, assignUnit, unassignUnit, clearAssignmentsForNode } from "./gearInventory";
 import { setItemChecked as setContainerItemCheckedPure } from "./logistics";
 import type { FurnitureCatalogEntry } from "./furnitureCatalog";
+import { sanitizeSvg } from "./svgSanitizer";
 import { DEFAULT_TOOL, type ToolId } from "./toolMode";
 import { defaultStubPlacement } from "./stubPlacement";
 import { getPortAbsolutePositions } from "./snapUtils";
@@ -93,6 +94,18 @@ function resolveEdgeStroke(data: ConnectionData | undefined): string {
   if (data.directAttach) return "#9ca3af";
   if (data.color) return data.color;
   return `var(--color-${data.signalType ?? "custom"})`;
+}
+
+/** Re-sanitize every custom SVG asset on load — saved files can be shared or hand-edited,
+ *  so we never trust persisted markup before it is injected via dangerouslySetInnerHTML. */
+function sanitizeSvgAssets(assets: Record<string, string> | undefined): Record<string, string> {
+  if (!assets) return {};
+  const out: Record<string, string> = {};
+  for (const [id, svg] of Object.entries(assets)) {
+    const clean = sanitizeSvg(String(svg));
+    if (clean) out[id] = clean;
+  }
+  return out;
 }
 
 const STORAGE_KEY = "easyschematic-autosave";
@@ -5093,7 +5106,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
         ownedCables: data.ownedCables ?? [],
         layers: data.layers ?? [{ id: DEFAULT_LAYER_ID, name: "Base", visible: true, locked: false }],
         gearUnits: data.gearUnits ?? [],
-        svgAssets: data.svgAssets ?? {},
+        svgAssets: sanitizeSvgAssets(data.svgAssets),
         tagSuggestions: data.tagSuggestions ?? [],
         fieldSuggestions: data.fieldSuggestions ?? {},
         dismissedIssueIds: data.dismissedIssueIds ?? [],
@@ -5179,7 +5192,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
         ownedCables: data.ownedCables ?? [],
         layers: data.layers ?? [{ id: DEFAULT_LAYER_ID, name: "Base", visible: true, locked: false }],
         gearUnits: data.gearUnits ?? [],
-        svgAssets: data.svgAssets ?? {},
+        svgAssets: sanitizeSvgAssets(data.svgAssets),
         tagSuggestions: data.tagSuggestions ?? [],
         fieldSuggestions: data.fieldSuggestions ?? {},
         dismissedIssueIds: data.dismissedIssueIds ?? [],
@@ -5366,7 +5379,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
         ownedCables: data.ownedCables ?? [],
         layers: data.layers ?? [{ id: DEFAULT_LAYER_ID, name: "Base", visible: true, locked: false }],
         gearUnits: data.gearUnits ?? [],
-        svgAssets: data.svgAssets ?? {},
+        svgAssets: sanitizeSvgAssets(data.svgAssets),
         tagSuggestions: data.tagSuggestions ?? [],
         fieldSuggestions: data.fieldSuggestions ?? {},
         dismissedIssueIds: data.dismissedIssueIds ?? [],
