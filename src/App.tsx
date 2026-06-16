@@ -1780,7 +1780,7 @@ function SchematicCanvas() {
       <GearInventoryDialog />
       {svgImportTargetNodeId && (
         <SvgAssetImportDialog
-          onPicked={(assetId) => setNodeSvgAsset(svgImportTargetNodeId, assetId)}
+          onPicked={(assetId) => { if (assetId) setNodeSvgAsset(svgImportTargetNodeId, assetId); }}
           onClose={() => setSvgImportTarget(null)}
         />
       )}

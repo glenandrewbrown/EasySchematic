@@ -3380,8 +3380,11 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
 
   // ── Custom SVG assets (Phase 6) — project resource, not undoable ──
   addSvgAsset: (svg) => {
+    // Defense-in-depth: the store never holds unsanitized SVG, regardless of caller.
+    const clean = sanitizeSvg(svg);
+    if (!clean) return "";
     const id = crypto.randomUUID();
-    set({ svgAssets: { ...get().svgAssets, [id]: svg } });
+    set({ svgAssets: { ...get().svgAssets, [id]: clean } });
     get().saveToLocalStorage();
     return id;
   },
