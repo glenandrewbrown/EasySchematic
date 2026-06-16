@@ -6,6 +6,8 @@ import { isSpeaker, resolveSpeakerSpec } from "../speakerSpec";
 import { splAtDistanceDb } from "../speakerCoverage";
 import { describeDevicePorts } from "../portConnections";
 import { cableTypesForSignal } from "../cableRules";
+import { computeCableSchedule } from "../cableSchedule";
+import { connectionRun } from "../connectionRunLength";
 
 /**
  * Figma-style contextual inspector: edits the currently-selected device or room
@@ -240,6 +242,15 @@ function ConnectionBody({ edge, nodes }: { edge: ConnectionEdge; nodes: Schemati
   const sig = data.signalType;
   const cable = cableTypesForSignal(sig)[0];
 
+  const edges = useSchematicStore((s) => s.edges);
+  const cableNamingScheme = useSchematicStore((s) => s.cableNamingScheme);
+  const roomDistances = useSchematicStore((s) => s.roomDistances);
+  const distanceSettings = useSchematicStore((s) => s.distanceSettings);
+  const run = useMemo(() => {
+    const rows = computeCableSchedule(nodes, edges, cableNamingScheme, { roomDistances, distanceSettings });
+    return connectionRun(rows, edge.id, cable?.maxRunM);
+  }, [nodes, edges, cableNamingScheme, roomDistances, distanceSettings, edge.id, cable?.maxRunM]);
+
   const deviceById = (id: string) => nodes.find((n) => n.id === id && n.type === "device");
   const src = deviceById(edge.source);
   const tgt = deviceById(edge.target);
@@ -294,6 +305,13 @@ function ConnectionBody({ edge, nodes }: { edge: ConnectionEdge; nodes: Schemati
       <SectionTitle>Cable</SectionTitle>
       <div className="text-[11px] text-[var(--color-text-muted)] leading-relaxed">
         {cable ? `${cable.label} · max ${cable.maxRunM} m run` : "No catalog cable type for this signal."}
+      </div>
+      <div className="text-[11px] text-[var(--color-text-muted)]">
+        Estimated run:{" "}
+        <span className={run.overMax ? "text-red-500 font-medium" : "text-[var(--color-text)]"}>
+          {run.text ?? "—"}
+        </span>
+        {run.overMax && cable ? <span className="text-red-500"> · exceeds {cable.maxRunM} m max</span> : null}
       </div>
       <div className="text-[11px] text-[var(--color-text-muted)]">
         Assigned: <span className="text-[var(--color-text)]">{data.cableLength ? data.cableLength : "none"}</span>
