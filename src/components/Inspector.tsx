@@ -106,6 +106,7 @@ function DeviceBody({ node }: { node: SchematicNode }) {
   const setDeviceRotation = useSchematicStore((s) => s.setDeviceRotation);
   const rotateDevice = useSchematicStore((s) => s.rotateDevice);
   const setEditingNodeId = useSchematicStore((s) => s.setEditingNodeId);
+  const setSvgImportTarget = useSchematicStore((s) => s.setSvgImportTarget);
   const allNodes = useSchematicStore((s) => s.nodes);
   const edges = useSchematicStore((s) => s.edges);
   const tagSuggestions = useSchematicStore((s) => s.tagSuggestions);
@@ -231,6 +232,17 @@ function DeviceBody({ node }: { node: SchematicNode }) {
           ))}
         </select>
       </label>
+      <div>
+        <span className="block text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mb-0.5">Custom graphic (Layout)</span>
+        <div className="flex items-center gap-1.5">
+          <button className="ui-btn ui-btn-secondary flex-1 text-xs" onClick={() => setSvgImportTarget(node.id)}>
+            {data.layoutSvgAssetId ? "Replace SVG…" : "Import SVG…"}
+          </button>
+          {data.layoutSvgAssetId && (
+            <button className="ui-btn ui-btn-secondary text-xs" onClick={() => patch({ layoutSvgAssetId: undefined })} title="Remove custom graphic">Clear</button>
+          )}
+        </div>
+      </div>
 
       <div className="h-px bg-[var(--ui-border)]" />
       <SectionTitle>Ports &amp; connections</SectionTitle>

@@ -52,6 +52,9 @@ function DevicePlanNodeComponent({ id, data, selected }: NodeProps<DeviceNodeTyp
   const setEditingNodeId = useSchematicStore((s) => s.setEditingNodeId);
   const useShortNames = useSchematicStore((s) => s.useShortNames);
   const wrapDeviceLabels = useSchematicStore((s) => s.wrapDeviceLabels);
+  const customSvg = useSchematicStore((s) =>
+    data.layoutSvgAssetId ? s.svgAssets[data.layoutSvgAssetId] : undefined,
+  );
   const displayLabel = useDisplayLabel();
   const coverageVisible = useSchematicStore((s) => s.coverageVisible);
   const setDeviceRotation = useSchematicStore((s) => s.setDeviceRotation);
@@ -162,7 +165,13 @@ function DevicePlanNodeComponent({ id, data, selected }: NodeProps<DeviceNodeTyp
         userSelect: "none",
       }}
     >
-      {symbol && Math.min(boxW, boxH) >= 16 ? (
+      {customSvg ? (
+        <div
+          style={{ width: "82%", height: "82%", display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}
+          // Sanitized at import by svgSanitizer (scripts/handlers/external refs stripped) — safe to inject.
+          dangerouslySetInnerHTML={{ __html: customSvg }}
+        />
+      ) : symbol && Math.min(boxW, boxH) >= 16 ? (
         <svg
           viewBox="0 0 24 24"
           width={Math.min(boxW, boxH) * 0.66}

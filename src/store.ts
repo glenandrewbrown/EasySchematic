@@ -437,6 +437,11 @@ interface SchematicState {
   // Custom SVG assets (Phase 6) — addSvgAsset returns the generated asset id
   addSvgAsset: (svg: string) => string;
   removeSvgAsset: (id: string) => void;
+  /** Node targeted by the custom-SVG import dialog (device or object), or null. */
+  svgImportTargetNodeId: string | null;
+  setSvgImportTarget: (nodeId: string | null) => void;
+  /** Apply an imported SVG asset to a device (layoutSvgAssetId) or object (svgAssetId). */
+  setNodeSvgAsset: (nodeId: string, assetId: string) => void;
   // Layout objects (furniture) + colour zones (Phase 5)
   pendingObjectPlacement: FurnitureCatalogEntry | null;
   setPendingObjectPlacement: (entry: FurnitureCatalogEntry | null) => void;
@@ -3371,6 +3376,20 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
     const next = { ...get().svgAssets };
     delete next[id];
     set({ svgAssets: next });
+    get().saveToLocalStorage();
+  },
+  svgImportTargetNodeId: null,
+  setSvgImportTarget: (nodeId) => set({ svgImportTargetNodeId: nodeId }),
+  setNodeSvgAsset: (nodeId, assetId) => {
+    pushUndo({ nodes: get().nodes, edges: get().edges });
+    set({
+      nodes: get().nodes.map((n) => {
+        if (n.id !== nodeId) return n;
+        if (n.type === "device") return { ...n, data: { ...n.data, layoutSvgAssetId: assetId } } as SchematicNode;
+        if (n.type === "object") return { ...n, data: { ...n.data, svgAssetId: assetId } } as SchematicNode;
+        return n;
+      }),
+    });
     get().saveToLocalStorage();
   },
 

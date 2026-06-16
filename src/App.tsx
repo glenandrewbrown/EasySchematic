@@ -36,6 +36,7 @@ import EdgeContextMenu from "./components/EdgeContextMenu";
 import CableAssignDialog from "./components/CableAssignDialog";
 import CableInventoryDialog from "./components/CableInventoryDialog";
 import GearInventoryDialog from "./components/GearInventoryDialog";
+import SvgAssetImportDialog from "./components/SvgAssetImportDialog";
 import LogisticsDialog from "./components/LogisticsDialog";
 import GuidedSetupPanel from "./components/GuidedSetupPanel";
 import CoverageSplReadout from "./components/CoverageSplReadout";
@@ -613,6 +614,9 @@ function SchematicCanvas() {
   const canvasViewMode = useSchematicStore((s) => s.canvasViewMode);
   const showMiniMap = useSchematicStore((s) => s.showMiniMap);
   const gridSettings = useSchematicStore((s) => s.gridSettings);
+  const svgImportTargetNodeId = useSchematicStore((s) => s.svgImportTargetNodeId);
+  const setSvgImportTarget = useSchematicStore((s) => s.setSvgImportTarget);
+  const setNodeSvgAsset = useSchematicStore((s) => s.setNodeSvgAsset);
   const hiddenNodeIds = useSchematicStore((s) => s.hiddenNodeIds);
   const lockedNodeIds = useSchematicStore((s) => s.lockedNodeIds);
   const soloLayerId = useSchematicStore((s) => s.soloLayerId);
@@ -1774,6 +1778,12 @@ function SchematicCanvas() {
       <CableAssignDialog />
       <CableInventoryDialog />
       <GearInventoryDialog />
+      {svgImportTargetNodeId && (
+        <SvgAssetImportDialog
+          onPicked={(assetId) => setNodeSvgAsset(svgImportTargetNodeId, assetId)}
+          onClose={() => setSvgImportTarget(null)}
+        />
+      )}
       {showMiniMap && (
         <MiniMap
           position="bottom-left"
