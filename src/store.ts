@@ -90,6 +90,9 @@ function repairMojibake(obj: unknown): unknown {
 /** Dominant colour axis for connections (the "Colour by" switch). */
 export type ColorBy = "signal" | "layer" | "none";
 
+/** Row density for the left library drawer. */
+export type LibraryDensity = "comfortable" | "compact";
+
 /** Resolve the rendered stroke color for a connection. Direct-attach always wins as gray;
  *  otherwise per-connection `color` override beats the signal-type CSS variable. */
 function resolveEdgeStroke(data: ConnectionData | undefined): string {
@@ -144,6 +147,14 @@ const DEVICE_DRAWER_PINNED_KEY = "easyschematic-device-drawer-pinned";
 function readInitialDeviceDrawerPinned(): boolean {
   if (typeof localStorage === "undefined") return true;
   return localStorage.getItem(DEVICE_DRAWER_PINNED_KEY) !== "0";
+}
+
+const LIBRARY_DENSITY_KEY = "easyschematic-library-density";
+
+/** Read the persisted library row density. "comfortable" (multi-line) is the default. */
+function readInitialLibraryDensity(): LibraryDensity {
+  if (typeof localStorage === "undefined") return "comfortable";
+  return localStorage.getItem(LIBRARY_DENSITY_KEY) === "compact" ? "compact" : "comfortable";
 }
 
 const MINIMAP_VISIBLE_KEY = "easyschematic-minimap-visible";
@@ -371,6 +382,9 @@ interface SchematicState {
   removeOwnedGear: (templateKey: string) => void;
   setShowOwnedGearPane: (show: boolean) => void;
   setLibraryActiveTab: (tab: "devices" | "owned") => void;
+  /** Left-library row density — session/UI pref, persisted to localStorage. */
+  libraryDensity: LibraryDensity;
+  setLibraryDensity: (density: LibraryDensity) => void;
 
   // Owned cable inventory + per-connection assignment (cable fit)
   addOwnedCable: (item: Omit<OwnedCableItem, "id">) => void;
@@ -3531,6 +3545,11 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
   setDeviceDrawerPinned: (pinned) => {
     if (typeof localStorage !== "undefined") localStorage.setItem(DEVICE_DRAWER_PINNED_KEY, pinned ? "1" : "0");
     set({ deviceDrawerPinned: pinned });
+  },
+  libraryDensity: readInitialLibraryDensity(),
+  setLibraryDensity: (density) => {
+    if (typeof localStorage !== "undefined") localStorage.setItem(LIBRARY_DENSITY_KEY, density);
+    set({ libraryDensity: density });
   },
 
   guidedSetupOpen: false,

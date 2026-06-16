@@ -32,14 +32,40 @@ function PinIcon({ pinned }: { pinned: boolean }) {
   );
 }
 
-/** Device library drawer: header strip with pin toggle, scrollable library below. */
+/** Density glyph — stacked lines; tighter when compact. */
+function DensityIcon({ compact }: { compact: boolean }) {
+  return (
+    <svg viewBox="0 0 16 16" className="w-[15px] h-[15px]" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" aria-hidden>
+      {compact ? (
+        <>
+          <line x1="3" y1="4" x2="13" y2="4" />
+          <line x1="3" y1="6.5" x2="13" y2="6.5" />
+          <line x1="3" y1="9" x2="13" y2="9" />
+          <line x1="3" y1="11.5" x2="13" y2="11.5" />
+        </>
+      ) : (
+        <>
+          <line x1="3" y1="4.5" x2="13" y2="4.5" />
+          <line x1="3" y1="8" x2="13" y2="8" />
+          <line x1="3" y1="11.5" x2="13" y2="11.5" />
+        </>
+      )}
+    </svg>
+  );
+}
+
+/** Device library drawer: header strip with density + pin toggles, scrollable library below. */
 export default function DeviceDrawer() {
   const pinned = useSchematicStore((s) => s.deviceDrawerPinned);
   const setPinned = useSchematicStore((s) => s.setDeviceDrawerPinned);
+  const density = useSchematicStore((s) => s.libraryDensity);
+  const setDensity = useSchematicStore((s) => s.setLibraryDensity);
 
   const pinTitle = pinned
     ? "Unpin device library (auto-close after placing)"
     : "Pin device library open";
+  const compact = density === "compact";
+  const densityTitle = compact ? "Comfortable rows" : "Compact rows";
 
   return (
     <div
@@ -51,6 +77,16 @@ export default function DeviceDrawer() {
           Devices
         </h2>
         <div className="flex-1" />
+        <button
+          type="button"
+          onClick={() => setDensity(compact ? "comfortable" : "compact")}
+          aria-pressed={compact}
+          aria-label={densityTitle}
+          title={densityTitle}
+          className="flex items-center justify-center w-7 h-7 rounded-md transition-colors duration-150 cursor-pointer text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-hover)]"
+        >
+          <DensityIcon compact={compact} />
+        </button>
         <button
           type="button"
           onClick={() => setPinned(!pinned)}

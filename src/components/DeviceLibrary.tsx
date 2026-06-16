@@ -57,6 +57,7 @@ function TemplateItem({
   ownedQuantity,
   onToggleFavorite,
   onAddToOwned,
+  compact,
 }: {
   template: DeviceTemplate;
   query: string;
@@ -66,6 +67,7 @@ function TemplateItem({
   ownedQuantity?: number;
   onToggleFavorite?: () => void;
   onAddToOwned?: () => void;
+  compact?: boolean;
 }) {
   const signalText = getUniqueSignalTypes(template)
     .map((t) => SIGNAL_LABELS[t as keyof typeof SIGNAL_LABELS])
@@ -73,7 +75,7 @@ function TemplateItem({
 
   return (
     <div
-      className="flex items-center gap-1 px-2 py-1.5 rounded cursor-grab hover:bg-[var(--color-surface-hover)] transition-colors group"
+      className={`flex items-center gap-1 px-2 ${compact ? "py-0.5" : "py-1.5"} rounded cursor-grab hover:bg-[var(--color-surface-hover)] transition-colors group`}
       draggable
       onDragStart={(e) => onDragStart(e, template)}
     >
@@ -114,15 +116,15 @@ function TemplateItem({
             <span className="text-[8px] text-blue-500 bg-blue-50 rounded px-1 py-px font-normal shrink-0">preset</span>
           )}
         </span>
-        {template.manufacturer && (
+        {!compact && template.manufacturer && (
           <span className="text-[9px] text-[var(--color-text-muted)] opacity-70 truncate">
             <HighlightedText text={template.manufacturer} query={query} />
           </span>
         )}
-        <span className="text-[10px] text-[var(--color-text-muted)]">
+        <span className="text-[10px] text-[var(--color-text-muted)] truncate">
           <HighlightedText text={signalText} query={query} />
         </span>
-        {template.slots && template.slots.length > 0 && (
+        {!compact && template.slots && template.slots.length > 0 && (
           <span className="text-[9px] text-[var(--color-text-muted)] opacity-60">
             {template.slots.length} slot{template.slots.length !== 1 ? "s" : ""}
           </span>
@@ -157,6 +159,7 @@ function CategorySection({
   onAddToOwned,
   categoryIndex,
   onCategoryReorder,
+  compact,
 }: {
   label: string;
   templates: DeviceTemplate[];
@@ -170,6 +173,7 @@ function CategorySection({
   onAddToOwned?: (template: DeviceTemplate) => void;
   categoryIndex?: number;
   onCategoryReorder?: (category: string, targetIndex: number) => void;
+  compact?: boolean;
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const [dropLine, setDropLine] = useState<"above" | "below" | null>(null);
@@ -240,6 +244,7 @@ function CategorySection({
                 ownedQuantity={ownedQuantityMap?.get(key)}
                 onToggleFavorite={onToggleFavorite ? () => onToggleFavorite(key) : undefined}
                 onAddToOwned={onAddToOwned ? () => onAddToOwned(template) : undefined}
+                compact={compact}
               />
             );
           })}
@@ -261,6 +266,7 @@ function DraggableTemplateItem({
   onAddToOwned,
   index,
   onReorder,
+  compact,
 }: {
   template: DeviceTemplate;
   query: string;
@@ -271,6 +277,7 @@ function DraggableTemplateItem({
   onAddToOwned?: () => void;
   index: number;
   onReorder: (deviceType: string, targetIndex: number) => void;
+  compact?: boolean;
 }) {
   const [dropLine, setDropLine] = useState<"above" | "below" | null>(null);
   const rowRef = useRef<HTMLDivElement>(null);
@@ -303,7 +310,7 @@ function DraggableTemplateItem({
     >
       {dropLine === "above" && <div className="absolute top-0 left-2 right-2 h-0.5 bg-blue-500 rounded-full z-10" />}
       <div
-        className="flex items-center gap-1 px-2 py-1.5 rounded cursor-grab hover:bg-[var(--color-surface-hover)] transition-colors group"
+        className={`flex items-center gap-1 px-2 ${compact ? "py-0.5" : "py-1.5"} rounded cursor-grab hover:bg-[var(--color-surface-hover)] transition-colors group`}
         draggable
         onDragStart={(e) => {
           // Set both MIME types: reorder for the panel, device for canvas drops
@@ -348,12 +355,12 @@ function DraggableTemplateItem({
           <span className="text-xs text-[var(--color-text-heading)] font-medium truncate">
             <HighlightedText text={template.label} query={query} />
           </span>
-          {template.manufacturer && (
+          {!compact && template.manufacturer && (
             <span className="text-[9px] text-[var(--color-text-muted)] opacity-70 truncate">
               <HighlightedText text={template.manufacturer} query={query} />
             </span>
           )}
-          <span className="text-[10px] text-[var(--color-text-muted)]">
+          <span className="text-[10px] text-[var(--color-text-muted)] truncate">
             <HighlightedText text={signalText} query={query} />
           </span>
         </div>
@@ -549,12 +556,14 @@ function CustomTemplatesSection({
   favoriteSet,
   ownedQuantityMap,
   onAddToOwned,
+  compact,
 }: {
   customTemplates: DeviceTemplate[];
   query: string;
   favoriteSet: Set<string>;
   ownedQuantityMap?: Map<string, number>;
   onAddToOwned?: (template: DeviceTemplate) => void;
+  compact?: boolean;
 }) {
   const groups = useSchematicStore((s) => s.customTemplateGroups);
   const order = useSchematicStore((s) => s.customTemplateOrder);
@@ -762,6 +771,7 @@ function CustomTemplatesSection({
                         onAddToOwned={onAddToOwned ? () => onAddToOwned(t) : undefined}
                         index={i}
                         onReorder={(dt, targetIdx) => handleReorder(dt, targetIdx, sectionIdx)}
+                        compact={compact}
                       />
                     );
                   })}
@@ -1054,6 +1064,7 @@ export default function DeviceLibrary() {
   const showOwnedGearPane = useSchematicStore((s) => s.showOwnedGearPane);
   const libraryActiveTab = useSchematicStore((s) => s.libraryActiveTab);
   const setLibraryActiveTab = useSchematicStore((s) => s.setLibraryActiveTab);
+  const compact = useSchematicStore((s) => s.libraryDensity === "compact");
   const [search, setSearch] = useState("");
   const [showDeviceCreator, setShowDeviceCreator] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
@@ -1528,6 +1539,7 @@ export default function DeviceLibrary() {
                       ownedQuantity={ownedQuantityMap.get(key)}
                       onToggleFavorite={() => toggleFavoriteTemplate(key)}
                       onAddToOwned={() => handleAddToOwned(template)}
+                      compact={compact}
                     />
                   );
                 })}
@@ -1551,6 +1563,7 @@ export default function DeviceLibrary() {
                 ownedQuantityMap={ownedQuantityMap}
                 onToggleFavorite={toggleFavoriteTemplate}
                 onAddToOwned={handleAddToOwned}
+                compact={compact}
               />
             )}
 
@@ -1560,6 +1573,7 @@ export default function DeviceLibrary() {
               favoriteSet={favoriteSet}
               ownedQuantityMap={ownedQuantityMap}
               onAddToOwned={handleAddToOwned}
+              compact={compact}
             />
 
             {filteredCategories.map((cat, i) => (
@@ -1576,6 +1590,7 @@ export default function DeviceLibrary() {
                 onAddToOwned={handleAddToOwned}
                 categoryIndex={i}
                 onCategoryReorder={reorderCategory}
+                compact={compact}
               />
             ))}
           </>
