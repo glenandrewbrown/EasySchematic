@@ -23,17 +23,23 @@ import { nodeTypes, edgeTypes } from "./nodeTypes";
 import SnapGuides from "./components/SnapGuides";
 import PageBoundaryOverlay from "./components/PageBoundaryOverlay";
 import PrintViewBar from "./components/PrintViewBar";
-import DeviceLibrary from "./components/DeviceLibrary";
+import ToolRail from "./components/ToolRail";
+import DeviceDrawer from "./components/DeviceDrawer";
+import { toolForHotkey } from "./toolMode";
+import { validateSchematic, type IssueSeverity } from "./validation";
 import DeviceEditor from "./components/DeviceEditor";
-import SignalColorPanel from "./components/SignalColorPanel";
-import ShowInfoPanel from "./components/ShowInfoPanel";
-import ViewOptionsPanel from "./components/ViewOptionsPanel";
+import RightRail from "./components/RightRail";
+import ScheduleView from "./components/ScheduleView";
 import MenuBar from "./components/MenuBar";
 import EdgeContextMenu from "./components/EdgeContextMenu";
 import CableAssignDialog from "./components/CableAssignDialog";
 import CableInventoryDialog from "./components/CableInventoryDialog";
-import LayersPanel from "./components/LayersPanel";
+import GuidedSetupPanel from "./components/GuidedSetupPanel";
+import CoverageSplReadout from "./components/CoverageSplReadout";
+import Toolbar from "./components/Toolbar";
 import { DEFAULT_LAYER_ID } from "./types";
+import { resolveNodeVisibility } from "./layerVisibility";
+import { expandToGroupSiblings } from "./grouping";
 import IncompatibleConnectionDialog from "./components/IncompatibleConnectionDialog";
 import DeviceSwapDialog from "./components/DeviceSwapDialog";
 import MobileGate from "./components/MobileGate";
@@ -125,26 +131,34 @@ function AutoRouteChip() {
 
   if (isRouting) {
     return (
-      <div className="absolute top-3 right-3 z-50 bg-black/70 text-white text-xs px-3 py-1.5 rounded-full animate-pulse pointer-events-none">
-        ⚡ Routing…
+      <div
+        className="absolute top-3 right-3 z-50 flex items-center gap-1.5 h-7 px-2.5 text-xs rounded-md bg-[var(--color-surface-raised)] text-[var(--color-text)] border border-[var(--ui-border)] pointer-events-none"
+        style={{ boxShadow: "var(--ui-shadow-raised)" }}
+      >
+        <span className="w-2 h-2 rounded-full bg-[var(--color-accent)] animate-pulse" />
+        Routing…
       </div>
     );
   }
 
   return (
-    <div
-      className={`absolute top-3 right-3 z-50 text-xs px-3 py-1.5 rounded-full cursor-pointer select-none transition-colors ${
+    <button
+      type="button"
+      aria-pressed={autoRoute}
+      className={`absolute top-3 right-3 z-50 flex items-center gap-1.5 h-7 px-2.5 text-xs font-medium rounded-md border cursor-pointer select-none transition-colors ${
         autoRoute
-          ? "bg-slate-900/75 text-white ring-1 ring-white/15 backdrop-blur-sm hover:bg-slate-900/90"
-          : "bg-slate-900/30 text-white/60 ring-1 ring-white/10 backdrop-blur-sm hover:bg-slate-900/50"
+          ? "bg-[var(--color-accent)] text-white border-transparent hover:opacity-90"
+          : "bg-[var(--color-surface-raised)] text-[var(--color-text-muted)] border-[var(--ui-border)] hover:text-[var(--color-text)]"
       }`}
+      style={autoRoute ? undefined : { boxShadow: "var(--ui-shadow-raised)" }}
       onClick={toggleAutoRoute}
       title={autoRoute
         ? "Auto-route is on \u2014 connections route around devices automatically.\nClick to disable for faster editing on large schematics."
         : "Auto-route is off \u2014 connections use simple L-shapes.\nClick to enable automatic routing."}
     >
-      {autoRoute ? "\u26a1 Auto-Route" : "Auto-Route Off"}
-    </div>
+      <span className={`w-2 h-2 rounded-full ${autoRoute ? "bg-white/90" : "bg-[var(--color-text-muted)]"}`} />
+      {autoRoute ? "Auto-Route" : "Auto-Route off"}
+    </button>
   );
 }
 
@@ -214,6 +228,18 @@ function AutoRouteConfirmDialog() {
   );
 }
 
+/** One-shot autosave hydration guard. The schematic is loaded from localStorage exactly
+ *  once per page session. On the common path SchematicCanvas triggers it; when the app
+ *  opens directly into Schedule mode the canvas isn't mounted, so App triggers it instead.
+ *  The guard also stops a SchematicCanvas remount (on a view-mode switch) from reloading the
+ *  file and resetting undo history. Reset naturally on a full page reload (module re-import). */
+let didHydrateFromStorage = false;
+function hydrateFromStorageOnce(load: () => boolean): void {
+  if (didHydrateFromStorage) return;
+  didHydrateFromStorage = true;
+  load();
+}
+
 function SchematicCanvas() {
   const {
     nodes,
@@ -225,6 +251,8 @@ function SchematicCanvas() {
     addDevice,
     addRoom,
     addNote,
+    activeTool,
+    setActiveTool,
     removeSelected,
     copySelected,
     pasteClipboard,
@@ -499,9 +527,9 @@ function SchematicCanvas() {
   // Snap guide lines shown during drag
   const [snapGuides, setSnapGuides] = useState<GuideLine[]>([]);
 
-  // Load saved state on mount
+  // Load saved state on mount (one-shot; see hydrateFromStorageOnce)
   useEffect(() => {
-    loadFromLocalStorage();
+    hydrateFromStorageOnce(loadFromLocalStorage);
   }, [loadFromLocalStorage]);
 
   // Online/offline detection + cloud cache sync
@@ -575,7 +603,14 @@ function SchematicCanvas() {
   // Presentation-only filtering: hidden signal types + layer visibility/locking.
   // Store nodes/edges stay complete; we only decorate what React Flow renders.
   const layers = useSchematicStore((s) => s.layers);
+  const canvasViewMode = useSchematicStore((s) => s.canvasViewMode);
+  const hiddenNodeIds = useSchematicStore((s) => s.hiddenNodeIds);
+  const lockedNodeIds = useSchematicStore((s) => s.lockedNodeIds);
+  const soloLayerId = useSchematicStore((s) => s.soloLayerId);
   const { renderNodes, visibleEdges } = useMemo(() => {
+    // Plan (to-scale) view hides signal connections — to-scale footprints carry no port
+    // handles to anchor edges to, and routing belongs to the schematic view.
+    const planHideEdges = canvasViewMode === "plan";
     const sigHidden = hiddenSignalTypesStr ? new Set(hiddenSignalTypesStr.split(",")) : null;
     const sigFiltered = sigHidden
       ? edges.filter((e) => !sigHidden.has(e.data?.signalType ?? ""))
@@ -583,18 +618,37 @@ function SchematicCanvas() {
 
     const hiddenLayers = new Set(layers.filter((l) => !l.visible).map((l) => l.id));
     const lockedLayers = new Set(layers.filter((l) => l.locked).map((l) => l.id));
-    if (hiddenLayers.size === 0 && lockedLayers.size === 0) {
-      return { renderNodes: nodes, visibleEdges: sigFiltered };
+    // Per-item Layers/Groups overrides (ephemeral). Ignore a solo target whose layer
+    // no longer exists, so a stale solo can't blank the whole canvas after a file load.
+    const effectiveSolo =
+      soloLayerId && (soloLayerId === DEFAULT_LAYER_ID || layers.some((l) => l.id === soloLayerId))
+        ? soloLayerId
+        : null;
+    const hasItemOverrides =
+      hiddenNodeIds.length > 0 || lockedNodeIds.length > 0 || effectiveSolo !== null;
+    if (hiddenLayers.size === 0 && lockedLayers.size === 0 && !hasItemOverrides) {
+      return { renderNodes: nodes, visibleEdges: planHideEdges ? [] : sigFiltered };
     }
 
     const layerOf = (lid: string | undefined) => lid ?? DEFAULT_LAYER_ID;
-    const nodeHidden = new Map<string, boolean>();
+    // Cascade hidden/locked layer state down the parentId (room→device) and
+    // groupId trees so hiding a room's layer also hides its child devices
+    // (React Flow's `hidden` flag does not propagate to children on its own).
+    // Per-item hidden/locked ids and a solo layer are layered on top.
+    const { hidden: hiddenSet, locked: lockedSet } = resolveNodeVisibility(
+      nodes,
+      hiddenLayers,
+      lockedLayers,
+      {
+        hiddenNodeIds: new Set(hiddenNodeIds),
+        lockedNodeIds: new Set(lockedNodeIds),
+        soloLayerId: effectiveSolo,
+      },
+    );
     const mappedNodes = nodes.map((n) => {
       if (n.type === "waypoint" || n.type === "stub-label") return n; // follow their edge below
-      const lid = layerOf((n.data as { layerId?: string }).layerId);
-      const hidden = hiddenLayers.has(lid);
-      const locked = lockedLayers.has(lid);
-      nodeHidden.set(n.id, hidden);
+      const hidden = hiddenSet.has(n.id);
+      const locked = lockedSet.has(n.id);
       if (!hidden && !locked) return n;
       return {
         ...n,
@@ -606,8 +660,8 @@ function SchematicCanvas() {
     const mappedEdges = sigFiltered.map((e) => {
       const hidden =
         hiddenLayers.has(layerOf(e.data?.layerId)) ||
-        nodeHidden.get(e.source) === true ||
-        nodeHidden.get(e.target) === true;
+        hiddenSet.has(e.source) ||
+        hiddenSet.has(e.target);
       return hidden ? { ...e, hidden: true } : e;
     });
 
@@ -628,8 +682,31 @@ function SchematicCanvas() {
       }
       return n;
     });
-    return { renderNodes: finalNodes, visibleEdges: mappedEdges };
-  }, [nodes, edges, hiddenSignalTypesStr, layers]);
+    return { renderNodes: finalNodes, visibleEdges: planHideEdges ? [] : mappedEdges };
+  }, [nodes, edges, hiddenSignalTypesStr, layers, canvasViewMode, hiddenNodeIds, lockedNodeIds, soloLayerId]);
+
+  // Validation status per device → an on-canvas corner dot (engine-driven, presentation-only).
+  // Same source as the top-bar badge + Validate tab; error severity wins over warning.
+  const validationByNode = useMemo(() => {
+    const map = new Map<string, IssueSeverity>();
+    for (const issue of validateSchematic(nodes, edges)) {
+      for (const id of issue.nodeIds) {
+        if (issue.severity === "error" || !map.has(id)) map.set(id, issue.severity);
+      }
+    }
+    return map;
+  }, [nodes, edges]);
+
+  const decoratedNodes = useMemo(() => {
+    if (validationByNode.size === 0) return renderNodes;
+    return renderNodes.map((n) => {
+      if (n.type !== "device") return n;
+      const sev = validationByNode.get(n.id);
+      if (!sev) return n;
+      const cls = sev === "error" ? "node-error" : "node-warning";
+      return { ...n, className: n.className ? `${n.className} ${cls}` : cls };
+    });
+  }, [renderNodes, validationByNode]);
 
   const autoRoute = useSchematicStore((s) => s.autoRoute);
   const edgeHitboxSize = useSchematicStore((s) => s.edgeHitboxSize);
@@ -841,6 +918,12 @@ function SchematicCanvas() {
       } else if ((e.ctrlKey || e.metaKey) && e.key === "a") {
         e.preventDefault();
         useSchematicStore.getState().selectAll();
+      } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === "g" || e.key === "G")) {
+        e.preventDefault();
+        useSchematicStore.getState().ungroupSelection();
+      } else if ((e.ctrlKey || e.metaKey) && (e.key === "g" || e.key === "G")) {
+        e.preventDefault();
+        useSchematicStore.getState().groupSelection();
       }
     };
     const handleKeyUp = (e: KeyboardEvent) => {
@@ -1179,6 +1262,14 @@ function SchematicCanvas() {
   // Clicking empty space cancels click-to-connect; double-click opens quick-add
   const onPaneClick = useCallback(
     (event: React.MouseEvent) => {
+      // Tool-rail one-shot placement: Room/Note place at the click point, then revert to Select.
+      if (activeTool === "room" || activeTool === "note") {
+        const pos = screenToFlowPosition({ x: event.clientX, y: event.clientY });
+        if (activeTool === "room") addRoom("Room", pos);
+        else addNote(pos);
+        setActiveTool("select");
+        return;
+      }
       if (isClickConnectMode.current) {
         clearClickConnect();
         rfStore.setState({ connectionClickStartHandle: null });
@@ -1200,7 +1291,7 @@ function SchematicCanvas() {
       }
       lastPaneClickRef.current = { time: now, x: event.clientX, y: event.clientY };
     },
-    [clearClickConnect, rfStore, screenToFlowPosition],
+    [clearClickConnect, rfStore, screenToFlowPosition, activeTool, addRoom, addNote, setActiveTool],
   );
 
   const onNodeDragStart = useCallback(() => {
@@ -1235,12 +1326,17 @@ function SchematicCanvas() {
       // every dragged node so relative spacing is preserved. Without this each
       // node snaps independently and the group deforms (some land on ports,
       // others on grid, cascading across draggedNodes).
-      const isGroupDrag = draggedNodes && draggedNodes.length > 1;
+      // Expand to logical-group siblings so dragging one member of a groupId
+      // group moves the whole group, even when only that member is selected.
+      const draggedIds = expandToGroupSiblings(
+        state.nodes,
+        draggedNodes.map((n) => n.id),
+      );
+      const isGroupDrag = draggedIds.size > 1;
       if (isGroupDrag) {
         const dx = snap.x - draggedNode.position.x;
         const dy = snap.y - draggedNode.position.y;
         if (dx === 0 && dy === 0) return;
-        const draggedIds = new Set(draggedNodes.map((n) => n.id));
         const updated = state.nodes.map((n) => {
           if (!draggedIds.has(n.id)) return n;
           // Skip nodes whose parent is also being dragged — they move via parent
@@ -1308,7 +1404,11 @@ function SchematicCanvas() {
       // to every dragged node so the group lands aligned without losing its
       // relative spacing. enforceMinSpacing is skipped — it's a per-node
       // correction that would re-introduce the cascade we're avoiding here.
-      const isGroupDrag = draggedNodes && draggedNodes.length > 1;
+      const draggedIds = expandToGroupSiblings(
+        state.nodes,
+        draggedNodes.map((n) => n.id),
+      );
+      const isGroupDrag = draggedIds.size > 1;
       if (isGroupDrag) {
         const snap = computeSnap(draggedNode as SchematicNode, state.nodes, {
           useShortNames: state.useShortNames,
@@ -1316,7 +1416,6 @@ function SchematicCanvas() {
         });
         const dx = snap.x - draggedNode.position.x;
         const dy = snap.y - draggedNode.position.y;
-        const draggedIds = new Set(draggedNodes.map((n) => n.id));
         let updatedNodes: SchematicNode[] = state.nodes;
         if (dx !== 0 || dy !== 0) {
           updatedNodes = state.nodes.map((n) => {
@@ -1453,8 +1552,9 @@ function SchematicCanvas() {
         debugEdges ? "debug-active" : "",
         selectionDirection ? `selection-${selectionDirection}` : "",
         panMode === "pan-first" && !shiftHeld && !isMobile ? "pan-mode" : "",
+        `tool-${activeTool}`,
       ].filter(Boolean).join(" ") || undefined}
-      nodes={renderNodes}
+      nodes={decoratedNodes}
       edges={visibleEdges}
       onNodesChange={onNodesChange}
       onNodeDragStart={onNodeDragStart}
@@ -1555,9 +1655,9 @@ function SchematicCanvas() {
       edgeTypes={edgeTypes}
       onDragOver={onDragOver}
       onDrop={onDrop}
-      selectionOnDrag={isMobile ? false : (panMode === "pan-first" ? shiftHeld : !spaceHeld)}
+      selectionOnDrag={isMobile ? false : activeTool === "pan" ? false : (panMode === "pan-first" ? shiftHeld : !spaceHeld)}
       selectionMode={selectionMode}
-      panOnDrag={isMobile ? [0] : (panMode === "pan-first" ? (shiftHeld ? [1] : [0, 1]) : (spaceHeld ? [0, 1] : [1]))}
+      panOnDrag={isMobile ? [0] : activeTool === "pan" ? [0, 1] : (panMode === "pan-first" ? (shiftHeld ? [1] : [0, 1]) : (spaceHeld ? [0, 1] : [1]))}
       fitView
       minZoom={minZoom}
       elevateNodesOnSelect={false}
@@ -1595,6 +1695,8 @@ function SchematicCanvas() {
       }}
     >
       <ResizeSnapGuides dragGuides={snapGuides} />
+      <GuidedSetupPanel />
+      <CoverageSplReadout />
       {printView && <PageBoundaryOverlay />}
       {connectPreview && (() => {
         const { fromX, fromY, toX, toY, fromSource, snapped, valid, adaptable } = connectPreview;
@@ -1730,8 +1832,18 @@ export default function App() {
     return s.pages.find((p) => p.id === s.activePage)?.type ?? null;
   });
   const isSchematicActive = activePage === "schematic";
+  const canvasViewMode = useSchematicStore((s) => s.canvasViewMode);
+  const activeTool = useSchematicStore((s) => s.activeTool);
+  const deviceDrawerPinned = useSchematicStore((s) => s.deviceDrawerPinned);
+  const loadFromLocalStorage = useSchematicStore((s) => s.loadFromLocalStorage);
   const undo = useSchematicStore((s) => s.undo);
   const redo = useSchematicStore((s) => s.redo);
+
+  // Hydrate the autosave even when the app opens directly into Schedule mode (where
+  // SchematicCanvas, which normally performs this, is not mounted). One-shot guarded.
+  useEffect(() => {
+    hydrateFromStorageOnce(loadFromLocalStorage);
+  }, [loadFromLocalStorage]);
 
   // Handle /s/{token} URLs for shared schematics
   useEffect(() => {
@@ -1753,6 +1865,16 @@ export default function App() {
     const handleKeyDown = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement).tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || (e.target as HTMLElement).isContentEditable) return;
+
+      // Single-key tool hotkeys (V/D/R/C/N) — no modifiers, so Ctrl+V etc. still work.
+      if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+        const tool = toolForHotkey(e.key);
+        if (tool) {
+          e.preventDefault();
+          useSchematicStore.getState().setActiveTool(tool);
+          return;
+        }
+      }
 
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "Z") {
         e.preventDefault();
@@ -1790,6 +1912,7 @@ export default function App() {
       <div data-print-hide>
         <MenuBar />
       </div>
+      <Toolbar />
       <UpdatePill />
       <BetaBanner />
       <DemoBanner />
@@ -1798,20 +1921,26 @@ export default function App() {
       {isSchematicActive && <PrintTitleBlock />}
       <PageTabs />
       {isSchematicActive ? (
-        <div className="flex flex-1 overflow-hidden">
-          <div data-print-hide data-mobile-hide>
-            <DeviceLibrary />
+        canvasViewMode === "schedule" ? (
+          <div className="flex flex-1 overflow-hidden">
+            <ScheduleView />
           </div>
-          <div className="flex-1">
-            <SchematicCanvas />
+        ) : (
+          <div className="flex flex-1 overflow-hidden">
+            <ToolRail />
+            {(activeTool === "device" || deviceDrawerPinned) && (
+              <div data-print-hide data-mobile-hide>
+                <DeviceDrawer />
+              </div>
+            )}
+            <div className="flex-1">
+              <SchematicCanvas />
+            </div>
+            <div data-print-hide className="hidden md:flex">
+              <RightRail />
+            </div>
           </div>
-          <div data-print-hide className="hidden md:flex">
-            <ViewOptionsPanel />
-            <ShowInfoPanel />
-            <SignalColorPanel />
-            <LayersPanel />
-          </div>
-        </div>
+        )
       ) : activePgType === "print-sheet" ? (
         <PrintSheetPage />
       ) : (

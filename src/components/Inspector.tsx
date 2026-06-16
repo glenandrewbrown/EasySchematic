@@ -1,0 +1,359 @@
+import { useMemo, useState, type ReactNode } from "react";
+import { useSchematicStore } from "../store";
+import { DEFAULT_LAYER_ID, SIGNAL_LABELS, SIGNAL_COLORS } from "../types";
+import type { ConnectionData, ConnectionEdge, DeviceData, RoomData, SchematicNode } from "../types";
+import { isSpeaker, resolveSpeakerSpec } from "../speakerSpec";
+import { splAtDistanceDb } from "../speakerCoverage";
+import { describeDevicePorts } from "../portConnections";
+import { cableTypesForSignal } from "../cableRules";
+
+/**
+ * Figma-style contextual inspector: edits the currently-selected device or room
+ * inline on the right, replacing the pop-up editor for everyday edits. Deep/rare
+ * edits (bulk ports, template management) still open the full modal via "Edit details…".
+ *
+ * Bodies are remount-keyed by node id, so field state initializes from the node
+ * without a sync effect. Text/number fields commit on blur/Enter (updateDevice
+ * pushes one undo entry per commit); selects commit immediately.
+ */
+
+const DEFAULT_CEILING_M = 3;
+const LISTENER_PLANE_M = 1.2;
+
+function SectionTitle({ children }: { children: ReactNode }) {
+  return (
+    <div className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] font-semibold pt-1">
+      {children}
+    </div>
+  );
+}
+
+interface FieldProps {
+  label: string;
+  value: string | number | undefined;
+  onCommit: (v: string) => void;
+  type?: "text" | "number";
+  placeholder?: string;
+  suffix?: string;
+  min?: number;
+  step?: number;
+}
+
+function Field({ label, value, onCommit, type = "text", placeholder, suffix, min, step }: FieldProps) {
+  const [v, setV] = useState(value ?? "");
+  return (
+    <label className="block">
+      <span className="block text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mb-0.5">{label}</span>
+      <div className="flex items-center gap-1.5">
+        <input
+          className="ui-input w-full text-xs"
+          type={type}
+          value={v}
+          placeholder={placeholder}
+          min={min}
+          step={step}
+          onChange={(e) => setV(e.target.value)}
+          onBlur={() => onCommit(String(v))}
+          onKeyDown={(e) => {
+            e.stopPropagation();
+            if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+          }}
+        />
+        {suffix && <span className="text-[10px] text-[var(--color-text-muted)] shrink-0">{suffix}</span>}
+      </div>
+    </label>
+  );
+}
+
+function DeviceBody({ node }: { node: SchematicNode }) {
+  const data = node.data as DeviceData;
+  const layers = useSchematicStore((s) => s.layers);
+  const updateDevice = useSchematicStore((s) => s.updateDevice);
+  const setDeviceRotation = useSchematicStore((s) => s.setDeviceRotation);
+  const rotateDevice = useSchematicStore((s) => s.rotateDevice);
+  const setEditingNodeId = useSchematicStore((s) => s.setEditingNodeId);
+  const allNodes = useSchematicStore((s) => s.nodes);
+  const edges = useSchematicStore((s) => s.edges);
+  const portInfos = useMemo(() => describeDevicePorts(node.id, allNodes, edges), [node.id, allNodes, edges]);
+  const selectDevice = (id: string) =>
+    useSchematicStore.setState((s) => ({
+      nodes: s.nodes.map((n) => ({ ...n, selected: n.id === id })),
+      edges: s.edges.map((e) => ({ ...e, selected: false })),
+    }));
+  const [speakerOpen, setSpeakerOpen] = useState(false);
+
+  const patch = (p: Partial<DeviceData>) => updateDevice(node.id, { ...data, ...p });
+  const numOrUndef = (s: string) => (s.trim() === "" ? undefined : Number(s));
+
+  const speaker = isSpeaker(data);
+  const spec = resolveSpeakerSpec(data);
+  const ceilingM = (() => {
+    // parent room ceiling, for the on-axis SPL readout
+    const rooms = useSchematicStore.getState().nodes;
+    const parent = node.parentId ? rooms.find((n) => n.id === node.parentId) : undefined;
+    const hM = (parent?.data as RoomData | undefined)?.heightM;
+    return typeof hM === "number" && hM > 0 ? hM : DEFAULT_CEILING_M;
+  })();
+  const splDb =
+    speaker && spec.sensitivityDb != null && spec.maxPowerW != null
+      ? splAtDistanceDb(spec.sensitivityDb, spec.maxPowerW, Math.max(0.1, ceilingM - LISTENER_PLANE_M))
+      : null;
+
+  return (
+    <div className="flex flex-col gap-3 px-3 py-3 overflow-y-auto">
+      <SectionTitle>Identity</SectionTitle>
+      <Field label="Label" value={data.label} onCommit={(v) => patch({ label: v, baseLabel: undefined })} placeholder="Device name" />
+      <Field label="Short name" value={data.shortName} onCommit={(v) => patch({ shortName: v || undefined })} placeholder="e.g. 8040b" />
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="Manufacturer" value={data.manufacturer} onCommit={(v) => patch({ manufacturer: v || undefined })} placeholder="Genelec" />
+        <Field label="Model" value={data.modelNumber} onCommit={(v) => patch({ modelNumber: v || undefined })} placeholder="8040b" />
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="Type" value={data.deviceType} onCommit={(v) => patch({ deviceType: v })} />
+        <Field label="Icon" value={data.icon} onCommit={(v) => patch({ icon: v || undefined })} placeholder="🔊" />
+      </div>
+
+      <div className="h-px bg-[var(--ui-border)]" />
+      <SectionTitle>Physical &amp; placement</SectionTitle>
+      <div className="grid grid-cols-3 gap-2">
+        <Field label="W (mm)" value={data.widthMm} onCommit={(v) => patch({ widthMm: numOrUndef(v) })} type="number" min={1} />
+        <Field label="D (mm)" value={data.depthMm} onCommit={(v) => patch({ depthMm: numOrUndef(v) })} type="number" min={1} />
+        <Field label="H (mm)" value={data.heightMm} onCommit={(v) => patch({ heightMm: numOrUndef(v) })} type="number" min={1} />
+      </div>
+      <div>
+        <span className="block text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mb-0.5">Rotation / aim</span>
+        <div className="flex items-center gap-1.5">
+          <input
+            key={`rot-${data.rotationDeg ?? 0}`}
+            className="ui-input w-16 text-xs"
+            type="number"
+            defaultValue={Math.round(Number(data.rotationDeg ?? 0))}
+            onBlur={(e) => setDeviceRotation(node.id, Number(e.target.value) || 0)}
+            onKeyDown={(e) => { e.stopPropagation(); if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+          />
+          <span className="text-[10px] text-[var(--color-text-muted)]">°</span>
+          <button className="ui-btn ui-btn-secondary px-2 py-1 text-[11px]" onClick={() => rotateDevice(node.id, -90)} title="Rotate 90° CCW">↺</button>
+          <button className="ui-btn ui-btn-secondary px-2 py-1 text-[11px]" onClick={() => rotateDevice(node.id, 90)} title="Rotate 90° CW">↻</button>
+        </div>
+      </div>
+      <label className="block">
+        <span className="block text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mb-0.5">Layer</span>
+        <select
+          className="ui-input w-full text-xs"
+          value={data.layerId ?? DEFAULT_LAYER_ID}
+          onChange={(e) => patch({ layerId: e.target.value === DEFAULT_LAYER_ID ? undefined : e.target.value })}
+        >
+          {layers.map((l) => (
+            <option key={l.id} value={l.id}>{l.name}</option>
+          ))}
+        </select>
+      </label>
+
+      <div className="h-px bg-[var(--ui-border)]" />
+      <SectionTitle>Ports &amp; connections</SectionTitle>
+      {portInfos.length === 0 ? (
+        <div className="text-[11px] text-[var(--color-text-muted)] px-1">No ports.</div>
+      ) : (
+        <div className="flex flex-col -mx-1">
+          {portInfos.map((info) => (
+            <button
+              key={info.port.id}
+              type="button"
+              disabled={!info.connected}
+              onClick={() => info.otherDeviceId && selectDevice(info.otherDeviceId)}
+              title={info.connected ? `Connected to ${info.otherDeviceLabel}${info.otherPortLabel ? ` [${info.otherPortLabel}]` : ""} — click to select` : "Unconnected"}
+              className="flex items-center gap-1.5 px-1.5 py-1 rounded text-left enabled:hover:bg-[var(--color-surface-hover)] enabled:cursor-pointer disabled:cursor-default transition-colors"
+            >
+              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${info.connected ? "bg-green-500" : "bg-[var(--color-text-muted)] opacity-40"}`} />
+              <span className="text-[11px] text-[var(--color-text)] truncate shrink-0 max-w-[7rem]">{info.port.label}</span>
+              <span className="text-[9px] uppercase tracking-wide text-[var(--color-text-muted)] shrink-0">{SIGNAL_LABELS[info.port.signalType]}</span>
+              <span className="flex-1 min-w-0" />
+              <span className="text-[10px] text-[var(--color-text-muted)] truncate min-w-0 text-right">
+                {info.connected ? `→ ${info.otherDeviceLabel}${info.otherPortLabel ? ` [${info.otherPortLabel}]` : ""}` : "—"}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {speaker && (
+        <>
+          <div className="h-px bg-[var(--ui-border)]" />
+          <button
+            className="flex items-center justify-between text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] font-semibold cursor-pointer"
+            onClick={() => setSpeakerOpen((o) => !o)}
+          >
+            <span>Loudspeaker / coverage</span>
+            <span>{speakerOpen ? "▾" : "▸"}</span>
+          </button>
+          {speakerOpen && (
+            <div className="flex flex-col gap-2">
+              <div className="grid grid-cols-3 gap-2">
+                <Field label="Sens dB" value={data.speakerSensitivityDb} onCommit={(v) => patch({ speakerSensitivityDb: numOrUndef(v) })} type="number" step={0.1} />
+                <Field label="Power W" value={data.speakerMaxPowerW} onCommit={(v) => patch({ speakerMaxPowerW: numOrUndef(v) })} type="number" />
+                <Field label="Cover °" value={data.speakerCoverageAngleDeg} onCommit={(v) => patch({ speakerCoverageAngleDeg: numOrUndef(v) })} type="number" />
+              </div>
+              <div className="text-[10px] text-[var(--color-text-muted)] leading-relaxed">
+                {splDb != null
+                  ? `≈ ${splDb.toFixed(1)} dB on-axis at the listener plane (nominal).`
+                  : "Set sensitivity + power for an SPL estimate."}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      <div className="h-px bg-[var(--ui-border)]" />
+      <button className="ui-btn ui-btn-secondary w-full text-xs" onClick={() => setEditingNodeId(node.id)}>
+        Edit details…
+      </button>
+    </div>
+  );
+}
+
+function RoomBody({ node }: { node: SchematicNode }) {
+  const data = node.data as RoomData;
+  const updateRoom = useSchematicStore((s) => s.updateRoom);
+  const patch = (p: Partial<RoomData>) => updateRoom(node.id, { ...data, ...p });
+  const numOrUndef = (s: string) => (s.trim() === "" ? undefined : Number(s));
+
+  return (
+    <div className="flex flex-col gap-3 px-3 py-3 overflow-y-auto">
+      <SectionTitle>Room</SectionTitle>
+      <Field label="Name" value={data.label} onCommit={(v) => patch({ label: v })} placeholder="Room name" />
+      <SectionTitle>Real dimensions</SectionTitle>
+      <div className="grid grid-cols-3 gap-2">
+        <Field label="Width m" value={data.widthM} onCommit={(v) => patch({ widthM: numOrUndef(v) })} type="number" step={0.1} />
+        <Field label="Depth m" value={data.depthM} onCommit={(v) => patch({ depthM: numOrUndef(v) })} type="number" step={0.1} />
+        <Field label="Height m" value={data.heightM} onCommit={(v) => patch({ heightM: numOrUndef(v) })} type="number" step={0.1} />
+      </div>
+      <div className="text-[10px] text-[var(--color-text-muted)] leading-relaxed">
+        Setting a width scales the room to scale in Plan view and powers cable-run + coverage estimates.
+      </div>
+    </div>
+  );
+}
+
+function ConnectionBody({ edge, nodes }: { edge: ConnectionEdge; nodes: SchematicNode[] }) {
+  const setCableAssignEdgeId = useSchematicStore((s) => s.setCableAssignEdgeId);
+  const data = (edge.data ?? { signalType: "custom" }) as ConnectionData;
+  const sig = data.signalType;
+  const cable = cableTypesForSignal(sig)[0];
+
+  const deviceById = (id: string) => nodes.find((n) => n.id === id && n.type === "device");
+  const src = deviceById(edge.source);
+  const tgt = deviceById(edge.target);
+  const nameOf = (n: SchematicNode | undefined) =>
+    n ? (n.data as DeviceData).label || (n.data as DeviceData).deviceType : "—";
+  const portLabelOf = (n: SchematicNode | undefined, handle: string | null | undefined) => {
+    if (!n || !handle) return undefined;
+    const base = handle.replace(/-(in|out|source|target)$/i, "");
+    return (n.data as DeviceData).ports.find((p) => p.id === handle || p.id === base)?.label;
+  };
+  const selectDevice = (id: string | undefined) => {
+    if (!id) return;
+    useSchematicStore.setState((s) => ({
+      nodes: s.nodes.map((n) => ({ ...n, selected: n.id === id })),
+      edges: s.edges.map((e) => ({ ...e, selected: false })),
+    }));
+  };
+
+  const endpoint = (label: string, n: SchematicNode | undefined, handle: string | null | undefined) => {
+    const pl = portLabelOf(n, handle);
+    return (
+      <button
+        type="button"
+        onClick={() => selectDevice(n?.id)}
+        disabled={!n}
+        className="flex items-center gap-2 px-1.5 py-1 -mx-1 rounded text-left enabled:hover:bg-[var(--color-surface-hover)] enabled:cursor-pointer disabled:cursor-default"
+        title={n ? "Select device" : undefined}
+      >
+        <span className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] w-8 shrink-0">{label}</span>
+        <span className="text-xs text-[var(--color-text)] truncate">
+          {nameOf(n)}
+          {pl ? <span className="text-[var(--color-text-muted)]"> [{pl}]</span> : null}
+        </span>
+      </button>
+    );
+  };
+
+  return (
+    <div className="flex flex-col gap-3 px-3 py-3">
+      <SectionTitle>Connection</SectionTitle>
+      <div className="flex items-center gap-2">
+        <span className="w-3 h-3 rounded-sm shrink-0 border border-black/10" style={{ background: SIGNAL_COLORS[sig] }} />
+        <span className="text-xs text-[var(--color-text)]">{SIGNAL_LABELS[sig]}</span>
+      </div>
+
+      <div className="h-px bg-[var(--ui-border)]" />
+      <SectionTitle>Endpoints</SectionTitle>
+      {endpoint("From", src, edge.sourceHandle)}
+      {endpoint("To", tgt, edge.targetHandle)}
+
+      <div className="h-px bg-[var(--ui-border)]" />
+      <SectionTitle>Cable</SectionTitle>
+      <div className="text-[11px] text-[var(--color-text-muted)] leading-relaxed">
+        {cable ? `${cable.label} · max ${cable.maxRunM} m run` : "No catalog cable type for this signal."}
+      </div>
+      <div className="text-[11px] text-[var(--color-text-muted)]">
+        Assigned: <span className="text-[var(--color-text)]">{data.cableLength ? data.cableLength : "none"}</span>
+      </div>
+      {data.connectorMismatch && !data.allowIncompatible && (
+        <div className="text-[11px] text-amber-500">⚠ Connector mismatch on this connection.</div>
+      )}
+
+      <div className="h-px bg-[var(--ui-border)]" />
+      <button className="ui-btn ui-btn-secondary w-full text-xs" onClick={() => setCableAssignEdgeId(edge.id)}>
+        Assign cable…
+      </button>
+    </div>
+  );
+}
+
+/** Right-rail contextual inspector — shows when exactly one device, room, or connection is selected. */
+export default function Inspector({ embedded = false }: { embedded?: boolean } = {}) {
+  const nodes = useSchematicStore((s) => s.nodes);
+  const edges = useSchematicStore((s) => s.edges);
+  const selected = nodes.filter((n) => n.selected);
+  const single =
+    selected.length === 1 && (selected[0].type === "device" || selected[0].type === "room")
+      ? selected[0]
+      : null;
+  const selectedEdges = edges.filter((e) => e.selected);
+  const singleEdge = !single && selected.length === 0 && selectedEdges.length === 1 ? selectedEdges[0] : null;
+
+  if (embedded) {
+    if (single)
+      return (
+        <div className="h-full overflow-y-auto">
+          {single.type === "device" ? <DeviceBody key={single.id} node={single} /> : <RoomBody key={single.id} node={single} />}
+        </div>
+      );
+    if (singleEdge)
+      return (
+        <div className="h-full overflow-y-auto">
+          <ConnectionBody key={singleEdge.id} edge={singleEdge} nodes={nodes} />
+        </div>
+      );
+    return (
+      <div className="h-full flex items-center justify-center px-5 text-center text-[11px] text-[var(--color-text-muted)] leading-relaxed">
+        Select a device, room, or connection to edit it here.
+      </div>
+    );
+  }
+
+  if (!single) return null;
+  const node = single;
+  const title = node.type === "device" ? "Device" : "Room";
+
+  return (
+    <div className="w-60 bg-[var(--color-surface)] border-l border-[var(--color-border)] flex flex-col h-full overflow-hidden" data-print-hide>
+      <div className="px-3 py-2 border-b border-[var(--ui-border)] flex items-center justify-between shrink-0">
+        <h2 className="text-xs font-semibold text-[var(--color-text-heading)] uppercase tracking-wider">{title}</h2>
+      </div>
+      <div className="flex-1 overflow-y-auto">
+        {node.type === "device" ? <DeviceBody key={node.id} node={node} /> : <RoomBody key={node.id} node={node} />}
+      </div>
+    </div>
+  );
+}

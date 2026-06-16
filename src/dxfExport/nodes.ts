@@ -21,6 +21,7 @@ import {
 } from "../auxiliaryData";
 import { transformLabelNow } from "../labelCaseUtils";
 import { resolveDeviceLabel, type SchematicDisplayDefaults } from "../displayName";
+import { shapeToAbsPx } from "../roomShape";
 
 /** Matches Tailwind `rounded-lg` on the canvas DeviceNode (8px = 0.083"). */
 const DEVICE_CORNER_RADIUS_IN = 8 / 96;
@@ -88,16 +89,7 @@ export function emitRoom(
   const h = node.measured?.height ?? 300;
   const rect = toDxfRect(ax, ay, w, h);
 
-  // Fill (tinted)
-  if (data.color) {
-    const tinted = tintToWhite(data.color, 0.85);
-    const tc = hexToTrueColor(tinted);
-    writer.addSolidHatchRect(CANONICAL_LAYERS.ROOMS_FILL, rect.x, rect.y, rect.w, rect.h, {
-      trueColor: tc,
-    });
-  }
-
-  // Border
+  // Border style — shared by the rectangle and custom-polygon paths.
   const borderLt =
     data.borderStyle === "solid" ? "CONTINUOUS" :
     data.borderStyle === "dotted" ? "ES_DOTTED" :
@@ -108,7 +100,28 @@ export function emitRoom(
   } else if (data.color) {
     borderStyle.trueColor = hexToTrueColor(data.color);
   }
-  writer.addRect(CANONICAL_LAYERS.ROOMS, rect.x, rect.y, rect.w, rect.h, borderStyle);
+  const fillTc = data.color ? hexToTrueColor(tintToWhite(data.color, 0.85)) : undefined;
+
+  if (data.shape && data.shape.length >= 3) {
+    // Custom floor-plan outline → emit the true polygon (LWPOLYLINE) and a
+    // polygon hatch, instead of the bounding rectangle. Each normalized vertex
+    // maps to absolute screen px, then to DXF inches (Y-flipped, like toDxfRect).
+    const dxfPts = shapeToAbsPx(data.shape, ax, ay, w, h).map((p) => ({
+      x: pxToIn(p.x),
+      y: -pxToIn(p.y),
+    }));
+    if (fillTc !== undefined) {
+      writer.addSolidHatchPolygon(CANONICAL_LAYERS.ROOMS_FILL, dxfPts, { trueColor: fillTc });
+    }
+    writer.addPolyline(CANONICAL_LAYERS.ROOMS, dxfPts, true, borderStyle);
+  } else {
+    if (fillTc !== undefined) {
+      writer.addSolidHatchRect(CANONICAL_LAYERS.ROOMS_FILL, rect.x, rect.y, rect.w, rect.h, {
+        trueColor: fillTc,
+      });
+    }
+    writer.addRect(CANONICAL_LAYERS.ROOMS, rect.x, rect.y, rect.w, rect.h, borderStyle);
+  }
 
   // Label — just inside the top-left corner
   if (data.label) {

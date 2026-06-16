@@ -20,6 +20,10 @@ import {
   getCableScheduleTableData,
   type CableScheduleRow,
 } from "../cableSchedule";
+import { buildCableBom, bomToCsv } from "../cableBom";
+import { downloadCsv } from "../downloadCsv";
+import { scheduleToBomInputs, runLengthWarnings } from "../cableBomBuild";
+import { renderCableBomPdf } from "../cableBomPdf";
 import {
   computePatchPanelSchedule,
   exportPatchPanelScheduleCsv,
@@ -38,7 +42,7 @@ import { useSpreadsheetSelection } from "../spreadsheet/useSpreadsheetSelection"
 import type { SpreadsheetColumn } from "../spreadsheet/types";
 import FillSeriesDialog from "../spreadsheet/FillSeriesDialog";
 
-export type ReportsTab = "network" | "devices" | "packList" | "cableSchedule" | "patchPanel" | "power";
+export type ReportsTab = "network" | "devices" | "packList" | "cableSchedule" | "cableBom" | "patchPanel" | "power";
 
 interface ReportsDialogProps {
   initialTab: ReportsTab;
@@ -87,6 +91,14 @@ function ReportsDialog({ initialTab, onClose }: ReportsDialogProps) {
         distanceSettings: s.distanceSettings,
       });
       exportCableScheduleCsv(rows, schematicName);
+    } else if (tab === "cableBom") {
+      const s = useSchematicStore.getState();
+      const rows = computeCableSchedule(nodes, edges, s.cableNamingScheme, {
+        roomDistances: s.roomDistances,
+        distanceSettings: s.distanceSettings,
+      });
+      const bom = buildCableBom(scheduleToBomInputs(rows));
+      downloadCsv(bomToCsv(bom), `${schematicName} - Cable BOM.csv`);
     } else if (tab === "patchPanel") {
       const s = useSchematicStore.getState();
       const rows = computePatchPanelSchedule(nodes, edges, s.cableNamingScheme, {
@@ -104,6 +116,16 @@ function ReportsDialog({ initialTab, onClose }: ReportsDialogProps) {
     }
   }, [tab, nodes, edges, schematicName]);
 
+  const handleCableBomPdf = useCallback(() => {
+    const s = useSchematicStore.getState();
+    const rows = computeCableSchedule(nodes, edges, s.cableNamingScheme, {
+      roomDistances: s.roomDistances,
+      distanceSettings: s.distanceSettings,
+    });
+    const bom = buildCableBom(scheduleToBomInputs(rows));
+    renderCableBomPdf(bom, runLengthWarnings(rows), schematicName);
+  }, [nodes, edges, schematicName]);
+
   const defaultLayout = useMemo(() => createDefaultPackListLayout(), []);
   const networkDefaultLayout = useMemo(() => createDefaultNetworkReportLayout(), []);
   const cableScheduleDefaultLayout = useMemo(() => createDefaultCableScheduleLayout(), []);
@@ -113,6 +135,7 @@ function ReportsDialog({ initialTab, onClose }: ReportsDialogProps) {
   const tabLabels: Record<ReportsTab, string> = {
     devices: "Devices",
     cableSchedule: "Cable Schedule",
+    cableBom: "Cable BOM",
     patchPanel: "Patch Panels",
     packList: "Pack List",
     network: "Network",
@@ -154,6 +177,11 @@ function ReportsDialog({ initialTab, onClose }: ReportsDialogProps) {
             )}
             {tab === "cableSchedule" && (
               <button onClick={() => setShowCableSchedulePreview(true)} className={btnClass}>
+                PDF
+              </button>
+            )}
+            {tab === "cableBom" && (
+              <button onClick={handleCableBomPdf} className={btnClass}>
                 PDF
               </button>
             )}
@@ -206,6 +234,7 @@ function ReportsDialog({ initialTab, onClose }: ReportsDialogProps) {
             {tab === "devices" && <DeviceReportTab />}
             {tab === "packList" && <PackListTabInline />}
             {tab === "cableSchedule" && <CableScheduleTabInline />}
+            {tab === "cableBom" && <CableBomTab />}
             {tab === "patchPanel" && <PatchPanelScheduleTabInline />}
             {tab === "power" && <PowerReportTab />}
           </div>
@@ -333,6 +362,69 @@ const COLUMN_LABELS: Record<string, string> = {
   poeDrawW: "PoE (W)",
   notes: "Notes",
 };
+
+// ─── Cable BOM Tab ─────────────────────────────────────────────
+// Grouped cable bill of materials + max-run warnings, derived from the cable
+// schedule (computeCableSchedule → scheduleToBomInputs → buildCableBom).
+function CableBomTab() {
+  const nodes = useSchematicStore((s) => s.nodes);
+  const edges = useSchematicStore((s) => s.edges);
+  const cableNamingScheme = useSchematicStore((s) => s.cableNamingScheme);
+  const roomDistances = useSchematicStore((s) => s.roomDistances);
+  const distanceSettings = useSchematicStore((s) => s.distanceSettings);
+
+  const { bom, warnings } = useMemo(() => {
+    const rows = computeCableSchedule(nodes, edges, cableNamingScheme, { roomDistances, distanceSettings });
+    return { bom: buildCableBom(scheduleToBomInputs(rows)), warnings: runLengthWarnings(rows) };
+  }, [nodes, edges, cableNamingScheme, roomDistances, distanceSettings]);
+
+  return (
+    <div className="space-y-3">
+      {warnings.length > 0 && (
+        <div className="rounded-md border border-red-400/40 bg-red-500/10 px-3 py-2 text-xs">
+          <div className="font-semibold text-red-600 dark:text-red-400 mb-1">
+            ⚠ {warnings.length} run{warnings.length === 1 ? "" : "s"} exceed recommended cable length
+          </div>
+          <ul className="space-y-0.5 text-[var(--color-text)]">
+            {warnings.map((w) => (
+              <li key={w.edgeId}>
+                {w.from} → {w.to} · {w.cableType}: {w.lengthM.toFixed(1)} m of {w.maxRunM} m max
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {bom.length === 0 ? (
+        <p className="text-xs text-[var(--color-text-muted)]">
+          No cable runs to report. Connect devices to build a BOM.
+        </p>
+      ) : (
+        <table className="w-full text-xs border-collapse">
+          <thead>
+            <tr className="text-left text-[var(--color-text-muted)] border-b border-[var(--ui-border)]">
+              <th className="py-1 pr-2 font-medium">Signal</th>
+              <th className="py-1 pr-2 font-medium">Cable Type</th>
+              <th className="py-1 pr-2 font-medium text-right">Length (m)</th>
+              <th className="py-1 pr-2 font-medium text-right">Qty</th>
+              <th className="py-1 font-medium text-right">Total (m)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {bom.map((r, i) => (
+              <tr key={i} className="border-b border-[var(--ui-border)]/50">
+                <td className="py-1 pr-2 text-[var(--color-text)]">{r.signalType}</td>
+                <td className="py-1 pr-2 text-[var(--color-text)]">{r.cableType ?? "—"}</td>
+                <td className="py-1 pr-2 text-right text-[var(--color-text)]">{r.lengthM != null ? r.lengthM.toFixed(1) : "—"}</td>
+                <td className="py-1 pr-2 text-right text-[var(--color-text)]">{r.quantity}</td>
+                <td className="py-1 text-right text-[var(--color-text)]">{r.totalLengthM != null ? r.totalLengthM.toFixed(1) : "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
 
 function NetworkReportTab() {
   const nodes = useSchematicStore((s) => s.nodes);
@@ -2734,14 +2826,4 @@ function csvEscape(s: string): string {
     return `"${s.replace(/"/g, '""')}"`;
   }
   return s;
-}
-
-function downloadCsv(content: string, filename: string) {
-  const blob = new Blob(["\uFEFF" + content], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename.replace(/[^a-zA-Z0-9-_ .]/g, "");
-  a.click();
-  URL.revokeObjectURL(url);
 }

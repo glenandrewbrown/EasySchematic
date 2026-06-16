@@ -13,6 +13,10 @@ import type { ReportTableData } from "./reportPdf";
 import type { DeviceData } from "./types";
 import { computeCableLength, formatLength, getRoomDistance } from "./roomDistance";
 
+/** Feet per metre — room distances are stored in the user's display unit; the BOM and
+ *  max-run checks need metres. Matches FEET_PER_METER in cableFit.ts. */
+const FEET_PER_METER = 3.28084;
+
 export interface CableScheduleDistanceContext {
   roomDistances?: Record<string, number>;
   distanceSettings?: DistanceSettings;
@@ -32,6 +36,11 @@ export interface CableScheduleRow {
   cableLength: string;
   /** Estimated cable length derived from room-to-room distance + slack (#146). */
   computedLength?: string;
+  /** Same estimate normalized to METRES (unit-independent), for BOM aggregation and
+   *  max-run checks against CABLE_TYPES (which are specified in metres). */
+  computedLengthM?: number;
+  /** Raw signal-type id — note `signalType` above is the human display label. */
+  signalTypeId?: SignalType;
   sourceRoom: string;
   targetRoom: string;
   multicableLabel: string;
@@ -147,7 +156,7 @@ export function computeCableSchedule(
       const signalType = e.data!.signalType as SignalType;
       const srcPort = resolvePort(srcNode, e.sourceHandle);
       const tgtPort = resolvePort(tgtNode, effectiveTargetEdge.targetHandle);
-      const computedLength = computeRowEstimatedLength(
+      const estimated = computeRowEstimatedLength(
         srcNode?.parentId,
         tgtNode?.parentId,
         nodes,
@@ -187,7 +196,8 @@ export function computeCableSchedule(
         signalType: SIGNAL_LABELS[signalType],
         sourceRoom,
         targetRoom,
-        computedLength,
+        computedLength: estimated?.text,
+        computedLengthM: estimated?.meters,
       };
     });
 
@@ -213,6 +223,8 @@ export function computeCableSchedule(
         signalType: c.signalType,
         cableLength: c.storedCableLength,
         computedLength: c.computedLength,
+        computedLengthM: c.computedLengthM,
+        signalTypeId: c.rawSignalType,
         sourceRoom: c.sourceRoom,
         targetRoom: c.targetRoom,
         multicableLabel: c.multicableLabel,
@@ -233,6 +245,8 @@ export function computeCableSchedule(
     signalType: c.signalType,
     cableLength: c.storedCableLength,
     computedLength: c.computedLength,
+    computedLengthM: c.computedLengthM,
+    signalTypeId: c.rawSignalType,
     sourceRoom: c.sourceRoom,
     targetRoom: c.targetRoom,
     multicableLabel: c.multicableLabel,
@@ -244,12 +258,16 @@ function computeRowEstimatedLength(
   targetParentId: string | undefined,
   nodes: SchematicNode[],
   ctx: CableScheduleDistanceContext | undefined,
-): string | undefined {
+): { text: string; meters: number } | undefined {
   if (!ctx?.roomDistances) return undefined;
   const dist = getRoomDistance(sourceParentId, targetParentId, { roomDistances: ctx.roomDistances }, nodes);
   if (dist === undefined) return undefined;
   const settings = ctx.distanceSettings ?? DEFAULT_DISTANCE_SETTINGS;
-  return formatLength(computeCableLength(dist, settings), settings.unit);
+  const value = computeCableLength(dist, settings);
+  return {
+    text: formatLength(value, settings.unit),
+    meters: settings.unit === "ft" ? value / FEET_PER_METER : value,
+  };
 }
 
 export function exportCableScheduleCsv(

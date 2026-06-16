@@ -1,5 +1,5 @@
 import type { NodeTypes, EdgeTypes } from "@xyflow/react";
-import DeviceNodeComponent from "./components/DeviceNode";
+import DeviceNodeDispatch from "./components/DeviceNodeDispatch";
 import RoomNodeComponent from "./components/RoomNode";
 import NoteNodeComponent from "./components/NoteNode";
 import AnnotationNodeComponent from "./components/AnnotationNode";
@@ -8,7 +8,7 @@ import WaypointNodeComponent from "./components/WaypointNode";
 import OffsetEdgeComponent from "./components/OffsetEdge";
 
 export const nodeTypes: NodeTypes = {
-  device: DeviceNodeComponent,
+  device: DeviceNodeDispatch,
   room: RoomNodeComponent,
   note: NoteNodeComponent,
   annotation: AnnotationNodeComponent,

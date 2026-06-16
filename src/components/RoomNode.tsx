@@ -11,6 +11,7 @@ import {
   insertVertex,
   removeVertex,
   clampPoint,
+  calibrateRoomScale,
   type ShapePoint,
 } from "../roomShape";
 
@@ -51,23 +52,119 @@ const DASH_BY_STYLE: Record<string, string | undefined> = {
   solid: undefined,
 };
 
-/** Small measurement tag used on room edges, e.g. "6.5 m". */
-function DimTag({ x, y, text }: { x: number; y: number; text: string }) {
+/** One editable room-edge measurement: position, label text, the edge's pixel length
+ *  (for scale calibration), the current value in metres, and whether it is a "set length"
+ *  placeholder shown before the room has a real-world scale. */
+interface DimLabel {
+  x: number;
+  y: number;
+  text: string;
+  edgePx: number;
+  meters: number;
+  placeholder?: boolean;
+}
+
+/** Small measurement tag on a room edge, e.g. "6.5 m". Clickable (when `onEdit` is set)
+ *  to calibrate that wall to an exact length. */
+function DimTag({
+  x,
+  y,
+  text,
+  onEdit,
+  placeholder,
+}: {
+  x: number;
+  y: number;
+  text: string;
+  onEdit?: () => void;
+  placeholder?: boolean;
+}) {
+  const interactive = !!onEdit;
   return (
     <div
-      className="absolute text-[9px] leading-none px-1 py-0.5 rounded border tabular-nums whitespace-nowrap"
+      className={`absolute text-[9px] leading-none px-1 py-0.5 rounded border tabular-nums whitespace-nowrap ${
+        interactive ? "nodrag cursor-pointer" : ""
+      } ${placeholder ? "border-dashed" : ""}`}
       style={{
         left: x,
         top: y,
         transform: "translate(-50%, -50%)",
-        pointerEvents: "none",
+        pointerEvents: interactive ? "auto" : "none",
         background: "var(--color-bg)",
-        borderColor: "color-mix(in srgb, var(--color-border) 40%, transparent)",
-        color: "var(--color-text-muted)",
+        borderColor: placeholder
+          ? "var(--color-accent)"
+          : "color-mix(in srgb, var(--color-border) 40%, transparent)",
+        color: placeholder ? "var(--color-accent)" : "var(--color-text-muted)",
       }}
+      title={interactive ? "Click to set this wall's length (metres)" : undefined}
+      onPointerDown={interactive ? (e) => e.stopPropagation() : undefined}
+      onClick={
+        interactive
+          ? (e) => {
+              e.stopPropagation();
+              onEdit!();
+            }
+          : undefined
+      }
     >
-      {text}
+      {placeholder ? `＋ ${text}` : text}
     </div>
+  );
+}
+
+/** Inline input shown in place of a DimTag while the user types a wall's exact length. */
+function DimInput({
+  x,
+  y,
+  initial,
+  onCommit,
+  onCancel,
+}: {
+  x: number;
+  y: number;
+  initial: string;
+  onCommit: (raw: string) => void;
+  onCancel: () => void;
+}) {
+  const [val, setVal] = useState(initial);
+  const done = useRef(false);
+  const commit = () => {
+    if (done.current) return;
+    done.current = true;
+    onCommit(val);
+  };
+  const cancel = () => {
+    if (done.current) return;
+    done.current = true;
+    onCancel();
+  };
+  return (
+    <input
+      className="absolute nodrag text-[9px] leading-none px-1 py-0.5 rounded border tabular-nums w-14 outline-none"
+      style={{
+        left: x,
+        top: y,
+        transform: "translate(-50%, -50%)",
+        pointerEvents: "auto",
+        background: "var(--color-surface-raised)",
+        borderColor: "var(--color-accent)",
+        color: "var(--color-text)",
+      }}
+      value={val}
+      autoFocus
+      inputMode="decimal"
+      placeholder="m"
+      onChange={(e) => setVal(e.target.value)}
+      onFocus={(e) => e.target.select()}
+      onPointerDown={(e) => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        e.stopPropagation();
+        if (e.key === "Enter") commit();
+        if (e.key === "Escape") cancel();
+      }}
+    />
   );
 }
 
@@ -80,9 +177,11 @@ function RoomNodeComponent({ id, data, selected, width, height }: NodeProps<Room
   const isEditingShape = useSchematicStore((s) => s.editingRoomShapeId === id);
   const updateRoomShape = useSchematicStore((s) => s.updateRoomShape);
   const setEditingRoomShape = useSchematicStore((s) => s.setEditingRoomShape);
+  const updateRoom = useSchematicStore((s) => s.updateRoom);
   const zoom = useStore((s) => s.transform[2]);
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(data.label);
+  const [editingDim, setEditingDim] = useState<number | null>(null);
 
   const locked = data.locked ?? false;
   const w = width ?? 200;
@@ -164,6 +263,23 @@ function RoomNodeComponent({ id, data, selected, width, height }: NodeProps<Room
     dragRef.current = null;
   }, []);
 
+  // Calibrate the room's real-world scale by setting one wall to an exact metre length.
+  const commitDim = useCallback(
+    (edgePx: number, raw: string) => {
+      setEditingDim(null);
+      const targetM = parseFloat(raw);
+      if (!(targetM > 0)) return;
+      const cal = calibrateRoomScale(w, h, edgePx, targetM);
+      if (!cal) return;
+      updateRoom(id, {
+        ...data,
+        widthM: Math.round(cal.widthM * 100) / 100,
+        depthM: Math.round(cal.depthM * 100) / 100,
+      });
+    },
+    [w, h, id, data, updateRoom],
+  );
+
   const isRack = data.isEquipmentRack ?? false;
   const borderStyleVal = isRack ? "solid" : (data.borderStyle ?? (isSubroom ? "solid" : "dashed"));
   const borderColorVal = selected ? undefined : data.borderColor;
@@ -183,20 +299,33 @@ function RoomNodeComponent({ id, data, selected, width, height }: NodeProps<Room
       ? "rgba(55,65,81,0.12)"
       : "rgba(var(--color-surface-rgb, 245,245,245),0.3)";
 
-  // Edge measurement labels (need a real-world scale → widthM)
+  // Edge measurement labels (need a real-world scale → widthM). Each is click-to-edit:
+  // setting a wall's length recalibrates the room's uniform scale. When no scale is set
+  // yet, a selected room shows two "＋ set" placeholders to establish the scale in-canvas.
   const showDims = !!data.widthM && data.widthM > 0;
-  const dimLabels: { x: number; y: number; text: string }[] = [];
+  const dimLabels: DimLabel[] = [];
   if (showDims) {
     if (shape && shapePx) {
       const lengths = edgeLengthsM(shape, w, h, data.widthM!);
-      edgeMidpointsPx(shapePx).forEach((mid, i) => {
-        dimLabels.push({ x: mid.x, y: mid.y, text: `${lengths[i].toFixed(1)} m` });
-      });
+      for (let i = 0; i < shapePx.length; i++) {
+        const p = shapePx[i];
+        const q = shapePx[(i + 1) % shapePx.length];
+        dimLabels.push({
+          x: (p.x + q.x) / 2,
+          y: (p.y + q.y) / 2,
+          text: `${lengths[i].toFixed(1)} m`,
+          edgePx: Math.hypot(q.x - p.x, q.y - p.y),
+          meters: lengths[i],
+        });
+      }
     } else {
       const depth = data.depthM ?? (data.widthM! * h) / w;
-      dimLabels.push({ x: w / 2, y: h, text: `${data.widthM!.toFixed(1)} m` });
-      dimLabels.push({ x: w, y: h / 2, text: `${depth.toFixed(1)} m` });
+      dimLabels.push({ x: w / 2, y: h, text: `${data.widthM!.toFixed(1)} m`, edgePx: w, meters: data.widthM! });
+      dimLabels.push({ x: w, y: h / 2, text: `${depth.toFixed(1)} m`, edgePx: h, meters: depth });
     }
+  } else if (selected && !locked && !isEditingShape) {
+    dimLabels.push({ x: w / 2, y: h, text: "set width", edgePx: w, meters: 0, placeholder: true });
+    dimLabels.push({ x: w, y: h / 2, text: "set depth", edgePx: h, meters: 0, placeholder: true });
   }
 
   return (
@@ -291,10 +420,28 @@ function RoomNodeComponent({ id, data, selected, width, height }: NodeProps<Room
           </svg>
         )}
 
-        {/* Edge measurements */}
-        {dimLabels.map((d, i) => (
-          <DimTag key={i} x={d.x} y={d.y} text={d.text} />
-        ))}
+        {/* Edge measurements — click to calibrate the wall to an exact length */}
+        {dimLabels.map((d, i) =>
+          editingDim === i && !locked && !isEditingShape ? (
+            <DimInput
+              key={i}
+              x={d.x}
+              y={d.y}
+              initial={d.placeholder ? "" : String(Math.round(d.meters * 100) / 100)}
+              onCommit={(raw) => commitDim(d.edgePx, raw)}
+              onCancel={() => setEditingDim(null)}
+            />
+          ) : (
+            <DimTag
+              key={i}
+              x={d.x}
+              y={d.y}
+              text={d.text}
+              placeholder={d.placeholder}
+              onEdit={!locked && !isEditingShape ? () => setEditingDim(i) : undefined}
+            />
+          ),
+        )}
 
         {/* Shape-editing toolbar */}
         {isEditingShape && (

@@ -143,7 +143,7 @@ export default function MenuBar() {
   const [showTitleBlockDialog, setShowTitleBlockDialog] = useState(false);
   const [showAboutDialog, setShowAboutDialog] = useState(false);
   const [showWhatsNew, setShowWhatsNew] = useState(
-    () => localStorage.getItem("easyschematic-whatsnew-v42") !== "1",
+    () => localStorage.getItem("easyschematic-whatsnew-v43") !== "1",
   );
   const [showPreferences, setShowPreferences] = useState(false);
   const [showRoomDistances, setShowRoomDistances] = useState(false);
@@ -446,6 +446,13 @@ export default function MenuBar() {
     };
   }, [handleSave, handleSaveAs, handleOpen]);
 
+  // Open the Reports dialog on the Cable BOM tab when the guided setup asks for it.
+  useEffect(() => {
+    const onOpenCableBom = () => setReportsTab("cableBom");
+    window.addEventListener("easyschematic:open-cable-bom", onOpenCableBom);
+    return () => window.removeEventListener("easyschematic:open-cable-bom", onOpenCableBom);
+  }, []);
+
   // ─── Export helpers ────────────────────────────────────
 
   const doExportPng = () => exportImage(reactFlowInstance, { format: "png", pixelRatio: 4 });
@@ -528,6 +535,21 @@ export default function MenuBar() {
     }
     newSchematic();
   }, [isLoggedIn, isOnline, newSchematic]);
+
+  // Icon toolbar (Toolbar.tsx) fires these window events; MenuBar owns the actions.
+  useEffect(() => {
+    const onNew = () => { handleNew(); };
+    const onReports = () => setReportsTab("devices");
+    const onFit = () => reactFlowInstance.fitView({ padding: 0.2, duration: 300 });
+    window.addEventListener("easyschematic:new", onNew);
+    window.addEventListener("easyschematic:open-reports", onReports);
+    window.addEventListener("easyschematic:fit-view", onFit);
+    return () => {
+      window.removeEventListener("easyschematic:new", onNew);
+      window.removeEventListener("easyschematic:open-reports", onReports);
+      window.removeEventListener("easyschematic:fit-view", onFit);
+    };
+  }, [handleNew, reactFlowInstance]);
 
   const closeMenu = () => setOpenMenu(null);
 
@@ -619,6 +641,7 @@ export default function MenuBar() {
     Reports: [
       { type: "item", label: "Device List...", onClick: () => setReportsTab("devices") },
       { type: "item", label: "Cable Schedule...", onClick: () => setReportsTab("cableSchedule") },
+      { type: "item", label: "Cable BOM...", onClick: () => setReportsTab("cableBom") },
       { type: "item", label: "Patch Panels...", onClick: () => setReportsTab("patchPanel") },
       { type: "item", label: "Pack List...", onClick: () => setReportsTab("packList") },
       { type: "item", label: "Network Report...", onClick: () => setReportsTab("network") },
@@ -646,6 +669,11 @@ export default function MenuBar() {
           localStorage.removeItem("easyschematic-skip-landing");
           window.location.href = "/";
         },
+      },
+      {
+        type: "item",
+        label: "Guided Venue Setup...",
+        onClick: () => useSchematicStore.getState().setGuidedSetupOpen(true),
       },
       {
         type: "item",
@@ -1003,7 +1031,7 @@ export default function MenuBar() {
         open={showWhatsNew}
         onClose={() => {
           setShowWhatsNew(false);
-          localStorage.setItem("easyschematic-whatsnew-v42", "1");
+          localStorage.setItem("easyschematic-whatsnew-v43", "1");
         }}
       />
       {showAboutDialog && (

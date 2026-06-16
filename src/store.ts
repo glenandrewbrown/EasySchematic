@@ -35,12 +35,16 @@ import type {
   CustomTemplateMeta,
 } from "./types";
 import type { ReactFlowInstance } from "@xyflow/react";
-import type { SignalType, ScrollConfig, LineStyle, LabelCaseMode, DistanceSettings, PanMode, StubLabelPageMode } from "./types";
+import type { SignalType, ScrollConfig, LineStyle, LabelCaseMode, DistanceSettings, PanMode, StubLabelPageMode, CanvasViewMode } from "./types";
+import { DEFAULT_TOOL, type ToolId } from "./toolMode";
 import { defaultStubPlacement } from "./stubPlacement";
 import { getPortAbsolutePositions } from "./snapUtils";
-import { DEFAULT_LAYER_ID, DEFAULT_SCROLL_CONFIG, DEFAULT_LABEL_CASE, DEFAULT_DISTANCE_SETTINGS, DEFAULT_PAN_MODE, DEFAULT_STUB_LABEL_SHOW_PORT, DEFAULT_STUB_LABEL_SHOW_ROOM, DEFAULT_STUB_LABEL_PAGE_MODE } from "./types";
+import { DEFAULT_LAYER_ID, DEFAULT_SCROLL_CONFIG, DEFAULT_LABEL_CASE, DEFAULT_DISTANCE_SETTINGS, DEFAULT_PAN_MODE, DEFAULT_STUB_LABEL_SHOW_PORT, DEFAULT_STUB_LABEL_SHOW_ROOM, DEFAULT_STUB_LABEL_PAGE_MODE, DEFAULT_CANVAS_VIEW_MODE, parseCanvasViewMode } from "./types";
 import { pairKey } from "./roomDistance";
 import { DEFAULT_RECT_SHAPE } from "./roomShape";
+import { withGroupId, withoutGroupId, groupIdOf } from "./grouping";
+import { rotateBy, normalizeRotationDeg } from "./planView";
+import { reorderNodesByZ } from "./nodeOrder";
 import type { Orientation } from "./printConfig";
 import { computeAlignment, resolveAlignmentOverlaps, type AlignOperation } from "./alignUtils";
 import { CURRENT_SCHEMA_VERSION, migrateSchematic } from "./migrations";
@@ -92,6 +96,30 @@ const STORAGE_KEY = "easyschematic-autosave";
 const TEMPLATES_KEY = "easyschematic-custom-templates";
 const TEMPLATE_META_KEY = "easyschematic-custom-template-meta";
 const CATEGORY_ORDER_KEY = "easyschematic-category-order";
+const CANVAS_VIEW_MODE_KEY = "easyschematic-canvas-view-mode";
+
+/** Read the persisted canvas view mode (session/UI pref). Guards SSR/test envs with no localStorage. */
+function readInitialCanvasViewMode(): CanvasViewMode {
+  if (typeof localStorage === "undefined") return DEFAULT_CANVAS_VIEW_MODE;
+  return parseCanvasViewMode(localStorage.getItem(CANVAS_VIEW_MODE_KEY));
+}
+
+const COVERAGE_VISIBLE_KEY = "easyschematic-coverage-visible";
+
+/** Read the persisted "show coverage" plan-view pref. Guards SSR/test envs with no localStorage. */
+function readInitialCoverageVisible(): boolean {
+  if (typeof localStorage === "undefined") return false;
+  return localStorage.getItem(COVERAGE_VISIBLE_KEY) === "1";
+}
+
+const DEVICE_DRAWER_PINNED_KEY = "easyschematic-device-drawer-pinned";
+
+/** Read the persisted device-library pin state. Pin-open is the DEFAULT — the drawer must
+ *  not auto-collapse between placements (the #1 reviewer-flagged self-inflicted risk). */
+function readInitialDeviceDrawerPinned(): boolean {
+  if (typeof localStorage === "undefined") return true;
+  return localStorage.getItem(DEVICE_DRAWER_PINNED_KEY) !== "0";
+}
 
 export const CATEGORY_ORDER_DEFAULT: string[] = [
   "Sources",
@@ -323,6 +351,30 @@ interface SchematicState {
   showCableInventory: boolean;
   setShowCableInventory: (show: boolean) => void;
 
+  // Canvas view mode (schematic signal-flow vs to-scale plan) — session/UI pref, not persisted to file
+  canvasViewMode: CanvasViewMode;
+  setCanvasViewMode: (mode: CanvasViewMode) => void;
+  /** Show loudspeaker coverage wedges in plan view — session/UI pref, not persisted to file. */
+  coverageVisible: boolean;
+  setCoverageVisible: (visible: boolean) => void;
+
+  /** Guided venue-setup coach panel open state — ephemeral session UI, not persisted to file. */
+  guidedSetupOpen: boolean;
+  setGuidedSetupOpen: (open: boolean) => void;
+
+  /** Per-item Layers/Groups overrides — ephemeral session view state, NOT persisted to file.
+   *  Hidden/locked node ids cascade to children + group members (via resolveNodeVisibility);
+   *  soloLayerId shows only that layer's subtree. */
+  hiddenNodeIds: string[];
+  lockedNodeIds: string[];
+  soloLayerId: string | null;
+  toggleNodeHidden: (id: string) => void;
+  toggleNodeLocked: (id: string) => void;
+  setNodesHidden: (ids: string[], hidden: boolean) => void;
+  setNodesLocked: (ids: string[], locked: boolean) => void;
+  /** Solo a layer (pass the same id again, or null, to clear). */
+  setSoloLayer: (layerId: string | null) => void;
+
   // Floor-plan room shapes
   /** Room whose floor-plan outline is being vertex-edited, or null. */
   editingRoomShapeId: string | null;
@@ -339,8 +391,22 @@ interface SchematicState {
   toggleLayerLocked: (id: string) => void;
   /** Move all currently-selected nodes and edges onto a layer. */
   assignSelectionToLayer: (layerId: string) => void;
+  /** Group all selected nodes under a new shared groupId (needs 2+ selected). */
+  groupSelection: () => void;
+  /** Remove group membership from all selected nodes. */
+  ungroupSelection: () => void;
   /** Link (or unlink with undefined) a software device to its host computer. */
   setDeviceHost: (deviceId: string, hostId: string | undefined) => void;
+  /** Rotate a device's plan-view orientation by a relative delta (deg). Undoable. */
+  rotateDevice: (deviceId: string, deltaDeg: number) => void;
+  /** Set a device's absolute plan-view rotation/aim (deg). Pass recordUndo=false for
+   *  transient drag updates (no undo entry, no autosave); bracket the drag with
+   *  pushSnapshot() + saveToLocalStorage() to record one undo step and persist once. */
+  setDeviceRotation: (deviceId: string, deg: number, recordUndo?: boolean) => void;
+  /** Reorder a node's paint order (z-order) to before/after a same-parent sibling
+   *  in the nodes array. No-op across different parents (preserves the parent-before-child
+   *  invariant). Undoable + autosaved. */
+  reorderNodeZ: (draggedId: string, targetId: string, place: "before" | "after") => void;
 
   // Custom template organization (#62)
   customTemplateGroups: CustomTemplateGroup[];
@@ -517,6 +583,12 @@ interface SchematicState {
   // Left-drag canvas behavior: select box (default) or pan viewport.
   panMode: PanMode;
   setPanMode: (mode: PanMode) => void;
+
+  // Active canvas tool (left tool rail) + device-library drawer pin state.
+  activeTool: ToolId;
+  setActiveTool: (tool: ToolId) => void;
+  deviceDrawerPinned: boolean;
+  setDeviceDrawerPinned: (pinned: boolean) => void;
 
   // ISO 4217 currency code for cost display in reports (#158).
   currency: string;
@@ -3113,6 +3185,29 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
   showCableInventory: false,
   setShowCableInventory: (show) => set({ showCableInventory: show }),
 
+  canvasViewMode: readInitialCanvasViewMode(),
+  setCanvasViewMode: (mode) => {
+    if (typeof localStorage !== "undefined") localStorage.setItem(CANVAS_VIEW_MODE_KEY, mode);
+    set({ canvasViewMode: mode });
+  },
+
+  coverageVisible: readInitialCoverageVisible(),
+  setCoverageVisible: (visible) => {
+    if (typeof localStorage !== "undefined") localStorage.setItem(COVERAGE_VISIBLE_KEY, visible ? "1" : "0");
+    set({ coverageVisible: visible });
+  },
+
+  activeTool: DEFAULT_TOOL,
+  setActiveTool: (tool) => set({ activeTool: tool }),
+  deviceDrawerPinned: readInitialDeviceDrawerPinned(),
+  setDeviceDrawerPinned: (pinned) => {
+    if (typeof localStorage !== "undefined") localStorage.setItem(DEVICE_DRAWER_PINNED_KEY, pinned ? "1" : "0");
+    set({ deviceDrawerPinned: pinned });
+  },
+
+  guidedSetupOpen: false,
+  setGuidedSetupOpen: (open) => set({ guidedSetupOpen: open }),
+
   editingRoomShapeId: null,
   setEditingRoomShape: (id) => {
     if (id) {
@@ -3181,6 +3276,36 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
     get().saveToLocalStorage();
   },
 
+  // Per-item Layers/Groups view overrides — ephemeral (no persist, no undo).
+  hiddenNodeIds: [],
+  lockedNodeIds: [],
+  soloLayerId: null,
+  toggleNodeHidden: (id) => {
+    const cur = get().hiddenNodeIds;
+    set({ hiddenNodeIds: cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id] });
+  },
+  toggleNodeLocked: (id) => {
+    const cur = get().lockedNodeIds;
+    set({ lockedNodeIds: cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id] });
+  },
+  setNodesHidden: (ids, hidden) => {
+    const next = new Set(get().hiddenNodeIds);
+    for (const id of ids) {
+      if (hidden) next.add(id);
+      else next.delete(id);
+    }
+    set({ hiddenNodeIds: [...next] });
+  },
+  setNodesLocked: (ids, locked) => {
+    const next = new Set(get().lockedNodeIds);
+    for (const id of ids) {
+      if (locked) next.add(id);
+      else next.delete(id);
+    }
+    set({ lockedNodeIds: [...next] });
+  },
+  setSoloLayer: (layerId) => set({ soloLayerId: get().soloLayerId === layerId ? null : layerId }),
+
   assignSelectionToLayer: (layerId) => {
     pushUndo({ nodes: get().nodes, edges: get().edges });
     const lid = layerId === DEFAULT_LAYER_ID ? undefined : layerId;
@@ -3195,6 +3320,30 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
     get().saveToLocalStorage();
   },
 
+  groupSelection: () => {
+    const selIds = new Set(get().nodes.filter((n) => n.selected).map((n) => n.id));
+    if (selIds.size < 2) {
+      get().addToast("Select 2 or more items to group", "info");
+      return;
+    }
+    pushUndo({ nodes: get().nodes, edges: get().edges });
+    const gid = crypto.randomUUID();
+    set({ nodes: withGroupId(get().nodes, selIds, gid) as SchematicNode[] });
+    get().saveToLocalStorage();
+    get().addToast(`Grouped ${selIds.size} items`, "info");
+  },
+
+  ungroupSelection: () => {
+    const selIds = new Set(
+      get().nodes.filter((n) => n.selected && groupIdOf(n)).map((n) => n.id),
+    );
+    if (selIds.size === 0) return;
+    pushUndo({ nodes: get().nodes, edges: get().edges });
+    set({ nodes: withoutGroupId(get().nodes, selIds) as SchematicNode[] });
+    get().saveToLocalStorage();
+    get().addToast(`Ungrouped ${selIds.size} item${selIds.size > 1 ? "s" : ""}`, "info");
+  },
+
   setDeviceHost: (deviceId, hostId) => {
     pushUndo({ nodes: get().nodes, edges: get().edges });
     set({
@@ -3204,6 +3353,43 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
           : n,
       ),
     });
+    get().saveToLocalStorage();
+  },
+
+  rotateDevice: (deviceId, deltaDeg) => {
+    pushUndo({ nodes: get().nodes, edges: get().edges });
+    set({
+      nodes: get().nodes.map((n) =>
+        n.id === deviceId && n.type === "device"
+          ? ({
+              ...n,
+              data: { ...n.data, rotationDeg: rotateBy((n.data as { rotationDeg?: number }).rotationDeg, deltaDeg) },
+            } as SchematicNode)
+          : n,
+      ),
+    });
+    get().saveToLocalStorage();
+  },
+
+  setDeviceRotation: (deviceId, deg, recordUndo = true) => {
+    if (recordUndo) pushUndo({ nodes: get().nodes, edges: get().edges });
+    set({
+      nodes: get().nodes.map((n) =>
+        n.id === deviceId && n.type === "device"
+          ? ({ ...n, data: { ...n.data, rotationDeg: normalizeRotationDeg(deg) } } as SchematicNode)
+          : n,
+      ),
+    });
+    if (recordUndo) get().saveToLocalStorage();
+  },
+
+  reorderNodeZ: (draggedId, targetId, place) => {
+    const cur = get().nodes;
+    const next = reorderNodesByZ(cur, draggedId, targetId, place);
+    const changed = next.length === cur.length && next.some((n, i) => n.id !== cur[i].id);
+    if (!changed) return;
+    pushUndo({ nodes: cur, edges: get().edges });
+    set({ nodes: next });
     get().saveToLocalStorage();
   },
 

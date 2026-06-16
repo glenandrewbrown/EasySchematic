@@ -5,9 +5,34 @@ interface WhatsNewDialogProps {
 
 const FEATURES: { title: string; where: string; how: string }[] = [
   {
-    title: "Layers",
-    where: "Right edge of the canvas — the Layers panel",
-    how: "Photoshop-style: eye toggles visibility, padlock locks a layer, double-click to rename, + New Layer to add. Select items on the canvas, hover a layer, click the arrow to move them there.",
+    title: "Guided Venue Setup",
+    where: "Help menu → Guided Venue Setup",
+    how: "A step-by-step coach for venue work: calibrate a room, place your speakers, see their coverage, then review the cable BOM. Steps tick off as you go, and you can reopen it anytime from Help.",
+  },
+  {
+    title: "To-scale plan view",
+    where: "Top-center — Schematic / Plan toggle",
+    how: "Flip from the signal-flow schematic to a top-down, to-scale floor plan. Devices become footprints sized from their real dimensions, inside rooms you've given a real width and depth.",
+  },
+  {
+    title: "Speaker coverage",
+    where: "Plan view → Coverage toggle",
+    how: "Each loudspeaker casts a nominal coverage wedge (on-axis, direct-field) aimed along its rotation, so you can see what it covers. Set sensitivity, power and angle when you edit the device.",
+  },
+  {
+    title: "Rotate & aim devices",
+    where: "Plan view → right-click a device → Rotate",
+    how: "Aim speakers and orient gear: rotate 90° either way, 180°, or reset to 0°. The footprint, symbol and coverage wedge all turn together.",
+  },
+  {
+    title: "Cable BOM & run warnings",
+    where: "Reports menu → Cable BOM",
+    how: "A bill of materials grouped by cable type with total lengths, plus warnings when a run exceeds the cable's safe maximum length. Export to CSV or PDF.",
+  },
+  {
+    title: "Layers & Groups",
+    where: "Right edge of the canvas — the Layers & Groups panel",
+    how: "The panel is now a Layer → Group → Device tree. Eye and padlock on every row, Solo a layer, expand/collapse, and click any row to select it on the canvas. Group selected devices with Ctrl/Cmd+G.",
   },
   {
     title: "Device icons",

@@ -1,7 +1,7 @@
 :root {
   --color-bg: #ffffff;
-  --color-surface: #fafafa;
-  --color-surface-hover: #f0f0f1;
+  --color-surface: #f6f7f9;
+  --color-surface-hover: #eceef2;
   --color-border: #a3a3a3;
   --color-text: #374151;
   --color-text-heading: #111827;
@@ -14,11 +14,21 @@
      use and which must stay strong for print/export legibility. */
   --color-surface-raised: #ffffff;
   --color-accent: #2563eb;
+  --color-accent-hover: #1d4ed8;
   --color-accent-soft: rgba(37, 99, 235, 0.08);
-  --ui-border: #e4e4e7;
-  --ui-border-strong: #d4d4d8;
-  --ui-shadow-menu: 0 12px 32px -12px rgba(24, 24, 27, 0.22), 0 4px 12px -6px rgba(24, 24, 27, 0.1);
-  --ui-shadow-raised: 0 1px 2px rgba(24, 24, 27, 0.06);
+  --ui-border: #e6e8ec;
+  --ui-border-strong: #d7dbe2;
+  /* Tinted (cool slate) elevation scale — shadows carry the surface hue, not flat black */
+  --ui-shadow-raised: 0 1px 2px rgba(15, 23, 42, 0.05), 0 1px 1px rgba(15, 23, 42, 0.04);
+  --ui-shadow-toolbar: 0 1px 0 rgba(15, 23, 42, 0.04), 0 2px 8px -3px rgba(15, 23, 42, 0.09);
+  --ui-shadow-menu: 0 16px 40px -16px rgba(15, 23, 42, 0.28), 0 6px 16px -8px rgba(15, 23, 42, 0.14);
+  /* Radius scale — softer on containers, tighter on inner controls */
+  --ui-radius-sm: 6px;
+  --ui-radius: 9px;
+  --ui-radius-lg: 13px;
+  /* Motion — one easing language (gentle settle + a subtle spring) */
+  --ui-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --ui-ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
 
   /* Signal type colors — max distinction at a glance, print-friendly on white */
   --color-sdi: #2563eb;       /* blue — broadcast standard */
@@ -99,11 +109,13 @@
   /* UI chrome tokens, dark */
   --color-surface-raised: #243247;
   --color-accent: #3b82f6;
+  --color-accent-hover: #60a5fa;
   --color-accent-soft: rgba(59, 130, 246, 0.14);
   --ui-border: #2c3a52;
   --ui-border-strong: #3b4a66;
-  --ui-shadow-menu: 0 12px 32px -8px rgba(2, 6, 23, 0.65), 0 4px 12px -6px rgba(2, 6, 23, 0.4);
+  --ui-shadow-menu: 0 16px 40px -12px rgba(2, 6, 23, 0.7), 0 6px 16px -8px rgba(2, 6, 23, 0.45);
   --ui-shadow-raised: 0 1px 2px rgba(2, 6, 23, 0.4);
+  --ui-shadow-toolbar: 0 1px 0 rgba(2, 6, 23, 0.3), 0 2px 8px -3px rgba(2, 6, 23, 0.5);
   /* Power colors adjusted for dark backgrounds */
   --color-power-neutral: #b0b0b0;
   --color-power-l1: #e5e5e5;

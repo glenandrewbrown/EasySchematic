@@ -43,7 +43,12 @@ html, body, #root {
   overflow: hidden;
   background: var(--color-bg);
   color: var(--color-text);
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  /* Native system stack (SF Pro on macOS, Segoe UI on Windows) — crisp, full weight
+     range, offline-safe, and the authentic OmniGraffle/desktop feel. Inter is fallback. */
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", "Inter", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 /* ===== UI chrome polish ===== */
@@ -78,9 +83,11 @@ html, body, #root {
 .chrome-menu {
   background: var(--color-surface-raised);
   border: 1px solid var(--ui-border);
-  border-radius: 10px;
+  border-radius: var(--ui-radius);
   box-shadow: var(--ui-shadow-menu);
   padding: 4px;
+  transform-origin: top left;
+  animation: ui-menu-in 0.14s var(--ui-ease) both;
 }
 
 /* ── Shared UI kit: one control language for every dialog and panel ── */
@@ -93,18 +100,20 @@ html, body, #root {
   align-items: center;
   justify-content: center;
   background: rgba(2, 6, 23, 0.45);
-  backdrop-filter: blur(2px);
+  backdrop-filter: blur(3px);
+  animation: ui-fade-in 0.16s var(--ui-ease) both;
 }
 
 .ui-dialog {
   background: var(--color-surface-raised);
   border: 1px solid var(--ui-border);
-  border-radius: 14px;
+  border-radius: var(--ui-radius-lg);
   box-shadow: var(--ui-shadow-menu);
   max-height: 90vh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  animation: ui-pop-in 0.22s var(--ui-ease) both;
 }
 
 .ui-input {
@@ -135,7 +144,7 @@ html, body, #root {
   font-weight: 600;
   padding: 6px 14px;
   cursor: pointer;
-  transition: background-color 0.15s, color 0.15s, transform 0.1s;
+  transition: background-color 0.15s var(--ui-ease), color 0.15s, transform 0.12s var(--ui-ease-spring), box-shadow 0.15s var(--ui-ease);
   border: 1px solid transparent;
 }
 .ui-btn:active {
@@ -149,18 +158,22 @@ html, body, #root {
 .ui-btn-primary {
   background: var(--color-accent);
   color: #ffffff;
+  box-shadow: 0 1px 2px rgba(37, 99, 235, 0.25);
 }
 .ui-btn-primary:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--color-accent) 88%, white);
+  background: var(--color-accent-hover);
+  box-shadow: 0 4px 12px -3px rgba(37, 99, 235, 0.45);
 }
 
 .ui-btn-secondary {
   background: var(--color-surface-raised);
   border-color: var(--ui-border-strong);
   color: var(--color-text);
+  box-shadow: var(--ui-shadow-raised);
 }
 .ui-btn-secondary:hover:not(:disabled) {
   background: var(--color-surface-hover);
+  border-color: var(--color-border);
 }
 
 .ui-btn-ghost {
@@ -178,6 +191,26 @@ html, body, #root {
 }
 .ui-btn-danger:hover:not(:disabled) {
   background: #b91c1c;
+}
+
+/* ===== Motion primitives ===== */
+@keyframes ui-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes ui-pop-in {
+  from { opacity: 0; transform: translateY(6px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes ui-menu-in {
+  from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes ui-slide-in-left {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: none; }
+}
+.ui-drawer-in { animation: ui-slide-in-left 0.16s var(--ui-ease) both; }
+@media (prefers-reduced-motion: reduce) {
+  .ui-dialog, .ui-dialog-backdrop, .chrome-menu, .ui-drawer-in,
+  .react-flow__node.node-error::after, .react-flow__node.node-warning::after { animation: none !important; }
 }
 
 /* ===== Landing page ===== */
@@ -232,6 +265,32 @@ html, body, #root {
 /* Pan-first mode cursor feedback */
 .pan-mode .react-flow__pane { cursor: grab; }
 .pan-mode .react-flow__pane:active { cursor: grabbing; }
+
+/* Left tool-rail cursor affordances: Connect wires, Room/Note place on click, Pan grabs. */
+.react-flow.tool-connect .react-flow__pane,
+.react-flow.tool-room .react-flow__pane,
+.react-flow.tool-note .react-flow__pane { cursor: crosshair; }
+.react-flow.tool-pan .react-flow__pane { cursor: grab; }
+.react-flow.tool-pan .react-flow__pane:active { cursor: grabbing; }
+
+/* On-canvas validation status: a corner dot on devices flagged by the validation engine
+   (same source as the top-bar warnings badge + Validate rail tab). */
+.react-flow__node.node-error::after,
+.react-flow__node.node-warning::after {
+  content: "";
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  width: 10px;
+  height: 10px;
+  border-radius: 9999px;
+  box-shadow: 0 0 0 2px var(--color-bg);
+  pointer-events: none;
+  z-index: 6;
+  animation: ui-fade-in 0.18s var(--ui-ease) both;
+}
+.react-flow__node.node-error::after { background: #ef4444; }
+.react-flow__node.node-warning::after { background: #f59e0b; }
 
 .react-flow__background {
   background: var(--color-bg) !important;

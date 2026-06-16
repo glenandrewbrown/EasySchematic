@@ -4,6 +4,7 @@ import type { DeviceData, RackElevationPage } from "../types";
 import { useContextMenuPosition } from "../hooks/useContextMenuPosition";
 import MenuSubmenu from "./MenuSubmenu";
 import { inferRackHeightU } from "../rackUtils";
+import { rotateBy } from "../planView";
 
 export default function DeviceContextMenu() {
   const menu = useSchematicStore((s) => s.deviceContextMenu);
@@ -11,6 +12,7 @@ export default function DeviceContextMenu() {
   const pages = useMemo(() => allPages.filter((p): p is RackElevationPage => p.type === "rack-elevation"), [allPages]);
   const setActivePage = useSchematicStore((s) => s.setActivePage);
   const nodes = useSchematicStore((s) => s.nodes);
+  const canvasViewMode = useSchematicStore((s) => s.canvasViewMode);
   const { ref: menuRef, pos: menuPos } = useContextMenuPosition(
     menu?.screenX ?? 0,
     menu?.screenY ?? 0,
@@ -60,6 +62,14 @@ export default function DeviceContextMenu() {
   const { nodeId } = menu;
   const node = nodes.find((n) => n.id === nodeId);
   const deviceData = node?.type === "device" ? (node.data as DeviceData) : null;
+
+  // Plan-view orientation. rotateBy(value, 0) wraps any stored rotation into [0, 360)
+  // for display, and -rotationDeg is the exact delta that resets it back to 0.
+  const rotationDeg = deviceData ? rotateBy(deviceData.rotationDeg, 0) : 0;
+  const rotate = (deltaDeg: number) => {
+    useSchematicStore.getState().rotateDevice(nodeId, deltaDeg);
+    useSchematicStore.setState({ deviceContextMenu: null });
+  };
 
   const placement = pages
     .flatMap((p) => p.placements.map((pl) => ({ page: p, placement: pl })))
@@ -136,6 +146,20 @@ export default function DeviceContextMenu() {
         );
       })()}
 
+      {deviceData && canvasViewMode === "plan" && (
+        <>
+          <div className="h-px bg-[var(--ui-border)] my-1" />
+          <MenuSubmenu label={`Rotate  (${rotationDeg}°)`}>
+            <MenuItem label="Rotate 90° ↻" onClick={() => rotate(90)} />
+            <MenuItem label="Rotate 90° ↺" onClick={() => rotate(-90)} />
+            <MenuItem label="Rotate 180°" onClick={() => rotate(180)} />
+            {rotationDeg !== 0 && (
+              <MenuItem label="Reset to 0°" onClick={() => rotate(-rotationDeg)} />
+            )}
+          </MenuSubmenu>
+        </>
+      )}
+
       {deviceData && (
         <>
           <div className="h-px bg-[var(--ui-border)] my-1" />
@@ -184,6 +208,43 @@ export default function DeviceContextMenu() {
           ) : null}
         </>
       )}
+
+      {(() => {
+        const selectedCount = nodes.filter((n) => n.selected).length;
+        const thisGroupId = (deviceData as { groupId?: string } | null)?.groupId;
+        if (selectedCount < 2 && !thisGroupId) return null;
+        return (
+          <>
+            <div className="h-px bg-[var(--ui-border)] my-1" />
+            {selectedCount >= 2 && (
+              <MenuItem
+                label={`Group Selection (${selectedCount})  ⌘G`}
+                onClick={() => {
+                  useSchematicStore.getState().groupSelection();
+                  useSchematicStore.setState({ deviceContextMenu: null });
+                }}
+              />
+            )}
+            {thisGroupId && (
+              <MenuItem
+                label="Ungroup  ⇧⌘G"
+                onClick={() => {
+                  const st = useSchematicStore.getState();
+                  // Select the whole group, then ungroup it as a unit.
+                  useSchematicStore.setState({
+                    nodes: st.nodes.map((n) => ({
+                      ...n,
+                      selected: (n.data as { groupId?: string }).groupId === thisGroupId,
+                    })),
+                  });
+                  useSchematicStore.getState().ungroupSelection();
+                  useSchematicStore.setState({ deviceContextMenu: null });
+                }}
+              />
+            )}
+          </>
+        );
+      })()}
 
       <div className="h-px bg-[var(--ui-border)] my-1" />
       <MenuItem label="Delete Device" onClick={deleteDevice} danger />

@@ -220,6 +220,8 @@ export interface DeviceData {
   [key: string]: unknown;
   /** Layer membership (SchematicLayer.id). Absent = default layer. */
   layerId?: string;
+  /** Logical group membership (Photoshop-style group). Absent = ungrouped. */
+  groupId?: string;
   /** Display glyph shown before the device label on the canvas. */
   icon?: string;
   /** When set, this device is software running inside the named host device. */
@@ -280,6 +282,15 @@ export interface DeviceData {
   depthMm?: number;
   /** Device weight in kilograms — reserved for future rack management */
   weightKg?: number;
+  /** Device orientation in the to-scale plan view, in degrees (placement state; default 0).
+   *  Not shown in the schematic view. Excluded from "save as template". */
+  rotationDeg?: number;
+  /** Loudspeaker sensitivity in dB SPL @ 1 W / 1 m (drives plan-view coverage estimates). */
+  speakerSensitivityDb?: number;
+  /** Loudspeaker rated/max power in watts (drives plan-view coverage estimates). */
+  speakerMaxPowerW?: number;
+  /** Loudspeaker nominal coverage angle in degrees (drives the plan-view coverage wedge). */
+  speakerCoverageAngleDeg?: number;
   /** Optional rack-form override — when set, bypasses the size heuristic in `inferRackForm`.
    *  Use for edge cases (e.g., desktop unit with optional rack ears, oddly-sized half-rack gear). */
   rackForm?: "full" | "half" | "shelf-only";
@@ -830,6 +841,23 @@ export const DEFAULT_LABEL_CASE: LabelCaseMode = "as-typed";
 
 export type PanMode = "select-first" | "pan-first";
 export const DEFAULT_PAN_MODE: PanMode = "select-first";
+
+/** Canvas render mode — schematic (signal-flow diagram), to-scale plan (top-down floor
+ *  view), or schedule (full-page cable BOM / schedule data view).
+ *  Session/UI preference only (persisted to localStorage); never written to SchematicFile. */
+export type CanvasViewMode = "schematic" | "plan" | "schedule";
+export const DEFAULT_CANVAS_VIEW_MODE: CanvasViewMode = "schematic";
+
+/** All known canvas view modes, in display order. */
+export const CANVAS_VIEW_MODES: readonly CanvasViewMode[] = ["schematic", "plan", "schedule"];
+
+/** Validate a persisted/raw canvas-view-mode value at the localStorage boundary.
+ *  Returns the value only when it is a known mode; otherwise the default. */
+export function parseCanvasViewMode(raw: string | null | undefined): CanvasViewMode {
+  return CANVAS_VIEW_MODES.includes(raw as CanvasViewMode)
+    ? (raw as CanvasViewMode)
+    : DEFAULT_CANVAS_VIEW_MODE;
+}
 
 export type StubLabelPageMode = "always" | "cross-page" | "never";
 export const DEFAULT_STUB_LABEL_SHOW_PORT = false;

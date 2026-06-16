@@ -104,6 +104,42 @@ export default function RoomContextMenu() {
         label={isEquipmentRack ? "Remove Equipment Rack" : "Mark as Equipment Rack"}
         onClick={toggleEquipmentRack}
       />
+      {(() => {
+        const all = useSchematicStore.getState().nodes;
+        const selectedCount = all.filter((n) => n.selected).length;
+        const thisGroupId = (roomData as { groupId?: string } | undefined)?.groupId;
+        if (selectedCount < 2 && !thisGroupId) return null;
+        return (
+          <>
+            <div className="h-px bg-[var(--ui-border)] my-1" />
+            {selectedCount >= 2 && (
+              <MenuItem
+                label={`Group Selection (${selectedCount})  ⌘G`}
+                onClick={() => {
+                  useSchematicStore.getState().groupSelection();
+                  useSchematicStore.setState({ roomContextMenu: null });
+                }}
+              />
+            )}
+            {thisGroupId && (
+              <MenuItem
+                label="Ungroup  ⇧⌘G"
+                onClick={() => {
+                  const st = useSchematicStore.getState();
+                  useSchematicStore.setState({
+                    nodes: st.nodes.map((n) => ({
+                      ...n,
+                      selected: (n.data as { groupId?: string }).groupId === thisGroupId,
+                    })),
+                  });
+                  useSchematicStore.getState().ungroupSelection();
+                  useSchematicStore.setState({ roomContextMenu: null });
+                }}
+              />
+            )}
+          </>
+        );
+      })()}
       <div className="h-px bg-[var(--ui-border)] my-1" />
       <MenuItem label="Delete Room" onClick={deleteRoom} danger />
       <MenuItem label="Delete Room & Contents" onClick={deleteRoomAndContents} danger />

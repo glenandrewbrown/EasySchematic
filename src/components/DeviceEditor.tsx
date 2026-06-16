@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo, type DragEvent } from "react";
 import { useSchematicStore } from "../store";
+import { isSpeaker } from "../speakerSpec";
 import {
   SIGNAL_LABELS,
   SIGNAL_COLORS,
@@ -174,6 +175,11 @@ export default function DeviceEditor() {
   const [depthMm, setDepthMm] = useState<number | undefined>(undefined);
   const [weightKg, setWeightKg] = useState<number | undefined>(undefined);
 
+  // Loudspeaker acoustic spec — drives the plan-view coverage wedge + SPL estimates
+  const [speakerSensitivityDb, setSpeakerSensitivityDb] = useState<number | undefined>(undefined);
+  const [speakerMaxPowerW, setSpeakerMaxPowerW] = useState<number | undefined>(undefined);
+  const [speakerCoverageAngleDeg, setSpeakerCoverageAngleDeg] = useState<number | undefined>(undefined);
+
   // Cable accessory flags
   const [isCableAccessory, setIsCableAccessory] = useState(false);
   const [integratedWithCable, setIntegratedWithCable] = useState(false);
@@ -270,6 +276,9 @@ export default function DeviceEditor() {
     setWidthMm(node.data.widthMm);
     setDepthMm(node.data.depthMm);
     setWeightKg(node.data.weightKg);
+    setSpeakerSensitivityDb(node.data.speakerSensitivityDb);
+    setSpeakerMaxPowerW(node.data.speakerMaxPowerW);
+    setSpeakerCoverageAngleDeg(node.data.speakerCoverageAngleDeg);
     setIsCableAccessory(node.data.isCableAccessory ?? false);
     setIntegratedWithCable(node.data.integratedWithCable ?? false);
     setIsVenueProvided(node.data.isVenueProvided ?? false);
@@ -328,7 +337,14 @@ export default function DeviceEditor() {
       ...(existing?.templateId ? { templateId: existing.templateId } : {}),
       ...(existing?.templateVersion ? { templateVersion: existing.templateVersion } : {}),
       ...(existing?.layerId ? { layerId: existing.layerId } : {}),
+      ...(existing?.groupId ? { groupId: existing.groupId } : {}),
       ...(existing?.hostDeviceId ? { hostDeviceId: existing.hostDeviceId } : {}),
+      // rotationDeg (placement/aim) is set via the plan-view rotate/aim handle, not this form — preserve it.
+      ...(existing?.rotationDeg !== undefined ? { rotationDeg: existing.rotationDeg } : {}),
+      // Loudspeaker acoustic spec — edited via the "Loudspeaker / Coverage" inputs below.
+      ...(speakerSensitivityDb != null ? { speakerSensitivityDb } : {}),
+      ...(speakerMaxPowerW != null ? { speakerMaxPowerW } : {}),
+      ...(speakerCoverageAngleDeg != null ? { speakerCoverageAngleDeg } : {}),
       ...(icon ? { icon } : {}),
       ...(color ? { color } : {}),
       ...(headerColor ? { headerColor } : {}),
@@ -363,7 +379,7 @@ export default function DeviceEditor() {
     updateDevice(editingNodeId, data);
     setCreatingNodeId(null); // commit the node — close won't undo it
     close();
-  }, [editingNodeId, ports, label, shortName, icon, useShortName, wrapLabel, hostname, deviceType, manufacturer, modelNumber, referenceUrl, category, color, headerColor, node, updateDevice, close, setCreatingNodeId, showAllPorts, hiddenPorts, dhcpServer, powerDrawW, powerCapacityW, voltage, thermalBtuh, poeBudgetW, poeDrawW, unitCost, heightMm, widthMm, depthMm, weightKg, isCableAccessory, integratedWithCable, isVenueProvided, adapterVisibility, auxiliaryData, searchTermsRaw]);
+  }, [editingNodeId, ports, label, shortName, icon, useShortName, wrapLabel, hostname, deviceType, manufacturer, modelNumber, referenceUrl, category, color, headerColor, node, updateDevice, close, setCreatingNodeId, showAllPorts, hiddenPorts, dhcpServer, powerDrawW, powerCapacityW, voltage, thermalBtuh, poeBudgetW, poeDrawW, unitCost, heightMm, widthMm, depthMm, weightKg, isCableAccessory, integratedWithCable, isVenueProvided, adapterVisibility, speakerSensitivityDb, speakerMaxPowerW, speakerCoverageAngleDeg, auxiliaryData, searchTermsRaw]);
 
   // Ctrl+Enter anywhere in the editor → Apply & Close
   const onCtrlEnter = useCallback((e: React.KeyboardEvent) => {
@@ -386,6 +402,9 @@ export default function DeviceEditor() {
     const trimmedAux = trimTrailingEmpty(auxiliaryData);
     const existing = node?.data;
 
+    // A template captures the device SPEC only. Per-placement/instance fields —
+    // rotationDeg, layerId, groupId, hostDeviceId, position — are intentionally NOT
+    // carried over (DeviceTemplate has no such fields; do not spread node.data here).
     addCustomTemplate({
       id: `custom-${Date.now()}`,
       deviceType: deviceType.trim() || "custom",
@@ -1179,6 +1198,70 @@ export default function DeviceEditor() {
               </div>
             </div>
           </details>
+
+          {/* Loudspeaker / Coverage — acoustic spec for the plan-view coverage wedge + SPL estimate.
+              Shown for detected loudspeakers, or whenever a value is already set. */}
+          {(isSpeaker({ deviceType, ports }) ||
+            speakerSensitivityDb != null ||
+            speakerMaxPowerW != null ||
+            speakerCoverageAngleDeg != null) && (
+            <details className="text-xs">
+              <summary className="cursor-pointer text-[var(--color-text-secondary)] hover:text-[var(--color-text)] select-none py-1">
+                Loudspeaker / Coverage
+              </summary>
+              <div className="pt-1 pl-2 grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mb-0.5">
+                    Sensitivity (dB)
+                  </label>
+                  <input
+                    type="number"
+                    className="ui-input w-full text-xs"
+                    value={speakerSensitivityDb ?? ""}
+                    onChange={(e) => setSpeakerSensitivityDb(e.target.value ? Number(e.target.value) : undefined)}
+                    placeholder="e.g. 86"
+                    min={1}
+                    step={0.1}
+                    onKeyDown={(e) => e.stopPropagation()}
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mb-0.5">
+                    Max Power (W)
+                  </label>
+                  <input
+                    type="number"
+                    className="ui-input w-full text-xs"
+                    value={speakerMaxPowerW ?? ""}
+                    onChange={(e) => setSpeakerMaxPowerW(e.target.value ? Number(e.target.value) : undefined)}
+                    placeholder="e.g. 100"
+                    min={1}
+                    step={1}
+                    onKeyDown={(e) => e.stopPropagation()}
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mb-0.5">
+                    Coverage (°)
+                  </label>
+                  <input
+                    type="number"
+                    className="ui-input w-full text-xs"
+                    value={speakerCoverageAngleDeg ?? ""}
+                    onChange={(e) => setSpeakerCoverageAngleDeg(e.target.value ? Number(e.target.value) : undefined)}
+                    placeholder="e.g. 90"
+                    min={1}
+                    max={359}
+                    step={1}
+                    onKeyDown={(e) => e.stopPropagation()}
+                  />
+                </div>
+              </div>
+              <p className="text-[10px] text-[var(--color-text-muted)] pl-2 pt-1 leading-relaxed">
+                Drives the plan-view coverage wedge and SPL estimate (nominal, on-axis — not a measured guarantee).
+              </p>
+            </details>
+          )}
 
           {ports.some((p) => p.connectorType === "rj45" || p.connectorType === "ethercon") && (
             <>

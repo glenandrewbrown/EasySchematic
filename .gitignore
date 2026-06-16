@@ -85,3 +85,21 @@ desktop/icon.icns
 
 # Local tool state
 .omc/
+
+# Agent / session working artifacts
+.playwright-mcp/
+handover/
+
+# Saved-webpage artifacts (the real app entry is src/main.tsx, not these)
+/client
+/main.tsx
+/saved_resource.html
+/EasySchematic*.html
+
+# Throwaway design/audit screenshots
+/audit-*.png
+/redesign-*.png
+/step*.png
+
+# Client/job-specific sample schematics (not app source)
+/*_TechSpec.json
