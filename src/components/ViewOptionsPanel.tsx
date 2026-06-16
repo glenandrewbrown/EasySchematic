@@ -45,6 +45,11 @@ export default function ViewOptionsPanel({ mobile, onClose }: { mobile?: boolean
   const signalLineStyles = useSchematicStore((s) => s.signalLineStyles);
   const setSignalLineStyles = useSchematicStore((s) => s.setSignalLineStyles);
   const signalColors = useSchematicStore((s) => s.signalColors);
+  const showMiniMap = useSchematicStore((s) => s.showMiniMap);
+  const setShowMiniMap = useSchematicStore((s) => s.setShowMiniMap);
+  const gridSettings = useSchematicStore((s) => s.gridSettings);
+  const setGridSettings = useSchematicStore((s) => s.setGridSettings);
+  const canvasViewMode = useSchematicStore((s) => s.canvasViewMode);
 
   // Compute which signal types are actually used in the current schematic
   const usedSignalTypesStr = useSchematicStore((s) => {
@@ -180,6 +185,57 @@ export default function ViewOptionsPanel({ mobile, onClose }: { mobile?: boolean
 
       {/* Ports + Signal Types */}
       <div className="flex-1 overflow-y-auto p-2 space-y-1">
+        <div className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mb-1">
+          Canvas
+        </div>
+        <label className="flex items-center gap-2 px-1 py-0.5 rounded hover:bg-[var(--color-surface-hover)] cursor-pointer">
+          <input
+            type="checkbox"
+            checked={showMiniMap}
+            onChange={(e) => setShowMiniMap(e.target.checked)}
+            className="w-3 h-3 accent-blue-500 cursor-pointer"
+          />
+          <span className="text-xs text-[var(--color-text)]">Show minimap</span>
+        </label>
+        <label className="flex items-center gap-2 px-1 py-0.5 rounded hover:bg-[var(--color-surface-hover)] cursor-pointer">
+          <input
+            type="checkbox"
+            checked={gridSettings.gridVisible}
+            onChange={(e) => setGridSettings({ gridVisible: e.target.checked })}
+            className="w-3 h-3 accent-blue-500 cursor-pointer"
+          />
+          <span className="text-xs text-[var(--color-text)]">Show grid</span>
+        </label>
+        {canvasViewMode === "layout" && (
+          <>
+            <div className="flex items-center gap-2 px-1 py-0.5">
+              <span className="text-xs text-[var(--color-text)] flex-1">Grid unit</span>
+              <select
+                value={gridSettings.layoutGridUnit}
+                onChange={(e) => setGridSettings({ layoutGridUnit: e.target.value as "m" | "ft" })}
+                className="text-xs bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-1 py-0.5 text-[var(--color-text)] cursor-pointer"
+              >
+                <option value="m">metres</option>
+                <option value="ft">feet</option>
+              </select>
+            </div>
+            <div className="flex items-center gap-2 px-1 py-0.5">
+              <span className="text-xs text-[var(--color-text)] flex-1">Cell size</span>
+              <input
+                type="number"
+                min={0.1}
+                step={0.1}
+                value={gridSettings.layoutGridStep}
+                onChange={(e) => setGridSettings({ layoutGridStep: Number(e.target.value) || 1 })}
+                className="w-14 text-xs bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-1 py-0.5 text-[var(--color-text)]"
+              />
+              <span className="text-[10px] text-[var(--color-text-muted)]">{gridSettings.layoutGridUnit}</span>
+            </div>
+          </>
+        )}
+
+        <div className="border-t border-[var(--color-border)] my-2" />
+
         <div className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mb-1">
           Ports
         </div>

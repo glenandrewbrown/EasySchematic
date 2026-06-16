@@ -413,6 +413,13 @@ interface SchematicState {
   containers: TransportContainer[];
   /** Minimap visibility (per-user; localStorage-backed; not in SchematicFile). */
   showMiniMap: boolean;
+  setShowMiniMap: (visible: boolean) => void;
+  /** Merge a patch into the grid settings (persists to file; not undoable). */
+  setGridSettings: (patch: Partial<GridSettings>) => void;
+  /** Dismiss / restore a validation issue by stable id (persists to file; not undoable). */
+  dismissIssue: (id: string) => void;
+  undismissIssue: (id: string) => void;
+  clearDismissedIssues: () => void;
 
   // Layers (Photoshop-style show/hide/lock)
   layers: SchematicLayer[];
@@ -3235,6 +3242,28 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
   setCoverageVisible: (visible) => {
     if (typeof localStorage !== "undefined") localStorage.setItem(COVERAGE_VISIBLE_KEY, visible ? "1" : "0");
     set({ coverageVisible: visible });
+  },
+
+  setShowMiniMap: (visible) => {
+    if (typeof localStorage !== "undefined") localStorage.setItem(MINIMAP_VISIBLE_KEY, visible ? "1" : "0");
+    set({ showMiniMap: visible });
+  },
+  setGridSettings: (patch) => {
+    set({ gridSettings: { ...get().gridSettings, ...patch } });
+    get().saveToLocalStorage();
+  },
+  dismissIssue: (id) => {
+    if (get().dismissedIssueIds.includes(id)) return;
+    set({ dismissedIssueIds: [...get().dismissedIssueIds, id] });
+    get().saveToLocalStorage();
+  },
+  undismissIssue: (id) => {
+    set({ dismissedIssueIds: get().dismissedIssueIds.filter((x) => x !== id) });
+    get().saveToLocalStorage();
+  },
+  clearDismissedIssues: () => {
+    set({ dismissedIssueIds: [] });
+    get().saveToLocalStorage();
   },
 
   activeTool: DEFAULT_TOOL,

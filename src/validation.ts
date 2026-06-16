@@ -221,3 +221,11 @@ export function countIssues(issues: readonly ValidationIssue[]): IssueCounts {
   }
   return { errors, warnings, total: issues.length };
 }
+
+/** Drop issues the user has dismissed (matched by stable id). Returns a new array. */
+export function activeIssues(
+  issues: readonly ValidationIssue[],
+  dismissedIds: ReadonlySet<string>,
+): ValidationIssue[] {
+  return issues.filter((i) => !dismissedIds.has(i.id));
+}

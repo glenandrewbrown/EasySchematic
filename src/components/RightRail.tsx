@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSchematicStore } from "../store";
-import { validateSchematic, countIssues } from "../validation";
+import { validateSchematic, countIssues, activeIssues } from "../validation";
 import Inspector from "./Inspector";
 import LayersPanel from "./LayersPanel";
 import ValidationPanel from "./ValidationPanel";
@@ -63,8 +63,12 @@ function TabButton({
 export default function RightRail() {
   const nodes = useSchematicStore((s) => s.nodes);
   const edges = useSchematicStore((s) => s.edges);
+  const dismissedIssueIds = useSchematicStore((s) => s.dismissedIssueIds);
+  const dismissIssue = useSchematicStore((s) => s.dismissIssue);
+  const undismissIssue = useSchematicStore((s) => s.undismissIssue);
   const issues = useMemo(() => validateSchematic(nodes, edges), [nodes, edges]);
-  const counts = countIssues(issues);
+  const dismissedSet = useMemo(() => new Set(dismissedIssueIds), [dismissedIssueIds]);
+  const counts = useMemo(() => countIssues(activeIssues(issues, dismissedSet)), [issues, dismissedSet]);
 
   const [tab, setTabState] = useState<Tab>(
     () => ((localStorage.getItem(STORAGE_KEY) as Tab | null) ?? "inspect"),
@@ -103,7 +107,14 @@ export default function RightRail() {
       <div className="flex-1 overflow-hidden">
         {tab === "inspect" && <Inspector embedded />}
         {tab === "layers" && <LayersPanel embedded />}
-        {tab === "validate" && <ValidationPanel issues={issues} />}
+        {tab === "validate" && (
+          <ValidationPanel
+            issues={issues}
+            dismissedIds={dismissedSet}
+            onDismiss={dismissIssue}
+            onUndismiss={undismissIssue}
+          />
+        )}
         {tab === "view" && (
           <div className="h-full overflow-y-auto">
             <div className="h-[320px] border-b border-[var(--ui-border)]">

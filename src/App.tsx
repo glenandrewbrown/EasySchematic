@@ -604,6 +604,8 @@ function SchematicCanvas() {
   // Store nodes/edges stay complete; we only decorate what React Flow renders.
   const layers = useSchematicStore((s) => s.layers);
   const canvasViewMode = useSchematicStore((s) => s.canvasViewMode);
+  const showMiniMap = useSchematicStore((s) => s.showMiniMap);
+  const gridSettings = useSchematicStore((s) => s.gridSettings);
   const hiddenNodeIds = useSchematicStore((s) => s.hiddenNodeIds);
   const lockedNodeIds = useSchematicStore((s) => s.lockedNodeIds);
   const soloLayerId = useSchematicStore((s) => s.soloLayerId);
@@ -1744,18 +1746,20 @@ function SchematicCanvas() {
         </div>
       )}
       {!printView && <CanvasOriginOverlay />}
-      <Background variant={BackgroundVariant.Dots} gap={GRID_SIZE} size={1.4} color={isDark ? "#3b4a66" : "#c6cad2"} />
+      {gridSettings.gridVisible && <Background variant={BackgroundVariant.Dots} gap={GRID_SIZE} size={1.4} color={isDark ? "#3b4a66" : "#c6cad2"} />}
       <Controls position="bottom-right" />
       <AutoRouteChip />
       <AutoRouteConfirmDialog />
       <CableAssignDialog />
       <CableInventoryDialog />
-      <MiniMap
-        position="bottom-left"
-        pannable
-        zoomable
-        nodeColor={(node) => node.type === "room" ? (isDark ? "#334155" : "#e5e7eb") : "#3b82f6"}
-      />
+      {showMiniMap && (
+        <MiniMap
+          position="bottom-left"
+          pannable
+          zoomable
+          nodeColor={(node) => node.type === "room" ? (isDark ? "#334155" : "#e5e7eb") : "#3b82f6"}
+        />
+      )}
       <RoutingDebugOverlay />
     </ReactFlow>
     <RoutingTuningPanel />
