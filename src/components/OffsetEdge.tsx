@@ -150,6 +150,10 @@ function OffsetEdgeComponent({
     return s.nodes.find((n) => n.id === edge.target)?.type === "stub-label";
   });
 
+  // When the "Colour by" axis is not signal, connections take a flat axis colour
+  // (set on style.stroke upstream) — suppress the multi-signal gradient so it shows through.
+  const colorBySignal = useSchematicStore((s) => s.colorBy === "signal");
+
   // Read effective line style: per-connection override > per-signal-type default > solid
   const lineStyle = useSchematicStore((s) => {
     const edge = s.edges.find((e) => e.id === id);
@@ -194,7 +198,7 @@ function OffsetEdgeComponent({
   }
 
   // Gradient for virtual edges bridging different signal types
-  const hasGradient = gradientColors.length > 0;
+  const hasGradient = gradientColors.length > 0 && colorBySignal;
   const gradientId = hasGradient ? `gradient-${id}` : "";
   let gradientDef: React.ReactNode = null;
   if (hasGradient && routeStr) {

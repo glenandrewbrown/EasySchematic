@@ -87,6 +87,9 @@ function repairMojibake(obj: unknown): unknown {
   return obj;
 }
 
+/** Dominant colour axis for connections (the "Colour by" switch). */
+export type ColorBy = "signal" | "layer" | "none";
+
 /** Resolve the rendered stroke color for a connection. Direct-attach always wins as gray;
  *  otherwise per-connection `color` override beats the signal-type CSS variable. */
 function resolveEdgeStroke(data: ConnectionData | undefined): string {
@@ -384,6 +387,11 @@ interface SchematicState {
   // Canvas view mode (schematic signal-flow vs to-scale plan) — session/UI pref, not persisted to file
   canvasViewMode: CanvasViewMode;
   setCanvasViewMode: (mode: CanvasViewMode) => void;
+  /** Dominant colour axis for connections — session/UI pref, not persisted to file.
+   *  "signal" = signal-family colour (default); "layer" = the connection's layer colour;
+   *  "none" = neutral grey (signal recedes for a clean structural read). */
+  colorBy: ColorBy;
+  setColorBy: (axis: ColorBy) => void;
   /** Show loudspeaker coverage wedges in plan view — session/UI pref, not persisted to file. */
   coverageVisible: boolean;
   setCoverageVisible: (visible: boolean) => void;
@@ -3295,6 +3303,9 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
     if (typeof localStorage !== "undefined") localStorage.setItem(CANVAS_VIEW_MODE_KEY, mode);
     set({ canvasViewMode: mode });
   },
+
+  colorBy: "signal",
+  setColorBy: (axis) => set({ colorBy: axis }),
 
   coverageVisible: readInitialCoverageVisible(),
   setCoverageVisible: (visible) => {

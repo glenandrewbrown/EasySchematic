@@ -612,6 +612,7 @@ function SchematicCanvas() {
   // Store nodes/edges stay complete; we only decorate what React Flow renders.
   const layers = useSchematicStore((s) => s.layers);
   const canvasViewMode = useSchematicStore((s) => s.canvasViewMode);
+  const colorBy = useSchematicStore((s) => s.colorBy);
   const showMiniMap = useSchematicStore((s) => s.showMiniMap);
   const gridSettings = useSchematicStore((s) => s.gridSettings);
   const svgImportTargetNodeId = useSchematicStore((s) => s.svgImportTargetNodeId);
@@ -629,6 +630,20 @@ function SchematicCanvas() {
       ? edges.filter((e) => !sigHidden.has(e.data?.signalType ?? ""))
       : edges;
 
+    // "Colour by" axis: override connection stroke when the dominant axis is not signal.
+    // "layer" → the connection's layer colour; "none" → neutral grey (signal recedes).
+    const NEUTRAL_STROKE = "#9ca3af";
+    const recolorEdges = (list: typeof edges): typeof edges => {
+      if (colorBy === "signal") return list;
+      return list.map((e) => {
+        const stroke =
+          colorBy === "layer"
+            ? (layers.find((l) => l.id === (e.data?.layerId ?? DEFAULT_LAYER_ID))?.color ?? NEUTRAL_STROKE)
+            : NEUTRAL_STROKE;
+        return { ...e, style: { ...(e.style ?? {}), stroke } };
+      });
+    };
+
     const hiddenLayers = new Set(layers.filter((l) => !l.visible).map((l) => l.id));
     const lockedLayers = new Set(layers.filter((l) => l.locked).map((l) => l.id));
     // Per-item Layers/Groups overrides (ephemeral). Ignore a solo target whose layer
@@ -645,7 +660,7 @@ function SchematicCanvas() {
       const base = needLayoutHide
         ? nodes.map((n) => ((n.type === "object" || n.type === "zone") ? { ...n, hidden: true } : n))
         : nodes;
-      return { renderNodes: base, visibleEdges: planHideEdges ? [] : sigFiltered };
+      return { renderNodes: base, visibleEdges: planHideEdges ? [] : recolorEdges(sigFiltered) };
     }
 
     const layerOf = (lid: string | undefined) => lid ?? DEFAULT_LAYER_ID;
@@ -701,8 +716,8 @@ function SchematicCanvas() {
       }
       return n;
     });
-    return { renderNodes: finalNodes, visibleEdges: planHideEdges ? [] : mappedEdges };
-  }, [nodes, edges, hiddenSignalTypesStr, layers, canvasViewMode, hiddenNodeIds, lockedNodeIds, soloLayerId]);
+    return { renderNodes: finalNodes, visibleEdges: planHideEdges ? [] : recolorEdges(mappedEdges) };
+  }, [nodes, edges, hiddenSignalTypesStr, layers, canvasViewMode, colorBy, hiddenNodeIds, lockedNodeIds, soloLayerId]);
 
   // Validation status per device → an on-canvas corner dot (engine-driven, presentation-only).
   // Same source as the top-bar badge + Validate tab; error severity wins over warning.

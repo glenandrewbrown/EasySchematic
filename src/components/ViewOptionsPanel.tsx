@@ -50,6 +50,8 @@ export default function ViewOptionsPanel({ mobile, onClose }: { mobile?: boolean
   const gridSettings = useSchematicStore((s) => s.gridSettings);
   const setGridSettings = useSchematicStore((s) => s.setGridSettings);
   const canvasViewMode = useSchematicStore((s) => s.canvasViewMode);
+  const colorBy = useSchematicStore((s) => s.colorBy);
+  const setColorBy = useSchematicStore((s) => s.setColorBy);
 
   // Compute which signal types are actually used in the current schematic
   const usedSignalTypesStr = useSchematicStore((s) => {
@@ -260,6 +262,26 @@ export default function ViewOptionsPanel({ mobile, onClose }: { mobile?: boolean
             </div>
           </>
         )}
+
+        <div className="flex items-center gap-2 px-1 py-0.5">
+          <span className="text-xs text-[var(--color-text)] flex-1">Colour by</span>
+          <div className="flex rounded-md border border-[var(--color-border)] overflow-hidden">
+            {(["signal", "layer", "none"] as const).map((axis) => (
+              <button
+                key={axis}
+                type="button"
+                onClick={() => setColorBy(axis)}
+                className={`px-2 py-0.5 text-[11px] capitalize cursor-pointer transition-colors ${
+                  colorBy === axis
+                    ? "bg-[var(--color-accent)] text-white"
+                    : "bg-[var(--color-surface)] text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+                }`}
+              >
+                {axis}
+              </button>
+            ))}
+          </div>
+        </div>
 
         <div className="border-t border-[var(--color-border)] my-2" />
 
