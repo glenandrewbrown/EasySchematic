@@ -277,4 +277,190 @@ describe("buildLayerTree", () => {
     expect(input.nodes).toHaveLength(1);
     expect(input.layers).toHaveLength(1);
   });
+
+  // -------------------------------------------------------------------------
+  // Rooms as containers
+  // -------------------------------------------------------------------------
+
+  it("a room nests nodes whose parentId points at it", () => {
+    const input: BuildLayerTreeInput = {
+      nodes: [
+        { id: "room1", type: "room", data: {} },
+        { id: "d1", type: "device", parentId: "room1", data: {} },
+        { id: "d2", type: "device", parentId: "room1", data: {} },
+      ],
+      layers: [],
+    };
+    const tree = buildLayerTree(input);
+    const room = findById(tree, "room1");
+
+    expect(room?.roomChildren?.map((c) => c.id)).toEqual(["d1", "d2"]);
+    expect(room?.roomChildren?.every((c) => c.kind === "node")).toBe(true);
+  });
+
+  it("room-nested children are excluded from the layer's flat list", () => {
+    const input: BuildLayerTreeInput = {
+      nodes: [
+        { id: "room1", type: "room", data: {} },
+        { id: "d1", type: "device", parentId: "room1", data: {} },
+        { id: "loose", type: "device", data: {} },
+      ],
+      layers: [],
+    };
+    const tree = buildLayerTree(input);
+    const flatIds = tree[0].children.map((c) => c.id);
+
+    expect(flatIds).toContain("room1");
+    expect(flatIds).toContain("loose");
+    expect(flatIds).not.toContain("d1");
+  });
+
+  it("a child whose parentId targets a room on another layer is NOT nested", () => {
+    const input: BuildLayerTreeInput = {
+      nodes: [
+        { id: "room1", type: "room", data: { layerId: "layerA" } },
+        // Child lives on a different layer than its parent room.
+        { id: "d1", type: "device", parentId: "room1", data: { layerId: "layerB" } },
+      ],
+      layers: [
+        { id: "layerA", name: "A", visible: true, locked: false },
+        { id: "layerB", name: "B", visible: true, locked: false },
+      ],
+    };
+    const tree = buildLayerTree(input);
+    const room = findById(tree, "room1");
+    const layerB = tree.find((t) => t.id === "layerB");
+
+    expect(room?.roomChildren ?? []).toHaveLength(0);
+    expect(layerB?.children.map((c) => c.id)).toEqual(["d1"]);
+  });
+
+  it("a room with no children has an empty roomChildren list and no count summary", () => {
+    const input: BuildLayerTreeInput = {
+      nodes: [{ id: "room1", type: "room", data: {} }],
+      layers: [],
+    };
+    const tree = buildLayerTree(input);
+    const room = findById(tree, "room1");
+
+    expect(room?.roomChildren ?? []).toHaveLength(0);
+    expect(room?.secondaryText).toBeUndefined();
+  });
+
+  // -------------------------------------------------------------------------
+  // Colour pass-through
+  // -------------------------------------------------------------------------
+
+  it("layer colour passes through onto the layer tree node", () => {
+    const input: BuildLayerTreeInput = {
+      nodes: [],
+      layers: [{ id: "layerA", name: "A", visible: true, locked: false, color: "#3b82f6" }],
+    };
+    const tree = buildLayerTree(input);
+    const layerA = tree.find((t) => t.id === "layerA");
+
+    expect(layerA?.color).toBe("#3b82f6");
+  });
+
+  it("a layer without a colour has color undefined", () => {
+    const input: BuildLayerTreeInput = {
+      nodes: [],
+      layers: [{ id: "layerA", name: "A", visible: true, locked: false }],
+    };
+    const tree = buildLayerTree(input);
+    const layerA = tree.find((t) => t.id === "layerA");
+
+    expect(layerA?.color).toBeUndefined();
+  });
+
+  // -------------------------------------------------------------------------
+  // Secondary text
+  // -------------------------------------------------------------------------
+
+  it("layer secondaryText tallies direct contents by type with pluralisation", () => {
+    const input: BuildLayerTreeInput = {
+      nodes: [
+        { id: "d1", type: "device", data: {} },
+        { id: "d2", type: "device", data: {} },
+        { id: "d3", type: "device", data: {} },
+        { id: "d4", type: "device", data: {} },
+        { id: "room1", type: "room", data: {} },
+        { id: "note1", type: "note", data: {} },
+        { id: "note2", type: "note", data: {} },
+      ],
+      layers: [],
+    };
+    const tree = buildLayerTree(input);
+
+    expect(tree[0].secondaryText).toBe("4 devices · 1 room · 2 notes");
+  });
+
+  it("layer secondaryText counts a room once and omits its nested children", () => {
+    const input: BuildLayerTreeInput = {
+      nodes: [
+        { id: "room1", type: "room", data: {} },
+        { id: "d1", type: "device", parentId: "room1", data: {} },
+        { id: "d2", type: "device", parentId: "room1", data: {} },
+      ],
+      layers: [],
+    };
+    const tree = buildLayerTree(input);
+
+    // Room counts as a room; its two nested devices are NOT tallied at layer level.
+    expect(tree[0].secondaryText).toBe("1 room");
+  });
+
+  it("an empty layer has no secondaryText", () => {
+    const input: BuildLayerTreeInput = {
+      nodes: [],
+      layers: [{ id: "empty", name: "Empty", visible: true, locked: false }],
+    };
+    const tree = buildLayerTree(input);
+    const empty = tree.find((t) => t.id === "empty");
+
+    expect(empty?.secondaryText).toBeUndefined();
+  });
+
+  it("room secondaryText reports its child count", () => {
+    const input: BuildLayerTreeInput = {
+      nodes: [
+        { id: "room1", type: "room", data: {} },
+        { id: "d1", type: "device", parentId: "room1", data: {} },
+        { id: "d2", type: "device", parentId: "room1", data: {} },
+        { id: "d3", type: "device", parentId: "room1", data: {} },
+      ],
+      layers: [],
+    };
+    const tree = buildLayerTree(input);
+    const room = findById(tree, "room1");
+
+    expect(room?.secondaryText).toBe("3 devices");
+  });
+
+  it("room secondaryText is prefixed with real dimensions when present", () => {
+    const input: BuildLayerTreeInput = {
+      nodes: [
+        { id: "room1", type: "room", data: { widthM: 6, depthM: 4 } },
+        { id: "d1", type: "device", parentId: "room1", data: {} },
+        { id: "d2", type: "device", parentId: "room1", data: {} },
+        { id: "d3", type: "device", parentId: "room1", data: {} },
+      ],
+      layers: [],
+    };
+    const tree = buildLayerTree(input);
+    const room = findById(tree, "room1");
+
+    expect(room?.secondaryText).toBe("6.0 × 4.0 m · 3 devices");
+  });
+
+  it("an empty room with dimensions shows only the dimension text", () => {
+    const input: BuildLayerTreeInput = {
+      nodes: [{ id: "room1", type: "room", data: { widthM: 6, depthM: 4 } }],
+      layers: [],
+    };
+    const tree = buildLayerTree(input);
+    const room = findById(tree, "room1");
+
+    expect(room?.secondaryText).toBe("6.0 × 4.0 m");
+  });
 });

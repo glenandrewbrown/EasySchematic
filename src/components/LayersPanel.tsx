@@ -2,6 +2,7 @@ import { useMemo, useState, type ReactElement } from "react";
 import { useSchematicStore } from "../store";
 import { DEFAULT_LAYER_ID } from "../types";
 import { buildLayerTree, type LayerTreeNode } from "../layerTree";
+import LayerColorPicker from "./LayerColorPicker";
 
 function EyeIcon({ off }: { off?: boolean }) {
   return (
@@ -30,9 +31,12 @@ function Chevron({ open }: { open: boolean }) {
   );
 }
 
-/** All node ids beneath a tree entry (the entry itself when it's a node). */
+/** All node ids beneath a tree entry (the entry itself when it's a node,
+ *  including any room-nested descendants). */
 function collectNodeIds(node: LayerTreeNode): string[] {
-  if (node.kind === "node") return [node.id];
+  if (node.kind === "node") {
+    return [node.id, ...(node.roomChildren ?? []).flatMap(collectNodeIds)];
+  }
   return node.children.flatMap(collectNodeIds);
 }
 
@@ -46,6 +50,7 @@ export default function LayersPanel({ embedded = false }: { embedded?: boolean }
   const removeLayer = useSchematicStore((s) => s.removeLayer);
   const toggleLayerVisible = useSchematicStore((s) => s.toggleLayerVisible);
   const toggleLayerLocked = useSchematicStore((s) => s.toggleLayerLocked);
+  const setLayerColor = useSchematicStore((s) => s.setLayerColor);
   const assignSelectionToLayer = useSchematicStore((s) => s.assignSelectionToLayer);
   const hiddenNodeIds = useSchematicStore((s) => s.hiddenNodeIds);
   const lockedNodeIds = useSchematicStore((s) => s.lockedNodeIds);
@@ -70,10 +75,13 @@ export default function LayersPanel({ embedded = false }: { embedded?: boolean }
           return {
             id: n.id,
             type: n.type,
+            parentId: (n as { parentId?: string }).parentId,
             data: {
               layerId: typeof d.layerId === "string" ? d.layerId : undefined,
               groupId: typeof d.groupId === "string" ? d.groupId : undefined,
               label: typeof d.label === "string" ? d.label : undefined,
+              widthM: typeof d.widthM === "number" ? d.widthM : undefined,
+              depthM: typeof d.depthM === "number" ? d.depthM : undefined,
             },
           };
         }),
@@ -95,6 +103,8 @@ export default function LayersPanel({ embedded = false }: { embedded?: boolean }
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
+  // Layer id whose colour picker popover is currently open (null = none).
+  const [colorPickerLayerId, setColorPickerLayerId] = useState<string | null>(null);
   // Drag-to-reorder (z-order) state for node rows.
   const [dragNodeId, setDragNodeId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<{ id: string; place: "before" | "after" } | null>(null);
@@ -185,84 +195,107 @@ export default function LayersPanel({ embedded = false }: { embedded?: boolean }
         </div>
       );
     }
-    // kind === "node"
+    // kind === "node" — a room node with children becomes a collapsible branch.
+    const roomChildren = node.roomChildren ?? [];
+    const isRoomBranch = node.nodeType === "room" && roomChildren.length > 0;
+    const isOpen = expanded.has(node.id);
     const nHidden = hiddenSet.has(node.id);
     const nLocked = lockedSet.has(node.id);
     const isDropTarget = dropTarget?.id === node.id;
     return (
-      <div
-        key={node.id}
-        data-node-id={node.id}
-        draggable
-        onDragStart={(e) => {
-          setDragNodeId(node.id);
-          e.dataTransfer.effectAllowed = "move";
-        }}
-        onDragEnd={() => {
-          setDragNodeId(null);
-          setDropTarget(null);
-        }}
-        onDragOver={(e) => {
-          const valid =
-            dragNodeId != null &&
-            dragNodeId !== node.id &&
-            parentById.get(dragNodeId) === parentById.get(node.id);
-          if (!valid) return;
-          e.preventDefault();
-          const rect = e.currentTarget.getBoundingClientRect();
-          const place = e.clientY < rect.top + rect.height / 2 ? "before" : "after";
-          if (dropTarget?.id !== node.id || dropTarget.place !== place) {
-            setDropTarget({ id: node.id, place });
-          }
-        }}
-        onDrop={(e) => {
-          e.preventDefault();
-          if (
-            dragNodeId &&
-            dragNodeId !== node.id &&
-            parentById.get(dragNodeId) === parentById.get(node.id)
-          ) {
+      <div key={node.id}>
+        <div
+          data-node-id={node.id}
+          draggable
+          onDragStart={(e) => {
+            setDragNodeId(node.id);
+            e.dataTransfer.effectAllowed = "move";
+          }}
+          onDragEnd={() => {
+            setDragNodeId(null);
+            setDropTarget(null);
+          }}
+          onDragOver={(e) => {
+            const valid =
+              dragNodeId != null &&
+              dragNodeId !== node.id &&
+              parentById.get(dragNodeId) === parentById.get(node.id);
+            if (!valid) return;
+            e.preventDefault();
             const rect = e.currentTarget.getBoundingClientRect();
             const place = e.clientY < rect.top + rect.height / 2 ? "before" : "after";
-            reorderNodeZ(dragNodeId, node.id, place);
-          }
-          setDragNodeId(null);
-          setDropTarget(null);
-        }}
-        className={`flex items-center gap-1 pr-1.5 py-1 rounded-md group hover:bg-[var(--color-surface-hover)] cursor-grab ${nHidden ? "opacity-50" : ""} ${dragNodeId === node.id ? "opacity-40" : ""}`}
-        style={{
-          paddingLeft: pad + 14,
-          ...(isDropTarget
-            ? {
-                boxShadow:
-                  dropTarget?.place === "before"
-                    ? "inset 0 2px 0 0 var(--color-accent)"
-                    : "inset 0 -2px 0 0 var(--color-accent)",
-              }
-            : {}),
-        }}
-      >
-        <button
-          onClick={() => toggleNodeHidden(node.id)}
-          className={`cursor-pointer shrink-0 ${nHidden ? "text-[var(--color-text-muted)]" : "text-[var(--color-text)]"}`}
-          title={nHidden ? "Show" : "Hide"}
+            if (dropTarget?.id !== node.id || dropTarget.place !== place) {
+              setDropTarget({ id: node.id, place });
+            }
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            if (
+              dragNodeId &&
+              dragNodeId !== node.id &&
+              parentById.get(dragNodeId) === parentById.get(node.id)
+            ) {
+              const rect = e.currentTarget.getBoundingClientRect();
+              const place = e.clientY < rect.top + rect.height / 2 ? "before" : "after";
+              reorderNodeZ(dragNodeId, node.id, place);
+            }
+            setDragNodeId(null);
+            setDropTarget(null);
+          }}
+          className={`flex items-center gap-1 pr-1.5 py-1 rounded-md group hover:bg-[var(--color-surface-hover)] cursor-grab ${nHidden ? "opacity-50" : ""} ${dragNodeId === node.id ? "opacity-40" : ""}`}
+          style={{
+            paddingLeft: isRoomBranch ? pad : pad + 14,
+            ...(isDropTarget
+              ? {
+                  boxShadow:
+                    dropTarget?.place === "before"
+                      ? "inset 0 2px 0 0 var(--color-accent)"
+                      : "inset 0 -2px 0 0 var(--color-accent)",
+                }
+              : {}),
+          }}
         >
-          <EyeIcon off={nHidden} />
-        </button>
-        <button
-          onClick={() => toggleNodeLocked(node.id)}
-          className={`cursor-pointer shrink-0 ${nLocked ? "text-amber-500" : "text-[var(--color-text-muted)] opacity-40 group-hover:opacity-100"}`}
-          title={nLocked ? "Unlock" : "Lock"}
-        >
-          <PadlockIcon open={!nLocked} />
-        </button>
-        <span
-          className="flex-1 min-w-0 truncate text-xs text-[var(--color-text-muted)] cursor-pointer select-none"
-          onClick={() => selectNodes(new Set([node.id]))}
-          title={node.nodeType ? `Select ${node.nodeType}` : "Select"}
-        >
-          {node.label}
-        </span>
+          {isRoomBranch && (
+            <button
+              onClick={() => toggleExpand(node.id)}
+              className="cursor-pointer shrink-0 text-[var(--color-text-muted)]"
+              title={isOpen ? "Collapse" : "Expand"}
+            >
+              <Chevron open={isOpen} />
+            </button>
+          )}
+          <button
+            onClick={() => toggleNodeHidden(node.id)}
+            className={`cursor-pointer shrink-0 ${nHidden ? "text-[var(--color-text-muted)]" : "text-[var(--color-text)]"}`}
+            title={nHidden ? "Show" : "Hide"}
+          >
+            <EyeIcon off={nHidden} />
+          </button>
+          <button
+            onClick={() => toggleNodeLocked(node.id)}
+            className={`cursor-pointer shrink-0 ${nLocked ? "text-amber-500" : "text-[var(--color-text-muted)] opacity-40 group-hover:opacity-100"}`}
+            title={nLocked ? "Unlock" : "Lock"}
+          >
+            <PadlockIcon open={!nLocked} />
+          </button>
+          <span
+            className="flex-1 min-w-0 truncate cursor-pointer select-none"
+            onClick={() => selectNodes(new Set([node.id]))}
+            title={node.nodeType ? `Select ${node.nodeType}` : "Select"}
+          >
+            <span className="block truncate text-xs text-[var(--color-text-muted)]">
+              {node.label}
+            </span>
+            {node.secondaryText && (
+              <span className="block truncate text-[9px] text-[var(--color-text-muted)]">
+                {node.secondaryText}
+              </span>
+            )}
+          </span>
+        </div>
+        {isRoomBranch &&
+          isOpen &&
+          roomChildren.map((c) => renderChild(c, depth + 1))}
       </div>
     );
   };
@@ -324,6 +357,35 @@ export default function LayersPanel({ embedded = false }: { embedded?: boolean }
                 >
                   S
                 </button>
+                <span className="relative shrink-0 flex items-center">
+                  <button
+                    onClick={() =>
+                      setColorPickerLayerId((id) => (id === layer.id ? null : layer.id))
+                    }
+                    className="cursor-pointer w-2.5 h-2.5 rounded-full border hover:border-[var(--color-text)] transition-colors"
+                    style={
+                      layer.color
+                        ? { background: layer.color, borderColor: layer.color }
+                        : { borderColor: "var(--color-text-muted)" }
+                    }
+                    title={layer.color ? "Change layer colour" : "Set layer colour"}
+                    aria-label="Layer colour"
+                  />
+                  {colorPickerLayerId === layer.id && (
+                    <LayerColorPicker
+                      value={layer.color}
+                      onSelect={(color) => {
+                        setLayerColor(layer.id, color);
+                        setColorPickerLayerId(null);
+                      }}
+                      onClear={() => {
+                        setLayerColor(layer.id, undefined);
+                        setColorPickerLayerId(null);
+                      }}
+                      onClose={() => setColorPickerLayerId(null)}
+                    />
+                  )}
+                </span>
                 {editingId === layer.id ? (
                   <input
                     className="ui-input flex-1 min-w-0 !py-0.5 !px-1.5 text-xs"
@@ -345,14 +407,21 @@ export default function LayersPanel({ embedded = false }: { embedded?: boolean }
                   />
                 ) : (
                   <span
-                    className="flex-1 min-w-0 truncate text-xs text-[var(--color-text-heading)] cursor-text select-none"
+                    className="flex-1 min-w-0 cursor-text select-none"
                     onDoubleClick={() => {
                       setEditingId(layer.id);
                       setEditValue(layer.label);
                     }}
                     title="Double-click to rename"
                   >
-                    {layer.label}
+                    <span className="block truncate text-xs text-[var(--color-text-heading)]">
+                      {layer.label}
+                    </span>
+                    {layer.secondaryText && (
+                      <span className="block truncate text-[9px] text-[var(--color-text-muted)]">
+                        {layer.secondaryText}
+                      </span>
+                    )}
                   </span>
                 )}
                 <span className="text-[10px] tabular-nums text-[var(--color-text-muted)] shrink-0">
