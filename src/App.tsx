@@ -37,6 +37,7 @@ import CableAssignDialog from "./components/CableAssignDialog";
 import CableInventoryDialog from "./components/CableInventoryDialog";
 import GearInventoryDialog from "./components/GearInventoryDialog";
 import SvgAssetImportDialog from "./components/SvgAssetImportDialog";
+import CanvasRuler from "./components/CanvasRuler";
 import LogisticsDialog from "./components/LogisticsDialog";
 import GuidedSetupPanel from "./components/GuidedSetupPanel";
 import CoverageSplReadout from "./components/CoverageSplReadout";
@@ -1771,6 +1772,7 @@ function SchematicCanvas() {
         </div>
       )}
       {!printView && <CanvasOriginOverlay />}
+      {!printView && <CanvasRuler />}
       {gridSettings.gridVisible && <Background variant={BackgroundVariant.Dots} gap={GRID_SIZE} size={1.4} color={isDark ? "#3b4a66" : "#c6cad2"} />}
       <Controls position="bottom-right" />
       <AutoRouteChip />
