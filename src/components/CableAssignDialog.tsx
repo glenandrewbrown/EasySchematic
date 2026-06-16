@@ -29,6 +29,7 @@ export default function CableAssignDialog() {
   const nodes = useSchematicStore((s) => s.nodes);
   const ownedCables = useSchematicStore((s) => s.ownedCables);
   const roomDistances = useSchematicStore((s) => s.roomDistances);
+  const metresPerPixel = useSchematicStore((s) => s.gridSettings.metresPerPixel);
   const distanceSettings = useSchematicStore((s) => s.distanceSettings) ?? DEFAULT_DISTANCE_SETTINGS;
   const setEdgeAssignedCables = useSchematicStore((s) => s.setEdgeAssignedCables);
 
@@ -53,12 +54,12 @@ export default function CableAssignDialog() {
     const tgt = nodes.find((n) => n.id === edge.target);
     const roomDist = getRoomDistance(src?.parentId, tgt?.parentId, { roomDistances }, nodes);
     if (roomDist !== undefined) return computeCableLength(roomDist, distanceSettings);
-    const intraM = intraRoomDistance(nodes, edge.source, edge.target);
+    const intraM = intraRoomDistance(nodes, edge.source, edge.target, metresPerPixel);
     if (intraM !== undefined) {
       return computeCableLength(metersToUnit(intraM, distanceSettings.unit), distanceSettings);
     }
     return undefined;
-  }, [edge, nodes, roomDistances, distanceSettings]);
+  }, [edge, nodes, roomDistances, distanceSettings, metresPerPixel]);
 
   if (!edge) return null;
 

@@ -1,23 +1,78 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useSchematicStore } from "../store";
 import { computeCableSchedule } from "../cableSchedule";
 import { scheduleToBomInputs, runLengthWarnings } from "../cableBomBuild";
 import { buildCableBom, bomToCsv } from "../cableBom";
 import { renderCableBomPdf } from "../cableBomPdf";
 import { downloadCsv } from "../downloadCsv";
+import GearInventoryPanel from "./GearInventoryPanel";
+import LogisticsPanel from "./LogisticsPanel";
 
 /**
  * Full-page "Schedule" view — the third top-level canvas mode
- * (Schematic | Plan | Schedule). Surfaces the existing Cable BOM (bill of
- * materials + max-run warnings) as a full-page data grid with its own header
- * and CSV/PDF export buttons.
- *
- * Data pipeline mirrors ReportsDialog's CableBomTab exactly:
- *   computeCableSchedule → scheduleToBomInputs → buildCableBom (+ runLengthWarnings).
- * Only the surrounding page chrome (header bar, empty state, export handlers)
- * is new here; the warnings banner and table markup are copied verbatim.
+ * (Schematic | Layout | Schedule). The operational system-of-record workspace:
+ * a sub-tab bar hosts the Cable BOM, the per-unit Gear Inventory, and the
+ * Transport / Logistics checklist — all surfaced here as docked panels instead of
+ * the old floating modals (round-2 review: working data does not belong in modals
+ * launched from the Reports menu).
  */
+type ScheduleTab = "bom" | "inventory" | "logistics";
+
 export default function ScheduleView() {
+  const [tab, setTab] = useState<ScheduleTab>("bom");
+
+  return (
+    <div className="flex flex-col flex-1 min-w-0 overflow-hidden bg-[var(--color-surface)]">
+      {/* Sub-tab bar */}
+      <div
+        className="px-3 pt-2 border-b border-[var(--ui-border)] bg-[var(--color-surface-raised)] flex items-center gap-1 shrink-0"
+        role="tablist"
+        aria-label="Schedule sections"
+      >
+        <ScheduleTabButton id="bom" label="Cable BOM" active={tab} onSelect={setTab} />
+        <ScheduleTabButton id="inventory" label="Inventory" active={tab} onSelect={setTab} />
+        <ScheduleTabButton id="logistics" label="Logistics" active={tab} onSelect={setTab} />
+      </div>
+
+      {tab === "bom" && <CableBomTab />}
+      {tab === "inventory" && <GearInventoryPanel />}
+      {tab === "logistics" && <LogisticsPanel />}
+    </div>
+  );
+}
+
+interface ScheduleTabButtonProps {
+  id: ScheduleTab;
+  label: string;
+  active: ScheduleTab;
+  onSelect: (id: ScheduleTab) => void;
+}
+
+function ScheduleTabButton({ id, label, active, onSelect }: ScheduleTabButtonProps) {
+  const isActive = active === id;
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={isActive}
+      onClick={() => onSelect(id)}
+      className={`px-3 py-1.5 text-xs rounded-t cursor-pointer border border-b-0 transition-colors whitespace-nowrap ${
+        isActive
+          ? "bg-[var(--color-surface)] text-[var(--color-text-heading)] font-semibold border-[var(--ui-border)]"
+          : "bg-transparent text-[var(--color-text-muted)] border-transparent hover:text-[var(--color-text)]"
+      }`}
+    >
+      {label}
+    </button>
+  );
+}
+
+/**
+ * Cable BOM (bill of materials + max-run warnings) as a full-page data grid.
+ * Data pipeline mirrors ReportsDialog's CableBomTab:
+ *   computeCableSchedule → scheduleToBomInputs → buildCableBom (+ runLengthWarnings).
+ */
+function CableBomTab() {
   const nodes = useSchematicStore((s) => s.nodes);
   const edges = useSchematicStore((s) => s.edges);
   const cableNamingScheme = useSchematicStore((s) => s.cableNamingScheme);
@@ -48,9 +103,9 @@ export default function ScheduleView() {
   };
 
   return (
-    <div className="flex flex-col flex-1 min-w-0 overflow-hidden bg-[var(--color-surface)]">
+    <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
       {/* Header bar */}
-      <div className="px-4 py-3 border-b border-[var(--ui-border)] bg-[var(--color-surface-raised)] flex items-center gap-3 shrink-0">
+      <div className="px-4 py-3 border-b border-[var(--ui-border)] flex items-center gap-3 shrink-0">
         <div className="min-w-0">
           <h2 className="text-sm font-semibold text-[var(--color-text-heading)] truncate">
             Cable Schedule

@@ -2,7 +2,6 @@ import type {
   ConnectionEdge,
   DistanceSettings,
   OwnedCableItem,
-  RoomData,
   SchematicNode,
 } from "./types";
 
@@ -116,15 +115,17 @@ export function metersToUnit(meters: number, unit: DistanceSettings["unit"]): nu
 
 /**
  * Manhattan distance in meters between two devices placed in the same room,
- * derived from the room's real-world width (RoomData.widthM) against its
- * canvas pixel width. Returns undefined when the devices are in different
- * rooms (use room-to-room distances instead) or the room has no dimensions.
+ * derived from the document-level Layout scale (metresPerPixel). Returns
+ * undefined when the devices are in different rooms (use room-to-room distances
+ * instead) or the document scale is non-positive.
  */
 export function intraRoomDistance(
   nodes: readonly SchematicNode[],
   deviceIdA: string,
   deviceIdB: string,
+  metresPerPixel: number,
 ): number | undefined {
+  if (!(metresPerPixel > 0)) return undefined;
   const a = nodes.find((n) => n.id === deviceIdA);
   const b = nodes.find((n) => n.id === deviceIdB);
   if (!a || !b) return undefined;
@@ -132,12 +133,8 @@ export function intraRoomDistance(
 
   const room = nodes.find((n) => n.id === a.parentId && n.type === "room");
   if (!room) return undefined;
-  const widthM = (room.data as RoomData).widthM;
-  const roomPxWidth = room.width ?? room.measured?.width;
-  if (!widthM || widthM <= 0 || !roomPxWidth || roomPxWidth <= 0) return undefined;
 
-  const metersPerPx = widthM / roomPxWidth;
   const manhattanPx =
     Math.abs(a.position.x - b.position.x) + Math.abs(a.position.y - b.position.y);
-  return manhattanPx * metersPerPx;
+  return manhattanPx * metresPerPixel;
 }

@@ -13,9 +13,18 @@
      Separate from --color-border, which device nodes and canvas content
      use and which must stay strong for print/export legibility. */
   --color-surface-raised: #ffffff;
-  --color-accent: #2563eb;
-  --color-accent-hover: #1d4ed8;
-  --color-accent-soft: rgba(37, 99, 235, 0.08);
+  /* App accent — refined indigo, off the stock Tailwind blue-600 and distinct from
+     the SDI/video signal blue so chrome never reads as a signal colour. */
+  --color-accent: #4f46e5;
+  --color-accent-hover: #4338ca;
+  --color-accent-soft: rgba(79, 70, 229, 0.08);
+  /* Semantic status tokens (reserved: never reuse for decoration). */
+  --color-success: #16a34a;
+  --color-warning: #d97706;
+  --color-error: #dc2626;
+  --color-info: #0284c7;
+  /* Monospace + tabular figures for numerics (ruler, dimensions, serials, run-lengths). */
+  --font-mono: "SF Mono", "JetBrains Mono", "Berkeley Mono", ui-monospace, "Cascadia Code", Menlo, monospace;
   --ui-border: #e6e8ec;
   --ui-border-strong: #d7dbe2;
   /* Tinted (cool slate) elevation scale — shadows carry the surface hue, not flat black */
@@ -108,9 +117,13 @@
 
   /* UI chrome tokens, dark */
   --color-surface-raised: #243247;
-  --color-accent: #3b82f6;
-  --color-accent-hover: #60a5fa;
-  --color-accent-soft: rgba(59, 130, 246, 0.14);
+  --color-accent: #6366f1;
+  --color-accent-hover: #818cf8;
+  --color-accent-soft: rgba(99, 102, 241, 0.16);
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+  --color-info: #38bdf8;
   --ui-border: #2c3a52;
   --ui-border-strong: #3b4a66;
   --ui-shadow-menu: 0 16px 40px -12px rgba(2, 6, 23, 0.7), 0 6px 16px -8px rgba(2, 6, 23, 0.45);

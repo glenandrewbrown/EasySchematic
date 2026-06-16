@@ -14,9 +14,10 @@ import { createDefaultLayout } from "./titleBlockLayout";
 import { DEFAULT_CONNECTOR } from "./connectorTypes";
 import { defaultStubPlacement } from "./stubPlacement";
 import { getPortAbsolutePositions } from "./snapUtils";
-import type { SchematicNode } from "./types";
+import { mostCommonRoomScale, DEFAULT_METRES_PER_PIXEL } from "./layoutScale";
+import { DEFAULT_GRID_SETTINGS, type SchematicNode } from "./types";
 
-export const CURRENT_SCHEMA_VERSION = 43;
+export const CURRENT_SCHEMA_VERSION = 44;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Migration = (data: any) => any;
@@ -515,6 +516,16 @@ const migrations: Record<number, Migration> = {
     data.version = 43;
     return data;
   },
+  43: (data) => {
+    // v43 → v44: document-level Layout scale replaces per-room scale. Choose
+    // metresPerPixel = the most-common existing room scale (so the largest number of
+    // rooms render unchanged), then rescale every off-scale room's pixel box and its
+    // children by k = oldRoomScale / documentScale. Real-world dimensions (widthM /
+    // depthM / heightM) are preserved; off-scale rooms visibly resize once on open.
+    migrateToDocumentScale(data);
+    data.version = 44;
+    return data;
+  },
 
   33: (data) => {
     // v33 → v34: stamp placed=true on every existing stub-label node. The auto-place
@@ -535,6 +546,90 @@ const migrations: Record<number, Migration> = {
     return data;
   },
 };
+
+// ---------- v43 → v44 helpers ----------
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+/** Rendered pixel width of a room-ish node (explicit, then measured, then numeric style). */
+function roomPxWidth(node: any): number | undefined {
+  if (typeof node.width === "number") return node.width;
+  if (typeof node.measured?.width === "number") return node.measured.width;
+  if (typeof node.style?.width === "number") return node.style.width;
+  return undefined;
+}
+
+/** Scale a room node's pixel box (width/height across explicit, measured and style). */
+function scaleRoomBox(node: any, k: number): void {
+  if (typeof node.width === "number") node.width *= k;
+  if (typeof node.height === "number") node.height *= k;
+  if (node.measured) {
+    if (typeof node.measured.width === "number") node.measured.width *= k;
+    if (typeof node.measured.height === "number") node.measured.height *= k;
+  }
+  if (node.style) {
+    if (typeof node.style.width === "number") node.style.width *= k;
+    if (typeof node.style.height === "number") node.style.height *= k;
+  }
+}
+
+/**
+ * Convert per-room scale to a single document scale (metresPerPixel), preserving
+ * real-world dimensions. Each off-scale room's box and its direct children are scaled
+ * by k = oldRoomScale / documentScale so the room's real width stays widthM while its
+ * px box becomes widthM / documentScale. Children positions scale by the same k so the
+ * whole room (box + contents) scales uniformly and real-world geometry is preserved.
+ */
+function migrateToDocumentScale(data: any): void {
+  const nodes: any[] = Array.isArray(data.nodes) ? data.nodes : [];
+  const rooms = nodes.filter((n) => n?.type === "room");
+
+  const samples = rooms
+    .map((r) => ({ widthM: r.data?.widthM, pxWidth: roomPxWidth(r) }))
+    .filter((s): s is { widthM: number; pxWidth: number } =>
+      typeof s.widthM === "number" && typeof s.pxWidth === "number",
+    );
+
+  const documentScale = mostCommonRoomScale(samples) ?? DEFAULT_METRES_PER_PIXEL;
+
+  // Persist the chosen scale as a complete GridSettings so the load path (which uses
+  // `?? DEFAULT_GRID_SETTINGS`, not a merge) keeps every other grid default.
+  data.gridSettings = {
+    ...DEFAULT_GRID_SETTINGS,
+    ...(data.gridSettings ?? {}),
+    metresPerPixel: documentScale,
+  };
+
+  const childrenByParent = new Map<string, any[]>();
+  for (const n of nodes) {
+    if (typeof n?.parentId === "string") {
+      const list = childrenByParent.get(n.parentId) ?? [];
+      list.push(n);
+      childrenByParent.set(n.parentId, list);
+    }
+  }
+
+  for (const room of rooms) {
+    const widthM = room.data?.widthM;
+    const pxWidth = roomPxWidth(room);
+    if (!(typeof widthM === "number" && widthM > 0)) continue;
+    if (!(typeof pxWidth === "number" && pxWidth > 0)) continue;
+
+    const oldScale = widthM / pxWidth;
+    const k = oldScale / documentScale;
+    // Skip rooms already at (≈) the document scale.
+    if (Math.abs(k - 1) < 1e-4) continue;
+
+    scaleRoomBox(room, k);
+    for (const child of childrenByParent.get(room.id) ?? []) {
+      if (child.position) {
+        if (typeof child.position.x === "number") child.position.x *= k;
+        if (typeof child.position.y === "number") child.position.y *= k;
+      }
+    }
+  }
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */
 
 // ---------- v35 → v36 helpers ----------
 

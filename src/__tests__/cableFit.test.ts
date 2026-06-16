@@ -145,19 +145,16 @@ describe("intraRoomDistance", () => {
     },
   ] as unknown as SchematicNode[];
 
-  test("derives meters from manhattan pixel distance at the room scale", () => {
-    // 400px wide room = 8m, so 50px/m. Manhattan distance 300px = 6m.
-    expect(intraRoomDistance(nodes, "devA", "devB")).toBeCloseTo(6, 5);
+  test("derives meters from manhattan pixel distance at the document scale", () => {
+    // Document scale 0.02 m/px. Manhattan distance 300px = 6m.
+    expect(intraRoomDistance(nodes, "devA", "devB", 0.02)).toBeCloseTo(6, 5);
   });
 
   test("returns undefined when devices are not in the same room", () => {
-    expect(intraRoomDistance(nodes, "devA", "devC")).toBeUndefined();
+    expect(intraRoomDistance(nodes, "devA", "devC", 0.02)).toBeUndefined();
   });
 
-  test("returns undefined when the room has no real-world width", () => {
-    const noDims = nodes.map((n) =>
-      n.id === "room1" ? { ...n, data: { label: "Stage" } } : n,
-    ) as SchematicNode[];
-    expect(intraRoomDistance(noDims, "devA", "devB")).toBeUndefined();
+  test("returns undefined when the document scale is non-positive", () => {
+    expect(intraRoomDistance(nodes, "devA", "devB", 0)).toBeUndefined();
   });
 });

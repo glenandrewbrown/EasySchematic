@@ -439,9 +439,7 @@ interface SchematicState {
   /** Merge committed device field values into the persisted suggestion pools (for comboboxes). */
   recordSuggestions: (patch: { tags?: string[]; manufacturer?: string; category?: string; deviceType?: string }) => void;
 
-  // Per-unit gear inventory (Phase 4)
-  showGearInventory: boolean;
-  setShowGearInventory: (open: boolean) => void;
+  // Per-unit gear inventory (Phase 4) — hosted in the Schedule view's Inventory tab
   addGearUnit: (unit: Omit<GearUnit, "id">) => void;
   updateGearUnit: (id: string, patch: Partial<GearUnit>) => void;
   removeGearUnit: (id: string) => void;
@@ -462,9 +460,7 @@ interface SchematicState {
   addZone: (position: { x: number; y: number }, size?: { width: number; height: number }) => void;
   updateObjectData: (id: string, patch: Partial<ObjectData>) => void;
   updateZoneData: (id: string, patch: Partial<ZoneData>) => void;
-  // Transport / logistics containers (Phase 7)
-  showLogistics: boolean;
-  setShowLogistics: (open: boolean) => void;
+  // Transport / logistics containers (Phase 7) — hosted in the Schedule view's Logistics tab
   addContainer: (name: string) => void;
   removeContainer: (id: string) => void;
   renameContainer: (id: string, name: string) => void;
@@ -3355,8 +3351,6 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
   },
 
   // ── Per-unit gear inventory (Phase 4) — not undoable (like ownedGear/ownedCables) ──
-  showGearInventory: false,
-  setShowGearInventory: (open) => set({ showGearInventory: open }),
   addGearUnit: (unit) => {
     set({ gearUnits: addUnit(get().gearUnits, unit, crypto.randomUUID()) });
     get().saveToLocalStorage();
@@ -3472,8 +3466,6 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
   },
 
   // ── Transport / logistics containers (Phase 7) — operational state, not undoable ──
-  showLogistics: false,
-  setShowLogistics: (open) => set({ showLogistics: open }),
   addContainer: (name) => {
     set({ containers: [...get().containers, { id: crypto.randomUUID(), name, items: [], checklist: {} }] });
     get().saveToLocalStorage();

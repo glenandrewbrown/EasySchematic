@@ -1,8 +1,9 @@
 import { memo } from "react";
-import { useStore, type NodeProps } from "@xyflow/react";
-import type { ObjectNode as ObjectNodeType, RoomData } from "../types";
+import { type NodeProps } from "@xyflow/react";
+import type { ObjectNode as ObjectNodeType } from "../types";
 import { useSchematicStore } from "../store";
-import { planScalePxPerMeter, normalizeRotationDeg } from "../planView";
+import { normalizeRotationDeg } from "../planView";
+import { pxPerMeter } from "../layoutScale";
 import { furnitureById } from "../furnitureCatalog";
 import RotationHandle from "./RotationHandle";
 
@@ -28,20 +29,9 @@ const MIN_BOX_PX = 10;
 const LABEL_VISIBLE_PX = 28;
 
 function ObjectPlanNodeComponent({ id, data, selected }: NodeProps<ObjectNodeType>) {
-  // Parent room geometry, read from React Flow's measured store so the footprint
-  // tracks live room resizing (same pattern as DevicePlanNode). Primitive selectors
-  // keep re-renders tight.
-  const roomWidthPx = useStore((s) => {
-    const me = s.nodeLookup.get(id);
-    const parent = me?.parentId ? s.nodeLookup.get(me.parentId) : undefined;
-    return parent?.measured?.width ?? 0;
-  });
-  const roomWidthM = useStore((s) => {
-    const me = s.nodeLookup.get(id);
-    const parent = me?.parentId ? s.nodeLookup.get(me.parentId) : undefined;
-    const wm = (parent?.data as RoomData | undefined)?.widthM;
-    return typeof wm === "number" && wm > 0 ? wm : 0;
-  });
+  // Document-level Layout scale (metres per pixel) — single source of truth for the
+  // to-scale footprint, replacing the old per-room scale.
+  const metresPerPixel = useSchematicStore((s) => s.gridSettings.metresPerPixel);
 
   const updateObjectData = useSchematicStore((s) => s.updateObjectData);
   const setEditingNodeId = useSchematicStore((s) => s.setEditingNodeId);
@@ -53,16 +43,16 @@ function ObjectPlanNodeComponent({ id, data, selected }: NodeProps<ObjectNodeTyp
   const widthM = data.widthM ?? catalog?.defaultWidthM;
   const depthM = data.depthM ?? catalog?.defaultDepthM;
 
-  const pxPerMeter = planScalePxPerMeter(roomWidthPx, roomWidthM);
-  const toScale = pxPerMeter != null && typeof widthM === "number" && widthM > 0;
+  const ppm = pxPerMeter(metresPerPixel);
+  const toScale = ppm > 0 && typeof widthM === "number" && widthM > 0;
 
-  // To-scale footprint when we have both a room scale and a real width; otherwise a
+  // To-scale footprint when we have a document scale and a real width; otherwise a
   // fixed fallback square. Depth falls back to width for a square footprint.
   const boxW = toScale
-    ? Math.max(MIN_BOX_PX, widthM! * pxPerMeter!)
+    ? Math.max(MIN_BOX_PX, widthM! * ppm)
     : FALLBACK_BOX_PX;
   const boxH = toScale
-    ? Math.max(MIN_BOX_PX, (depthM ?? widthM!) * pxPerMeter!)
+    ? Math.max(MIN_BOX_PX, (depthM ?? widthM!) * ppm)
     : FALLBACK_BOX_PX;
 
   const rotationDeg = normalizeRotationDeg(data.rotationDeg);

@@ -231,6 +231,33 @@ export default function ViewOptionsPanel({ mobile, onClose }: { mobile?: boolean
               />
               <span className="text-[10px] text-[var(--color-text-muted)]">{gridSettings.layoutGridUnit}</span>
             </div>
+            <div className="flex items-center gap-2 px-1 py-0.5">
+              <span className="text-xs text-[var(--color-text)] flex-1">Grid style</span>
+              <select
+                value={gridSettings.layoutGridStyle}
+                onChange={(e) => setGridSettings({ layoutGridStyle: e.target.value as "lines" | "dots" })}
+                className="text-xs bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-1 py-0.5 text-[var(--color-text)] cursor-pointer"
+              >
+                <option value="lines">Ruled lines</option>
+                <option value="dots">Dots</option>
+              </select>
+            </div>
+            <div className="flex items-center gap-2 px-1 py-0.5">
+              <span className="text-xs text-[var(--color-text)] flex-1">Scale</span>
+              <span className="text-[10px] text-[var(--color-text-muted)]">1 m =</span>
+              <input
+                type="number"
+                min={1}
+                step={1}
+                value={Math.round(1 / gridSettings.metresPerPixel)}
+                onChange={(e) => {
+                  const pxPerM = Number(e.target.value);
+                  if (pxPerM > 0) setGridSettings({ metresPerPixel: 1 / pxPerM });
+                }}
+                className="w-16 text-xs bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-1 py-0.5 text-[var(--color-text)] tabular-nums"
+              />
+              <span className="text-[10px] text-[var(--color-text-muted)]">px</span>
+            </div>
           </>
         )}
 

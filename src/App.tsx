@@ -35,10 +35,9 @@ import MenuBar from "./components/MenuBar";
 import EdgeContextMenu from "./components/EdgeContextMenu";
 import CableAssignDialog from "./components/CableAssignDialog";
 import CableInventoryDialog from "./components/CableInventoryDialog";
-import GearInventoryDialog from "./components/GearInventoryDialog";
 import SvgAssetImportDialog from "./components/SvgAssetImportDialog";
 import CanvasRuler from "./components/CanvasRuler";
-import LogisticsDialog from "./components/LogisticsDialog";
+import { metresPerWorldUnit } from "./rulerScale";
 import GuidedSetupPanel from "./components/GuidedSetupPanel";
 import CoverageSplReadout from "./components/CoverageSplReadout";
 import Toolbar from "./components/Toolbar";
@@ -1773,13 +1772,43 @@ function SchematicCanvas() {
       )}
       {!printView && <CanvasOriginOverlay />}
       {!printView && <CanvasRuler />}
-      {gridSettings.gridVisible && <Background variant={BackgroundVariant.Dots} gap={GRID_SIZE} size={1.4} color={isDark ? "#3b4a66" : "#c6cad2"} />}
+      {gridSettings.gridVisible && (
+        canvasViewMode === "layout" && gridSettings.layoutGridStyle === "lines" ? (
+          (() => {
+            // Full-length ruled grid aligned to the document scale: major cell =
+            // layoutGridStep real-world units, minor = a fifth of that.
+            const majorPx =
+              (gridSettings.layoutGridStep * metresPerWorldUnit(gridSettings.layoutGridUnit)) /
+              gridSettings.metresPerPixel;
+            const minorPx = majorPx / 5;
+            return (
+              <>
+                <Background
+                  id="layout-grid-minor"
+                  variant={BackgroundVariant.Lines}
+                  gap={minorPx}
+                  lineWidth={0.5}
+                  color={isDark ? "#28324c" : "#e6e9ee"}
+                />
+                <Background
+                  id="layout-grid-major"
+                  variant={BackgroundVariant.Lines}
+                  gap={majorPx}
+                  lineWidth={1}
+                  color={isDark ? "#3b4a66" : "#c6cad2"}
+                />
+              </>
+            );
+          })()
+        ) : (
+          <Background variant={BackgroundVariant.Dots} gap={GRID_SIZE} size={1.4} color={isDark ? "#3b4a66" : "#c6cad2"} />
+        )
+      )}
       <Controls position="bottom-right" />
       <AutoRouteChip />
       <AutoRouteConfirmDialog />
       <CableAssignDialog />
       <CableInventoryDialog />
-      <GearInventoryDialog />
       {svgImportTargetNodeId && (
         <SvgAssetImportDialog
           onPicked={(assetId) => { if (assetId) setNodeSvgAsset(svgImportTargetNodeId, assetId); }}
@@ -1993,7 +2022,6 @@ export default function App() {
         <RackPage />
       )}
       <DeviceEditor />
-      <LogisticsDialog />
       <RoomEditor />
       <AnnotationEditor />
       <EdgeContextMenu />

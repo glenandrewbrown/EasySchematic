@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { rulerStep } from "../rulerScale";
+import {
+  rulerStep,
+  realRulerStep,
+  formatRulerLabel,
+  buildRealRulerTicks,
+  metresPerWorldUnit,
+} from "../rulerScale";
 
 describe("rulerStep", () => {
   it("returns a step that keeps major ticks near the target spacing on screen", () => {
@@ -33,5 +39,66 @@ describe("rulerStep", () => {
   it("honours a custom target spacing", () => {
     // Larger target → larger step. target 200 at zoom 1 → raw 200 → 200.
     expect(rulerStep(1, 200)).toBe(200);
+  });
+});
+
+describe("realRulerStep", () => {
+  it("picks a nice metre step at the default scale and zoom", () => {
+    // Default scale 0.01 m/px → 1 m = 100 px. At zoom 1, target 90px → raw ~0.9 m → 1 m.
+    expect(realRulerStep(1, 0.01, "m")).toBe(1);
+  });
+
+  it("grows the metre step when zoomed out", () => {
+    // zoom 0.1 → 1 m = 10 px on screen, raw 9 m → ladder gives 10 m.
+    expect(realRulerStep(0.1, 0.01, "m")).toBe(10);
+  });
+
+  it("shrinks the metre step when zoomed in", () => {
+    // zoom 5 → 1 m = 500 px, raw 0.18 m → 0.25 m.
+    expect(realRulerStep(5, 0.01, "m")).toBe(0.25);
+  });
+
+  it("uses a feet ladder for the ft unit", () => {
+    // 1 ft = 0.3048 m = 30.48 px at scale 0.01. zoom 1 → screenPxPerFt 30.48,
+    // raw 90/30.48 ≈ 2.95 ft → ladder gives 5 ft.
+    expect(realRulerStep(1, 0.01, "ft")).toBe(5);
+  });
+});
+
+describe("metresPerWorldUnit", () => {
+  it("is 1 for metres and 0.3048 for feet", () => {
+    expect(metresPerWorldUnit("m")).toBe(1);
+    expect(metresPerWorldUnit("ft")).toBeCloseTo(0.3048, 6);
+  });
+});
+
+describe("formatRulerLabel", () => {
+  it("scales decimals to the step granularity", () => {
+    expect(formatRulerLabel(5, 1)).toBe("5");
+    expect(formatRulerLabel(2.5, 0.5)).toBe("2.5");
+    expect(formatRulerLabel(0.25, 0.05)).toBe("0.25");
+  });
+
+  it("renders a clean zero", () => {
+    expect(formatRulerLabel(0, 1)).toBe("0");
+    expect(formatRulerLabel(-0, 0.5)).toBe("0.0");
+  });
+});
+
+describe("buildRealRulerTicks", () => {
+  it("labels majors in metres at the document scale", () => {
+    // scale 0.01 (1 m = 100 px), zoom 1, offset 50 so the origin tick clears the corner.
+    const ticks = buildRealRulerTicks(50, 1, 600, 0.01, "m", 1);
+    const majors = ticks.filter((t) => t.major);
+    // Majors should sit 100 px apart (1 m), starting at "0" (pos 50).
+    expect(majors[0].label).toBe("0");
+    expect(majors[0].pos).toBeCloseTo(50, 4);
+    expect(majors[1].label).toBe("1");
+    expect(majors[1].pos - majors[0].pos).toBeCloseTo(100, 4);
+  });
+
+  it("returns nothing for a non-positive scale or zoom", () => {
+    expect(buildRealRulerTicks(0, 0, 500, 0.01, "m", 1)).toEqual([]);
+    expect(buildRealRulerTicks(0, 1, 500, 0, "m", 1)).toEqual([]);
   });
 });

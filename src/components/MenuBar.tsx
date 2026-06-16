@@ -649,8 +649,6 @@ export default function MenuBar() {
       { type: "separator" },
       { type: "item", label: "Room Distances...", onClick: () => setShowRoomDistances(true) },
       { type: "item", label: "Cable Inventory...", onClick: () => useSchematicStore.getState().setShowCableInventory(true) },
-      { type: "item", label: "Gear Inventory...", onClick: () => useSchematicStore.getState().setShowGearInventory(true) },
-      { type: "item", label: "Transport / Logistics...", onClick: () => useSchematicStore.getState().setShowLogistics(true) },
     ],
     Help: [
       {

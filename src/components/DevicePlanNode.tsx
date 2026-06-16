@@ -4,7 +4,8 @@ import type { DeviceNode as DeviceNodeType, RoomData } from "../types";
 import { useSchematicStore } from "../store";
 import { resolveDeviceLabel } from "../displayName";
 import { useDisplayLabel } from "../labelCaseUtils";
-import { deviceFootprintPx, planScalePxPerMeter, normalizeRotationDeg, aimAngleDeg } from "../planView";
+import { deviceFootprintPx, normalizeRotationDeg, aimAngleDeg } from "../planView";
+import { pxPerMeter } from "../layoutScale";
 import { coverageRadiusM, wedgeGeometry } from "../speakerCoverage";
 import { isSpeaker, resolveSpeakerSpec } from "../speakerSpec";
 import { symbolForDeviceType } from "../symbols";
@@ -29,19 +30,10 @@ const LISTENER_PLANE_M = 1.2;
  * view-mode split.
  */
 function DevicePlanNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) {
-  // Parent room's rendered pixel width + real-world width, read from React Flow's measured
-  // geometry so the footprint tracks live room resizing. Primitive selectors keep re-renders tight.
-  const roomWidthPx = useStore((s) => {
-    const me = s.nodeLookup.get(id);
-    const parent = me?.parentId ? s.nodeLookup.get(me.parentId) : undefined;
-    return parent?.measured?.width ?? 0;
-  });
-  const roomWidthM = useStore((s) => {
-    const me = s.nodeLookup.get(id);
-    const parent = me?.parentId ? s.nodeLookup.get(me.parentId) : undefined;
-    const wm = (parent?.data as RoomData | undefined)?.widthM;
-    return typeof wm === "number" && wm > 0 ? wm : 0;
-  });
+  // Document-level Layout scale (metres per pixel) — the single source of truth for the
+  // to-scale footprint, replacing the old per-room scale. Coverage ceiling still comes from
+  // the parent room's real height below.
+  const metresPerPixel = useSchematicStore((s) => s.gridSettings.metresPerPixel);
   const roomHeightM = useStore((s) => {
     const me = s.nodeLookup.get(id);
     const parent = me?.parentId ? s.nodeLookup.get(me.parentId) : undefined;
@@ -85,8 +77,8 @@ function DevicePlanNodeComponent({ id, data, selected }: NodeProps<DeviceNodeTyp
     saveToLocalStorage();
   }, [saveToLocalStorage]);
 
-  const pxPerMeter = planScalePxPerMeter(roomWidthPx, roomWidthM);
-  const footprint = deviceFootprintPx({ widthMm: data.widthMm, depthMm: data.depthMm }, pxPerMeter);
+  const ppm = pxPerMeter(metresPerPixel);
+  const footprint = deviceFootprintPx({ widthMm: data.widthMm, depthMm: data.depthMm }, ppm);
   // rotationDeg is placement state added in P3; read via the DeviceData index signature so it
   // slots in without a type change here. Defaults to 0.
   const rotationDeg = normalizeRotationDeg(data.rotationDeg);
@@ -104,12 +96,12 @@ function DevicePlanNodeComponent({ id, data, selected }: NodeProps<DeviceNodeTyp
   // Loudspeaker coverage wedge (plan view, "Coverage" toggle on). Nominal direct-field,
   // on-axis (−6 dB) footprint — not a measured SPL guarantee. Aimed along rotationDeg.
   let coverageWedge: string | null = null;
-  if (coverageVisible && pxPerMeter != null && isSpeaker(data)) {
+  if (coverageVisible && ppm > 0 && isSpeaker(data)) {
     const spec = resolveSpeakerSpec(data);
     const ceilingM = roomHeightM > 0 ? roomHeightM : DEFAULT_CEILING_M;
     const radiusM = coverageRadiusM(ceilingM, LISTENER_PLANE_M, spec.coverageAngleDeg);
     if (radiusM != null && radiusM > 0) {
-      const radiusPx = radiusM * pxPerMeter;
+      const radiusPx = radiusM * ppm;
       const geom = wedgeGeometry(boxW / 2, boxH / 2, rotationDeg, spec.coverageAngleDeg, radiusPx);
       if (geom) {
         const largeArc = spec.coverageAngleDeg > 180 ? 1 : 0;

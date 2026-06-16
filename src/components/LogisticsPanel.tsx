@@ -114,11 +114,14 @@ const thClass =
   "text-left text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wide py-1.5 px-2 border-b border-[var(--ui-border)]";
 const tdClass = "py-1 px-2 text-xs text-[var(--color-text)]";
 
-// ─── Main Component ───
+// ─── Main Panel ───
 
-function LogisticsDialog() {
-  const show = useSchematicStore((s) => s.showLogistics);
-  const setShow = useSchematicStore((s) => s.setShowLogistics);
+/**
+ * Transport / logistics workspace, hosted as the "Logistics" sub-tab of the Schedule
+ * view (de-modalled from the old LogisticsDialog). Group gear into cases and track
+ * load-in / load-out progress across the five transport phases. Saved with the schematic.
+ */
+function LogisticsPanel() {
   const containers = useSchematicStore((s) => s.containers);
   const nodes = useSchematicStore((s) => s.nodes);
   const edges = useSchematicStore((s) => s.edges);
@@ -129,8 +132,6 @@ function LogisticsDialog() {
 
   const [activeId, setActiveId] = useState<string | null>(null);
 
-  if (!show) return null;
-
   // Resolve the active container, falling back to the first one.
   const activeContainer =
     containers.find((c) => c.id === activeId) ?? containers[0] ?? null;
@@ -140,64 +141,44 @@ function LogisticsDialog() {
   };
 
   return (
-    <div className="ui-dialog-backdrop" onClick={() => setShow(false)}>
-      <div
-        className="ui-dialog bg-[var(--color-surface-raised)] w-[700px]"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="px-4 py-3 border-b border-[var(--ui-border)] flex items-center gap-3 shrink-0">
-          <h2 className="text-sm font-semibold text-[var(--color-text-heading)]">
-            Transport / Logistics
-          </h2>
-          <div className="flex-1" />
-          <button
-            onClick={() => setShow(false)}
-            className="text-[var(--color-text-muted)] hover:text-[var(--color-text-heading)] text-lg leading-none cursor-pointer ml-1"
-            aria-label="Close"
-          >
-            &times;
-          </button>
-        </div>
+    <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+      {/* Container tab strip */}
+      <div className="px-4 pt-2 flex items-center gap-1 border-b border-[var(--ui-border)] overflow-x-auto shrink-0">
+        {containers.map((container) => (
+          <ContainerTab
+            key={container.id}
+            container={container}
+            active={activeContainer?.id === container.id}
+            onSelect={() => setActiveId(container.id)}
+          />
+        ))}
+        <button
+          onClick={handleNew}
+          className="px-2.5 py-1.5 text-xs rounded-t cursor-pointer text-[var(--color-text-muted)] hover:text-[var(--color-text)] whitespace-nowrap"
+        >
+          + New
+        </button>
+      </div>
 
-        {/* Container tab strip */}
-        <div className="px-4 pt-2 flex items-center gap-1 border-b border-[var(--ui-border)] overflow-x-auto shrink-0">
-          {containers.map((container) => (
-            <ContainerTab
-              key={container.id}
-              container={container}
-              active={activeContainer?.id === container.id}
-              onSelect={() => setActiveId(container.id)}
-            />
-          ))}
-          <button
-            onClick={handleNew}
-            className="px-2.5 py-1.5 text-xs rounded-t cursor-pointer text-[var(--color-text-muted)] hover:text-[var(--color-text)] whitespace-nowrap"
-          >
-            + New
-          </button>
-        </div>
-
-        {/* Body */}
-        <div className="overflow-auto flex-1 min-h-0">
-          {activeContainer ? (
-            <ContainerView
-              key={activeContainer.id}
-              container={activeContainer}
-              packData={packData}
-              nodes={nodes}
-              schematicName={schematicName}
-            />
-          ) : (
-            <EmptyState onCreate={handleNew} />
-          )}
-        </div>
+      {/* Body */}
+      <div className="overflow-auto flex-1 min-h-0">
+        {activeContainer ? (
+          <ContainerView
+            key={activeContainer.id}
+            container={activeContainer}
+            packData={packData}
+            nodes={nodes}
+            schematicName={schematicName}
+          />
+        ) : (
+          <EmptyState onCreate={handleNew} />
+        )}
       </div>
     </div>
   );
 }
 
-export default memo(LogisticsDialog);
+export default memo(LogisticsPanel);
 
 // ─── Container Tab ───
 

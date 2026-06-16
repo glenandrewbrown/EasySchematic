@@ -19,13 +19,12 @@ const PHOTO_WARN_THRESHOLD = 20;
 const UNASSIGNED_VALUE = "";
 
 /**
- * CRUD manager for the user's per-unit owned-gear inventory (saved in the schematic).
- * Each unit is one specific piece of hardware with its own identity, condition, optional
- * photo, and optional link to a placed device. Mirrors CableInventoryDialog's structure.
+ * Per-unit owned-gear inventory manager, hosted as the "Inventory" sub-tab of the
+ * Schedule view (de-modalled from the old GearInventoryDialog). Each unit is one
+ * specific piece of hardware with its own identity, condition, optional photo, and
+ * optional link to a placed device. Saved with the schematic.
  */
-export default function GearInventoryDialog() {
-  const show = useSchematicStore((s) => s.showGearInventory);
-  const setShow = useSchematicStore((s) => s.setShowGearInventory);
+export default function GearInventoryPanel() {
   const gearUnits = useSchematicStore((s) => s.gearUnits);
   const nodes = useSchematicStore((s) => s.nodes);
   const addGearUnit = useSchematicStore((s) => s.addGearUnit);
@@ -56,8 +55,6 @@ export default function GearInventoryDialog() {
         })),
     [nodes],
   );
-
-  if (!show) return null;
 
   const photoCount = gearUnits.filter((u) => Boolean(u.photo)).length;
 
@@ -120,132 +117,108 @@ export default function GearInventoryDialog() {
   };
 
   return (
-    <div className="ui-dialog-backdrop" data-print-hide onClick={() => setShow(false)}>
-      <div
-        className="ui-dialog w-[760px] max-w-[94vw]"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="px-4 py-3 border-b border-[var(--ui-border)] flex items-center justify-between shrink-0">
-          <h2 className="text-sm font-semibold text-[var(--color-text-heading)]">
-            Gear Inventory
-          </h2>
-          <button
-            className="ui-btn ui-btn-ghost px-2 py-1"
-            onClick={() => setShow(false)}
-            title="Close"
-          >
-            ✕
-          </button>
-        </div>
+    <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+      <div className="px-4 py-3 overflow-y-auto flex-1 min-h-0">
+        <p className="text-[11px] text-[var(--color-text-muted)] mb-3 max-w-3xl">
+          Each individual piece of hardware you own — serial, asset tag, condition and a
+          photo. Assign a unit to a placed device to track exactly which box is where.
+          Saved with this schematic.
+        </p>
 
-        <div className="px-4 py-3 overflow-y-auto flex-1 min-h-0">
-          <p className="text-[11px] text-[var(--color-text-muted)] mb-3">
-            Each individual piece of hardware you own — serial, asset tag, condition and a
-            photo. Assign a unit to a placed device to track exactly which box is where.
-            Saved with this schematic.
+        {photoCount > PHOTO_WARN_THRESHOLD && (
+          <p className="text-[11px] text-amber-600 dark:text-amber-400 mb-3">
+            Large inventory with photos may slow file saves.
           </p>
+        )}
 
-          {photoCount > PHOTO_WARN_THRESHOLD && (
-            <p className="text-[11px] text-amber-600 dark:text-amber-400 mb-3">
-              Large inventory with photos may slow file saves.
-            </p>
-          )}
-
-          {gearUnits.length === 0 ? (
-            <p className="text-xs text-[var(--color-text-muted)] italic mb-3">
-              No gear yet. Add your first unit below.
-            </p>
-          ) : (
-            <div className="mb-3">
-              <div className="grid grid-cols-[48px_1fr_100px_92px_88px_1fr_28px] gap-1.5 text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] px-1 mb-1">
-                <span>Photo</span>
-                <span>Manufacturer / Model</span>
-                <span>Serial</span>
-                <span>Asset Tag</span>
-                <span>Condition</span>
-                <span>Assigned To</span>
-                <span />
-              </div>
-              <div className="space-y-1.5">
-                {gearUnits.map((u) => (
-                  <GearUnitRow
-                    key={u.id}
-                    unit={u}
-                    deviceNodes={deviceNodes}
-                    assignedLabel={labelForNode(u.assignedNodeId)}
-                    onUpdate={updateGearUnit}
-                    onRemove={removeGearUnit}
-                    onPickPhoto={handlePickPhoto}
-                    onAssignChange={handleAssignChange}
-                  />
-                ))}
-              </div>
+        {gearUnits.length === 0 ? (
+          <p className="text-xs text-[var(--color-text-muted)] italic mb-3">
+            No gear yet. Add your first unit below.
+          </p>
+        ) : (
+          <div className="mb-3 max-w-4xl">
+            <div className="grid grid-cols-[48px_1fr_100px_92px_88px_1fr_28px] gap-1.5 text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] px-1 mb-1">
+              <span>Photo</span>
+              <span>Manufacturer / Model</span>
+              <span>Serial</span>
+              <span>Asset Tag</span>
+              <span>Condition</span>
+              <span>Assigned To</span>
+              <span />
             </div>
-          )}
-
-          <div className="border-t border-[var(--ui-border)] pt-3">
-            <div className="grid grid-cols-[1fr_1fr_100px_92px_auto] gap-1.5 items-center">
-              <input
-                className="ui-input w-full"
-                placeholder="Manufacturer"
-                value={newManufacturer}
-                onChange={(e) => setNewManufacturer(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleAdd();
-                }}
-              />
-              <input
-                className="ui-input w-full"
-                placeholder="Model (required)"
-                value={newModel}
-                onChange={(e) => setNewModel(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleAdd();
-                }}
-              />
-              <input
-                className="ui-input w-full"
-                placeholder="Serial"
-                value={newSerial}
-                onChange={(e) => setNewSerial(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleAdd();
-                }}
-              />
-              <input
-                className="ui-input w-full"
-                placeholder="Asset tag"
-                value={newAssetTag}
-                onChange={(e) => setNewAssetTag(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleAdd();
-                }}
-              />
-              <button
-                className="ui-btn ui-btn-secondary"
-                onClick={handleAdd}
-                disabled={!newModel.trim()}
-              >
-                Add
-              </button>
+            <div className="space-y-1.5">
+              {gearUnits.map((u) => (
+                <GearUnitRow
+                  key={u.id}
+                  unit={u}
+                  deviceNodes={deviceNodes}
+                  assignedLabel={labelForNode(u.assignedNodeId)}
+                  onUpdate={updateGearUnit}
+                  onRemove={removeGearUnit}
+                  onPickPhoto={handlePickPhoto}
+                  onAssignChange={handleAssignChange}
+                />
+              ))}
             </div>
           </div>
-        </div>
+        )}
 
-        <div className="px-4 py-3 border-t border-[var(--ui-border)] flex justify-end gap-2 shrink-0">
-          <button className="ui-btn ui-btn-primary" onClick={() => setShow(false)}>
-            Done
-          </button>
+        <div className="border-t border-[var(--ui-border)] pt-3 max-w-4xl">
+          <div className="grid grid-cols-[1fr_1fr_100px_92px_auto] gap-1.5 items-center">
+            <input
+              className="ui-input w-full"
+              placeholder="Manufacturer"
+              value={newManufacturer}
+              onChange={(e) => setNewManufacturer(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleAdd();
+              }}
+            />
+            <input
+              className="ui-input w-full"
+              placeholder="Model (required)"
+              value={newModel}
+              onChange={(e) => setNewModel(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleAdd();
+              }}
+            />
+            <input
+              className="ui-input w-full"
+              placeholder="Serial"
+              value={newSerial}
+              onChange={(e) => setNewSerial(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleAdd();
+              }}
+            />
+            <input
+              className="ui-input w-full"
+              placeholder="Asset tag"
+              value={newAssetTag}
+              onChange={(e) => setNewAssetTag(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleAdd();
+              }}
+            />
+            <button
+              className="ui-btn ui-btn-secondary"
+              onClick={handleAdd}
+              disabled={!newModel.trim()}
+            >
+              Add
+            </button>
+          </div>
         </div>
-
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={handleFileChange}
-        />
       </div>
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleFileChange}
+      />
     </div>
   );
 }

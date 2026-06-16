@@ -679,7 +679,18 @@ export interface GridSettings {
   layoutGridUnit: "m" | "ft";
   /** Layout-view grid real-world size per cell, in layoutGridUnit. Default 1. */
   layoutGridStep: number;
+  /**
+   * Document-level Layout scale: real-world metres per canvas pixel. This is the
+   * SINGLE source of truth for px↔metres in the Layout view (replaces the old
+   * per-room scale). Default 0.01 (1 px = 10 mm, i.e. 1 m = 100 px).
+   */
+  metresPerPixel: number;
+  /** Layout-view grid rendering: full-length ruled lines (CAD) or dots. Default "lines". */
+  layoutGridStyle: "lines" | "dots";
 }
+
+/** Document Layout scale default: 1 px = 10 mm (1 m = 100 px). */
+export const DEFAULT_METRES_PER_PIXEL = 0.01;
 
 export const DEFAULT_GRID_SETTINGS: GridSettings = {
   snapStep: 20,
@@ -687,6 +698,8 @@ export const DEFAULT_GRID_SETTINGS: GridSettings = {
   gridVisible: true,
   layoutGridUnit: "m",
   layoutGridStep: 1,
+  metresPerPixel: DEFAULT_METRES_PER_PIXEL,
+  layoutGridStyle: "lines",
 };
 
 /** A load-in/load-out checklist phase. */

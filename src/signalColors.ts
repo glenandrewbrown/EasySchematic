@@ -1,79 +1,14 @@
 import type { SignalType } from "./types";
+import { buildDefaultSignalColors } from "./signalFamilies";
 
-/** Default colors matching index.css :root variables */
-export const DEFAULT_SIGNAL_COLORS: Record<SignalType, string> = {
-  sdi: "#2563eb",
-  hdmi: "#dc2626",
-  ndi: "#16a34a",
-  dante: "#ea580c",
-  avb: "#65a30d",
-  "analog-audio": "#854d0e",
-  "speaker-level": "#9f1239",
-  bluetooth: "#0082fc",
-  digilink: "#9a3412",
-  aes: "#7c3aed",
-  dmx: "#b91c1c",
-  madi: "#059669",
-  usb: "#db2777",
-  ethernet: "#0891b2",
-  fiber: "#d97706",
-  displayport: "#0d9488",
-  hdbaset: "#9333ea",
-  srt: "#15803d",
-  genlock: "#475569",
-  gpio: "#78716c",
-  "contact-closure": "#57534e",
-  rs422: "#6d28d9",
-  serial: "#525252",
-  thunderbolt: "#4f46e5",
-  composite: "#ca8a04",
-  "component-video": "#92700c",
-  "s-video": "#b45309",
-  vga: "#0369a1",
-  dvi: "#1e40af",
-  power: "#a16207",
-  "power-l1": "#1a1a1a",
-  "power-l2": "#cc0000",
-  "power-l3": "#0066cc",
-  "power-neutral": "#888888",
-  "power-ground": "#00aa00",
-  midi: "#c026d3",
-  tally: "#be185d",
-  spdif: "#a855f7",
-  adat: "#0e7490",
-  ultranet: "#059669",
-  aes50: "#7c3aed",
-  stageconnect: "#ea580c",
-  wordclock: "#475569",
-  aes67: "#3730a3",
-  ydif: "#0e7490",
-  rf: "#a21caf",
-  st2110: "#3730a3",
-  artnet: "#f59e0b",
-  sacn: "#eab308",
-  ir: "#f97316",
-  timecode: "#06b6d4",
-  gigaace: "#7c3aed",
-  dx5: "#8b5cf6",
-  slink: "#a78bfa",
-  soundgrid: "#6d28d9",
-  fibreace: "#9333ea",
-  dsnake: "#d946ef",
-  dxlink: "#7e22ce",
-  gps: "#475569",
-  dars: "#06b6d4",
-  rtmp: "#16a34a",
-  rtsp: "#15803d",
-  "mpeg-ts": "#0891b2",
-  ebus: "#0c4a6e",
-  "control-voltage": "#92400e",
-  "extron-exp": "#7e22ce",
-  pots: "#3f3f46",
-  "blu-link": "#0284c7",
-  cresnet: "#a21caf",
-  sensor: "#71717a",
-  custom: "#64748b",
-};
+/**
+ * Default per-type signal colours, derived from the 8-family taxonomy in
+ * `signalFamilies.ts` (family hue + subtype shade; power keeps its conventional
+ * electrical colours). These are applied to `--color-{type}` CSS vars at runtime by
+ * {@link applySignalColors}, which is the authoritative source — the static
+ * `--color-{type}` values in theme.css are a first-paint fallback only.
+ */
+export const DEFAULT_SIGNAL_COLORS: Record<SignalType, string> = buildDefaultSignalColors();
 
 const STORAGE_KEY = "easyschematic-signal-colors";
 
