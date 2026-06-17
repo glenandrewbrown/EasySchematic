@@ -518,6 +518,8 @@ function SchematicCanvas() {
   } | null>(null);
   const clickConnectCleanupRef = useRef<(() => void) | null>(null);
   const isClickConnectMode = useRef(false);
+  // React-state mirror of click-connect mode, purely to drive the on-canvas cancel hint.
+  const [clickConnectActive, setClickConnectActive] = useState(false);
   const [connectPreview, setConnectPreview] = useState<{
     fromX: number; fromY: number; toX: number; toY: number; fromSource: boolean;
     snapped: boolean; valid: boolean; adaptable: boolean;
@@ -928,6 +930,7 @@ function SchematicCanvas() {
     // eslint-disable-next-line react-hooks/immutability -- intentional mutable ref flag
     isClickConnectMode.current = false;
     setConnectPreview(null);
+    setClickConnectActive(false);
   }, []);
 
   // Keyboard shortcuts
@@ -1265,6 +1268,7 @@ function SchematicCanvas() {
       if (!params.nodeId || !params.handleType) return;
       // eslint-disable-next-line react-hooks/immutability -- intentional mutable ref flag
       isClickConnectMode.current = true;
+      setClickConnectActive(true);
       startPreviewTracking(event, params.nodeId, params.handleId, params.handleType);
     },
     [startPreviewTracking],
@@ -1869,6 +1873,22 @@ function SchematicCanvas() {
       )}
       <RoutingDebugOverlay />
     </ReactFlow>
+    {clickConnectActive && (
+      <div
+        className="absolute left-1/2 -translate-x-1/2 bottom-6 z-40 flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-full bg-[var(--color-text-heading)] text-[var(--color-surface-raised)] shadow-[var(--ui-shadow-menu)] text-xs"
+        data-print-hide
+        role="status"
+      >
+        <span>Click a port to connect</span>
+        <button
+          type="button"
+          onClick={() => clearClickConnect()}
+          className="flex items-center gap-1 rounded-full bg-white/15 hover:bg-white/25 px-2 py-0.5 transition-colors cursor-pointer"
+        >
+          Cancel <kbd className="font-mono opacity-70">Esc</kbd>
+        </button>
+      </div>
+    )}
     <RoutingTuningPanel />
     <SelectionFilterBar />
     {quickAddPos && (

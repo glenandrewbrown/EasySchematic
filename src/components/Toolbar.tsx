@@ -1,4 +1,18 @@
 import { useMemo } from "react";
+import {
+  FilePlus,
+  FolderOpen,
+  Save,
+  Undo2,
+  Redo2,
+  Cone,
+  Maximize,
+  ScanSearch,
+  Table,
+  FileText,
+  Wand2,
+  type LucideIcon,
+} from "lucide-react";
 import { useSchematicStore } from "../store";
 import { validateSchematic, countIssues } from "../validation";
 
@@ -13,75 +27,24 @@ import { validateSchematic, countIssues } from "../validation";
 
 const fire = (name: string) => window.dispatchEvent(new CustomEvent(name));
 
+/** Toolbar action -> lucide icon. One icon family across the whole app chrome. */
 const ICON = {
-  new: (
-    <>
-      <path d="M4.5 2.5h4.6L12 5.4V13a.5.5 0 0 1-.5.5h-7a.5.5 0 0 1-.5-.5V3a.5.5 0 0 1 .5-.5z" />
-      <path d="M9 2.6V5.6h3" />
-    </>
-  ),
-  open: <path d="M2.2 4.6a1 1 0 0 1 1-1h2.8L7.5 5H12.8a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H3.2a1 1 0 0 1-1-1z" />,
-  save: (
-    <>
-      <path d="M3 9.5v3a.8.8 0 0 0 .8.8h8.4a.8.8 0 0 0 .8-.8v-3" />
-      <path d="M8 2.6v7.4M5.3 7.4 8 10.1l2.7-2.7" />
-    </>
-  ),
-  undo: (
-    <>
-      <path d="M3 7h7a3 3 0 0 1 0 6H9" />
-      <path d="M6 4 3 7l3 3" />
-    </>
-  ),
-  redo: (
-    <>
-      <path d="M13 7H6a3 3 0 0 0 0 6h1" />
-      <path d="M10 4l3 3-3 3" />
-    </>
-  ),
-  coverage: <path d="M8 13 4.2 5.4a5 5 0 0 1 7.6 0z" />,
-  fit: <path d="M3 6V3.4h2.6M13 6V3.4h-2.6M3 10v2.6h2.6M13 10v2.6h-2.6" />,
-  zoomSel: (
-    <>
-      <rect x="6" y="6" width="4" height="4" rx="0.5" />
-      <path d="M3 5V3h2M13 5V3h-2M3 11v2h2M13 11v2h-2" />
-    </>
-  ),
-  bom: (
-    <>
-      <rect x="2.6" y="3" width="10.8" height="10" rx="1.2" />
-      <path d="M2.6 6.4h10.8M7 6.4V13" />
-    </>
-  ),
-  reports: (
-    <>
-      <path d="M4.4 2.6h4.4L12 5.5v7.9a.5.5 0 0 1-.5.5h-7a.5.5 0 0 1-.5-.5z" />
-      <path d="M6.2 11.2V9.4M8 11.2V7.8M9.8 11.2V8.8" />
-    </>
-  ),
-  guide: (
-    <>
-      <path d="M6.5 4.2h6.8M6.5 8h6.8M6.5 11.8h6.8" />
-      <path d="M2.4 4.1l.9.9 1.6-1.9M2.4 7.9l.9.9 1.6-1.9" />
-    </>
-  ),
-} as const;
+  new: FilePlus,
+  open: FolderOpen,
+  save: Save,
+  undo: Undo2,
+  redo: Redo2,
+  coverage: Cone,
+  fit: Maximize,
+  zoomSel: ScanSearch,
+  bom: Table,
+  reports: FileText,
+  guide: Wand2,
+} satisfies Record<string, LucideIcon>;
 
 function Icon({ name }: { name: keyof typeof ICON }) {
-  return (
-    <svg
-      viewBox="0 0 16 16"
-      className="w-[15px] h-[15px]"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.5}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      {ICON[name]}
-    </svg>
-  );
+  const Glyph = ICON[name];
+  return <Glyph className="w-[15px] h-[15px]" strokeWidth={1.75} aria-hidden />;
 }
 
 interface ToolButtonProps {
