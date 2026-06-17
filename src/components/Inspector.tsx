@@ -10,6 +10,7 @@ import { computeCableSchedule } from "../cableSchedule";
 import { connectionRun } from "../connectionRunLength";
 import { validateSchematic, countIssues } from "../validation";
 import { buildDeviceSuggestions } from "../deviceSuggestions";
+import { deviceClassColor } from "../deviceClassColor";
 import Combobox from "./ui/Combobox";
 import TagInput from "./ui/TagInput";
 
@@ -150,7 +151,7 @@ function DeviceBody({ node }: { node: SchematicNode }) {
       ? splAtDistanceDb(spec.sensitivityDb, spec.maxPowerW, Math.max(0.1, ceilingM - LISTENER_PLANE_M))
       : null;
 
-  const accent = data.headerColor ?? "var(--color-accent)";
+  const accent = deviceClassColor(data.ports);
   const heroGlyph = data.icon || (data.deviceType || data.label || "·").trim().charAt(0).toUpperCase();
   const heroType = data.deviceType || data.category || "";
 

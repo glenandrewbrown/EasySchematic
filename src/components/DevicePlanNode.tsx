@@ -9,6 +9,7 @@ import { pxPerMeter } from "../layoutScale";
 import { coverageRadiusM, wedgeGeometry } from "../speakerCoverage";
 import { isSpeaker, resolveSpeakerSpec } from "../speakerSpec";
 import { symbolForDeviceType } from "../symbols";
+import { deviceClassColor } from "../deviceClassColor";
 
 /** Smallest rendered footprint side (px) so tiny to-scale devices stay clickable. */
 const MIN_FOOTPRINT_PX = 8;
@@ -88,8 +89,9 @@ function DevicePlanNodeComponent({ id, data, selected }: NodeProps<DeviceNodeTyp
 
   const resolved = resolveDeviceLabel(data, { useShortNames, wrapDeviceLabels });
   const label = displayLabel(resolved.text);
-  // Category / signal colour: the CAD footprint's hairline border + glyph stroke.
-  const cat = data.headerColor ?? data.color ?? "var(--color-accent)";
+  // Class colour: the CAD footprint's hairline border + glyph stroke. Shared deviceClassColor()
+  // so the Plan footprint matches the device's schematic node / Insert chip / Inspector hero.
+  const cat = deviceClassColor(data.ports);
   const symbol = symbolForDeviceType(data.deviceType);
   // The in-box CAD symbol/glyph only renders once the box is large enough to read.
   const showSymbol = Math.min(boxW, boxH) >= SYMBOL_VISIBLE_PX;

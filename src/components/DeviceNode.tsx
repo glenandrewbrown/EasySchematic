@@ -2,7 +2,7 @@ import { memo, useMemo, useCallback } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import type { DeviceNode as DeviceNodeType, Port, SchematicNode, ConnectionEdge } from "../types";
 import { SIGNAL_COLORS, SIGNAL_LABELS, portSide } from "../types";
-import { SIGNAL_FAMILY_COLORS, familyFor } from "../signalFamilies";
+import { deviceClassColor } from "../deviceClassColor";
 import { useSchematicStore } from "../store";
 import { validateSchematic, type IssueSeverity } from "../validation";
 import {
@@ -591,15 +591,13 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
     );
   }
 
-  // Device-class hue = the device's dominant signal-FAMILY colour (its first port's family),
-  // matching the Insert panel's class chips so EVERY device shows a vivid class colour — the
-  // benchmark look. (Legacy per-device headerColor values are stale pre-signalFamilies noise, so
-  // the node border + class icon use the family colour directly rather than the stored override.)
-  // Drives the class icon tint AND the node's full-perimeter border (v3 "Currents" — replaces the
-  // old left edge-stripe). Selection stays a SEPARATE accent halo; the class colour is never lost.
-  const classColor = data.ports[0]?.signalType
-    ? SIGNAL_FAMILY_COLORS[familyFor(data.ports[0].signalType)]
-    : SIGNAL_FAMILY_COLORS.other;
+  // Device-class hue = the device's representative signal-type colour (its dominant signal),
+  // shared via deviceClassColor() with the Insert chip, Plan footprint, Inspector hero, and
+  // Command-palette swatch so every surface agrees — and it matches this node's own port swatches
+  // + outgoing cables. (Legacy per-device headerColor is stale pre-signalFamilies noise, ignored
+  // here.) Drives the class icon tint AND the full-perimeter border (replaces the old left
+  // edge-stripe). Selection stays a SEPARATE accent halo; the class colour is never overwritten.
+  const classColor = deviceClassColor(data.ports);
 
   // CATEGORY mono-caps label — the device's class/type, shown under the name. Omitted when empty.
   const categoryText = (data.category || data.deviceType || "").trim();

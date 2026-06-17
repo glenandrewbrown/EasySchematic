@@ -12,7 +12,7 @@ import type { DeviceTemplate, DeviceData, SchematicNode } from "../types";
 import { useSchematicStore } from "../store";
 import { scoreTemplate } from "../templateSearch";
 import { inventoryKeyFromDeviceData, inventoryKeyFromTemplate } from "../inventoryKey";
-import { SIGNAL_FAMILY_COLORS, familyFor } from "../signalFamilies";
+import { deviceClassColor } from "../deviceClassColor";
 
 /**
  * Rebuilt "Insert" panel content matching the design overhaul mockup. Renders as a
@@ -42,11 +42,10 @@ function getTemplateKey(template: DeviceTemplate): string {
   return template.id ?? template.deviceType;
 }
 
-/** Dominant signal family of a template — drives the class-colour icon chip. */
+/** Representative signal-type colour of a template — drives the class-colour icon chip.
+ *  Uses deviceClassColor(): the same source as the device node's class border, so chip = node. */
 function classColorFor(template: DeviceTemplate): string {
-  const first = template.ports[0]?.signalType;
-  if (!first) return SIGNAL_FAMILY_COLORS.other;
-  return SIGNAL_FAMILY_COLORS[familyFor(first)];
+  return deviceClassColor(template.ports);
 }
 
 /** Count of input/output ports, expressed as the mockup's "N I/O" meta. */

@@ -23,6 +23,7 @@ import {
 } from "react";
 import { useSchematicStore } from "../store";
 import type { DeviceNode } from "../types";
+import { deviceClassColor } from "../deviceClassColor";
 
 // ─── Right-rail validation tab key (matches RightRail.tsx STORAGE_KEY) ───────
 const RIGHT_RAIL_TAB_KEY = "easyschematic-rightrail-tab";
@@ -221,7 +222,7 @@ export default function CommandPalette() {
     id: `goto-${n.id}`,
     label: n.data.label,
     sublabel: n.data.deviceType || n.data.category || "",
-    swatchColor: n.data.headerColor ?? "var(--color-accent)",
+    swatchColor: deviceClassColor(n.data.ports),
     onSelect: () => {
       selectNode(n.id);
       close();
