@@ -32,6 +32,7 @@ import RightRail from "./components/RightRail";
 import ScheduleView from "./components/ScheduleView";
 import EditorTopBar from "./components/EditorTopBar";
 import CanvasBottomBar from "./components/CanvasBottomBar";
+import PlanScaleBar from "./components/PlanScaleBar";
 import EdgeContextMenu from "./components/EdgeContextMenu";
 import CableAssignDialog from "./components/CableAssignDialog";
 import CableInventoryDialog from "./components/CableInventoryDialog";
@@ -2071,6 +2072,8 @@ export default function App() {
               </div>
               {/* Floating bottom bar */}
               <CanvasBottomBar />
+              {/* CAD scale bar (Layout view only) */}
+              {canvasViewMode === "layout" && <PlanScaleBar />}
             </div>
           </div>
         )

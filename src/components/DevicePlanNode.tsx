@@ -12,8 +12,8 @@ import { symbolForDeviceType } from "../symbols";
 
 /** Smallest rendered footprint side (px) so tiny to-scale devices stay clickable. */
 const MIN_FOOTPRINT_PX = 8;
-/** Footprint must be at least this wide/tall (px) before the device label is drawn. */
-const LABEL_VISIBLE_PX = 22;
+/** Box must be at least this wide/tall (px) before the in-box CAD symbol is drawn. */
+const SYMBOL_VISIBLE_PX = 16;
 /** Assumed ceiling height (m) when a room has none set, for the coverage radius. */
 const DEFAULT_CEILING_M = 3;
 /** Listener ear-plane height (m) used for the coverage radius. */
@@ -88,10 +88,11 @@ function DevicePlanNodeComponent({ id, data, selected }: NodeProps<DeviceNodeTyp
 
   const resolved = resolveDeviceLabel(data, { useShortNames, wrapDeviceLabels });
   const label = displayLabel(resolved.text);
-  const bg = data.headerColor ?? data.color ?? "#4a90d9";
+  // Category / signal colour: the CAD footprint's hairline border + glyph stroke.
+  const cat = data.headerColor ?? data.color ?? "var(--color-accent)";
   const symbol = symbolForDeviceType(data.deviceType);
-  const showLabel = Math.min(boxW, boxH) >= LABEL_VISIBLE_PX;
-  const fontSize = Math.max(6, Math.min(11, Math.min(boxW, boxH) / 4));
+  // The in-box CAD symbol/glyph only renders once the box is large enough to read.
+  const showSymbol = Math.min(boxW, boxH) >= SYMBOL_VISIBLE_PX;
 
   // Loudspeaker coverage wedge (plan view, "Coverage" toggle on). Nominal direct-field,
   // on-axis (−6 dB) footprint — not a measured SPL guarantee. Aimed along rotationDeg.
@@ -124,7 +125,15 @@ function DevicePlanNodeComponent({ id, data, selected }: NodeProps<DeviceNodeTyp
           height={0}
           style={{ position: "absolute", left: 0, top: 0, overflow: "visible", pointerEvents: "none", zIndex: 0 }}
         >
-          <path d={coverageWedge} fill="rgba(56,189,248,0.16)" stroke="rgba(2,132,199,0.5)" strokeWidth={1} />
+          <defs>
+            {/* Teal coverage cone: brightest at the speaker (apex, top of the wedge box),
+                fading to transparent at the coverage radius. */}
+            <radialGradient id={`cov-${id}`} cx="50%" cy="0%" r="80%">
+              <stop offset="0%" stopColor="#2bb8a3" stopOpacity={0.22} />
+              <stop offset="100%" stopColor="#2bb8a3" stopOpacity={0} />
+            </radialGradient>
+          </defs>
+          <path d={coverageWedge} fill={`url(#cov-${id})`} stroke="rgba(43,184,163,0.35)" strokeWidth={1} />
         </svg>
       )}
       <div
@@ -137,64 +146,71 @@ function DevicePlanNodeComponent({ id, data, selected }: NodeProps<DeviceNodeTyp
           position: "absolute",
           inset: 0,
           transform: rotationDeg ? `rotate(${rotationDeg}deg)` : undefined,
-          background: bg,
-        border: footprint.toScale
-          ? `1.5px solid ${selected ? "#2563eb" : "rgba(0,0,0,0.55)"}`
-          : `1.5px dashed ${selected ? "#2563eb" : "rgba(0,0,0,0.4)"}`,
-        boxShadow: selected ? "0 0 0 2px rgba(37,99,235,0.35)" : undefined,
-        borderRadius: 2,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        overflow: "hidden",
-        boxSizing: "border-box",
-        color: "#fff",
-        fontSize,
-        fontWeight: 600,
-        lineHeight: 1.1,
-        textAlign: "center",
-        cursor: "grab",
-        userSelect: "none",
-      }}
-    >
-      {customSvg ? (
-        <div
-          style={{ width: "82%", height: "82%", display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}
-          // Sanitized at import by svgSanitizer (scripts/handlers/external refs stripped) — safe to inject.
-          dangerouslySetInnerHTML={{ __html: customSvg }}
-        />
-      ) : symbol && Math.min(boxW, boxH) >= 16 ? (
-        <svg
-          viewBox="0 0 24 24"
-          width={Math.min(boxW, boxH) * 0.66}
-          height={Math.min(boxW, boxH) * 0.66}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={1.6}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          style={{ filter: "drop-shadow(0 1px 1px rgba(0,0,0,0.35))" }}
-          // Symbols are hardcoded, app-authored inner-SVG markup (no user input).
-          dangerouslySetInnerHTML={{ __html: symbol.svg }}
-        />
-      ) : showLabel ? (
+          background: "var(--color-surface)",
+          // CAD footprint: hairline category-coloured outline (dashed when not to-scale).
+          border: footprint.toScale ? `1.5px solid ${cat}` : `1.5px dashed ${cat}`,
+          boxShadow: selected
+            ? "0 0 0 2px color-mix(in srgb, var(--color-accent) 35%, transparent)"
+            : undefined,
+          borderColor: selected ? "var(--color-accent)" : cat,
+          borderRadius: 3,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          overflow: "hidden",
+          boxSizing: "border-box",
+          cursor: "grab",
+          userSelect: "none",
+        }}
+      >
+        {customSvg ? (
+          <div
+            style={{ width: "82%", height: "82%", display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}
+            // Sanitized at import by svgSanitizer (scripts/handlers/external refs stripped) — safe to inject.
+            dangerouslySetInnerHTML={{ __html: customSvg }}
+          />
+        ) : symbol && showSymbol ? (
+          <svg
+            viewBox="0 0 24 24"
+            width={Math.min(boxW, boxH) * 0.66}
+            height={Math.min(boxW, boxH) * 0.66}
+            fill="none"
+            stroke={cat}
+            strokeWidth={1.6}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{ opacity: 0.9 }}
+            // Symbols are hardcoded, app-authored inner-SVG markup (no user input).
+            dangerouslySetInnerHTML={{ __html: symbol.svg }}
+          />
+        ) : data.icon && showSymbol ? (
+          <span style={{ fontSize: Math.max(8, Math.min(boxW, boxH) * 0.6), color: cat, opacity: 0.9 }}>
+            {data.icon}
+          </span>
+        ) : null}
+      </div>
+      {/* Device label, CAD-style below the footprint box (upright — not rotated with the box). */}
+      {label && (
         <span
           style={{
-            padding: "0 2px",
-            textShadow: "0 1px 1px rgba(0,0,0,0.4)",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
+            position: "absolute",
+            top: "100%",
+            left: "50%",
+            transform: "translateX(-50%)",
+            marginTop: 2,
+            fontFamily: "var(--font-mono)",
+            fontSize: 8.5,
+            lineHeight: 1.1,
+            color: "var(--color-text-muted)",
             whiteSpace: "nowrap",
-            maxWidth: "100%",
+            pointerEvents: "none",
+            zIndex: 1,
           }}
         >
           {data.icon ? `${data.icon} ` : ""}
           {label}
         </span>
-      ) : data.icon ? (
-        <span style={{ fontSize: Math.max(8, Math.min(boxW, boxH) * 0.6) }}>{data.icon}</span>
-      ) : null}
-      </div>
+      )}
       {selected && (
         <>
           <svg
@@ -207,7 +223,7 @@ function DevicePlanNodeComponent({ id, data, selected }: NodeProps<DeviceNodeTyp
               y1={boxH / 2}
               x2={aimHx}
               y2={aimHy}
-              stroke="#2563eb"
+              stroke="var(--color-accent)"
               strokeWidth={1}
               strokeDasharray="2 2"
             />
@@ -225,8 +241,8 @@ function DevicePlanNodeComponent({ id, data, selected }: NodeProps<DeviceNodeTyp
               width: 12,
               height: 12,
               borderRadius: "50%",
-              background: "#fff",
-              border: "2px solid #2563eb",
+              background: "var(--color-surface)",
+              border: "2px solid var(--color-accent)",
               boxShadow: "0 1px 2px rgba(0,0,0,0.3)",
               cursor: "crosshair",
               zIndex: 2,

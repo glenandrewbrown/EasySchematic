@@ -178,6 +178,7 @@ function RoomNodeComponent({ id, data, selected, width, height }: NodeProps<Room
   const updateRoomShape = useSchematicStore((s) => s.updateRoomShape);
   const setEditingRoomShape = useSchematicStore((s) => s.setEditingRoomShape);
   const updateRoom = useSchematicStore((s) => s.updateRoom);
+  const canvasViewMode = useSchematicStore((s) => s.canvasViewMode);
   const zoom = useStore((s) => s.transform[2]);
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(data.label);
@@ -280,8 +281,18 @@ function RoomNodeComponent({ id, data, selected, width, height }: NodeProps<Room
     [w, h, id, data, updateRoom],
   );
 
+  // Layout (CAD floor-plan) view: rectangular rooms read as architectural drawings —
+  // solid hairline walls, faint accent fill, mono labels, dimension lines. Gated so the
+  // schematic view renders byte-identically to before.
+  const isLayout = canvasViewMode === "layout";
+
   const isRack = data.isEquipmentRack ?? false;
-  const borderStyleVal = isRack ? "solid" : (data.borderStyle ?? (isSubroom ? "solid" : "dashed"));
+  const borderStyleVal =
+    isLayout && !data.shape && !isRack
+      ? "solid"
+      : isRack
+        ? "solid"
+        : (data.borderStyle ?? (isSubroom ? "solid" : "dashed"));
   const borderColorVal = selected ? undefined : data.borderColor;
   const bgColor = data.color;
   // Subrooms use a slightly more opaque background so they read as distinct zones
@@ -340,22 +351,87 @@ function RoomNodeComponent({ id, data, selected, width, height }: NodeProps<Room
         handleStyle={{ width: 8, height: 8, borderRadius: 2, backgroundColor: "var(--color-border)" }}
       />
       <div
-        className={`w-full h-full ${shape ? "" : "rounded-lg border-2"} ${
+        className={`w-full h-full ${shape ? "" : "rounded-lg"} ${shape ? "" : isLayout && !isRack ? "" : "border-2"} ${
           !shape && selected ? "border-blue-400" : ""
         }`}
         style={{
           pointerEvents: "none",
           ...(shape
             ? {}
-            : {
-                borderStyle: borderStyleVal,
-                ...(!selected ? { borderColor: borderColorVal || (isRack ? "#6b7280" : "var(--color-border)") } : {}),
-                backgroundColor: fillColor === "rgba(var(--color-surface-rgb, 245,245,245),0.3)" && selected
-                  ? "rgba(239,246,255,0.3)"
-                  : fillColor,
-              }),
+            : isLayout && !isRack
+              ? {
+                  // CAD floor-plan: solid hairline wall + faint accent fill.
+                  border: `1.5px ${borderStyleVal} ${selected ? "#60a5fa" : borderColorVal || "var(--color-border)"}`,
+                  backgroundColor: bgColor
+                    ? `${bgColor}${bgAlpha}`
+                    : "color-mix(in srgb, var(--color-accent) 6%, transparent)",
+                }
+              : {
+                  borderStyle: borderStyleVal,
+                  ...(!selected ? { borderColor: borderColorVal || (isRack ? "#6b7280" : "var(--color-border)") } : {}),
+                  backgroundColor: fillColor === "rgba(var(--color-surface-rgb, 245,245,245),0.3)" && selected
+                    ? "rgba(239,246,255,0.3)"
+                    : fillColor,
+                }),
         }}
       >
+        {/* CAD dimension lines (Layout view, rectangular room with a real width):
+            architectural width/depth annotations drawn OUTSIDE the box. Calibration
+            still happens via the click-to-edit DimTags below/right. */}
+        {isLayout && !shape && !isRack && !!data.widthM && data.widthM > 0 && (() => {
+          const depthM = data.depthM ?? (data.widthM! * h) / w;
+          const OFF = 12; // px the dimension line sits outside the wall
+          const TICK = 4; // px half-length of the end ticks
+          const dimStroke = "var(--color-border)";
+          return (
+            <>
+              <svg
+                className="absolute inset-0 w-full h-full"
+                style={{ overflow: "visible", pointerEvents: "none" }}
+              >
+                {/* Top: horizontal width dimension */}
+                <line x1={0} y1={-OFF} x2={w} y2={-OFF} stroke={dimStroke} strokeWidth={1} />
+                <line x1={0} y1={-OFF - TICK} x2={0} y2={-OFF + TICK} stroke={dimStroke} strokeWidth={1} />
+                <line x1={w} y1={-OFF - TICK} x2={w} y2={-OFF + TICK} stroke={dimStroke} strokeWidth={1} />
+                {/* Left: vertical depth dimension */}
+                <line x1={-OFF} y1={0} x2={-OFF} y2={h} stroke={dimStroke} strokeWidth={1} />
+                <line x1={-OFF - TICK} y1={0} x2={-OFF + TICK} y2={0} stroke={dimStroke} strokeWidth={1} />
+                <line x1={-OFF - TICK} y1={h} x2={-OFF + TICK} y2={h} stroke={dimStroke} strokeWidth={1} />
+              </svg>
+              {/* Width label chip — centred on the top dimension line */}
+              <div
+                className="absolute text-[9px] leading-none px-1 py-0.5 rounded tabular-nums whitespace-nowrap"
+                style={{
+                  left: w / 2,
+                  top: -OFF,
+                  transform: "translate(-50%, -50%)",
+                  pointerEvents: "none",
+                  background: "var(--color-bg)",
+                  color: "var(--color-text)",
+                  fontFamily: "var(--font-mono)",
+                }}
+              >
+                {data.widthM!.toFixed(2)} m
+              </div>
+              {/* Depth label chip — centred on the left dimension line */}
+              <div
+                className="absolute text-[9px] leading-none px-1 py-0.5 rounded tabular-nums whitespace-nowrap"
+                style={{
+                  left: -OFF,
+                  top: h / 2,
+                  transform: "translate(-50%, -50%)",
+                  pointerEvents: "none",
+                  background: "var(--color-bg)",
+                  color: "var(--color-text)",
+                  fontFamily: "var(--font-mono)",
+                }}
+              >
+                {depthM.toFixed(2)} m
+              </div>
+            </>
+          );
+        })()}
+
         {/* Custom floor-plan outline */}
         {shape && shapePx && (
           <svg className="absolute inset-0 w-full h-full" style={{ overflow: "visible", pointerEvents: "none" }}>
@@ -491,7 +567,11 @@ function RoomNodeComponent({ id, data, selected, width, height }: NodeProps<Room
           ) : (
             <span
               className="font-semibold uppercase tracking-wide cursor-text select-none flex items-center gap-1"
-              style={{ fontSize, color: borderColorVal || (isRack ? "#374151" : "var(--color-text-muted)") }}
+              style={{
+                fontSize,
+                color: isLayout && !isRack ? "var(--color-text-muted)" : borderColorVal || (isRack ? "#374151" : "var(--color-text-muted)"),
+                fontFamily: isLayout && !isRack ? "var(--font-mono)" : undefined,
+              }}
               onDoubleClick={() => { setValue(data.label); setEditing(true); }}
             >
               {isRack && <RackIcon />}
