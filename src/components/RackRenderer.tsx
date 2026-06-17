@@ -40,6 +40,24 @@ const LABEL_HEIGHT = 24;
 const DEVICE_INSET = RAIL_WIDTH;
 const HALF_WIDTH = (RACK_WIDTH - 2 * DEVICE_INSET) / 2 - 1;
 const FULL_WIDTH = RACK_WIDTH - 2 * DEVICE_INSET;
+
+/** On-screen rack theme — CSS tokens so the rack frame follows the navy
+ *  "engineering instrument" palette in both light and dark mode. This is the
+ *  SCREEN renderer only; the PDF export (rackPdf.ts) keeps its own light
+ *  colours and does not import these. */
+const RACK_THEME = {
+  surface: "var(--color-surface)",
+  surfaceRaised: "var(--color-surface-raised)",
+  border: "var(--ui-border)",
+  borderStrong: "var(--ui-border-strong)",
+  text: "var(--color-text)",
+  textHeading: "var(--color-text-heading)",
+  textMuted: "var(--color-text-muted)",
+  accent: "var(--color-accent)",
+  mono: "var(--font-mono)",
+} as const;
+/** Fallback device-block fill when a device carries no colour of its own. */
+const DEVICE_FALLBACK_COLOR = "#4a90d9";
 /** Side-view width in pixels for a given rack — true-scale: depth axis uses the
  *  same px-per-mm as the height axis, so 1U-tall and 1mm-deep render at matching
  *  pixel ratios. Floor a little so very shallow desktops still have room to draw. */
@@ -136,22 +154,22 @@ function RackFrame({ rack, faceLabel, viewFace = "front" }: { rack: RackData; fa
       {/* Frame background */}
       <rect
         x={0} y={0} width={RACK_WIDTH} height={totalH}
-        fill={isOpen ? "rgba(245,245,245,0.4)" : "#f5f5f5"}
-        stroke="#333"
+        fill={isOpen ? "transparent" : RACK_THEME.surface}
+        stroke={RACK_THEME.borderStrong}
         strokeWidth={isOpen ? 1 : 1.5}
         strokeDasharray={isOpen ? "4 2" : undefined}
         rx={2}
       />
 
       {/* Main rails */}
-      <rect x={0} y={0} width={RAIL_WIDTH} height={totalH} fill="#d4d4d4" stroke="#999" strokeWidth={0.5} />
-      <rect x={RACK_WIDTH - RAIL_WIDTH} y={0} width={RAIL_WIDTH} height={totalH} fill="#d4d4d4" stroke="#999" strokeWidth={0.5} />
+      <rect x={0} y={0} width={RAIL_WIDTH} height={totalH} fill={RACK_THEME.surfaceRaised} stroke={RACK_THEME.border} strokeWidth={0.5} />
+      <rect x={RACK_WIDTH - RAIL_WIDTH} y={0} width={RAIL_WIDTH} height={totalH} fill={RACK_THEME.surfaceRaised} stroke={RACK_THEME.border} strokeWidth={0.5} />
 
       {/* Inner pseudo-rails and mounting holes — hidden on 2-post rear */}
       {showRails && (
         <>
-          <rect x={RAIL_WIDTH + 1} y={0} width={3} height={totalH} fill="#e0e0e0" stroke="#ccc" strokeWidth={0.25} />
-          <rect x={RACK_WIDTH - RAIL_WIDTH - 4} y={0} width={3} height={totalH} fill="#e0e0e0" stroke="#ccc" strokeWidth={0.25} />
+          <rect x={RAIL_WIDTH + 1} y={0} width={3} height={totalH} fill={RACK_THEME.surfaceRaised} stroke={RACK_THEME.border} strokeWidth={0.25} />
+          <rect x={RACK_WIDTH - RAIL_WIDTH - 4} y={0} width={3} height={totalH} fill={RACK_THEME.surfaceRaised} stroke={RACK_THEME.border} strokeWidth={0.25} />
         </>
       )}
 
@@ -161,15 +179,15 @@ function RackFrame({ rack, faceLabel, viewFace = "front" }: { rack: RackData; fa
         const y = i * PX_PER_U;
         return (
           <g key={uNum}>
-            <line x1={0} y1={y} x2={RACK_WIDTH} y2={y} stroke="#ddd" strokeWidth={0.5} />
-            <text x={-RULER_WIDTH / 2 - 2} y={y + PX_PER_U / 2} textAnchor="middle" dominantBaseline="central" fontSize={8} fill="#999">{uNum}</text>
+            <line x1={0} y1={y} x2={RACK_WIDTH} y2={y} stroke={RACK_THEME.border} strokeWidth={0.5} />
+            <text x={-RULER_WIDTH / 2 - 2} y={y + PX_PER_U / 2} textAnchor="middle" dominantBaseline="central" fontSize={8} fill={RACK_THEME.textMuted} fontFamily={RACK_THEME.mono}>{uNum}</text>
 
             {showRails && [1/6, 3/6, 5/6].map((frac, hi) => {
               const cy = y + PX_PER_U * frac;
               return (
                 <g key={hi}>
-                  <circle cx={RAIL_WIDTH + 2.5} cy={cy} r={1.2} fill="#999" />
-                  <circle cx={RACK_WIDTH - RAIL_WIDTH - 2.5} cy={cy} r={1.2} fill="#999" />
+                  <circle cx={RAIL_WIDTH + 2.5} cy={cy} r={1.2} fill={RACK_THEME.border} />
+                  <circle cx={RACK_WIDTH - RAIL_WIDTH - 2.5} cy={cy} r={1.2} fill={RACK_THEME.border} />
                 </g>
               );
             })}
@@ -178,7 +196,7 @@ function RackFrame({ rack, faceLabel, viewFace = "front" }: { rack: RackData; fa
       })}
 
       {faceLabel && (
-        <text x={RACK_WIDTH / 2} y={totalH + 14} textAnchor="middle" fontSize={9} fill="#999" fontWeight={500} fontStyle="italic">{faceLabel}</text>
+        <text x={RACK_WIDTH / 2} y={totalH + 14} textAnchor="middle" fontSize={9} fill={RACK_THEME.textMuted} fontWeight={500} fontFamily={RACK_THEME.mono} style={{ letterSpacing: "0.08em", textTransform: "uppercase" }}>{faceLabel}</text>
       )}
     </g>
   );
@@ -194,8 +212,8 @@ function RackLabel({ rack, width = RACK_WIDTH, onRename }: { rack: RackData; wid
       <foreignObject x={0} y={-22} width={width} height={20}>
         <input
           ref={inputRef}
-          className="w-full bg-white border border-blue-400 rounded px-1 text-xs text-center outline-none"
-          style={{ fontSize: 12, fontWeight: 600, height: 20 }}
+          className="w-full rounded px-1 text-xs text-center outline-none"
+          style={{ fontSize: 12, fontWeight: 600, height: 20, background: RACK_THEME.surfaceRaised, color: RACK_THEME.textHeading, border: `1px solid ${RACK_THEME.accent}` }}
           value={value}
           autoFocus
           onChange={(e) => setValue(e.target.value)}
@@ -215,7 +233,7 @@ function RackLabel({ rack, width = RACK_WIDTH, onRename }: { rack: RackData; wid
 
   return (
     <text
-      x={width / 2} y={-8} textAnchor="middle" fontSize={12} fontWeight={600} fill="#333"
+      x={width / 2} y={-8} textAnchor="middle" fontSize={12} fontWeight={600} fill={RACK_THEME.textHeading}
       className="cursor-pointer"
       onDoubleClick={() => { setValue(rack.label); setEditing(true); }}
     >
@@ -290,7 +308,10 @@ function DeviceBlock({ placement, rack, deviceData, isSelected, isDragging, zoom
       <clipPath id={`dev-clip-${placement.id}`}>
         <rect x={x} y={y} width={w} height={h} rx={1} />
       </clipPath>
-      <rect x={x} y={y} width={w} height={h} fill={color ?? "#4a90d9"} stroke={isSelected ? "#2563eb" : "#333"} strokeWidth={isSelected ? 2 : 0.75} rx={1} />
+      <rect x={x} y={y} width={w} height={h} fill={color ?? DEVICE_FALLBACK_COLOR} stroke={isSelected ? RACK_THEME.accent : RACK_THEME.borderStrong} strokeWidth={isSelected ? 2 : 0.75} rx={1} />
+      {/* Left category stripe — the device's class colour, brightened so it reads
+          as a stripe even when the block fill is dark (mockup §RACK). */}
+      <rect x={x} y={y + 1} width={2.5} height={h - 2} fill={color ?? DEVICE_FALLBACK_COLOR} stroke="rgba(255,255,255,0.55)" strokeWidth={0.4} rx={1} style={{ pointerEvents: "none" }} />
 
       <g clipPath={`url(#dev-clip-${placement.id})`}>
       {/* Device label — custom position from face-plate layout, or default */}
@@ -399,7 +420,7 @@ function OccupancyGhost({ placement, rack, heightU }: { placement: RackDevicePla
   const isHalf = !!placement.halfRackSide;
   const w = isHalf ? HALF_WIDTH : FULL_WIDTH;
   const x = DEVICE_INSET + (isHalf && placement.halfRackSide === "right" ? HALF_WIDTH + 2 : 0);
-  return <rect x={x} y={y} width={w} height={h} fill="url(#occupancy-stripes)" stroke="#bbb" strokeWidth={0.5} strokeDasharray="3 2" rx={1} />;
+  return <rect x={x} y={y} width={w} height={h} fill="url(#occupancy-stripes)" stroke={RACK_THEME.border} strokeWidth={0.5} strokeDasharray="3 2" rx={1} />;
 }
 
 function AccessoryBlock({
@@ -457,7 +478,7 @@ function AccessoryBlock({
         }
       }}
     >
-      <rect x={DEVICE_INSET} y={y} width={FULL_WIDTH} height={h} fill={fills[accessory.type] ?? "#888"} stroke="#555" strokeWidth={0.5} rx={1} />
+      <rect x={DEVICE_INSET} y={y} width={FULL_WIDTH} height={h} fill={fills[accessory.type] ?? "#888"} stroke={RACK_THEME.borderStrong} strokeWidth={0.5} rx={1} />
       {accessory.type === "vent-panel" && Array.from({ length: Math.max(1, Math.floor(h / 6)) }, (_, i) => (
         <line key={i} x1={DEVICE_INSET + 8} y1={y + 3 + i * 6} x2={DEVICE_INSET + FULL_WIDTH - 8} y2={y + 3 + i * 6} stroke="rgba(255,255,255,0.3)" strokeWidth={1} />
       ))}
@@ -509,8 +530,8 @@ function AccessoryBlock({
                 y={topY}
                 width={wPx}
                 height={hPx}
-                fill={dd.headerColor ?? dd.color ?? "#4a90d9"}
-                stroke={previewInvalid ? "#ef4444" : (overflowsAbove ? "#dc2626" : "#333")}
+                fill={dd.headerColor ?? dd.color ?? DEVICE_FALLBACK_COLOR}
+                stroke={previewInvalid ? "#ef4444" : (overflowsAbove ? "#dc2626" : RACK_THEME.borderStrong)}
                 strokeWidth={previewInvalid || overflowsAbove ? 1 : 0.5}
                 strokeDasharray={previewInvalid || overflowsAbove ? "3 2" : undefined}
                 rx={1}
@@ -628,7 +649,7 @@ function DropIndicator({ rack, uPosition, heightU, halfRackSide, valid, mode }: 
 function DragGhost({ x, y, width, height, label, color }: { x: number; y: number; width: number; height: number; label: string; color: string }) {
   return (
     <g style={{ pointerEvents: "none" }} opacity={0.7}>
-      <rect x={x} y={y} width={width} height={height} fill={color} stroke="#2563eb" strokeWidth={1.5} rx={1} />
+      <rect x={x} y={y} width={width} height={height} fill={color} stroke={RACK_THEME.accent} strokeWidth={1.5} rx={1} />
       <text x={x + width / 2} y={y + height / 2} textAnchor="middle" dominantBaseline="central" fontSize={height > 20 ? 10 : 8} fill="#fff" fontWeight={500}>{label}</text>
     </g>
   );
@@ -678,24 +699,24 @@ function SideViewRack({
       {/* Frame outline */}
       <rect
         x={0} y={0} width={SIDE_VIEW_WIDTH} height={totalH}
-        fill={isOpen ? "rgba(250,250,250,0.4)" : "#fafafa"}
-        stroke="#333" strokeWidth={1}
+        fill={isOpen ? "transparent" : RACK_THEME.surface}
+        stroke={RACK_THEME.borderStrong} strokeWidth={1}
         strokeDasharray={isOpen ? "4 2" : undefined}
         rx={1}
       />
 
       {/* U lines */}
-      {Array.from({ length: rack.heightU }, (_, i) => <line key={i} x1={0} y1={i * PX_PER_U} x2={SIDE_VIEW_WIDTH} y2={i * PX_PER_U} stroke="#eee" strokeWidth={0.5} />)}
+      {Array.from({ length: rack.heightU }, (_, i) => <line key={i} x1={0} y1={i * PX_PER_U} x2={SIDE_VIEW_WIDTH} y2={i * PX_PER_U} stroke={RACK_THEME.border} strokeWidth={0.5} />)}
 
       {/* Front rail — always present */}
-      <line x1={4} y1={0} x2={4} y2={totalH} stroke="#aaa" strokeWidth={1} strokeDasharray="2 2" />
-      <text x={4} y={-3} textAnchor="middle" fontSize={7} fill="#aaa">F</text>
+      <line x1={4} y1={0} x2={4} y2={totalH} stroke={RACK_THEME.border} strokeWidth={1} strokeDasharray="2 2" />
+      <text x={4} y={-3} textAnchor="middle" fontSize={7} fill={RACK_THEME.textMuted} fontFamily={RACK_THEME.mono}>F</text>
 
       {/* Rear rail — 4-post only */}
       {!is2Post && (
         <>
-          <line x1={SIDE_VIEW_WIDTH - 4} y1={0} x2={SIDE_VIEW_WIDTH - 4} y2={totalH} stroke="#aaa" strokeWidth={1} strokeDasharray="2 2" />
-          <text x={SIDE_VIEW_WIDTH - 4} y={-3} textAnchor="middle" fontSize={7} fill="#aaa">R</text>
+          <line x1={SIDE_VIEW_WIDTH - 4} y1={0} x2={SIDE_VIEW_WIDTH - 4} y2={totalH} stroke={RACK_THEME.border} strokeWidth={1} strokeDasharray="2 2" />
+          <text x={SIDE_VIEW_WIDTH - 4} y={-3} textAnchor="middle" fontSize={7} fill={RACK_THEME.textMuted} fontFamily={RACK_THEME.mono}>R</text>
         </>
       )}
 
@@ -740,8 +761,8 @@ function SideViewRack({
                 y={dy}
                 width={dDepth}
                 height={dh}
-                fill={dd.headerColor ?? dd.color ?? "#4a90d9"}
-                stroke={overflowsAbove ? "#dc2626" : "#333"}
+                fill={dd.headerColor ?? dd.color ?? DEVICE_FALLBACK_COLOR}
+                stroke={overflowsAbove ? "#dc2626" : RACK_THEME.borderStrong}
                 strokeWidth={overflowsAbove ? 1 : 0.5}
                 strokeDasharray={overflowsAbove ? "3 2" : undefined}
                 rx={1}
@@ -780,7 +801,7 @@ function SideViewRack({
               }
             }}
           >
-            <rect x={x} y={y} width={deviceDepth} height={h} fill={dd.headerColor ?? dd.color ?? "#4a90d9"} stroke={isSelected ? "#2563eb" : "#333"} strokeWidth={isSelected ? 1.5 : 0.5} rx={1} opacity={0.85} />
+            <rect x={x} y={y} width={deviceDepth} height={h} fill={dd.headerColor ?? dd.color ?? DEVICE_FALLBACK_COLOR} stroke={isSelected ? RACK_THEME.accent : RACK_THEME.borderStrong} strokeWidth={isSelected ? 1.5 : 0.5} rx={1} opacity={0.85} />
             <clipPath id={`side-clip-${pl.id}`}><rect x={x} y={y} width={deviceDepth} height={h} rx={1} /></clipPath>
             <g clipPath={`url(#side-clip-${pl.id})`}>
               {(() => {
@@ -859,7 +880,7 @@ function SideViewRack({
         );
       })}
 
-      <text x={SIDE_VIEW_WIDTH / 2} y={totalH + 14} textAnchor="middle" fontSize={9} fill="#999" fontWeight={500} fontStyle="italic">Side</text>
+      <text x={SIDE_VIEW_WIDTH / 2} y={totalH + 14} textAnchor="middle" fontSize={9} fill={RACK_THEME.textMuted} fontWeight={500} fontFamily={RACK_THEME.mono} style={{ letterSpacing: "0.08em", textTransform: "uppercase" }}>Side</text>
     </g>
   );
 }
@@ -1864,7 +1885,7 @@ export default function RackRenderer({ page }: { page: RackElevationPage }) {
   return (
     <div
       ref={containerRef}
-      className="relative flex-1 bg-neutral-200 overflow-hidden outline-none select-none"
+      className="relative flex-1 bg-[var(--color-bg)] overflow-hidden outline-none select-none"
       style={{ cursor }}
       tabIndex={0}
       onWheel={onWheel}
@@ -1923,7 +1944,7 @@ export default function RackRenderer({ page }: { page: RackElevationPage }) {
                     onContextMenu={handleDeviceContextMenu}
                     schematicDefaults={schematicDefaults}
                   />
-                  <text x={sideW / 2} y={totalH + 28} textAnchor="middle" fontSize={9} fill="#444">{statsLine}</text>
+                  <text x={sideW / 2} y={totalH + 28} textAnchor="middle" fontSize={9} fill={RACK_THEME.textMuted} fontFamily={RACK_THEME.mono}>{statsLine}</text>
                 </g>
               );
             }
@@ -2068,9 +2089,9 @@ export default function RackRenderer({ page }: { page: RackElevationPage }) {
                 {dropTarget && dropTarget.rackId === rack.id && (
                   <DropIndicator rack={rack} uPosition={dropTarget.uPosition} heightU={dropTarget.heightU} halfRackSide={dropTarget.halfRackSide} valid={dropTarget.valid} mode={dropTarget.mode} />
                 )}
-                <text x={RACK_WIDTH / 2} y={totalH + 28} textAnchor="middle" fontSize={9} fill="#444">{statsLine}</text>
+                <text x={RACK_WIDTH / 2} y={totalH + 28} textAnchor="middle" fontSize={9} fill={RACK_THEME.textMuted} fontFamily={RACK_THEME.mono}>{statsLine}</text>
                 {(stats.unknownDepthCount > 0 || stats.unknownWeightCount > 0 || stats.unknownPowerCount > 0) && (
-                  <text x={RACK_WIDTH / 2} y={totalH + 40} textAnchor="middle" fontSize={7} fill="#999">
+                  <text x={RACK_WIDTH / 2} y={totalH + 40} textAnchor="middle" fontSize={7} fill={RACK_THEME.textMuted} fontFamily={RACK_THEME.mono}>
                     {[
                       stats.unknownDepthCount > 0 ? `${stats.unknownDepthCount} unknown depth` : null,
                       stats.unknownWeightCount > 0 ? `${stats.unknownWeightCount} unknown weight` : null,
@@ -2083,7 +2104,7 @@ export default function RackRenderer({ page }: { page: RackElevationPage }) {
           })}
 
           {page.racks.length === 0 && (
-            <text x={200} y={200} fontSize={14} fill="#999" textAnchor="middle">No racks yet. Use the sidebar to add a rack.</text>
+            <text x={200} y={200} fontSize={14} fill={RACK_THEME.textMuted} textAnchor="middle">No racks yet. Use the sidebar to add a rack.</text>
           )}
 
           {/* Floating drag ghost that follows cursor */}

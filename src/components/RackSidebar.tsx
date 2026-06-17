@@ -71,7 +71,7 @@ export default function RackSidebar({ page }: RackSidebarProps) {
   }, []);
 
   return (
-    <div className="w-56 bg-[var(--color-surface)] border-r border-[var(--ui-border)] flex flex-col text-xs overflow-hidden">
+    <div className="h-full w-full bg-[var(--color-surface)] flex flex-col text-xs overflow-hidden">
       {/* Add Rack section */}
       <div className="p-2 border-b border-[var(--ui-border)]">
         <button
@@ -134,11 +134,12 @@ export default function RackSidebar({ page }: RackSidebarProps) {
                     onDoubleClick={() => { setEditingRackId(rack.id); setEditingRackLabel(rack.label); }}
                     title="Double-click to rename"
                   >
-                    {rack.label} ({rack.heightU}U)
+                    {rack.label}{" "}
+                    <span className="text-[var(--color-text-muted)]" style={{ fontFamily: "var(--font-mono)" }}>({rack.heightU}U)</span>
                   </span>
                 )}
                 <span className="text-[var(--color-text-muted)] text-[10px] shrink-0 ml-1 flex items-center gap-1">
-                  {placementCount > 0 && <span>{placementCount} dev</span>}
+                  {placementCount > 0 && <span style={{ fontFamily: "var(--font-mono)" }}>{placementCount} dev</span>}
                   {otherElevationPages.length > 0 && (
                     <div className="relative">
                       <button
@@ -171,7 +172,7 @@ export default function RackSidebar({ page }: RackSidebarProps) {
                     ✎
                   </button>
                   <button
-                    className="text-neutral-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="text-[var(--color-text-muted)] hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
                     title={`Delete ${rack.label}`}
                     onClick={() => {
                       if (confirm(`Delete "${rack.label}"? This removes all devices placed in it.`)) {
@@ -192,7 +193,7 @@ export default function RackSidebar({ page }: RackSidebarProps) {
       <div className="flex-1 overflow-y-auto p-2 flex flex-col gap-2">
         {unrackedDevices.length > 0 && (
           <input
-            className="w-full bg-[var(--color-surface)] border border-[var(--ui-border)] rounded px-2 py-1 text-xs outline-none focus:border-blue-400"
+            className="w-full bg-[var(--color-surface-raised)] border border-[var(--ui-border)] rounded px-2 py-1 text-xs outline-none focus:border-[var(--color-accent)]"
             placeholder="Search devices…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -226,9 +227,9 @@ export default function RackSidebar({ page }: RackSidebarProps) {
                 onDragEnd={handleDragEnd}
                 title={needsShelf ? `No height set — drop on a shelf accessory · ${data.label}` : data.label}
               >
-                <span className="truncate">{resolved.text}</span>
-                <span className="text-[var(--color-text-muted)] ml-1 shrink-0">
-                  {needsShelf ? <span className="text-amber-600" title="needs shelf">⬚</span> : `${heightU}U`}
+                <span className="truncate text-[var(--color-text)]">{resolved.text}</span>
+                <span className="text-[var(--color-text-muted)] ml-1 shrink-0" style={{ fontFamily: "var(--font-mono)" }}>
+                  {needsShelf ? <span className="text-amber-500" title="needs shelf">⬚</span> : `${heightU}U`}
                 </span>
               </div>
             );
@@ -254,7 +255,7 @@ export default function RackSidebar({ page }: RackSidebarProps) {
             <>
               {groups.map(({ rack, roomLabel, devices }) => (
                 <div key={rack.id}>
-                  <div className="font-semibold text-blue-600 mb-0.5 uppercase tracking-wider" style={{ fontSize: 8 }}>
+                  <div className="font-semibold text-[var(--color-accent)] mb-0.5 uppercase tracking-wider" style={{ fontSize: 8 }}>
                     From {roomLabel} → {rack.label} ({devices.length})
                   </div>
                   <div className="flex flex-col gap-0.5">
