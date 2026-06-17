@@ -365,7 +365,7 @@ function Step2({
                       {match.score}
                     </span>
                     <button
-                      className="text-[10px] text-blue-500 hover:underline"
+                      className="text-[10px] text-[var(--color-accent)] hover:underline"
                       onClick={() => onSearch(csvName)}
                     >
                       Change
@@ -379,7 +379,7 @@ function Step2({
                   </>
                 ) : (
                   <button
-                    className="text-[10px] text-blue-500 hover:underline"
+                    className="text-[10px] text-[var(--color-accent)] hover:underline"
                     onClick={() => onSearch(csvName)}
                   >
                     Search Template
@@ -423,7 +423,7 @@ function Step2({
                     {searchResults.map((r) => (
                       <button
                         key={r.template.id ?? r.template.label}
-                        className="w-full text-left px-2 py-1 text-xs hover:bg-blue-50 border-b border-[var(--color-border)] last:border-0 flex items-center justify-between"
+                        className="w-full text-left px-2 py-1 text-xs hover:bg-[var(--color-accent-soft)] border-b border-[var(--color-border)] last:border-0 flex items-center justify-between"
                         onClick={() => onSetMatch(csvName, r.template)}
                       >
                         <span>

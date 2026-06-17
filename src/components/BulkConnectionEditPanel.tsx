@@ -158,21 +158,21 @@ export default function BulkConnectionEditPanel({ onClose }: Props) {
         </p>
         <div className="space-y-1">
           <input
-            className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2 py-0.5 text-xs outline-none focus:border-blue-500"
+            className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2 py-0.5 text-xs outline-none focus:border-[var(--color-accent)]"
             value={srcLabelInput}
             onChange={(e) => setSrcLabelInput(e.target.value)}
             onKeyDown={(e) => { e.stopPropagation(); if (e.key === "Enter") applyLabels(); }}
             placeholder="Source-end label…"
           />
           <input
-            className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2 py-0.5 text-xs outline-none focus:border-blue-500"
+            className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2 py-0.5 text-xs outline-none focus:border-[var(--color-accent)]"
             value={midLabelInput}
             onChange={(e) => setMidLabelInput(e.target.value)}
             onKeyDown={(e) => { e.stopPropagation(); if (e.key === "Enter") applyLabels(); }}
             placeholder="Midpoint label…"
           />
           <input
-            className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2 py-0.5 text-xs outline-none focus:border-blue-500"
+            className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2 py-0.5 text-xs outline-none focus:border-[var(--color-accent)]"
             value={tgtLabelInput}
             onChange={(e) => setTgtLabelInput(e.target.value)}
             onKeyDown={(e) => { e.stopPropagation(); if (e.key === "Enter") applyLabels(); }}
@@ -183,7 +183,7 @@ export default function BulkConnectionEditPanel({ onClose }: Props) {
           <button
             onClick={applyLabels}
             disabled={!srcLabelInput.trim() && !midLabelInput.trim() && !tgtLabelInput.trim()}
-            className="flex-1 px-2 py-0.5 text-[10px] bg-blue-600 text-white rounded hover:bg-blue-500 disabled:opacity-40 cursor-pointer"
+            className="flex-1 px-2 py-0.5 text-[10px] bg-[var(--color-accent)] text-white rounded hover:bg-[var(--color-accent-hover)] disabled:opacity-40 cursor-pointer"
           >
             Apply
           </button>
@@ -210,8 +210,8 @@ export default function BulkConnectionEditPanel({ onClose }: Props) {
               onClick={() => applyLineStyle(ls)}
               className={`flex-1 py-1.5 rounded border flex items-center justify-center transition-colors cursor-pointer ${
                 consensusStyle === ls
-                  ? "border-blue-500 bg-blue-50 text-blue-600"
-                  : "border-[var(--color-border)] text-[var(--color-text-muted)] hover:border-blue-400 hover:bg-blue-50 hover:text-blue-600"
+                  ? "border-[var(--color-accent)] bg-[var(--color-accent-soft)] text-[var(--color-accent)]"
+                  : "border-[var(--color-border)] text-[var(--color-text-muted)] hover:border-[var(--color-accent)] hover:bg-[var(--color-accent-soft)] hover:text-[var(--color-accent)]"
               }`}
             >
               <svg width="24" height="8" className="block">

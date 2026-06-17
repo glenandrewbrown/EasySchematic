@@ -261,7 +261,7 @@ function StubLabelNodeComponent({ id, data, selected }: NodeProps<StubLabelNodeT
           whiteSpace: "nowrap",
           padding: "0 4px",
           borderRadius: 2,
-          border: `1px solid ${selected ? "#1a73e8" : color}`,
+          border: `1px solid ${selected ? "var(--color-accent)" : color}`,
           backgroundColor: "white",
           color: "#374151",
         }}

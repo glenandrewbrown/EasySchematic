@@ -199,7 +199,7 @@ export default function ViewOptionsPanel({ mobile, onClose }: { mobile?: boolean
             type="checkbox"
             checked={showMiniMap}
             onChange={(e) => setShowMiniMap(e.target.checked)}
-            className="w-3 h-3 accent-blue-500 cursor-pointer"
+            className="w-3 h-3 accent-[var(--color-accent)] cursor-pointer"
           />
           <span className="text-xs text-[var(--color-text)]">Show minimap</span>
         </label>
@@ -208,7 +208,7 @@ export default function ViewOptionsPanel({ mobile, onClose }: { mobile?: boolean
             type="checkbox"
             checked={gridSettings.gridVisible}
             onChange={(e) => setGridSettings({ gridVisible: e.target.checked })}
-            className="w-3 h-3 accent-blue-500 cursor-pointer"
+            className="w-3 h-3 accent-[var(--color-accent)] cursor-pointer"
           />
           <span className="text-xs text-[var(--color-text)]">Show grid</span>
         </label>
@@ -228,7 +228,7 @@ export default function ViewOptionsPanel({ mobile, onClose }: { mobile?: boolean
             checked={liveSignal}
             onChange={(e) => setLiveSignal(e.target.checked)}
             className="w-3 h-3 cursor-pointer"
-            style={{ accentColor: "var(--color-accent)" }}
+            style={{ accentColor: "var(--color-commit)" }}
           />
           <span className="text-xs text-[var(--color-text)]">Live signal</span>
         </label>
@@ -317,7 +317,7 @@ export default function ViewOptionsPanel({ mobile, onClose }: { mobile?: boolean
             type="checkbox"
             checked={hideUnconnectedPorts}
             onChange={(e) => setHideUnconnectedPorts(e.target.checked)}
-            className="w-3 h-3 accent-blue-500 cursor-pointer"
+            className="w-3 h-3 accent-[var(--color-accent)] cursor-pointer"
           />
           <span className="text-xs text-[var(--color-text)]">Hide unconnected ports</span>
         </label>
@@ -326,7 +326,7 @@ export default function ViewOptionsPanel({ mobile, onClose }: { mobile?: boolean
             type="checkbox"
             checked={showPortCounts}
             onChange={(e) => setShowPortCounts(e.target.checked)}
-            className="w-3 h-3 accent-blue-500 cursor-pointer"
+            className="w-3 h-3 accent-[var(--color-accent)] cursor-pointer"
           />
           <span className="text-xs text-[var(--color-text)]">Show IO counts</span>
         </label>
@@ -448,7 +448,7 @@ export default function ViewOptionsPanel({ mobile, onClose }: { mobile?: boolean
             type="checkbox"
             checked={showLineJumps}
             onChange={(e) => setShowLineJumps(e.target.checked)}
-            className="w-3 h-3 accent-blue-500 cursor-pointer"
+            className="w-3 h-3 accent-[var(--color-accent)] cursor-pointer"
           />
           <span className="text-xs text-[var(--color-text)]">Show line jumps at crossings</span>
         </label>
@@ -457,7 +457,7 @@ export default function ViewOptionsPanel({ mobile, onClose }: { mobile?: boolean
             type="checkbox"
             checked={showCableIdLabels}
             onChange={(e) => setShowCableIdLabels(e.target.checked)}
-            className="w-3 h-3 accent-blue-500 cursor-pointer"
+            className="w-3 h-3 accent-[var(--color-accent)] cursor-pointer"
           />
           <span className="text-xs text-[var(--color-text)]">Show cable IDs</span>
         </label>
@@ -466,7 +466,7 @@ export default function ViewOptionsPanel({ mobile, onClose }: { mobile?: boolean
             type="checkbox"
             checked={showCustomLabels}
             onChange={(e) => setShowCustomLabels(e.target.checked)}
-            className="w-3 h-3 accent-blue-500 cursor-pointer"
+            className="w-3 h-3 accent-[var(--color-accent)] cursor-pointer"
           />
           <span className="text-xs text-[var(--color-text)]">Show custom labels</span>
         </label>
@@ -495,7 +495,7 @@ export default function ViewOptionsPanel({ mobile, onClose }: { mobile?: boolean
               ? setCableIdGap(Number(e.target.value))
               : setCableIdMidOffset(Number(e.target.value))
             }
-            className="w-16 h-3 accent-blue-500 cursor-pointer"
+            className="w-16 h-3 accent-[var(--color-accent)] cursor-pointer"
           />
           <span className="text-[10px] text-[var(--color-text-muted)] w-5 text-right">
             {cableIdLabelMode === "endpoint" ? cableIdGap : cableIdMidOffset}
@@ -514,7 +514,7 @@ export default function ViewOptionsPanel({ mobile, onClose }: { mobile?: boolean
             type="checkbox"
             checked={hideAdapters}
             onChange={(e) => setHideAdapters(e.target.checked)}
-            className="w-3 h-3 accent-blue-500 cursor-pointer"
+            className="w-3 h-3 accent-[var(--color-accent)] cursor-pointer"
           />
           <span className="text-xs text-[var(--color-text)]">Hide all adapters</span>
         </label>
@@ -531,7 +531,7 @@ export default function ViewOptionsPanel({ mobile, onClose }: { mobile?: boolean
             type="checkbox"
             checked={showFacePlateDetail}
             onChange={(e) => setShowFacePlateDetail(e.target.checked)}
-            className="w-3 h-3 accent-blue-500 cursor-pointer"
+            className="w-3 h-3 accent-[var(--color-accent)] cursor-pointer"
           />
           <span className="text-xs text-[var(--color-text)]">Show face-plate detail (advanced)</span>
         </label>

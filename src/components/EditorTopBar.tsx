@@ -267,8 +267,8 @@ export default function EditorTopBar() {
 
           <button
             onClick={() => fire("easyschematic:open-reports")}
-            className="flex items-center gap-1.5 h-7 px-3 rounded-md text-white font-medium transition-colors cursor-pointer"
-            style={{ background: "var(--color-accent)", fontSize: "11.5px" }}
+            className="flex items-center gap-1.5 h-7 px-3 rounded-md text-white font-medium transition-colors hover:brightness-110 active:brightness-95 cursor-pointer"
+            style={{ background: "var(--color-commit)", fontSize: "11.5px" }}
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
               <path d="M12 16V4M8 8l4-4 4 4M5 16v3a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />

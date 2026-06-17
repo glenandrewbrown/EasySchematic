@@ -35,7 +35,7 @@ export default function SnapGuides({ guides }: { guides: GuideLine[] }) {
               y1={g.from}
               x2={g.pos}
               y2={g.to}
-              stroke="#3b82f6"
+              stroke="var(--color-accent)"
               strokeWidth={1 / zoom}
               strokeDasharray={`${4 / zoom} ${3 / zoom}`}
             />
@@ -46,7 +46,7 @@ export default function SnapGuides({ guides }: { guides: GuideLine[] }) {
               y1={g.pos}
               x2={g.to}
               y2={g.pos}
-              stroke="#3b82f6"
+              stroke="var(--color-accent)"
               strokeWidth={1 / zoom}
               strokeDasharray={`${4 / zoom} ${3 / zoom}`}
             />

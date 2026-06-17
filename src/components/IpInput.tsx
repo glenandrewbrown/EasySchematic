@@ -65,7 +65,7 @@ export default function IpInput({
       ? "border-red-400"
       : isDuplicate
         ? "border-yellow-400"
-        : "border-[var(--color-border)] focus:border-blue-500";
+        : "border-[var(--color-border)] focus:border-[var(--color-accent)]";
 
   return (
     <input

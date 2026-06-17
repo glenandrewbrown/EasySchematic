@@ -112,7 +112,7 @@ export default function RoomEditor() {
               Label
             </label>
             <input
-              className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2 py-1.5 text-xs text-[var(--color-text-heading)] outline-none focus:border-blue-500"
+              className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2 py-1.5 text-xs text-[var(--color-text-heading)] outline-none focus:border-[var(--color-accent)]"
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               placeholder="Room name"
@@ -239,7 +239,7 @@ export default function RoomEditor() {
               Label Size
             </label>
             <select
-              className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2 py-1.5 text-xs text-[var(--color-text-heading)] outline-none focus:border-blue-500 cursor-pointer"
+              className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2 py-1.5 text-xs text-[var(--color-text-heading)] outline-none focus:border-[var(--color-accent)] cursor-pointer"
               value={labelSize}
               onChange={(e) => setLabelSize(Number(e.target.value))}
             >
@@ -260,7 +260,7 @@ export default function RoomEditor() {
                   key={c || "none"}
                   onClick={() => setColor(c)}
                   className={`w-5 h-5 rounded border cursor-pointer transition-all ${
-                    color === c ? "ring-2 ring-blue-500 ring-offset-1" : "hover:scale-110"
+                    color === c ? "ring-2 ring-[var(--color-accent)] ring-offset-1" : "hover:scale-110"
                   }`}
                   style={{ background: c || "white", borderColor: c ? "transparent" : "var(--color-border)" }}
                   title={c || "None"}
@@ -305,7 +305,7 @@ export default function RoomEditor() {
                   key={c || "none"}
                   onClick={() => setBorderColor(c)}
                   className={`w-5 h-5 rounded border cursor-pointer transition-all ${
-                    borderColor === c ? "ring-2 ring-blue-500 ring-offset-1" : "hover:scale-110"
+                    borderColor === c ? "ring-2 ring-[var(--color-accent)] ring-offset-1" : "hover:scale-110"
                   }`}
                   style={{ background: c || "#d4d4d4", borderColor: c ? "transparent" : "var(--color-border)" }}
                   title={c || "Default"}
@@ -383,7 +383,7 @@ function RoomDistancesSection({
   }
 
   const inputClass =
-    "bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2 py-1 text-xs text-[var(--color-text-heading)] outline-none focus:border-blue-500 w-20 text-right";
+    "bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2 py-1 text-xs text-[var(--color-text-heading)] outline-none focus:border-[var(--color-accent)] w-20 text-right";
 
   return (
     <div>

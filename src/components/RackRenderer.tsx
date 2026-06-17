@@ -569,7 +569,7 @@ function AccessoryBlock({
             <rect
               x={xPx} y={topY} width={wPx} height={hPx}
               fill={color}
-              stroke={valid ? "#3b82f6" : "#ef4444"}
+              stroke={valid ? "var(--color-accent)" : "#ef4444"}
               strokeWidth={1}
               strokeDasharray="4 3"
               rx={1}
@@ -597,7 +597,7 @@ function AccessoryBlock({
                 y1={y}
                 x2={DEVICE_INSET + snapGuides.xMm * PX_PER_MM}
                 y2={y + h}
-                stroke="#3b82f6"
+                stroke="var(--color-accent)"
                 strokeWidth={0.75}
                 strokeDasharray="3 2"
                 style={{ pointerEvents: "none" }}
@@ -609,7 +609,7 @@ function AccessoryBlock({
                 y1={surfaceY - snapGuides.yMm * PX_PER_MM}
                 x2={DEVICE_INSET + FULL_WIDTH}
                 y2={surfaceY - snapGuides.yMm * PX_PER_MM}
-                stroke="#3b82f6"
+                stroke="var(--color-accent)"
                 strokeWidth={0.75}
                 strokeDasharray="3 2"
                 style={{ pointerEvents: "none" }}
@@ -628,8 +628,8 @@ function DropIndicator({ rack, uPosition, heightU, halfRackSide, valid, mode }: 
   const isHalf = !!halfRackSide;
   const w = isHalf ? HALF_WIDTH : FULL_WIDTH;
   const x = DEVICE_INSET + (isHalf && halfRackSide === "right" ? HALF_WIDTH + 2 : 0);
-  const stroke = valid ? "#3b82f6" : "#ef4444";
-  const fill = valid ? "rgba(59,130,246,0.2)" : "rgba(239,68,68,0.2)";
+  const stroke = valid ? "var(--color-accent)" : "#ef4444";
+  const fill = valid ? "color-mix(in srgb, var(--color-accent) 20%, transparent)" : "rgba(239,68,68,0.2)";
   if (mode === "shelf-only") {
     // Render as an auto-shelf preview: a slim shelf bar across the bottom of the U,
     // hatched to communicate "a shelf will be added here".
@@ -638,7 +638,7 @@ function DropIndicator({ rack, uPosition, heightU, halfRackSide, valid, mode }: 
     return (
       <g style={{ pointerEvents: "none" }}>
         <rect x={x} y={y} width={w} height={h} fill={fill} stroke={stroke} strokeWidth={1.5} strokeDasharray="4 2" rx={1} />
-        <rect x={x} y={shelfY} width={w} height={shelfBarH} fill={valid ? "rgba(59,130,246,0.55)" : "rgba(239,68,68,0.55)"} stroke="none" />
+        <rect x={x} y={shelfY} width={w} height={shelfBarH} fill={valid ? "color-mix(in srgb, var(--color-accent) 55%, transparent)" : "rgba(239,68,68,0.55)"} stroke="none" />
       </g>
     );
   }
@@ -844,8 +844,8 @@ function SideViewRack({
         return (
           <rect
             x={bandX} y={y} width={bandW} height={h}
-            fill={dropTarget.valid ? "rgba(59,130,246,0.18)" : "rgba(239,68,68,0.18)"}
-            stroke={dropTarget.valid ? "#3b82f6" : "#ef4444"}
+            fill={dropTarget.valid ? "color-mix(in srgb, var(--color-accent) 18%, transparent)" : "rgba(239,68,68,0.18)"}
+            stroke={dropTarget.valid ? "var(--color-accent)" : "#ef4444"}
             strokeWidth={1.2}
             strokeDasharray="4 2"
             rx={1}
@@ -890,7 +890,7 @@ function SideViewRack({
 function ViewToggle({ viewMode, onChangeView }: { viewMode: ViewMode; onChangeView: (mode: ViewMode) => void }) {
   const btn = (mode: ViewMode, label: string) => (
     <button
-      className={`px-2.5 py-1 text-xs font-medium transition-colors ${viewMode === mode ? "bg-blue-600 text-white" : "bg-white text-neutral-600 hover:bg-neutral-50"}`}
+      className={`px-2.5 py-1 text-xs font-medium transition-colors ${viewMode === mode ? "bg-[var(--color-accent)] text-white" : "bg-white text-neutral-600 hover:bg-neutral-50"}`}
       onClick={() => onChangeView(mode)}
     >{label}</button>
   );
@@ -1004,7 +1004,7 @@ function AccessoryMenu({
       <label className="flex items-center gap-2 px-3 py-1.5 border-t border-neutral-100">
         <span className="text-neutral-600 w-12">Label</span>
         <input
-          className="flex-1 border border-neutral-300 rounded px-2 py-0.5 outline-none focus:border-blue-400"
+          className="flex-1 border border-neutral-300 rounded px-2 py-0.5 outline-none focus:border-[var(--color-accent)]"
           value={label}
           placeholder={RACK_ACCESSORY_LABELS[menu.accessory.type]}
           onChange={(e) => setLabel(e.target.value)}
@@ -1021,7 +1021,7 @@ function AccessoryMenu({
           <span className="text-neutral-600 w-12">Depth</span>
           <input
             type="number"
-            className="flex-1 border border-neutral-300 rounded px-2 py-0.5 outline-none focus:border-blue-400 text-right"
+            className="flex-1 border border-neutral-300 rounded px-2 py-0.5 outline-none focus:border-[var(--color-accent)] text-right"
             value={depthMm ?? ""}
             placeholder={Math.round(defaultShelfDepthMm).toString()}
             min={50}
@@ -1037,7 +1037,7 @@ function AccessoryMenu({
         <span className="text-neutral-600 w-12">Height</span>
         <input
           type="number"
-          className="flex-1 border border-neutral-300 rounded px-2 py-0.5 outline-none focus:border-blue-400 text-right"
+          className="flex-1 border border-neutral-300 rounded px-2 py-0.5 outline-none focus:border-[var(--color-accent)] text-right"
           value={heightU}
           min={1}
           max={20}
@@ -1048,7 +1048,7 @@ function AccessoryMenu({
       </label>
       <div className="flex gap-1 px-3 py-1.5 border-t border-neutral-100">
         <button
-          className="flex-1 px-2 py-1 rounded bg-blue-600 text-white hover:bg-blue-700"
+          className="flex-1 px-2 py-1 rounded bg-[var(--color-accent)] text-white hover:bg-[var(--color-accent-hover)]"
           onClick={() => {
             const labelChanged = label.trim() !== (menu.accessory.label ?? "");
             const heightChanged = heightU !== menu.accessory.heightU;
@@ -1105,7 +1105,7 @@ function EditRackInlineDialog({
         <label className="block mb-2">
           <span className="text-neutral-600">Label</span>
           <input
-            className="mt-0.5 w-full border border-neutral-300 rounded px-2 py-1 outline-none focus:border-blue-400"
+            className="mt-0.5 w-full border border-neutral-300 rounded px-2 py-1 outline-none focus:border-[var(--color-accent)]"
             value={label}
             onChange={(e) => setLabel(e.target.value)}
             onKeyDown={(e) => e.stopPropagation()}
@@ -1115,7 +1115,7 @@ function EditRackInlineDialog({
         <label className="block mb-2">
           <span className="text-neutral-600">Type</span>
           <select
-            className="mt-0.5 w-full border border-neutral-300 rounded px-2 py-1 outline-none focus:border-blue-400"
+            className="mt-0.5 w-full border border-neutral-300 rounded px-2 py-1 outline-none focus:border-[var(--color-accent)]"
             value={rackType}
             onChange={(e) => setRackType(e.target.value as typeof rackType)}
           >
@@ -1129,7 +1129,7 @@ function EditRackInlineDialog({
             <span className="text-neutral-600">Height (U)</span>
             <input
               type="number"
-              className="mt-0.5 w-full border border-neutral-300 rounded px-2 py-1 outline-none focus:border-blue-400"
+              className="mt-0.5 w-full border border-neutral-300 rounded px-2 py-1 outline-none focus:border-[var(--color-accent)]"
               value={heightU}
               min={2}
               max={60}
@@ -1141,7 +1141,7 @@ function EditRackInlineDialog({
             <span className="text-neutral-600">Depth (mm)</span>
             <input
               type="number"
-              className="mt-0.5 w-full border border-neutral-300 rounded px-2 py-1 outline-none focus:border-blue-400"
+              className="mt-0.5 w-full border border-neutral-300 rounded px-2 py-1 outline-none focus:border-[var(--color-accent)]"
               value={depthMm}
               min={100}
               max={2000}
@@ -1153,7 +1153,7 @@ function EditRackInlineDialog({
         </div>
         <div className="flex justify-end gap-2">
           <button type="button" className="px-3 py-1 rounded border border-neutral-300 hover:bg-neutral-50" onClick={onClose}>Cancel</button>
-          <button type="submit" className="px-3 py-1 rounded bg-blue-600 text-white hover:bg-blue-700">Save</button>
+          <button type="submit" className="px-3 py-1 rounded bg-[var(--color-accent)] text-white hover:bg-[var(--color-accent-hover)]">Save</button>
         </div>
       </form>
     </div>
@@ -1994,8 +1994,8 @@ export default function RackRenderer({ page }: { page: RackElevationPage }) {
                           }));
                         }}
                       >
-                        <rect x={RACK_WIDTH / 2 - 36} y={-36} width={72} height={13} rx={3} fill="#eff6ff" stroke="#3b82f6" strokeWidth={0.75} />
-                        <text x={RACK_WIDTH / 2} y={-29} textAnchor="middle" dominantBaseline="central" fontSize={8} fill="#1d4ed8">
+                        <rect x={RACK_WIDTH / 2 - 36} y={-36} width={72} height={13} rx={3} fill="var(--color-accent-soft)" stroke="var(--color-accent)" strokeWidth={0.75} />
+                        <text x={RACK_WIDTH / 2} y={-29} textAnchor="middle" dominantBaseline="central" fontSize={8} fill="var(--color-accent)">
                           🔗 {roomLabel}
                         </text>
                       </g>

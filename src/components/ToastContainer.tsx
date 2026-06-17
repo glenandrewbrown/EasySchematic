@@ -10,7 +10,7 @@ const iconByType: Record<Toast["type"], string> = {
 const toastClasses: Record<Toast["type"], { bg: string; border: string; icon: string }> = {
   error:   { bg: "bg-red-500/10",   border: "border-red-500/30",   icon: "text-red-600 dark:text-red-400" },
   success: { bg: "bg-green-500/10", border: "border-green-500/30", icon: "text-green-600 dark:text-green-400" },
-  info:    { bg: "bg-blue-500/10",  border: "border-blue-500/30",  icon: "text-blue-600 dark:text-blue-400" },
+  info:    { bg: "bg-[color-mix(in_srgb,var(--color-accent)_10%,transparent)]",  border: "border-[color-mix(in_srgb,var(--color-accent)_30%,transparent)]",  icon: "text-[var(--color-accent)]" },
 };
 
 export default function ToastContainer() {

@@ -169,7 +169,7 @@ export default function CardCreatorDialog({
         <button
           type="button"
           onClick={() => addPort(direction)}
-          className="text-[10px] text-blue-500 hover:text-blue-600 cursor-pointer"
+          className="text-[10px] text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] cursor-pointer"
         >
           + Add
         </button>

@@ -550,7 +550,7 @@ function PickerRow({ checked, primary, secondary, onToggle }: PickerRowProps) {
         type="checkbox"
         checked={checked}
         onChange={(e) => onToggle(e.target.checked)}
-        className="accent-blue-600 shrink-0"
+        className="accent-[var(--color-accent)] shrink-0"
       />
       <span className="text-[var(--color-text)] truncate">{primary}</span>
       <span className="text-[10px] text-[var(--color-text-muted)] truncate ml-auto">
@@ -667,7 +667,7 @@ function PhaseSection({
                           e.target.checked,
                         )
                       }
-                      className="accent-blue-600 shrink-0"
+                      className="accent-[var(--color-accent)] shrink-0"
                     />
                     <span
                       className={`truncate ${

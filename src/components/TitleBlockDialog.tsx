@@ -343,7 +343,7 @@ function DataTab({
           <div key={cf.id}>
             <div className="flex items-center gap-1 mb-0.5">
               <input
-                className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] bg-transparent border-b border-transparent focus:border-blue-400 outline-none flex-1"
+                className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] bg-transparent border-b border-transparent focus:border-[var(--color-accent)] outline-none flex-1"
                 value={cf.label}
                 onChange={(e) => updateCustomFieldLabel(cf.id, e.target.value)}
                 placeholder="Field name"
@@ -986,7 +986,7 @@ function LayoutTab({
             onPointerDown={(e) => handleResizePointerDown(e, "col", i)}
           >
             {/* Visual indicator on hover */}
-            <div className="w-px h-full mx-auto opacity-0 hover:opacity-100 bg-blue-400 transition-opacity" />
+            <div className="w-px h-full mx-auto opacity-0 hover:opacity-100 bg-[var(--color-accent)] transition-opacity" />
           </div>
         ))}
 
@@ -1003,7 +1003,7 @@ function LayoutTab({
             }}
             onPointerDown={(e) => handleResizePointerDown(e, "row", i)}
           >
-            <div className="h-px w-full my-auto opacity-0 hover:opacity-100 bg-blue-400 transition-opacity" style={{ marginTop: 3 }} />
+            <div className="h-px w-full my-auto opacity-0 hover:opacity-100 bg-[var(--color-accent)] transition-opacity" style={{ marginTop: 3 }} />
           </div>
         ))}
       </div>

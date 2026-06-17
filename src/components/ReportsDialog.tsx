@@ -337,7 +337,7 @@ function ReportsDialog({ initialTab, onClose }: ReportsDialogProps) {
             {hasPdfExport && (
               <button
                 onClick={handlePdfExport}
-                className="flex items-center gap-1.5 h-[30px] px-[13px] rounded-lg bg-[var(--color-accent)] text-white border-none cursor-pointer text-[11.5px] font-semibold transition-colors hover:bg-[var(--color-accent-hover)]"
+                className="flex items-center gap-1.5 h-[30px] px-[13px] rounded-lg bg-[var(--color-commit)] text-white border-none cursor-pointer text-[11.5px] font-semibold transition-colors hover:brightness-110"
               >
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
                   <path d="M12 16V4M8 8l4-4 4 4M5 16v3a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3" />
@@ -1159,17 +1159,17 @@ function NetworkReportTab() {
 
       {/* Action bar */}
       {spreadsheet.selectedCells.size > 0 && (
-        <div className="mb-3 flex items-center gap-3 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg">
-          <span className="text-xs font-medium text-blue-700">
+        <div className="mb-3 flex items-center gap-3 px-3 py-2 bg-[var(--color-accent-soft)] border border-[var(--color-accent)] rounded-lg">
+          <span className="text-xs font-medium text-[var(--color-accent)]">
             {spreadsheet.selectedCells.size} cell{spreadsheet.selectedCells.size > 1 ? "s" : ""} selected in {selectedColLabel}
           </span>
-          <span className="text-[11px] text-blue-500">
+          <span className="text-[11px] text-[var(--color-text-muted)]">
             {spreadsheet.selectedCells.size > 1 ? "Type a value + Enter to fill series" : "Double-click or type to edit"}
           </span>
           <div className="flex-1" />
           <button
             onClick={() => spreadsheet.clearSelection()}
-            className="px-2 py-1 text-xs rounded text-blue-600 hover:bg-blue-100 transition-colors cursor-pointer"
+            className="px-2 py-1 text-xs rounded text-[var(--color-accent)] hover:bg-[var(--color-accent-soft)] transition-colors cursor-pointer"
           >
             Clear
           </button>
@@ -1178,7 +1178,7 @@ function NetworkReportTab() {
 
       <div className="mb-3">
         <input
-          className="w-full bg-[var(--color-surface)] border border-[var(--ui-border)] rounded px-2 py-1 text-xs outline-none focus:border-blue-500"
+          className="w-full bg-[var(--color-surface)] border border-[var(--ui-border)] rounded px-2 py-1 text-xs outline-none focus:border-[var(--color-accent)]"
           placeholder="Filter by device, port, room, or IP..."
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
@@ -1316,7 +1316,7 @@ const NetworkRow = memo(function NetworkRow({
   })();
 
   return (
-    <tr className={hasSelection ? "bg-blue-50" : altClass}>
+    <tr className={hasSelection ? "bg-[var(--color-accent-soft)]" : altClass}>
       {/* Read-only columns */}
       <td className={tdClass}>{row.deviceLabel}</td>
       <td className={tdClass}>{row.portLabel}</td>
@@ -1332,7 +1332,7 @@ const NetworkRow = memo(function NetworkRow({
         placeholder="—"
         renderEditor={(value, onChange, onCommit, onCancel) => (
           <input
-            className="w-full bg-[var(--color-surface)] border border-blue-500 rounded px-1 py-0.5 text-[10px] outline-none"
+            className="w-full bg-[var(--color-surface)] border border-[var(--color-accent)] rounded px-1 py-0.5 text-[10px] outline-none"
             value={value}
             onChange={(e) => onChange(e.target.value)}
             onKeyDown={(e) => {
@@ -1420,7 +1420,7 @@ const NetworkRow = memo(function NetworkRow({
         renderEditor={(value, onChange, onCommit, onCancel) => (
           <input
             className={`w-full bg-[var(--color-surface)] border rounded px-1 py-0.5 text-[10px] outline-none ${
-              value !== "" && !isValidVlan(Number(value)) ? "border-red-400" : "border-blue-500"
+              value !== "" && !isValidVlan(Number(value)) ? "border-red-400" : "border-[var(--color-accent)]"
             }`}
             type="number"
             value={value}
@@ -1465,7 +1465,7 @@ const NetworkRow = memo(function NetworkRow({
         placeholder="—"
         renderEditor={(value, onChange, onCommit, onCancel) => (
           <input
-            className="w-full bg-[var(--color-surface)] border border-blue-500 rounded px-1 py-0.5 text-[10px] outline-none"
+            className="w-full bg-[var(--color-surface)] border border-[var(--color-accent)] rounded px-1 py-0.5 text-[10px] outline-none"
             value={value}
             onChange={(e) => onChange(e.target.value)}
             onKeyDown={(e) => {
@@ -1522,7 +1522,7 @@ function SpreadsheetCell({
   }
 
   const isDupe = columnId === "ip" && !!duplicateWarning;
-  const selectionBg = cellProps.isSelected ? "bg-blue-100 ring-1 ring-inset ring-blue-300" : "";
+  const selectionBg = cellProps.isSelected ? "bg-[var(--color-accent-soft)] ring-1 ring-inset ring-[var(--color-accent)]" : "";
   const dupeBg = isDupe && !cellProps.isSelected ? "bg-yellow-50" : "";
 
   return (
@@ -1762,17 +1762,17 @@ function DeviceReportTab() {
     <>
       {/* Action bar */}
       {spreadsheet.selectedCells.size > 0 && (
-        <div className="mb-3 flex items-center gap-3 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg">
-          <span className="text-xs font-medium text-blue-700">
+        <div className="mb-3 flex items-center gap-3 px-3 py-2 bg-[var(--color-accent-soft)] border border-[var(--color-accent)] rounded-lg">
+          <span className="text-xs font-medium text-[var(--color-accent)]">
             {spreadsheet.selectedCells.size} device name{spreadsheet.selectedCells.size > 1 ? "s" : ""} selected
           </span>
-          <span className="text-[11px] text-blue-500">
+          <span className="text-[11px] text-[var(--color-text-muted)]">
             {spreadsheet.selectedCells.size > 1 ? "Type a name + Enter to fill series" : "Double-click or type to rename"}
           </span>
           <div className="flex-1" />
           <button
             onClick={() => spreadsheet.clearSelection()}
-            className="px-2 py-1 text-xs rounded text-blue-600 hover:bg-blue-100 transition-colors cursor-pointer"
+            className="px-2 py-1 text-xs rounded text-[var(--color-accent)] hover:bg-[var(--color-accent-soft)] transition-colors cursor-pointer"
           >
             Clear
           </button>
@@ -1781,7 +1781,7 @@ function DeviceReportTab() {
 
       <div className="mb-3">
         <input
-          className="w-full bg-[var(--color-surface)] border border-[var(--ui-border)] rounded px-2 py-1 text-xs outline-none focus:border-blue-500"
+          className="w-full bg-[var(--color-surface)] border border-[var(--ui-border)] rounded px-2 py-1 text-xs outline-none focus:border-[var(--color-accent)]"
           placeholder="Filter by name, type, manufacturer, or room..."
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
@@ -1881,11 +1881,11 @@ const DeviceRow = memo(function DeviceRow({
   const currency = useSchematicStore((s) => s.currency);
 
   return (
-    <tr className={hasSelection ? "bg-blue-50" : altClass}>
+    <tr className={hasSelection ? "bg-[var(--color-accent-soft)]" : altClass}>
       {cellProps.isEditing ? (
         <td className={`${tdClass} p-0.5`}>
           <input
-            className="w-full bg-[var(--color-surface)] border border-blue-500 rounded px-1 py-0.5 text-xs outline-none"
+            className="w-full bg-[var(--color-surface)] border border-[var(--color-accent)] rounded px-1 py-0.5 text-xs outline-none"
             value={spreadsheet.editValue}
             onChange={(e) => spreadsheet.setEditValue(e.target.value)}
             onBlur={() => spreadsheet.commitEdit(spreadsheet.editValue)}
@@ -1900,7 +1900,7 @@ const DeviceRow = memo(function DeviceRow({
         </td>
       ) : (
         <td
-          className={`${tdClass} p-0.5 cursor-cell ${cellProps.isSelected ? "bg-blue-100 ring-1 ring-inset ring-blue-300" : ""}`}
+          className={`${tdClass} p-0.5 cursor-cell ${cellProps.isSelected ? "bg-[var(--color-accent-soft)] ring-1 ring-inset ring-[var(--color-accent)]" : ""}`}
           onMouseDown={cellProps.onMouseDown}
           onMouseEnter={cellProps.onMouseEnter}
           onDoubleClick={cellProps.onDoubleClick}
@@ -1914,7 +1914,7 @@ const DeviceRow = memo(function DeviceRow({
           return (
             <td className={`${tdClass} p-0.5`}>
               <input
-                className="w-full bg-[var(--color-surface)] border border-blue-500 rounded px-1 py-0.5 text-xs outline-none"
+                className="w-full bg-[var(--color-surface)] border border-[var(--color-accent)] rounded px-1 py-0.5 text-xs outline-none"
                 value={spreadsheet.editValue}
                 onChange={(e) => spreadsheet.setEditValue(e.target.value)}
                 onBlur={() => spreadsheet.commitEdit(spreadsheet.editValue)}
@@ -1932,7 +1932,7 @@ const DeviceRow = memo(function DeviceRow({
         }
         return (
           <td
-            className={`${tdClass} p-0.5 cursor-cell ${sn.isSelected ? "bg-blue-100 ring-1 ring-inset ring-blue-300" : ""}`}
+            className={`${tdClass} p-0.5 cursor-cell ${sn.isSelected ? "bg-[var(--color-accent-soft)] ring-1 ring-inset ring-[var(--color-accent)]" : ""}`}
             onMouseDown={sn.onMouseDown}
             onMouseEnter={sn.onMouseEnter}
             onDoubleClick={sn.onDoubleClick}
@@ -1957,7 +1957,7 @@ const DeviceRow = memo(function DeviceRow({
           return (
             <td className={`${tdClass} p-0.5`}>
               <input
-                className="w-full bg-[var(--color-surface)] border border-blue-500 rounded px-1 py-0.5 text-xs outline-none"
+                className="w-full bg-[var(--color-surface)] border border-[var(--color-accent)] rounded px-1 py-0.5 text-xs outline-none"
                 value={spreadsheet.editValue}
                 onChange={(e) => spreadsheet.setEditValue(e.target.value)}
                 onBlur={() => spreadsheet.commitEdit(spreadsheet.editValue)}
@@ -1977,7 +1977,7 @@ const DeviceRow = memo(function DeviceRow({
         }
         return (
           <td
-            className={`${tdClass} p-0.5 cursor-cell ${costCellProps.isSelected ? "bg-blue-100 ring-1 ring-inset ring-blue-300" : ""}`}
+            className={`${tdClass} p-0.5 cursor-cell ${costCellProps.isSelected ? "bg-[var(--color-accent-soft)] ring-1 ring-inset ring-[var(--color-accent)]" : ""}`}
             onMouseDown={costCellProps.onMouseDown}
             onMouseEnter={costCellProps.onMouseEnter}
             onDoubleClick={costCellProps.onDoubleClick}
@@ -2177,17 +2177,17 @@ function CableScheduleTabInline() {
     <>
       {/* Action bar */}
       {spreadsheet.selectedCells.size > 0 && (
-        <div className="mb-3 flex items-center gap-3 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg">
-          <span className="text-xs font-medium text-blue-700">
+        <div className="mb-3 flex items-center gap-3 px-3 py-2 bg-[var(--color-accent-soft)] border border-[var(--color-accent)] rounded-lg">
+          <span className="text-xs font-medium text-[var(--color-accent)]">
             {spreadsheet.selectedCells.size} cell{spreadsheet.selectedCells.size > 1 ? "s" : ""} selected
           </span>
-          <span className="text-[11px] text-blue-500">
+          <span className="text-[11px] text-[var(--color-text-muted)]">
             {spreadsheet.selectedCells.size > 1 ? "Type a value + Enter to fill series" : "Double-click or type to edit"}
           </span>
           <div className="flex-1" />
           <button
             onClick={() => spreadsheet.clearSelection()}
-            className="px-2 py-1 text-xs rounded text-blue-600 hover:bg-blue-100 transition-colors cursor-pointer"
+            className="px-2 py-1 text-xs rounded text-[var(--color-accent)] hover:bg-[var(--color-accent-soft)] transition-colors cursor-pointer"
           >
             Clear
           </button>
@@ -2196,7 +2196,7 @@ function CableScheduleTabInline() {
 
       <div className="flex items-center gap-2 mb-3">
         <input
-          className="flex-1 bg-[var(--color-surface)] border border-[var(--ui-border)] rounded px-2 py-1 text-xs outline-none focus:border-blue-500"
+          className="flex-1 bg-[var(--color-surface)] border border-[var(--ui-border)] rounded px-2 py-1 text-xs outline-none focus:border-[var(--color-accent)]"
           placeholder="Filter by device, port, cable type, signal, room..."
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
@@ -2277,7 +2277,7 @@ function EditableCell({ spreadsheet, rowIndex, columnId, value }: {
     return (
       <td className={`${tdClass} p-0.5`}>
         <input
-          className="w-full bg-[var(--color-surface)] border border-blue-500 rounded px-1 py-0.5 text-xs outline-none"
+          className="w-full bg-[var(--color-surface)] border border-[var(--color-accent)] rounded px-1 py-0.5 text-xs outline-none"
           value={spreadsheet.editValue}
           onChange={(e) => spreadsheet.setEditValue(e.target.value)}
           onBlur={() => spreadsheet.commitEdit(spreadsheet.editValue)}
@@ -2294,7 +2294,7 @@ function EditableCell({ spreadsheet, rowIndex, columnId, value }: {
   }
   return (
     <td
-      className={`${tdClass} p-0.5 cursor-cell ${cellProps.isSelected ? "bg-blue-100 ring-1 ring-inset ring-blue-300" : ""}`}
+      className={`${tdClass} p-0.5 cursor-cell ${cellProps.isSelected ? "bg-[var(--color-accent-soft)] ring-1 ring-inset ring-[var(--color-accent)]" : ""}`}
       onMouseDown={cellProps.onMouseDown}
       onMouseEnter={cellProps.onMouseEnter}
       onDoubleClick={cellProps.onDoubleClick}
@@ -2327,9 +2327,9 @@ const CableScheduleRow_ = memo(function CableScheduleRow_({
   });
 
   return (
-    <tr className={hasSelection ? "bg-blue-50" : altClass}>
+    <tr className={hasSelection ? "bg-[var(--color-accent-soft)]" : altClass}>
       <td
-        className={`${tdClass} ${labelProps.isSelected ? "bg-blue-100 ring-1 ring-inset ring-blue-300" : ""}`}
+        className={`${tdClass} ${labelProps.isSelected ? "bg-[var(--color-accent-soft)] ring-1 ring-inset ring-[var(--color-accent)]" : ""}`}
         style={{ textAlign: "center" }}
         onMouseDown={labelProps.onMouseDown}
         onMouseEnter={labelProps.onMouseEnter}
@@ -2339,7 +2339,8 @@ const CableScheduleRow_ = memo(function CableScheduleRow_({
           checked={!hideLabel}
           onChange={() => onToggleLabel(rowIndex, hideLabel)}
           onMouseDown={(e) => e.stopPropagation()}
-          className="w-3 h-3 accent-blue-500 cursor-pointer"
+          className="w-3 h-3 cursor-pointer"
+          style={{ accentColor: "var(--color-accent)" }}
           title={hideLabel ? "Show label" : "Hide label"}
         />
       </td>
@@ -2534,7 +2535,7 @@ function PatchPanelScheduleTabInline() {
     <>
       <div className="flex items-center gap-2 mb-3 flex-wrap">
         <input
-          className="flex-1 min-w-[240px] bg-[var(--color-surface)] border border-[var(--ui-border)] rounded px-2 py-1 text-xs outline-none focus:border-blue-500"
+          className="flex-1 min-w-[240px] bg-[var(--color-surface)] border border-[var(--ui-border)] rounded px-2 py-1 text-xs outline-none focus:border-[var(--color-accent)]"
           placeholder="Filter by panel, port, device, cable, signal, room..."
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
@@ -2725,7 +2726,7 @@ function PackListTabInline() {
   const subTabClass = (t: SubTab) =>
     `px-2 py-1 text-[10px] rounded cursor-pointer transition-colors ${
       subTab === t
-        ? "bg-blue-100 text-blue-700 font-semibold"
+        ? "bg-[var(--color-accent-soft)] text-[var(--color-accent)] font-semibold"
         : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
     }`;
 
@@ -2753,7 +2754,7 @@ function PackListTabInline() {
               type="checkbox"
               checked={groupDevicesByRoom}
               onChange={(e) => setGroupDevicesByRoom(e.target.checked)}
-              className="accent-blue-600"
+              style={{ accentColor: "var(--color-accent)" }}
             />
             Group by Room
           </label>
@@ -3241,7 +3242,7 @@ const CableCostCell = memo(function CableCostCell({
   if (editing) {
     return (
       <input
-        className="w-full bg-[var(--color-surface)] border border-blue-500 rounded px-1 py-0.5 text-xs outline-none"
+        className="w-full bg-[var(--color-surface)] border border-[var(--color-accent)] rounded px-1 py-0.5 text-xs outline-none"
         value={editValue}
         onChange={(e) => setEditValue(e.target.value)}
         onBlur={commit}

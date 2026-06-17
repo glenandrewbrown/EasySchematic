@@ -759,17 +759,17 @@ export default function PrintSheetRenderer({ page }: Props) {
                     </div>
                   )}
                   {isSelected && (
-                    <div className="absolute inset-0 border-2 border-blue-500 pointer-events-none" />
+                    <div className="absolute inset-0 border-2 border-[var(--color-accent)] pointer-events-none" />
                   )}
                   {isOnlySelected && (
                     <div
-                      className="absolute bottom-0 right-0 w-3 h-3 bg-blue-500 cursor-se-resize"
+                      className="absolute bottom-0 right-0 w-3 h-3 bg-[var(--color-accent)] cursor-se-resize"
                       onMouseDown={(e) => { e.stopPropagation(); handleResizeMouseDown(e, vp); }}
                     />
                   )}
                   {isOnlySelected && (
                     <button
-                      className="absolute bottom-0 left-0 w-5 h-5 bg-blue-500 hover:bg-blue-600 text-white flex items-center justify-center rounded-tr text-[11px] leading-none"
+                      className="absolute bottom-0 left-0 w-5 h-5 bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-white flex items-center justify-center rounded-tr text-[11px] leading-none"
                       style={{ zIndex: 11, paddingTop: 1 }}
                       title="Reset size to natural rack aspect (shortcut: R)"
                       onMouseDown={(e) => e.stopPropagation()}
@@ -831,11 +831,11 @@ export default function PrintSheetRenderer({ page }: Props) {
             return (
               <>
                 <div
-                  className="absolute pointer-events-none border-2 border-dashed border-blue-400"
+                  className="absolute pointer-events-none border-2 border-dashed border-[var(--color-accent)]"
                   style={{ left, top, width, height, zIndex: 9 }}
                 />
                 <div
-                  className="absolute bg-blue-500 cursor-se-resize"
+                  className="absolute bg-[var(--color-accent)] cursor-se-resize"
                   style={{ left: left + width - 6, top: top + height - 6, width: 12, height: 12, zIndex: 11 }}
                   onMouseDown={(e) => handleGroupResizeMouseDown(e, groupRect)}
                 />
@@ -855,7 +855,7 @@ export default function PrintSheetRenderer({ page }: Props) {
                   className="absolute pointer-events-none"
                   style={{
                     left, top, width: 1, height,
-                    borderLeft: "1px dashed #3b82f6",
+                    borderLeft: "1px dashed var(--color-accent)",
                     zIndex: 50,
                   }}
                 />
@@ -870,7 +870,7 @@ export default function PrintSheetRenderer({ page }: Props) {
                 className="absolute pointer-events-none"
                 style={{
                   left, top, width, height: 1,
-                  borderTop: "1px dashed #3b82f6",
+                  borderTop: "1px dashed var(--color-accent)",
                   zIndex: 50,
                 }}
               />

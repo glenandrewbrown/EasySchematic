@@ -40,7 +40,7 @@ function HighlightedText({ text, query }: { text: string; query: string }) {
   return (
     <>
       {text.slice(0, idx)}
-      <span className="text-blue-600 font-semibold">
+      <span className="text-[var(--color-accent)] font-semibold">
         {text.slice(idx, idx + query.length)}
       </span>
       {text.slice(idx + query.length)}
@@ -99,8 +99,8 @@ function TemplateItem({
               onClick={(e) => { e.stopPropagation(); onAddToOwned(); }}
               className={`min-w-[1.1rem] rounded px-1 py-0 leading-none text-[9px] font-medium transition-all cursor-pointer ${
                 (ownedQuantity ?? 0) > 0
-                  ? "bg-blue-100 text-blue-700 opacity-100"
-                  : "uppercase tracking-wide text-[var(--color-text-muted)]/40 opacity-0 group-hover:opacity-100 hover:text-blue-600"
+                  ? "bg-[var(--color-accent-soft)] text-[var(--color-accent)] opacity-100"
+                  : "uppercase tracking-wide text-[var(--color-text-muted)]/40 opacity-0 group-hover:opacity-100 hover:text-[var(--color-accent)]"
               }`}
               title={(ownedQuantity ?? 0) > 0 ? `Owned: ${ownedQuantity}` : "Add to owned gear"}
             >
@@ -113,7 +113,7 @@ function TemplateItem({
         <span className="text-xs text-[var(--color-text-heading)] font-medium truncate flex items-center gap-1">
           <HighlightedText text={template.label} query={query} />
           {hasPreset && (
-            <span className="text-[8px] text-blue-500 bg-blue-50 rounded px-1 py-px font-normal shrink-0">preset</span>
+            <span className="text-[8px] text-[var(--color-accent)] bg-[var(--color-accent-soft)] rounded px-1 py-px font-normal shrink-0">preset</span>
           )}
         </span>
         {!compact && template.manufacturer && (
@@ -185,7 +185,7 @@ function CategorySection({
 
   return (
     <div className="relative">
-      {dropLine === "above" && <div className="absolute top-0 left-1 right-1 h-0.5 bg-blue-500 rounded-full z-10" />}
+      {dropLine === "above" && <div className="absolute top-0 left-1 right-1 h-0.5 bg-[var(--color-accent)] rounded-full z-10" />}
       <div
         ref={headerRef}
         draggable={!!isDraggable}
@@ -250,7 +250,7 @@ function CategorySection({
           })}
         </div>
       )}
-      {dropLine === "below" && <div className="absolute bottom-0 left-1 right-1 h-0.5 bg-blue-500 rounded-full z-10" />}
+      {dropLine === "below" && <div className="absolute bottom-0 left-1 right-1 h-0.5 bg-[var(--color-accent)] rounded-full z-10" />}
     </div>
   );
 }
@@ -308,7 +308,7 @@ function DraggableTemplateItem({
         setDropLine(null);
       }}
     >
-      {dropLine === "above" && <div className="absolute top-0 left-2 right-2 h-0.5 bg-blue-500 rounded-full z-10" />}
+      {dropLine === "above" && <div className="absolute top-0 left-2 right-2 h-0.5 bg-[var(--color-accent)] rounded-full z-10" />}
       <div
         className={`flex items-center gap-1 px-2 ${compact ? "py-0.5" : "py-1.5"} rounded cursor-grab hover:bg-[var(--color-surface-hover)] transition-colors group`}
         draggable
@@ -341,8 +341,8 @@ function DraggableTemplateItem({
                 onClick={(e) => { e.stopPropagation(); onAddToOwned(); }}
                 className={`min-w-[1.1rem] rounded px-1 py-0 leading-none text-[9px] font-medium transition-all cursor-pointer ${
                   (ownedQuantity ?? 0) > 0
-                    ? "bg-blue-100 text-blue-700 opacity-100"
-                    : "uppercase tracking-wide text-[var(--color-text-muted)]/40 opacity-0 group-hover:opacity-100 hover:text-blue-600"
+                    ? "bg-[var(--color-accent-soft)] text-[var(--color-accent)] opacity-100"
+                    : "uppercase tracking-wide text-[var(--color-text-muted)]/40 opacity-0 group-hover:opacity-100 hover:text-[var(--color-accent)]"
                 }`}
                 title={(ownedQuantity ?? 0) > 0 ? `Owned: ${ownedQuantity}` : "Add to owned gear"}
               >
@@ -372,7 +372,7 @@ function DraggableTemplateItem({
           &times;
         </button>
       </div>
-      {dropLine === "below" && <div className="absolute bottom-0 left-2 right-2 h-0.5 bg-blue-500 rounded-full z-10" />}
+      {dropLine === "below" && <div className="absolute bottom-0 left-2 right-2 h-0.5 bg-[var(--color-accent)] rounded-full z-10" />}
     </div>
   );
 }
@@ -427,7 +427,7 @@ function GroupHeader({
             if (editLabel.trim() && editLabel.trim() !== group.label) onRename(editLabel.trim());
             setEditing(false);
           }}
-          className="flex-1 min-w-0 bg-white border border-blue-400 rounded px-1 py-0 text-[10px] uppercase tracking-wider text-[var(--color-text)] outline-none"
+          className="flex-1 min-w-0 bg-white border border-[var(--color-accent)] rounded px-1 py-0 text-[10px] uppercase tracking-wider text-[var(--color-text)] outline-none"
           autoFocus
         />
       </div>
@@ -436,9 +436,9 @@ function GroupHeader({
 
   return (
     <div ref={rowRef} className="relative">
-      {groupDropLine === "above" && <div className="absolute top-0 left-1 right-1 h-0.5 bg-blue-500 rounded-full z-10" />}
+      {groupDropLine === "above" && <div className="absolute top-0 left-1 right-1 h-0.5 bg-[var(--color-accent)] rounded-full z-10" />}
       <div
-        className={`flex items-center gap-1 w-full px-1 mb-0.5 group/grp rounded transition-colors ${dragOver ? "bg-blue-100/60" : ""}`}
+        className={`flex items-center gap-1 w-full px-1 mb-0.5 group/grp rounded transition-colors ${dragOver ? "bg-[var(--color-accent-soft)]/60" : ""}`}
         draggable
         onDragStart={(e) => {
           e.dataTransfer.setData("application/easyschematic-group-reorder", group.id);
@@ -500,7 +500,7 @@ function GroupHeader({
           </button>
         </div>
       </div>
-      {groupDropLine === "below" && <div className="absolute bottom-0 left-1 right-1 h-0.5 bg-blue-500 rounded-full z-10" />}
+      {groupDropLine === "below" && <div className="absolute bottom-0 left-1 right-1 h-0.5 bg-[var(--color-accent)] rounded-full z-10" />}
     </div>
   );
 }
@@ -522,7 +522,7 @@ function UngroupedHeader({
   return (
     <button
       onClick={onToggle}
-      className={`flex items-center gap-1 w-full px-1 mb-0.5 cursor-pointer group/cat rounded transition-colors ${dragOver ? "bg-blue-100/60" : ""}`}
+      className={`flex items-center gap-1 w-full px-1 mb-0.5 cursor-pointer group/cat rounded transition-colors ${dragOver ? "bg-[var(--color-accent-soft)]/60" : ""}`}
       onDragOver={(e) => {
         if (e.dataTransfer.types.includes("application/easyschematic-template-reorder")) {
           e.preventDefault();
@@ -655,7 +655,7 @@ function CustomTemplatesSection({
         </button>
         <button
           onClick={(e) => { e.stopPropagation(); setCreatingGroup(true); setNewGroupLabel(""); }}
-          className="opacity-0 group-hover/cat:opacity-100 text-[var(--color-text-muted)] hover:text-blue-500 text-sm cursor-pointer px-0.5 transition-opacity"
+          className="opacity-0 group-hover/cat:opacity-100 text-[var(--color-text-muted)] hover:text-[var(--color-accent)] text-sm cursor-pointer px-0.5 transition-opacity"
           title="New group"
         >
           +
@@ -742,7 +742,7 @@ function CustomTemplatesSection({
                   setNewGroupLabel("");
                 }}
                 placeholder="Group name..."
-                className="flex-1 min-w-0 bg-white border border-blue-400 rounded px-1 py-0 text-[10px] uppercase tracking-wider text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-muted)] placeholder:normal-case"
+                className="flex-1 min-w-0 bg-white border border-[var(--color-accent)] rounded px-1 py-0 text-[10px] uppercase tracking-wider text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-muted)] placeholder:normal-case"
                 autoFocus
               />
             </div>
@@ -1022,7 +1022,7 @@ function OwnedGearTab({ query }: { query: string }) {
                   min={0}
                   value={item.quantity}
                   onChange={(e) => updateOwnedGearQuantity(key, Number.parseInt(e.target.value || "0", 10))}
-                  className="w-14 h-6 rounded border border-[var(--color-border)] bg-white px-1 py-1 text-xs text-center text-[var(--color-text)] outline-none focus:border-blue-500 appearance-none [-moz-appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:m-0 [&::-webkit-inner-spin-button]:m-0"
+                  className="w-14 h-6 rounded border border-[var(--color-border)] bg-white px-1 py-1 text-xs text-center text-[var(--color-text)] outline-none focus:border-[var(--color-accent)] appearance-none [-moz-appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:m-0 [&::-webkit-inner-spin-button]:m-0"
                 />
                 <button
                   onClick={() => updateOwnedGearQuantity(key, item.quantity + 1)}
@@ -1365,7 +1365,7 @@ export default function DeviceLibrary() {
             {selectedCategories.size > 0 && (
               <button
                 onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setSelectedCategories(new Set()); }}
-                className="px-1 text-blue-400 hover:text-blue-600 text-xs shrink-0"
+                className="px-1 text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] text-xs shrink-0"
               >
                 &times;
               </button>
@@ -1387,7 +1387,7 @@ export default function DeviceLibrary() {
             {selectedBrands.size > 0 && (
               <button
                 onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setSelectedBrands(new Set()); }}
-                className="px-1 text-blue-400 hover:text-blue-600 text-xs shrink-0"
+                className="px-1 text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] text-xs shrink-0"
               >
                 &times;
               </button>
@@ -1409,7 +1409,7 @@ export default function DeviceLibrary() {
             {selectedSignalTypes.size > 0 && (
               <button
                 onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setSelectedSignalTypes(new Set()); }}
-                className="px-1 text-blue-400 hover:text-blue-600 text-xs shrink-0"
+                className="px-1 text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] text-xs shrink-0"
               >
                 &times;
               </button>
@@ -1526,7 +1526,7 @@ export default function DeviceLibrary() {
         {!hasFilter && (!query || "create new device".includes(query.toLowerCase())) && (
           <button
             onClick={() => setShowDeviceCreator(true)}
-            className="w-full flex items-center gap-2 px-2 py-1.5 rounded border border-dashed border-blue-400/50 bg-blue-500/10 hover:bg-blue-500/15 text-xs text-blue-600 hover:text-blue-700 cursor-pointer transition-colors"
+            className="w-full flex items-center gap-2 px-2 py-1.5 rounded border border-dashed border-[var(--color-accent)]/50 bg-[var(--color-accent)]/10 hover:bg-[var(--color-accent)]/15 text-xs text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] cursor-pointer transition-colors"
           >
             <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.5}>
               <rect x="2" y="2" width="12" height="12" rx="2" />

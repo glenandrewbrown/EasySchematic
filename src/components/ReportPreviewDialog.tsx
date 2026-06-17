@@ -362,7 +362,7 @@ function ReportPreviewDialog({
                     key={o}
                     className={`flex-1 px-2 py-1 text-xs rounded border cursor-pointer transition-colors ${
                       layout.orientation === o
-                        ? "bg-blue-50 border-blue-300 text-blue-700 font-medium"
+                        ? "bg-[var(--color-accent-soft)] border-[var(--color-accent)] text-[var(--color-accent)] font-medium"
                         : "bg-[var(--color-surface)] border-[var(--ui-border)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)]"
                     }`}
                     onClick={() => setLayout((prev) => ({ ...prev, orientation: o }))}
@@ -392,7 +392,7 @@ function ReportPreviewDialog({
                       key={mode}
                       className={`flex-1 px-2 py-1 text-xs rounded border cursor-pointer transition-colors ${
                         isActive
-                          ? "bg-blue-50 border-blue-300 text-blue-700 font-medium"
+                          ? "bg-[var(--color-accent-soft)] border-[var(--color-accent)] text-[var(--color-accent)] font-medium"
                           : "bg-[var(--color-surface)] border-[var(--ui-border)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)]"
                       }`}
                       onClick={() => {
@@ -426,7 +426,7 @@ function ReportPreviewDialog({
                       key={mode}
                       className={`flex-1 px-2 py-1 text-xs rounded border cursor-pointer transition-colors ${
                         isActive
-                          ? "bg-blue-50 border-blue-300 text-blue-700 font-medium"
+                          ? "bg-[var(--color-accent-soft)] border-[var(--color-accent)] text-[var(--color-accent)] font-medium"
                           : "bg-[var(--color-surface)] border-[var(--ui-border)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)]"
                       }`}
                       onClick={() => {
@@ -576,7 +576,7 @@ function ReportPreviewDialog({
 
             <button
               onClick={handleExportPdf}
-              className="ui-btn ui-btn-primary mt-auto"
+              className="ui-btn ui-btn-commit mt-auto"
             >
               Export PDF
             </button>
@@ -673,7 +673,7 @@ function SidebarSection({ title, children }: { title: string; children: React.Re
 function Checkbox({ label, checked, onChange }: { label: string; checked: boolean; onChange: () => void }) {
   return (
     <label className="flex items-center gap-1.5 text-xs text-[var(--color-text)] cursor-pointer select-none">
-      <input type="checkbox" checked={checked} onChange={onChange} className="accent-blue-600" />
+      <input type="checkbox" checked={checked} onChange={onChange} style={{ accentColor: "var(--color-accent)" }} />
       {label}
     </label>
   );
@@ -693,9 +693,9 @@ const BUILTIN_FIELD_OPTIONS: { value: string; label: string }[] = [
 ];
 
 const smallSelect =
-  "bg-[var(--color-surface)] border border-[var(--ui-border)] rounded px-1 py-0.5 text-xs text-[var(--color-text-heading)] outline-none focus:border-blue-500";
+  "bg-[var(--color-surface)] border border-[var(--ui-border)] rounded px-1 py-0.5 text-xs text-[var(--color-text-heading)] outline-none focus:border-[var(--color-accent)]";
 const smallInput =
-  "bg-[var(--color-surface)] border border-[var(--ui-border)] rounded px-1.5 py-0.5 text-xs text-[var(--color-text-heading)] outline-none focus:border-blue-500 w-14";
+  "bg-[var(--color-surface)] border border-[var(--ui-border)] rounded px-1.5 py-0.5 text-xs text-[var(--color-text-heading)] outline-none focus:border-[var(--color-accent)] w-14";
 
 function makeEmptyCell(row: number, col: number): TitleBlockCell {
   return {
@@ -1409,8 +1409,8 @@ function HeaderPreviewGrid({
                 key={cell.id}
                 className={`border border-gray-200 overflow-hidden flex items-center cursor-pointer transition-colors ${
                   isSelected
-                    ? "bg-blue-50/60 outline outline-2 outline-blue-500 -outline-offset-2 z-10"
-                    : "hover:bg-blue-50/30"
+                    ? "bg-[var(--color-accent-soft)] outline outline-2 outline-[var(--color-accent)] -outline-offset-2 z-10"
+                    : "hover:bg-[var(--color-accent-soft)]"
                 }`}
                 style={{
                   gridColumn: `${cell.col + 1} / span ${cell.colSpan}`,
@@ -1464,7 +1464,7 @@ function HeaderPreviewGrid({
             }}
             onPointerDown={(e) => handleResizePointerDown(e, "col", i)}
           >
-            <div className="w-px h-full mx-auto opacity-0 hover:opacity-100 bg-blue-400 transition-opacity" />
+            <div className="w-px h-full mx-auto opacity-0 hover:opacity-100 bg-[var(--color-accent)] transition-opacity" />
           </div>
         ))}
 
@@ -1481,7 +1481,7 @@ function HeaderPreviewGrid({
             }}
             onPointerDown={(e) => handleResizePointerDown(e, "row", i)}
           >
-            <div className="h-px w-full opacity-0 hover:opacity-100 bg-blue-400 transition-opacity" style={{ marginTop: 3 }} />
+            <div className="h-px w-full opacity-0 hover:opacity-100 bg-[var(--color-accent)] transition-opacity" style={{ marginTop: 3 }} />
           </div>
         ))}
       </div>
@@ -1756,7 +1756,7 @@ function PreviewColumnHeaders({
             >
               <div
                 className="opacity-0 hover:opacity-100 transition-opacity"
-                style={{ width: 1, height: "100%", marginLeft: 3, background: "#3b82f6" }}
+                style={{ width: 1, height: "100%", marginLeft: 3, background: "var(--color-accent)" }}
               />
             </div>
           )}

@@ -5,8 +5,8 @@ import { useSchematicStore } from "../store";
 
 function AnnotationNode({ id, data, selected }: NodeProps) {
   const annotationData = data as unknown as AnnotationData;
-  const bgColor = annotationData.color ?? "rgba(59, 130, 246, 0.1)";
-  const border = annotationData.borderColor ?? "#3b82f6";
+  const bgColor = annotationData.color ?? "var(--color-accent-soft)";
+  const border = annotationData.borderColor ?? "var(--color-accent)";
   const shape = annotationData.shape ?? "rectangle";
   const fontSize = annotationData.fontSize ?? 12;
 

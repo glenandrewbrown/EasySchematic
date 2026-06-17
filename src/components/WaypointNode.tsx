@@ -31,8 +31,8 @@ function WaypointNodeComponent({ data, selected }: NodeProps<WaypointNodeType>) 
         marginTop: -half,
         borderRadius: "50%",
         background: visible ? "white" : "transparent",
-        border: visible ? `2px solid ${selected ? "#0b57d0" : "#1a73e8"}` : "none",
-        boxShadow: selected ? "0 0 0 2px rgba(26,115,232,0.25)" : "none",
+        border: visible ? `2px solid ${selected ? "var(--color-accent-hover)" : "var(--color-accent)"}` : "none",
+        boxShadow: selected ? "0 0 0 2px color-mix(in srgb, var(--color-accent) 25%, transparent)" : "none",
         cursor: "grab",
         pointerEvents: visible ? "all" : "none",
       }}

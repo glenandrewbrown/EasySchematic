@@ -628,7 +628,7 @@ export default function FacePlateEditor({ deviceData, onSave, onClose }: FacePla
                       width={dlFontSize * 6}
                       height={dlFontSize * 1.2}
                       fill="none"
-                      stroke="#3b82f6"
+                      stroke="var(--color-accent)"
                       strokeWidth={selStroke}
                       strokeDasharray="1 0.5"
                       rx={0.5}
@@ -666,7 +666,7 @@ export default function FacePlateEditor({ deviceData, onSave, onClose }: FacePla
                       width={20}
                       height={5}
                       fill="none"
-                      stroke="#3b82f6"
+                      stroke="var(--color-accent)"
                       strokeWidth={selStroke}
                       strokeDasharray="1 0.5"
                       rx={0.5}
@@ -713,7 +713,7 @@ export default function FacePlateEditor({ deviceData, onSave, onClose }: FacePla
                     const selR = Math.max(spec.widthMm, spec.heightMm) * PX_PER_MM / 2 + 1;
                     return (
                       <circle cx={cx} cy={cy} r={selR}
-                        fill="none" stroke="#3b82f6" strokeWidth={selStroke} strokeDasharray="1 0.5"
+                        fill="none" stroke="var(--color-accent)" strokeWidth={selStroke} strokeDasharray="1 0.5"
                       />
                     );
                   })()}
@@ -749,8 +749,8 @@ export default function FacePlateEditor({ deviceData, onSave, onClose }: FacePla
                 y={marqueeRect.y}
                 width={marqueeRect.w}
                 height={marqueeRect.h}
-                fill="rgba(59,130,246,0.15)"
-                stroke="#3b82f6"
+                fill="color-mix(in srgb, var(--color-accent) 15%, transparent)"
+                stroke="var(--color-accent)"
                 strokeWidth={thinStroke}
                 strokeDasharray="1.5 0.75"
                 style={{ pointerEvents: "none" }}
@@ -767,7 +767,8 @@ export default function FacePlateEditor({ deviceData, onSave, onClose }: FacePla
                 type="checkbox"
                 checked={snapEnabled}
                 onChange={(e) => setSnapEnabled(e.target.checked)}
-                className="rounded accent-blue-600"
+                className="rounded"
+                style={{ accentColor: "var(--color-accent)" }}
               />
               <span>Snap</span>
             </label>
@@ -846,7 +847,8 @@ export default function FacePlateEditor({ deviceData, onSave, onClose }: FacePla
                   step={1}
                   value={deviceLabelPos.fontSize}
                   onChange={(e) => setDeviceLabelPos((prev) => ({ ...prev, fontSize: Number(e.target.value) }))}
-                  className="w-20 accent-blue-600"
+                  className="w-20"
+                  style={{ accentColor: "var(--color-accent)" }}
                 />
                 <span className="text-[var(--color-text-muted)] w-6 text-right">{deviceLabelPos.fontSize}</span>
               </div>

@@ -8,28 +8,28 @@ import { useEffect } from "react";
    hexes. These mirror the `.dark` token values in theme.css. The deepest bg
    (#050d1c) has no token by design — it is the marketing-only canvas colour.   */
 const C = {
-  bgDeep: "#050d1c", // page canvas (no token — marketing only)
-  surface: "#071427", // --color-bg (dark)
-  card: "#0c2138", // --color-surface (dark)
-  panel: "#0a1c33", // hero-mock / brand panel
-  border: "#1d4b78", // --ui-border (dark)
-  borderSoft: "#143a5e", // hairline dividers
-  borderStrong: "#2a6499", // --ui-border-strong / --color-border (dark)
-  text: "#a6cdee", // --color-text (dark)
-  textHeading: "#e3f2ff", // --color-text-heading (dark)
-  textMuted: "#5f93c0", // --color-text-muted (dark)
-  textBright: "#f3faff", // hero H1
-  accent: "#37c2e0", // marketing accent (cyan)
-  accentInk: "#04222b", // text on accent buttons
-  accentSoft: "rgba(55,194,224,0.1)",
+  bgDeep: "#1c1a3a", // page canvas (deep marketing bg — v3 Currents)
+  surface: "#26234c", // surface (Currents)
+  card: "#363266", // card (Currents)
+  panel: "#363266", // hero-mock / brand panel (nearest role: card)
+  border: "#4d4889", // border (Currents)
+  borderSoft: "#4d4889", // hairline dividers (nearest role: border)
+  borderStrong: "#6b66a6", // strong border (Currents)
+  text: "#cdcaeb", // body text (Currents)
+  textHeading: "#f2f1fb", // heading (Currents)
+  textMuted: "#9b97cc", // muted (Currents)
+  textBright: "#f2f1fb", // hero H1 (nearest role: heading)
+  accent: "#a99bf2", // marketing accent (lavender — Currents)
+  accentInk: "#241f4a", // text on accent buttons (Currents)
+  accentSoft: "rgba(169,155,242,0.1)",
 } as const;
 
 /* Workspace-accent hexes for the feature-strip line icons (data, not theme). */
 const FEATURE_ACCENTS = {
-  schematic: "#3d8bfd",
-  plan: "#1fb6a6",
-  schedule: "#e0a345",
-  rack: "#8b7cf0",
+  schematic: "#a99bf2",
+  plan: "#34d0b8",
+  schedule: "#e6c06a",
+  rack: "#c79bf5",
 } as const;
 
 /* Preserved enter-app path: opt out of the landing page, then load the editor.
@@ -190,7 +190,7 @@ function HeroCanvasMock() {
           top: 60,
           width: 110,
           border: `1px solid ${C.accent}`,
-          boxShadow: "0 0 0 3px rgba(55,194,224,.14)",
+          boxShadow: "0 0 0 3px rgba(169,155,242,.14)",
         }}
       >
         <div
@@ -371,7 +371,7 @@ export default function LandingPage() {
               padding: "56px 40px",
               alignItems: "center",
               background:
-                "radial-gradient(120% 90% at 80% 10%, rgba(55,194,224,.09), transparent 55%)",
+                "radial-gradient(120% 90% at 80% 10%, rgba(169,155,242,.09), transparent 55%)",
             }}
           >
             <div>
@@ -385,7 +385,7 @@ export default function LandingPage() {
                   background: C.accentSoft,
                   border: `1px solid ${C.borderStrong}`,
                   fontSize: 11,
-                  color: "#7fd3e8",
+                  color: "#cdcaeb",
                   marginBottom: 20,
                 }}
               >

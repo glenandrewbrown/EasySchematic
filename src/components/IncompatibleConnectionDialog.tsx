@@ -90,7 +90,7 @@ export default function IncompatibleConnectionDialog() {
                   key={t.id ?? t.label + i}
                   className={`w-full text-left px-3 py-2 text-xs flex flex-col gap-0.5 cursor-pointer border-b last:border-b-0 border-[var(--color-border)] transition-colors ${
                     selectedIdx === i
-                      ? "bg-blue-50 text-blue-900"
+                      ? "bg-[var(--color-accent-soft)] text-[var(--color-accent)]"
                       : "hover:bg-[var(--color-surface-hover)]"
                   }`}
                   onClick={() => setSelectedIdx(i)}

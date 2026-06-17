@@ -139,7 +139,7 @@ function PrintViewBar() {
         <button
           className={`px-2 py-0.5 rounded border text-xs cursor-pointer ${
             printOrientation === "landscape"
-              ? "bg-blue-600 text-white border-blue-600"
+              ? "bg-[var(--color-accent)] text-white border-[var(--color-accent)]"
               : "bg-white text-[var(--color-text)] border-[var(--ui-border)] hover:bg-[var(--color-surface-hover)]"
           }`}
           onClick={() => setPrintOrientation("landscape")}
@@ -149,7 +149,7 @@ function PrintViewBar() {
         <button
           className={`px-2 py-0.5 rounded border text-xs cursor-pointer ${
             printOrientation === "portrait"
-              ? "bg-blue-600 text-white border-blue-600"
+              ? "bg-[var(--color-accent)] text-white border-[var(--color-accent)]"
               : "bg-white text-[var(--color-text)] border-[var(--ui-border)] hover:bg-[var(--color-surface-hover)]"
           }`}
           onClick={() => setPrintOrientation("portrait")}
@@ -168,7 +168,8 @@ function PrintViewBar() {
           step={0.05}
           value={printScale}
           onChange={(e) => setPrintScale(Number(e.target.value))}
-          className="w-20 h-1 accent-blue-600"
+          className="w-20 h-1"
+          style={{ accentColor: "var(--color-accent)" }}
         />
         <span className="text-xs text-[var(--color-text-heading)] w-8 text-right font-mono">
           {Math.round(printScale * 100)}%
@@ -247,7 +248,7 @@ function PrintViewBar() {
                   key={c}
                   className={`px-2 py-0.5 text-[10px] rounded border cursor-pointer ${
                     colorKeyCorner === c
-                      ? "bg-blue-600 text-white border-blue-600"
+                      ? "bg-[var(--color-accent)] text-white border-[var(--color-accent)]"
                       : "bg-white text-[var(--color-text)] border-[var(--ui-border)] hover:bg-[var(--color-surface-hover)]"
                   }`}
                   onClick={() => setColorKeyCorner(c)}
@@ -265,7 +266,7 @@ function PrintViewBar() {
                   key={n}
                   className={`w-7 py-0.5 text-[10px] rounded border cursor-pointer ${
                     colorKeyColumns === n
-                      ? "bg-blue-600 text-white border-blue-600"
+                      ? "bg-[var(--color-accent)] text-white border-[var(--color-accent)]"
                       : "bg-white text-[var(--color-text)] border-[var(--ui-border)] hover:bg-[var(--color-surface-hover)]"
                   }`}
                   onClick={() => setColorKeyColumns(n)}
@@ -306,7 +307,8 @@ function PrintViewBar() {
                         }
                         setColorKeyOverrides(Object.keys(next).length > 0 ? next : undefined);
                       }}
-                      className="w-3 h-3 accent-blue-500 cursor-pointer"
+                      className="w-3 h-3 cursor-pointer"
+                      style={{ accentColor: "var(--color-accent)" }}
                     />
                     <span
                       className="w-2.5 h-2.5 rounded-full shrink-0"

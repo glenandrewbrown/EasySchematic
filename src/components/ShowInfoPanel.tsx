@@ -130,7 +130,7 @@ export default function ShowInfoPanel({ mobile, onClose }: { mobile?: boolean; o
           <div key={cf.id}>
             <div className="flex items-center gap-0.5 mb-0.5">
               <input
-                className="flex-1 text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] bg-transparent border-b border-transparent focus:border-blue-400 outline-none min-w-0"
+                className="flex-1 text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] bg-transparent border-b border-transparent focus:border-[var(--color-accent)] outline-none min-w-0"
                 value={cf.label}
                 onChange={(e) => renameCustomField(cf.id, e.target.value)}
               />
@@ -201,7 +201,7 @@ function FieldInput({
         </label>
       )}
       <input
-        className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-1.5 py-1 text-xs text-[var(--color-text-heading)] outline-none focus:border-blue-500"
+        className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-1.5 py-1 text-xs text-[var(--color-text-heading)] outline-none focus:border-[var(--color-accent)]"
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={() => onBlur(draft)}

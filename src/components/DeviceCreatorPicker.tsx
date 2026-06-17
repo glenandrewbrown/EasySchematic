@@ -110,7 +110,7 @@ export default function DeviceCreatorPicker({
           </div>
           <button
             onClick={createBlank}
-            className="w-full text-left px-2.5 py-2 rounded border border-[var(--color-border)] bg-[var(--color-surface)] hover:border-blue-400 hover:bg-blue-50 transition-colors mb-2"
+            className="w-full text-left px-2.5 py-2 rounded border border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-accent)] hover:bg-[var(--color-accent-soft)] transition-colors mb-2"
           >
             <div className="text-xs font-medium text-[var(--color-text-heading)]">
               Start Blank
@@ -122,7 +122,7 @@ export default function DeviceCreatorPicker({
           {onImport && (
             <button
               onClick={() => { onClose(); onImport(); }}
-              className="w-full text-left px-2.5 py-2 rounded border border-[var(--color-border)] bg-[var(--color-surface)] hover:border-blue-400 hover:bg-blue-50 transition-colors mb-2"
+              className="w-full text-left px-2.5 py-2 rounded border border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-accent)] hover:bg-[var(--color-accent-soft)] transition-colors mb-2"
             >
               <div className="text-xs font-medium text-[var(--color-text-heading)]">
                 Import from JSON or CSV
@@ -145,7 +145,7 @@ export default function DeviceCreatorPicker({
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Search the device library..."
-            className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2.5 py-1.5 text-xs text-[var(--color-text-heading)] outline-none focus:border-blue-500 placeholder:text-[var(--color-text-muted)]"
+            className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2.5 py-1.5 text-xs text-[var(--color-text-heading)] outline-none focus:border-[var(--color-accent)] placeholder:text-[var(--color-text-muted)]"
           />
         </div>
 

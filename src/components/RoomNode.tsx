@@ -302,7 +302,7 @@ function RoomNodeComponent({ id, data, selected, width, height }: NodeProps<Room
   const shape = (data.shape && data.shape.length >= 3 ? data.shape : null) as ShapePoint[] | null;
   const shapePx = shape ? shapeToPx(shape, w, h) : null;
   const strokeColor = selected
-    ? "#60a5fa"
+    ? "var(--color-accent)"
     : borderColorVal || (isRack ? "#6b7280" : "var(--color-border)");
   const fillColor = bgColor
     ? `${bgColor}${bgAlpha}`
@@ -352,7 +352,7 @@ function RoomNodeComponent({ id, data, selected, width, height }: NodeProps<Room
       />
       <div
         className={`w-full h-full ${shape ? "" : "rounded-lg"} ${shape ? "" : isLayout && !isRack ? "" : "border-2"} ${
-          !shape && selected ? "border-blue-400" : ""
+          !shape && selected ? "border-[var(--color-accent)]" : ""
         }`}
         style={{
           pointerEvents: "none",
@@ -361,7 +361,7 @@ function RoomNodeComponent({ id, data, selected, width, height }: NodeProps<Room
             : isLayout && !isRack
               ? {
                   // CAD floor-plan: solid hairline wall + faint accent fill.
-                  border: `1.5px ${borderStyleVal} ${selected ? "#60a5fa" : borderColorVal || "var(--color-border)"}`,
+                  border: `1.5px ${borderStyleVal} ${selected ? "var(--color-accent)" : borderColorVal || "var(--color-border)"}`,
                   backgroundColor: bgColor
                     ? `${bgColor}${bgAlpha}`
                     : "color-mix(in srgb, var(--color-accent) 6%, transparent)",

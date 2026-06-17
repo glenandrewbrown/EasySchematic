@@ -188,7 +188,7 @@ export default function SchematicBrowser({ onClose }: { onClose: () => void }) {
                   <div className="flex-1 min-w-0">
                     {renamingId === s.id ? (
                       <input
-                        className="bg-transparent text-xs font-medium outline-none border-b border-blue-500 w-full"
+                        className="bg-transparent text-xs font-medium outline-none border-b border-[var(--color-accent)] w-full"
                         style={{ color: "var(--color-text-heading)" }}
                         value={renameValue}
                         onChange={(e) => setRenameValue(e.target.value)}
@@ -237,7 +237,7 @@ export default function SchematicBrowser({ onClose }: { onClose: () => void }) {
                       title={isOnline ? (s.shared ? "Disable sharing" : "Enable sharing") : "Requires internet connection"}
                       className="p-1 rounded hover:bg-[var(--color-surface-hover)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
                     >
-                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke={s.shared ? "#3b82f6" : "currentColor"} strokeWidth={2}>
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke={s.shared ? "var(--color-accent)" : "currentColor"} strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
                       </svg>
                     </button>

@@ -122,7 +122,7 @@ export default function AnnotationEditor() {
               Label
             </label>
             <input
-              className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2 py-1.5 text-xs text-[var(--color-text-heading)] outline-none focus:border-blue-500"
+              className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2 py-1.5 text-xs text-[var(--color-text-heading)] outline-none focus:border-[var(--color-accent)]"
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               placeholder="Optional label"
@@ -139,7 +139,7 @@ export default function AnnotationEditor() {
             <select
               value={fontSize}
               onChange={(e) => setFontSize(Number(e.target.value))}
-              className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2 py-1.5 text-xs text-[var(--color-text-heading)] outline-none focus:border-blue-500 cursor-pointer"
+              className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2 py-1.5 text-xs text-[var(--color-text-heading)] outline-none focus:border-[var(--color-accent)] cursor-pointer"
             >
               {FONT_SIZES.map((s) => (
                 <option key={s} value={s}>{s}px</option>
@@ -159,7 +159,7 @@ export default function AnnotationEditor() {
                   onClick={() => setShape(s.value)}
                   className={`px-2.5 py-1 text-xs rounded border cursor-pointer transition-colors ${
                     shape === s.value
-                      ? "bg-blue-50 border-blue-400 text-blue-700"
+                      ? "bg-[var(--color-accent-soft)] border-[var(--color-accent)] text-[var(--color-accent)]"
                       : "bg-[var(--color-surface)] border-[var(--color-border)] text-[var(--color-text)] hover:text-[var(--color-text-heading)]"
                   }`}
                 >
@@ -188,7 +188,7 @@ export default function AnnotationEditor() {
                   }}
                   className={`w-5 h-5 rounded border cursor-pointer transition-all ${
                     (!p.hex && fillOpacity === 0) || (p.hex && fillHex === p.hex && fillOpacity > 0)
-                      ? "ring-2 ring-blue-500 ring-offset-1"
+                      ? "ring-2 ring-[var(--color-accent)] ring-offset-1"
                       : "hover:scale-110"
                   }`}
                   style={{
@@ -213,7 +213,8 @@ export default function AnnotationEditor() {
                 min={0} max={100} step={5}
                 value={fillOpacity}
                 onChange={(e) => setFillOpacity(Number(e.target.value))}
-                className="flex-1 h-1.5 cursor-pointer accent-blue-500"
+                className="flex-1 h-1.5 cursor-pointer"
+                style={{ accentColor: "var(--color-accent)" }}
               />
               <span className="text-[10px] text-[var(--color-text-muted)] w-8 text-right">{fillOpacity}%</span>
             </div>
@@ -230,7 +231,7 @@ export default function AnnotationEditor() {
                   key={c}
                   onClick={() => setBorderColor(c)}
                   className={`w-5 h-5 rounded border cursor-pointer transition-all ${
-                    borderColor === c ? "ring-2 ring-blue-500 ring-offset-1" : "hover:scale-110"
+                    borderColor === c ? "ring-2 ring-[var(--color-accent)] ring-offset-1" : "hover:scale-110"
                   }`}
                   style={{ background: c, borderColor: "transparent" }}
                   title={c}

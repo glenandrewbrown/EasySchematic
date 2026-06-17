@@ -101,7 +101,7 @@ function PackListDialog({ onClose }: PackListDialogProps) {
                       type="checkbox"
                       checked={groupDevicesByRoom}
                       onChange={(e) => setGroupDevicesByRoom(e.target.checked)}
-                      className="accent-blue-600"
+                      style={{ accentColor: "var(--color-accent)" }}
                     />
                     Group by Room
                   </label>
@@ -117,7 +117,7 @@ function PackListDialog({ onClose }: PackListDialogProps) {
                       type="checkbox"
                       checked={groupCablesByPath}
                       onChange={(e) => setGroupCablesByPath(e.target.checked)}
-                      className="accent-blue-600"
+                      style={{ accentColor: "var(--color-accent)" }}
                     />
                     Group by Path
                   </label>

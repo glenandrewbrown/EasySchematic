@@ -112,7 +112,7 @@ export default function SelectionFilterBar() {
               <button
                 key={kind}
                 title={`Click to keep only ${labels.plural}. ${navigator.platform.toLowerCase().includes("mac") ? "⌘" : "Ctrl"}+click to deselect ${labels.plural}.`}
-                className="px-2 py-0.5 text-[11px] rounded bg-[var(--color-surface-hover)] hover:bg-blue-50 hover:text-blue-700 border border-[var(--color-border)] transition-colors cursor-pointer"
+                className="px-2 py-0.5 text-[11px] rounded bg-[var(--color-surface-hover)] hover:bg-[var(--color-accent-soft)] hover:text-[var(--color-accent)] border border-[var(--color-border)] transition-colors cursor-pointer"
                 onClick={(e) => {
                   const deselect = e.metaKey || e.ctrlKey;
                   apply(kind, deselect ? "deselect" : "solo");
@@ -127,8 +127,8 @@ export default function SelectionFilterBar() {
             title="Edit properties of selected connections"
             className={`px-2 py-0.5 text-[11px] rounded border transition-colors cursor-pointer ${
               panelOpen
-                ? "bg-blue-600 text-white border-blue-600"
-                : "text-blue-700 border-blue-300 bg-blue-50 hover:bg-blue-100"
+                ? "bg-[var(--color-accent)] text-white border-[var(--color-accent)]"
+                : "text-[var(--color-accent)] border-[var(--color-accent)] bg-[var(--color-accent-soft)] hover:bg-[var(--color-accent-soft)]"
             }`}
             onClick={() => setPanelOpen((v) => !v)}
           >

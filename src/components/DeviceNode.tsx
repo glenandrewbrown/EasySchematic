@@ -539,8 +539,8 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
       <div
         className="px-3 border-b border-[var(--ui-border)] rounded-t-[7px] flex flex-col"
         style={{
-          // Header band stays navy (the "instrument" face). The device-class colour lives
-          // only in the edge-stripe + class icon — using data.headerColor here was what made
+          // Header band stays the panel "instrument" face. The device-class colour lives in
+          // the perimeter border + class icon — using data.headerColor here was what made
           // the card read as a washed-out grey/pale box.
           backgroundColor: "var(--color-surface-raised)",
           paddingTop: pt,
@@ -561,7 +561,7 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
             title={displayLabel(resolvedLabel.text)}
           >
             {data.icon && (
-              <span style={{ marginRight: 4, color: stripeColor }}>{data.icon}</span>
+              <span style={{ marginRight: 4, color: classColor }}>{data.icon}</span>
             )}
             {displayLabel(resolvedLabel.text)}
           </span>
@@ -590,9 +590,12 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
     );
   }
 
-  // Category edge-stripe colour — the device's class colour. Reuses the existing per-device
-  // headerColor when set, otherwise the workspace accent. Purely presentational (no new data).
-  const stripeColor = data.headerColor || "var(--color-accent)";
+  // Device-class hue (reuses the existing per-device headerColor — no new data). Drives the
+  // class icon tint and the node's full-perimeter border (v3 "Currents" — this replaces the old
+  // 2.5px left edge-stripe, which blocked the left-edge ports). The border falls back to the
+  // neutral hairline when the device has no class colour; selection stays a separate accent halo.
+  const classColor = data.headerColor || "var(--color-accent)";
+  const classBorder = data.headerColor || "var(--ui-border-strong)";
 
   // CATEGORY mono-caps label — the device's class/type, shown under the name. Omitted when empty.
   const categoryText = (data.category || data.deviceType || "").trim();
@@ -614,19 +617,15 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
   return (
     <div
       onDoubleClick={() => setEditingNodeId(id)}
-      className={`
-        relative rounded-[7px] border
-        ${
-          isOverlapping
-            ? "border-[var(--color-error)]"
-            : selected
-              ? "border-[var(--color-accent)]"
-              : "border-[var(--ui-border-strong)]"
-        }
-      `}
+      className="relative rounded-[7px] border"
       style={{
         width: 180,
         backgroundColor: "var(--color-surface)",
+        // v3 "Currents": the device-class hue is the node's full-perimeter border (replaces the
+        // old 2.5px left edge-stripe). Width stays 1px to keep the 20px port-grid invariant exact.
+        // Overlap flags error red; selection adds a SEPARATE accent halo (box-shadow) so the
+        // class colour is never overwritten.
+        borderColor: isOverlapping ? "var(--color-error)" : classBorder,
         boxShadow: isOverlapping
           ? "0 0 0 3px color-mix(in srgb, var(--color-error) 20%, transparent)"
           : selected
@@ -634,14 +633,6 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
             : undefined,
       }}
     >
-      {/* Category edge-stripe — 2.5px vertical bar on the left edge, coloured by device class.
-           Absolutely positioned so it never shifts the port grid. */}
-      <span
-        aria-hidden
-        className="absolute left-0 top-[7px] bottom-[7px] w-[2.5px] rounded-[2px]"
-        style={{ background: stripeColor, pointerEvents: "none" }}
-      />
-
       {/* Header band — merged name strip + header aux rows. Height is always a 20-multiple
            (min 40) so the first port below stays on the pathfinding grid. */}
       {renderHeaderBand(headerAuxRows)}

@@ -1,49 +1,34 @@
-/* Live signal motion layer — additive, GPU-friendly CSS/SVG overlays drawn on top
-   of the static routed edge. Gated by the `liveSignal` store flag (default OFF) and
-   only rendered when the user does NOT prefer reduced motion. These layers never
-   change edge geometry; they are purely decorative and ignore pointer events. */
+/* "Currents" cable motion — additive, GPU-friendly accents on the static routed edge.
+   The wired "moving brightness band" itself is an inline SVG <animateTransform> in OffsetEdge
+   (gated in JS, so reduced-motion users never receive it). This file holds the theme-aware
+   strand-glow radius and the wireless broadcast keyframes. None of it changes edge geometry,
+   markers, or hit area. */
 
-/* Flowing dashes: a short dash pattern that slides along the edge path by animating
-   stroke-dashoffset. Pattern total length is 7.5 (0.5 dash + 7 gap), so a -7.5 offset
-   advances exactly one period for a seamless loop. */
-@keyframes live-signal-flow {
-  to {
-    stroke-dashoffset: -7.5;
-  }
+/* Strand glow radius — luminous in the dark "indigo ground" theme, subtle on light paper.
+   Consumed by OffsetEdge's drop-shadow filter: var(--cur-glow-blur). */
+:root { --cur-glow-blur: 2.5px; }
+.dark { --cur-glow-blur: 5px; }
+
+/* Wireless broadcast: TX pulse rings expand and fade from the transmitter. Two staggered rings.
+   transform-box:fill-box makes transform-origin:center resolve to each circle's own centre so
+   the scale radiates symmetrically from the source point. */
+@keyframes wireless-tx-pulse {
+  0%   { transform: scale(0.45); opacity: 0.85; }
+  100% { transform: scale(1.6);  opacity: 0; }
+}
+.wireless-tx-pulse {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: wireless-tx-pulse 2.4s ease-out infinite;
+}
+.wireless-tx-pulse--delay {
+  animation-delay: 1.2s;
 }
 
-/* Traveling packet: a small comet rides the edge path via CSS motion path. */
-@keyframes live-signal-travel {
-  from {
-    offset-distance: 0%;
-  }
-  to {
-    offset-distance: 100%;
-  }
-}
-
-.live-signal-flow {
-  pointer-events: none;
-  fill: none;
-  stroke-linecap: round;
-  stroke-dasharray: 0.5 7;
-  opacity: 0.55;
-  animation: live-signal-flow 2s linear infinite;
-}
-
-.live-signal-packet {
-  pointer-events: none;
-  offset-distance: 0%;
-  offset-rotate: 0deg;
-  animation: live-signal-travel 2s linear infinite;
-  filter: drop-shadow(0 0 3px currentColor);
-}
-
-/* Reduced-motion users get no animation. Belt-and-braces alongside the JS guard
-   that skips rendering these layers entirely when reduced motion is requested. */
+/* Reduced motion: belt-and-braces alongside the JS guards that skip these layers entirely. */
 @media (prefers-reduced-motion: reduce) {
-  .live-signal-flow,
-  .live-signal-packet {
+  .wireless-tx-pulse {
     animation: none;
+    opacity: 0;
   }
 }

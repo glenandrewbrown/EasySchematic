@@ -119,7 +119,7 @@ export default function DeviceSwapDialog() {
               onChange={(e) => setSearch(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Escape") close(); }}
               placeholder="Search the device library..."
-              className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2.5 py-1.5 text-xs text-[var(--color-text-heading)] outline-none focus:border-blue-500 placeholder:text-[var(--color-text-muted)]"
+              className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2.5 py-1.5 text-xs text-[var(--color-text-heading)] outline-none focus:border-[var(--color-accent)] placeholder:text-[var(--color-text-muted)]"
             />
             <div className="max-h-[300px] overflow-y-auto -mx-2 px-2">
               {!search.trim() ? (

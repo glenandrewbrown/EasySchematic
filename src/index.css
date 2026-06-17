@@ -35,6 +35,14 @@
   font-display: swap;
   src: url('/fonts/Inter-Bold.ttf') format('truetype');
 }
+@font-face {
+  /* Jost — geometric UI face for v3 "Currents". One variable file covers weights 300–800. */
+  font-family: 'Jost';
+  font-weight: 300 800;
+  font-style: normal;
+  font-display: swap;
+  src: url('/fonts/Jost.woff2') format('woff2');
+}
 
 html, body, #root {
   height: 100%;
@@ -43,9 +51,9 @@ html, body, #root {
   overflow: hidden;
   background: var(--color-bg);
   color: var(--color-text);
-  /* IBM Plex Sans — Carbon-pedigree "engineering instrument" UI face. Falls back to
-     the native system stack (SF Pro / Segoe UI) when offline so text stays crisp. */
-  font-family: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", "Inter", system-ui, sans-serif;
+  /* Jost — geometric UI face for v3 "Currents". Falls back to the native system stack
+     when offline so text stays crisp; IBM Plex Mono (--font-mono) still owns all numerics. */
+  font-family: "Jost", -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
@@ -163,6 +171,18 @@ html, body, #root {
 .ui-btn-primary:hover:not(:disabled) {
   background: var(--color-accent-hover);
   box-shadow: 0 4px 12px -3px rgba(79, 70, 229, 0.45);
+}
+
+/* Commit / export CTA — the coral "live moment". Rationed: ONLY Export/commit actions use this;
+   every other primary action stays lavender (.ui-btn-primary). */
+.ui-btn-commit {
+  background: var(--color-commit);
+  color: #ffffff;
+  box-shadow: 0 1px 2px var(--color-commit-soft);
+}
+.ui-btn-commit:hover:not(:disabled) {
+  filter: brightness(1.08);
+  box-shadow: 0 4px 12px -3px var(--color-commit-soft);
 }
 
 .ui-btn-secondary {

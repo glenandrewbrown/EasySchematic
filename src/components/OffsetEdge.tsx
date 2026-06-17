@@ -6,6 +6,7 @@ import {
 } from "@xyflow/react";
 import { useSchematicStore } from "../store";
 import { LINE_STYLE_DASHARRAY, type ConnectionEdge, type LineStyle } from "../types";
+import { resolvePort } from "../packList";
 import "../liveSignal.css";
 
 // Whether the user has asked the OS to reduce motion. Read once at module load —
@@ -104,6 +105,19 @@ function OffsetEdgeComponent({
   const directAttach = useSchematicStore((s) => {
     const edge = s.edges.find((e) => e.id === id);
     return edge?.data?.directAttach === true;
+  });
+
+  // Wireless link — a port whose connector is "wireless" (mirrors packList's BOM-exclusion test,
+  // so these stay out of the cable BOM). Rendered as a broadcast arc, never a routed cable.
+  const isWireless = useSchematicStore((s) => {
+    const edge = s.edges.find((e) => e.id === id);
+    if (!edge) return false;
+    const srcNode = s.nodes.find((n) => n.id === edge.source);
+    const tgtNode = s.nodes.find((n) => n.id === edge.target);
+    return (
+      resolvePort(srcNode, edge.sourceHandle)?.connectorType === "wireless" ||
+      resolvePort(tgtNode, edge.targetHandle)?.connectorType === "wireless"
+    );
   });
 
   // Read user-defined connection label (stable primitive selector)
@@ -206,6 +220,17 @@ function OffsetEdgeComponent({
     turns = "pending";
   }
 
+  // Edge stroke colour = the signal-type colour resolved upstream (the locked signal palette).
+  const signalColor = (style?.stroke as string) ?? "#6b7280";
+
+  // Wireless links render as a dashed broadcast arc (quadratic Bézier arcing 26px up), not a
+  // routed cable — a distinct shape so over-air links never read as a wired run. Routing geometry
+  // itself is untouched; only this component's rendered path is swapped.
+  const wirelessArcPath = isWireless
+    ? `M ${sourceX} ${sourceY} Q ${(sourceX + targetX) / 2} ${Math.min(sourceY, targetY) - 26} ${targetX} ${targetY}`
+    : null;
+  const renderPath = wirelessArcPath ?? edgePath;
+
   // Gradient for virtual edges bridging different signal types
   const hasGradient = gradientColors.length > 0 && colorBySignal;
   const gradientId = hasGradient ? `gradient-${id}` : "";
@@ -236,18 +261,30 @@ function OffsetEdgeComponent({
     }
   }
 
+  // v3 "Currents": a soft luminance glow on every signal-coloured strand (theme-aware blur via
+  // --cur-glow-blur, set in liveSignal.css). Skipped for direct-attach (grey physical plug-ins).
+  const strandGlow =
+    routeStr && !directAttach
+      ? `drop-shadow(0 0 var(--cur-glow-blur, 4px) color-mix(in srgb, ${signalColor} 55%, transparent))`
+      : undefined;
+
   const edgeStyle = routeStr
     ? {
         ...style,
         ...(directAttach
           ? { stroke: "#9ca3af", strokeWidth: selected ? 2 : 1 }
-          : { strokeWidth: selected ? 3 : 2 }),
-        ...(connectorMismatch && !allowIncompatible
-          ? { strokeDasharray: "6 3" }
-          : LINE_STYLE_DASHARRAY[lineStyle]
-            ? { strokeDasharray: LINE_STYLE_DASHARRAY[lineStyle] }
-            : {}),
+          : isWireless
+            ? { strokeWidth: selected ? 2.2 : 1.7 }
+            : { strokeWidth: selected ? 2.6 : 1.8 }),
+        ...(isWireless
+          ? { strokeDasharray: "2 6", strokeLinecap: "round" as const, opacity: 0.85 }
+          : connectorMismatch && !allowIncompatible
+            ? { strokeDasharray: "6 3" }
+            : LINE_STYLE_DASHARRAY[lineStyle]
+              ? { strokeDasharray: LINE_STYLE_DASHARRAY[lineStyle] }
+              : {}),
         ...(hasGradient ? { stroke: `url(#${gradientId})` } : {}),
+        ...(strandGlow ? { filter: strandGlow } : {}),
       }
     : { ...style, strokeWidth: 0, opacity: 0 };
 
@@ -323,7 +360,6 @@ function OffsetEdgeComponent({
   }
 
   // --- Label rendering (#5, #61, #114) ---
-  const signalColor = (style?.stroke as string) ?? "#6b7280";
   const labelText = cableId;
   const cableIdGap = edgeCableIdGap ?? globalCableIdGap;
   const cableIdLabelMode = edgeCableIdLabelMode ?? globalCableIdLabelMode;
@@ -574,27 +610,81 @@ function OffsetEdgeComponent({
     prevDebugRef.current = debugEdges;
   }, [debugEdges, id, sourceX, sourceY, targetX, targetY, turns]);
 
-  // --- Live signal motion overlay (additive, pointer-events:none) ---
-  // Two animated layers that ride the SAME routed path `d` (edgePath) as the static
-  // edge, coloured by the edge's existing signal colour. Rendered only when the
-  // store flag is on, a real route exists, and reduced motion is NOT requested.
-  // None of this touches routing geometry, markers, hit area, or default appearance.
-  const showLiveSignal = liveSignal && !PREFERS_REDUCED_MOTION && !!routeStr;
-  const liveSignalLayer = showLiveSignal ? (
-    <g style={{ color: signalColor }}>
-      {/* Flowing dashes: a moving dash pattern over the static edge. */}
+  // --- Live signal motion (additive, pointer-events:none) ---
+  // v3 "Currents" flow: a moving brightness band rides the SAME routed path as the static strand
+  // — an animated repeating linearGradient translated along the source→target axis, so a lit band
+  // sweeps toward the target. The selected edge shimmers faster (1.7s "live") than idle (3s).
+  // Gated by the liveSignal store flag (default OFF); skipped under reduced motion, for wireless,
+  // and for direct-attach. Touches no routing geometry, marker, hit area, or default appearance.
+  const showLiveBand =
+    liveSignal && !PREFERS_REDUCED_MOTION && !!routeStr && !isWireless && !directAttach;
+  const bandId = `cur-band-${id}`;
+  const bandDx = targetX - sourceX;
+  const bandDy = targetY - sourceY;
+  const bandLen = Math.hypot(bandDx, bandDy) || 1;
+  const bandUx = bandDx / bandLen;
+  const bandUy = bandDy / bandLen;
+  const BAND_PERIOD = 72;
+  const bandBright = `color-mix(in srgb, white 65%, ${signalColor})`;
+  const liveBandLayer = showLiveBand ? (
+    <g style={{ pointerEvents: "none" }}>
+      <defs>
+        <linearGradient
+          id={bandId}
+          gradientUnits="userSpaceOnUse"
+          spreadMethod="repeat"
+          x1={sourceX}
+          y1={sourceY}
+          x2={sourceX + bandUx * BAND_PERIOD}
+          y2={sourceY + bandUy * BAND_PERIOD}
+        >
+          <stop offset="0" stopColor={signalColor} stopOpacity={0} />
+          <stop offset="0.38" stopColor={signalColor} stopOpacity={0} />
+          <stop offset="0.5" stopColor={bandBright} stopOpacity={0.9} />
+          <stop offset="0.62" stopColor={signalColor} stopOpacity={0} />
+          <stop offset="1" stopColor={signalColor} stopOpacity={0} />
+          <animateTransform
+            attributeName="gradientTransform"
+            type="translate"
+            from="0 0"
+            to={`${bandUx * BAND_PERIOD} ${bandUy * BAND_PERIOD}`}
+            dur={selected ? "1.7s" : "3s"}
+            repeatCount="indefinite"
+          />
+        </linearGradient>
+      </defs>
       <path
-        className="live-signal-flow"
         d={edgePath}
-        stroke={signalColor}
-        strokeWidth={selected ? 3 : 2}
+        fill="none"
+        stroke={`url(#${bandId})`}
+        strokeWidth={selected ? 2.6 : 1.8}
+        strokeLinecap="round"
       />
-      {/* Traveling packet: a comet riding the path via CSS offset-path. */}
+    </g>
+  ) : null;
+
+  // Wireless broadcast: TX pulse rings radiate from the source (transmitter) when live.
+  const showWirelessPulse =
+    isWireless && liveSignal && !PREFERS_REDUCED_MOTION && !!routeStr;
+  const wirelessPulseLayer = showWirelessPulse ? (
+    <g style={{ pointerEvents: "none" }}>
       <circle
-        className="live-signal-packet"
-        r={2.5}
-        fill={signalColor}
-        style={{ offsetPath: `path("${edgePath}")` }}
+        className="wireless-tx-pulse"
+        cx={sourceX}
+        cy={sourceY}
+        r={10}
+        fill="none"
+        stroke={signalColor}
+        strokeWidth={1.5}
+      />
+      <circle
+        className="wireless-tx-pulse wireless-tx-pulse--delay"
+        cx={sourceX}
+        cy={sourceY}
+        r={10}
+        fill="none"
+        stroke={signalColor}
+        strokeWidth={1.5}
       />
     </g>
   ) : null;
@@ -609,14 +699,15 @@ function OffsetEdgeComponent({
       {gradientDef}
       <BaseEdge
         id={id}
-        path={edgePath}
+        path={renderPath}
         labelX={lx}
         labelY={ly}
         style={edgeStyle}
         markerEnd={markerEnd}
         interactionWidth={interactionWidth}
       />
-      {liveSignalLayer}
+      {liveBandLayer}
+      {wirelessPulseLayer}
       {edgeLabelsPortal}
       {debugLabel}
     </>
