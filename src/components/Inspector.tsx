@@ -129,6 +129,9 @@ function DeviceBody({ node }: { node: SchematicNode }) {
       edges: s.edges.map((e) => ({ ...e, selected: false })),
     }));
   const [speakerOpen, setSpeakerOpen] = useState(false);
+  const [physicalOpen, setPhysicalOpen] = useState(false);
+  const [powerOpen, setPowerOpen] = useState(false);
+  const [networkOpen, setNetworkOpen] = useState(false);
 
   const patch = (p: Partial<DeviceData>) => updateDevice(node.id, { ...data, ...p });
   const numOrUndef = (s: string) => (s.trim() === "" ? undefined : Number(s));
@@ -147,8 +150,46 @@ function DeviceBody({ node }: { node: SchematicNode }) {
       ? splAtDistanceDb(spec.sensitivityDb, spec.maxPowerW, Math.max(0.1, ceilingM - LISTENER_PLANE_M))
       : null;
 
+  const accent = data.headerColor ?? "var(--color-accent)";
+  const heroGlyph = data.icon || (data.deviceType || data.label || "·").trim().charAt(0).toUpperCase();
+  const heroType = data.deviceType || data.category || "";
+
   return (
     <div className="flex flex-col gap-3 px-3 py-3 overflow-y-auto">
+      <div className="relative flex items-center gap-2.5 pl-3">
+        <span
+          className="absolute left-0 top-0 bottom-0 w-[3px] rounded-full"
+          style={{ background: accent }}
+        />
+        <div
+          className="flex items-center justify-center w-9 h-9 rounded-lg text-base shrink-0"
+          style={{
+            background: "var(--color-surface-hover)",
+            border: "1px solid var(--ui-border)",
+            color: accent,
+          }}
+        >
+          {heroGlyph}
+        </div>
+        <div className="flex flex-col min-w-0">
+          <span className="text-sm font-semibold text-[var(--color-text-heading)] truncate">{data.label}</span>
+          {heroType && <span className="text-[10.5px] text-[var(--color-text-muted)] truncate">{heroType}</span>}
+        </div>
+        <span
+          className="ml-auto flex items-center gap-1 rounded-full px-1.5 py-0.5 shrink-0"
+          style={{
+            background: "color-mix(in srgb, var(--color-success) 12%, transparent)",
+            border: "1px solid color-mix(in srgb, var(--color-success) 28%, transparent)",
+            color: "var(--color-success)",
+            fontSize: "9.5px",
+          }}
+        >
+          <span className="w-[5px] h-[5px] rounded-full shrink-0" style={{ background: "var(--color-success)" }} />
+          Clean
+        </span>
+      </div>
+      <div className="h-px bg-[var(--ui-border)]" />
+
       <SectionTitle>Identity</SectionTitle>
       <Field label="Label" value={data.label} onCommit={(v) => patch({ label: v, baseLabel: undefined })} placeholder="Device name" />
       <Field label="Short name" value={data.shortName} onCommit={(v) => patch({ shortName: v || undefined })} placeholder="e.g. 8040b" />
@@ -204,51 +245,62 @@ function DeviceBody({ node }: { node: SchematicNode }) {
       </label>
 
       <div className="h-px bg-[var(--ui-border)]" />
-      <SectionTitle>Physical &amp; placement</SectionTitle>
-      <div className="grid grid-cols-3 gap-2">
-        <Field label="W (mm)" value={data.widthMm} onCommit={(v) => patch({ widthMm: numOrUndef(v) })} type="number" min={1} />
-        <Field label="D (mm)" value={data.depthMm} onCommit={(v) => patch({ depthMm: numOrUndef(v) })} type="number" min={1} />
-        <Field label="H (mm)" value={data.heightMm} onCommit={(v) => patch({ heightMm: numOrUndef(v) })} type="number" min={1} />
-      </div>
-      <div>
-        <span className="block text-[10px] uppercase text-[var(--color-text-muted)] mb-0.5" style={SECTION_LABEL_STYLE}>Rotation / aim</span>
-        <div className="flex items-center gap-1.5">
-          <input
-            key={`rot-${data.rotationDeg ?? 0}`}
-            className="ui-input w-16 text-xs"
-            type="number"
-            defaultValue={Math.round(Number(data.rotationDeg ?? 0))}
-            onBlur={(e) => setDeviceRotation(node.id, Number(e.target.value) || 0)}
-            onKeyDown={(e) => { e.stopPropagation(); if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
-          />
-          <span className="text-[10px] text-[var(--color-text-muted)]">°</span>
-          <button className="ui-btn ui-btn-secondary px-2 py-1 text-[11px]" onClick={() => rotateDevice(node.id, -90)} title="Rotate 90° CCW">↺</button>
-          <button className="ui-btn ui-btn-secondary px-2 py-1 text-[11px]" onClick={() => rotateDevice(node.id, 90)} title="Rotate 90° CW">↻</button>
+      <button
+        className="flex items-center justify-between text-[10px] uppercase text-[var(--color-text-muted)] font-semibold cursor-pointer"
+        style={SECTION_LABEL_STYLE}
+        onClick={() => setPhysicalOpen((o) => !o)}
+      >
+        <span>Physical &amp; placement</span>
+        <span>{physicalOpen ? "▾" : "▸"}</span>
+      </button>
+      {physicalOpen && (
+        <div className="flex flex-col gap-3">
+          <div className="grid grid-cols-3 gap-2">
+            <Field label="W (mm)" value={data.widthMm} onCommit={(v) => patch({ widthMm: numOrUndef(v) })} type="number" min={1} />
+            <Field label="D (mm)" value={data.depthMm} onCommit={(v) => patch({ depthMm: numOrUndef(v) })} type="number" min={1} />
+            <Field label="H (mm)" value={data.heightMm} onCommit={(v) => patch({ heightMm: numOrUndef(v) })} type="number" min={1} />
+          </div>
+          <div>
+            <span className="block text-[10px] uppercase text-[var(--color-text-muted)] mb-0.5" style={SECTION_LABEL_STYLE}>Rotation / aim</span>
+            <div className="flex items-center gap-1.5">
+              <input
+                key={`rot-${data.rotationDeg ?? 0}`}
+                className="ui-input w-16 text-xs"
+                type="number"
+                defaultValue={Math.round(Number(data.rotationDeg ?? 0))}
+                onBlur={(e) => setDeviceRotation(node.id, Number(e.target.value) || 0)}
+                onKeyDown={(e) => { e.stopPropagation(); if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+              />
+              <span className="text-[10px] text-[var(--color-text-muted)]">°</span>
+              <button className="ui-btn ui-btn-secondary px-2 py-1 text-[11px]" onClick={() => rotateDevice(node.id, -90)} title="Rotate 90° CCW">↺</button>
+              <button className="ui-btn ui-btn-secondary px-2 py-1 text-[11px]" onClick={() => rotateDevice(node.id, 90)} title="Rotate 90° CW">↻</button>
+            </div>
+          </div>
+          <label className="block">
+            <span className="block text-[10px] uppercase text-[var(--color-text-muted)] mb-0.5" style={SECTION_LABEL_STYLE}>Layer</span>
+            <select
+              className="ui-input w-full text-xs"
+              value={data.layerId ?? DEFAULT_LAYER_ID}
+              onChange={(e) => patch({ layerId: e.target.value === DEFAULT_LAYER_ID ? undefined : e.target.value })}
+            >
+              {layers.map((l) => (
+                <option key={l.id} value={l.id}>{l.name}</option>
+              ))}
+            </select>
+          </label>
+          <div>
+            <span className="block text-[10px] uppercase text-[var(--color-text-muted)] mb-0.5" style={SECTION_LABEL_STYLE}>Custom graphic (Layout)</span>
+            <div className="flex items-center gap-1.5">
+              <button className="ui-btn ui-btn-secondary flex-1 text-xs" onClick={() => setSvgImportTarget(node.id)}>
+                {data.layoutSvgAssetId ? "Replace SVG…" : "Import SVG…"}
+              </button>
+              {data.layoutSvgAssetId && (
+                <button className="ui-btn ui-btn-secondary text-xs" onClick={() => patch({ layoutSvgAssetId: undefined })} title="Remove custom graphic">Clear</button>
+              )}
+            </div>
+          </div>
         </div>
-      </div>
-      <label className="block">
-        <span className="block text-[10px] uppercase text-[var(--color-text-muted)] mb-0.5" style={SECTION_LABEL_STYLE}>Layer</span>
-        <select
-          className="ui-input w-full text-xs"
-          value={data.layerId ?? DEFAULT_LAYER_ID}
-          onChange={(e) => patch({ layerId: e.target.value === DEFAULT_LAYER_ID ? undefined : e.target.value })}
-        >
-          {layers.map((l) => (
-            <option key={l.id} value={l.id}>{l.name}</option>
-          ))}
-        </select>
-      </label>
-      <div>
-        <span className="block text-[10px] uppercase text-[var(--color-text-muted)] mb-0.5" style={SECTION_LABEL_STYLE}>Custom graphic (Layout)</span>
-        <div className="flex items-center gap-1.5">
-          <button className="ui-btn ui-btn-secondary flex-1 text-xs" onClick={() => setSvgImportTarget(node.id)}>
-            {data.layoutSvgAssetId ? "Replace SVG…" : "Import SVG…"}
-          </button>
-          {data.layoutSvgAssetId && (
-            <button className="ui-btn ui-btn-secondary text-xs" onClick={() => patch({ layoutSvgAssetId: undefined })} title="Remove custom graphic">Clear</button>
-          )}
-        </div>
-      </div>
+      )}
 
       <div className="h-px bg-[var(--ui-border)]" />
       <SectionTitle>Ports &amp; connections</SectionTitle>
@@ -265,11 +317,15 @@ function DeviceBody({ node }: { node: SchematicNode }) {
               title={info.connected ? `Connected to ${info.otherDeviceLabel}${info.otherPortLabel ? ` [${info.otherPortLabel}]` : ""} — click to select` : "Unconnected"}
               className="flex items-center gap-1.5 px-1.5 py-1 rounded text-left enabled:hover:bg-[var(--color-surface-hover)] enabled:cursor-pointer disabled:cursor-default transition-colors"
             >
-              <span
-                className={`w-1.5 h-1.5 rounded-full shrink-0 ${info.connected ? "" : "bg-[var(--color-text-muted)] opacity-40"}`}
-                style={info.connected ? { background: "var(--color-success)" } : undefined}
-              />
+              {info.connected ? (
+                <span className="w-2 h-2 rounded-[2px] shrink-0" style={{ background: SIGNAL_COLORS[info.port.signalType] }} />
+              ) : (
+                <span className="w-2 h-2 rounded-[2px] shrink-0" style={{ border: `1.5px solid ${SIGNAL_COLORS[info.port.signalType]}`, opacity: 0.55 }} />
+              )}
               <span className="text-[11px] text-[var(--color-text)] truncate shrink-0 max-w-[7rem]">{info.port.label}</span>
+              {(info.port.direction === "input" || info.port.direction === "output") && (
+                <span className="text-[8.5px] uppercase text-[var(--color-text-muted)] shrink-0 opacity-70" style={{ fontFamily: "var(--font-mono)", letterSpacing: "0.08em" }}>{info.port.direction === "input" ? "IN" : "OUT"}</span>
+              )}
               <span className="text-[9px] uppercase text-[var(--color-text-muted)] shrink-0" style={{ fontFamily: "var(--font-mono)", letterSpacing: "0.1em" }}>{SIGNAL_LABELS[info.port.signalType]}</span>
               <span className="flex-1 min-w-0" />
               <span className="text-[10px] text-[var(--color-text-muted)] truncate min-w-0 text-right">
@@ -315,14 +371,23 @@ function DeviceBody({ node }: { node: SchematicNode }) {
         data.poeBudgetW != null) && (
         <>
           <div className="h-px bg-[var(--ui-border)]" />
-          <SectionTitle>Power</SectionTitle>
-          <div className="flex flex-col gap-1">
-            {data.powerDrawW != null && <ReadRow label="Draw" value={`${data.powerDrawW} W`} />}
-            {data.powerCapacityW != null && <ReadRow label="Capacity" value={`${data.powerCapacityW} W`} />}
-            {data.voltage != null && data.voltage !== "" && <ReadRow label="Voltage" value={data.voltage} />}
-            {data.poeDrawW != null && <ReadRow label="PoE draw" value={`${data.poeDrawW} W`} />}
-            {data.poeBudgetW != null && <ReadRow label="PoE budget" value={`${data.poeBudgetW} W`} />}
-          </div>
+          <button
+            className="flex items-center justify-between text-[10px] uppercase text-[var(--color-text-muted)] font-semibold cursor-pointer"
+            style={SECTION_LABEL_STYLE}
+            onClick={() => setPowerOpen((o) => !o)}
+          >
+            <span>Power</span>
+            <span>{powerOpen ? "▾" : "▸"}</span>
+          </button>
+          {powerOpen && (
+            <div className="flex flex-col gap-1">
+              {data.powerDrawW != null && <ReadRow label="Draw" value={`${data.powerDrawW} W`} />}
+              {data.powerCapacityW != null && <ReadRow label="Capacity" value={`${data.powerCapacityW} W`} />}
+              {data.voltage != null && data.voltage !== "" && <ReadRow label="Voltage" value={data.voltage} />}
+              {data.poeDrawW != null && <ReadRow label="PoE draw" value={`${data.poeDrawW} W`} />}
+              {data.poeBudgetW != null && <ReadRow label="PoE budget" value={`${data.poeBudgetW} W`} />}
+            </div>
+          )}
         </>
       )}
 
@@ -333,26 +398,35 @@ function DeviceBody({ node }: { node: SchematicNode }) {
         return (
           <>
             <div className="h-px bg-[var(--ui-border)]" />
-            <SectionTitle>Network</SectionTitle>
-            <div className="flex flex-col gap-1">
-              {hasHostname && <ReadRow label="Host" value={data.hostname} />}
-              {ipPorts.map((p) => {
-                const net = p.networkConfig;
-                const extras = [
-                  net?.subnetMask ? net.subnetMask : null,
-                  net?.vlan != null ? `VLAN ${net.vlan}` : null,
-                ].filter(Boolean);
-                return (
-                  <div key={p.id} className="flex items-baseline gap-2">
-                    <span className="text-[11px] text-[var(--color-text)] truncate shrink-0 max-w-[7rem]">{p.label}</span>
-                    <span className="text-[11px] text-[var(--color-text-muted)] truncate text-right flex-1 min-w-0" style={{ fontFamily: "var(--font-mono)" }}>
-                      {net?.ip}
-                      {extras.length > 0 ? ` · ${extras.join(" · ")}` : ""}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
+            <button
+              className="flex items-center justify-between text-[10px] uppercase text-[var(--color-text-muted)] font-semibold cursor-pointer"
+              style={SECTION_LABEL_STYLE}
+              onClick={() => setNetworkOpen((o) => !o)}
+            >
+              <span>Network</span>
+              <span>{networkOpen ? "▾" : "▸"}</span>
+            </button>
+            {networkOpen && (
+              <div className="flex flex-col gap-1">
+                {hasHostname && <ReadRow label="Host" value={data.hostname} />}
+                {ipPorts.map((p) => {
+                  const net = p.networkConfig;
+                  const extras = [
+                    net?.subnetMask ? net.subnetMask : null,
+                    net?.vlan != null ? `VLAN ${net.vlan}` : null,
+                  ].filter(Boolean);
+                  return (
+                    <div key={p.id} className="flex items-baseline gap-2">
+                      <span className="text-[11px] text-[var(--color-text)] truncate shrink-0 max-w-[7rem]">{p.label}</span>
+                      <span className="text-[11px] text-[var(--color-text-muted)] truncate text-right flex-1 min-w-0" style={{ fontFamily: "var(--font-mono)" }}>
+                        {net?.ip}
+                        {extras.length > 0 ? ` · ${extras.join(" · ")}` : ""}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </>
         );
       })()}

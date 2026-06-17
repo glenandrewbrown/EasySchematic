@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import {
   MousePointer2,
   Box,
@@ -38,6 +39,9 @@ const ICON: Record<ToolId, LucideIcon> = {
   pan: Hand,
 };
 
+/** Navigation tools (move/pan the canvas) — grouped above the creation tools by a divider. */
+const NAV_TOOLS = new Set<ToolId>(["select", "pan"]);
+
 interface ToolRailProps {
   /** Open the quick/bulk-add spotlight (wired by App to viewport centre). */
   onQuickAdd?: () => void;
@@ -51,6 +55,10 @@ export default function ToolRail({ onQuickAdd, floating = false }: ToolRailProps
   const canvasViewMode = useSchematicStore((s) => s.canvasViewMode);
   // Layout-only tools (Object/Zone) appear only in the to-scale Layout view.
   const tools = TOOL_DEFS.filter((t) => !t.layoutOnly || canvasViewMode === "layout");
+  // Index of the first creation tool — used to draw one divider between the
+  // navigation group (Select, Pan) and the creation group. -1 when no creation
+  // tools are present, so no divider is rendered.
+  const firstCreationIndex = tools.findIndex((t) => !NAV_TOOLS.has(t.id));
 
   return (
     <div
@@ -91,12 +99,16 @@ export default function ToolRail({ onQuickAdd, floating = false }: ToolRailProps
         </>
       )}
 
-      {tools.map((tool) => {
+      {tools.map((tool, i) => {
         const isActive = activeTool === tool.id;
         const IconCmp = ICON[tool.id];
         return (
+          <Fragment key={tool.id}>
+            {/* Divider between the navigation group and the creation group. */}
+            {i === firstCreationIndex && firstCreationIndex > 0 && (
+              <div className="h-px my-1 mx-1 bg-[var(--ui-border)]" />
+            )}
           <button
-            key={tool.id}
             type="button"
             onClick={() => setActiveTool(tool.id)}
             aria-pressed={isActive}
@@ -133,6 +145,7 @@ export default function ToolRail({ onQuickAdd, floating = false }: ToolRailProps
               {tool.hotkey && <kbd className="ml-1.5 font-mono opacity-70">{tool.hotkey}</kbd>}
             </Tooltip>
           </button>
+          </Fragment>
         );
       })}
     </div>

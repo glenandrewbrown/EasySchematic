@@ -145,6 +145,23 @@ const POWER_COLORS: Record<string, string> = {
   "power-ground": "#00aa00",
 };
 
+/**
+ * Fixed brand-spec signal colours (HANDOFF §2): these 8 named types are *data* — they
+ * render their exact hex everywhere and identically in both themes, overriding the
+ * family-ramp / POWER_COLORS result. The remaining ~60 types keep the family taxonomy.
+ * Power-l1/l2/l3/neutral/ground are NOT overridden — they keep their electrical colours.
+ */
+export const HANDOFF_SIGNAL_COLORS: Partial<Record<SignalType, string>> = {
+  aes: "#a98bf0",
+  "analog-audio": "#cba36a",
+  dante: "#ec8a3e",
+  usb: "#e06aa6",
+  sdi: "#6db0f0",
+  hdmi: "#ef7a72",
+  ethernet: "#3fc3d6",
+  power: "#d6a445",
+};
+
 /** Shade ramps per family (one hue, varied lightness/saturation) for subtype distinction. */
 const FAMILY_SHADES: Record<SignalFamily, readonly string[]> = {
   audio: ["#0d9488", "#0f766e", "#14b8a6", "#0e7490", "#06b6d4", "#155e63", "#2dd4bf", "#0891b2"],
@@ -179,6 +196,11 @@ export function buildDefaultSignalColors(): Record<SignalType, string> {
     const i = counters[fam] ?? 0;
     out[type] = ramp[i % ramp.length];
     counters[fam] = i + 1;
+  }
+  // Apply the fixed brand-spec colours LAST so they win over the family ramp and
+  // POWER_COLORS for the 8 named types (HANDOFF §2 — these are data, not styling).
+  for (const [type, color] of Object.entries(HANDOFF_SIGNAL_COLORS)) {
+    out[type as SignalType] = color;
   }
   return out;
 }

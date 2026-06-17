@@ -42,19 +42,19 @@
   --ui-ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
 
   /* Signal type colors — max distinction at a glance, print-friendly on white */
-  --color-sdi: #2563eb;       /* blue — broadcast standard */
-  --color-hdmi: #dc2626;      /* red — instantly distinct from SDI blue */
+  --color-sdi: #6db0f0;       /* blue — SDI (HANDOFF §2 fixed) */
+  --color-hdmi: #ef7a72;      /* coral — HDMI (HANDOFF §2 fixed) */
   --color-ndi: #16a34a;       /* green — network video */
-  --color-dante: #ea580c;     /* orange — network audio */
+  --color-dante: #ec8a3e;     /* orange — Dante (HANDOFF §2 fixed) */
   --color-avb: #65a30d;       /* lime — AVB/Milan network audio (IEEE 802.1 / TSN) */
-  --color-analog-audio: #854d0e; /* brown — old-school warmth */
+  --color-analog-audio: #cba36a; /* tan — analog audio (HANDOFF §2 fixed) */
   --color-speaker-level: #9f1239; /* rose — speaker-level, distinct from line-level analog */
   --color-bluetooth: #0082fc; /* Bluetooth brand blue */
-  --color-aes: #7c3aed;       /* purple — digital audio */
+  --color-aes: #a98bf0;       /* violet — AES3 digital audio (HANDOFF §2 fixed) */
   --color-dmx: #b91c1c;       /* dark red — lighting control */
   --color-madi: #059669;      /* emerald — multi-channel digital audio */
-  --color-usb: #db2777;       /* pink — ubiquitous connector */
-  --color-ethernet: #0891b2;  /* teal — networking */
+  --color-usb: #e06aa6;       /* pink — USB (HANDOFF §2 fixed) */
+  --color-ethernet: #3fc3d6;  /* cyan — Ethernet (HANDOFF §2 fixed) */
   --color-fiber: #d97706;     /* amber — industry standard for fiber */
   --color-displayport: #0d9488; /* dark teal — video alt */
   --color-hdbaset: #9333ea;   /* violet — HDMI-over-cat, distinct from HDMI red */
@@ -71,7 +71,7 @@
   --color-s-video: #b45309;   /* amber — S-Video Y/C */
   --color-vga: #0369a1;       /* dark sky blue — classic VGA blue */
   --color-dvi: #1e40af;       /* deep blue — DVI video */
-  --color-power: #a16207;     /* dark amber — electrical */
+  --color-power: #d6a445;     /* amber — power (HANDOFF §2 fixed) */
   --color-power-l1: #1a1a1a;  /* black — Phase A (L1) */
   --color-power-l2: #cc0000;  /* red — Phase B (L2) */
   --color-power-l3: #0066cc;  /* blue — Phase C (L3) */

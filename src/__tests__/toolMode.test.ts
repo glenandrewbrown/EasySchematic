@@ -7,16 +7,16 @@ import {
 } from "../toolMode";
 
 describe("toolMode", () => {
-  it("defines the tools in rail order (Object/Zone are Layout-only)", () => {
+  it("defines the tools in rail order — nav group (Select, Pan) then creation group (Object/Zone are Layout-only)", () => {
     expect(TOOL_DEFS.map((t) => t.id)).toEqual([
       "select",
+      "pan",
       "device",
-      "room",
       "connect",
+      "room",
       "note",
       "object",
       "zone",
-      "pan",
     ]);
   });
 

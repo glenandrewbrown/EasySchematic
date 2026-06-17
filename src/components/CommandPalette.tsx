@@ -114,6 +114,15 @@ function IconSchedule() {
   );
 }
 
+function IconRack() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <rect x="5" y="3" width="14" height="18" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M8 7h8M8 11h8M8 15h8" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function CommandPalette() {
@@ -128,6 +137,9 @@ export default function CommandPalette() {
   const setActiveTool = useSchematicStore((s) => s.setActiveTool);
   const toggleAutoRoute = useSchematicStore((s) => s.toggleAutoRoute);
   const setCanvasViewMode = useSchematicStore((s) => s.setCanvasViewMode);
+  const pages = useSchematicStore((s) => s.pages);
+  const setActivePage = useSchematicStore((s) => s.setActivePage);
+  const addRackPage = useSchematicStore((s) => s.addRackPage);
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -228,7 +240,8 @@ export default function CommandPalette() {
     },
     {
       id: "ws-layout",
-      label: "Layout",
+      label: "Plan",
+      // Store mode key stays "layout"; the persona is labelled "Plan" in the top bar.
       onSelect: () => {
         setCanvasViewMode("layout");
         close();
@@ -239,6 +252,17 @@ export default function CommandPalette() {
       label: "Schedule",
       onSelect: () => {
         setCanvasViewMode("schedule");
+        close();
+      },
+    },
+    {
+      id: "ws-rack",
+      label: "Rack",
+      // Mirror EditorTopBar's persona switcher: open the first rack page, or
+      // create one if none exists (addRackPage returns the new page id).
+      onSelect: () => {
+        const rack = pages.find((pg) => pg.type?.startsWith("rack"));
+        setActivePage(rack ? rack.id : addRackPage("Rack Page 1"));
         close();
       },
     },
@@ -420,9 +444,36 @@ export default function CommandPalette() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e: ReactKeyboardEvent<HTMLInputElement>) => {
-              // Suppress Enter/Up/Down from the global listener re-firing via input
-              if (["Enter", "ArrowUp", "ArrowDown", "Escape"].includes(e.key)) {
+              // The input is always focused while the palette is open, so handle
+              // navigation/close keys here directly rather than relying on the
+              // window listener (whose events the input otherwise swallows).
+              if (e.key === "Escape") {
+                e.preventDefault();
                 e.stopPropagation();
+                close();
+                return;
+              }
+              if (e.key === "ArrowDown") {
+                e.preventDefault();
+                e.stopPropagation();
+                setHighlightIndex((i) =>
+                  filtered.length === 0 ? 0 : (i + 1) % filtered.length,
+                );
+                return;
+              }
+              if (e.key === "ArrowUp") {
+                e.preventDefault();
+                e.stopPropagation();
+                setHighlightIndex((i) =>
+                  filtered.length === 0 ? 0 : (i - 1 + filtered.length) % filtered.length,
+                );
+                return;
+              }
+              if (e.key === "Enter") {
+                e.preventDefault();
+                e.stopPropagation();
+                filtered[highlightIndex]?.onSelect();
+                return;
               }
             }}
             placeholder="Search devices, run a command, jump to a device…"
@@ -558,6 +609,7 @@ export default function CommandPalette() {
                         {item.id === "ws-schematic" && <IconSchematic />}
                         {item.id === "ws-layout" && <IconLayout />}
                         {item.id === "ws-schedule" && <IconSchedule />}
+                        {item.id === "ws-rack" && <IconRack />}
                       </span>
                     )}
 

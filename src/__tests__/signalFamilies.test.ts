@@ -36,12 +36,30 @@ describe("signal families", () => {
     expect(colors["power-ground"]).toBe("#00aa00"); // green
   });
 
-  it("paints SDI/video in the blue family and Dante/audio in the teal family", () => {
+  it("applies the fixed brand-spec colours for the 8 named signal types (HANDOFF §2)", () => {
     const colors = buildDefaultSignalColors();
-    // sdi is the first video type → the family's base blue.
-    expect(colors.sdi).toBe("#2563eb");
-    // dante is the first audio type → the family's base teal.
-    expect(colors.dante).toBe("#0d9488");
+    // These 8 are data, not family-ramp output — they override the taxonomy.
+    expect(colors.aes).toBe("#a98bf0");
+    expect(colors["analog-audio"]).toBe("#cba36a");
+    expect(colors.dante).toBe("#ec8a3e");
+    expect(colors.usb).toBe("#e06aa6");
+    expect(colors.sdi).toBe("#6db0f0");
+    expect(colors.hdmi).toBe("#ef7a72");
+    expect(colors.ethernet).toBe("#3fc3d6");
+    // power overrides POWER_COLORS for the base type…
+    expect(colors.power).toBe("#d6a445");
+    // …but the phase/neutral/ground electrical colours are untouched.
+    expect(colors["power-l1"]).toBe("#1a1a1a");
+    expect(colors["power-ground"]).toBe("#00aa00");
+  });
+
+  it("keeps the family ramp for non-overridden types (taxonomy intact)", () => {
+    const colors = buildDefaultSignalColors();
+    // madi is an audio type with no fixed override → still a teal-family shade.
+    expect(colors.madi).toMatch(/^#[0-9a-f]{6}$/i);
+    expect(colors.madi).not.toBe("#ec8a3e"); // not pulled to the Dante override
+    // ndi is a video type with no fixed override → still a blue-family shade.
+    expect(colors.ndi).not.toBe("#6db0f0"); // not pulled to the SDI override
   });
 
   it("exposes one representative hue per family", () => {

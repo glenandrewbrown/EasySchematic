@@ -25,16 +25,19 @@ export interface ToolDef {
   layoutOnly?: boolean;
 }
 
-/** Tools in top-to-bottom rail order. */
+/**
+ * Tools in top-to-bottom rail order: navigation group (Select, Pan) then the
+ * creation group (Device, Connect, Room, Note, plus Layout-only Object/Zone).
+ */
 export const TOOL_DEFS: readonly ToolDef[] = [
   { id: "select", label: "Select", hotkey: "V", title: "Select & move (V)" },
+  { id: "pan", label: "Pan", hotkey: "", title: "Pan the canvas (hold Space or middle-drag)" },
   { id: "device", label: "Device", hotkey: "D", title: "Place a device — opens the library (D)" },
-  { id: "room", label: "Room", hotkey: "R", title: "Draw a room (R)" },
   { id: "connect", label: "Connect", hotkey: "C", title: "Connect ports — signal-aware (C)" },
+  { id: "room", label: "Room", hotkey: "R", title: "Draw a room (R)" },
   { id: "note", label: "Note", hotkey: "N", title: "Add a note (N)" },
   { id: "object", label: "Object", hotkey: "O", title: "Place a room object — furniture, fixtures (O) · Layout view", layoutOnly: true },
   { id: "zone", label: "Zone", hotkey: "Z", title: "Draw a colour-coded zone (Z) · Layout view", layoutOnly: true },
-  { id: "pan", label: "Pan", hotkey: "", title: "Pan the canvas (hold Space or middle-drag)" },
 ];
 
 /** Lookup of hotkey letter → tool, built once from TOOL_DEFS (tools with "" excluded). */

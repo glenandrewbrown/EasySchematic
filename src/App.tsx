@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } fro
 import {
   ReactFlow,
   Background,
-  Controls,
   MiniMap,
   BackgroundVariant,
   ConnectionLineType,
@@ -127,44 +126,6 @@ function ResizeSnapGuides({ dragGuides }: { dragGuides: GuideLine[] }) {
     ? [...dragGuides, ...resizeGuides]
     : [];
   return <SnapGuides guides={combined} />;
-}
-
-function AutoRouteChip() {
-  const autoRoute = useSchematicStore((s) => s.autoRoute);
-  const isRouting = useSchematicStore((s) => s.isRouting);
-  const toggleAutoRoute = useSchematicStore((s) => s.toggleAutoRoute);
-
-  if (isRouting) {
-    return (
-      <div
-        className="absolute top-3 right-3 z-50 flex items-center gap-1.5 h-7 px-2.5 text-xs rounded-md bg-[var(--color-surface-raised)] text-[var(--color-text)] border border-[var(--ui-border)] pointer-events-none"
-        style={{ boxShadow: "var(--ui-shadow-raised)" }}
-      >
-        <span className="w-2 h-2 rounded-full bg-[var(--color-accent)] animate-pulse" />
-        Routing…
-      </div>
-    );
-  }
-
-  return (
-    <button
-      type="button"
-      aria-pressed={autoRoute}
-      className={`absolute top-3 right-3 z-50 flex items-center gap-1.5 h-7 px-2.5 text-xs font-medium rounded-md border cursor-pointer select-none transition-colors ${
-        autoRoute
-          ? "bg-[var(--color-accent)] text-white border-transparent hover:opacity-90"
-          : "bg-[var(--color-surface-raised)] text-[var(--color-text-muted)] border-[var(--ui-border)] hover:text-[var(--color-text)]"
-      }`}
-      style={autoRoute ? undefined : { boxShadow: "var(--ui-shadow-raised)" }}
-      onClick={toggleAutoRoute}
-      title={autoRoute
-        ? "Auto-route is on \u2014 connections route around devices automatically.\nClick to disable for faster editing on large schematics."
-        : "Auto-route is off \u2014 connections use simple L-shapes.\nClick to enable automatic routing."}
-    >
-      <span className={`w-2 h-2 rounded-full ${autoRoute ? "bg-white/90" : "bg-[var(--color-text-muted)]"}`} />
-      {autoRoute ? "Auto-Route" : "Auto-Route off"}
-    </button>
-  );
 }
 
 function AutoRouteConfirmDialog() {
@@ -1851,8 +1812,6 @@ function SchematicCanvas() {
           <Background variant={BackgroundVariant.Dots} gap={GRID_SIZE} size={1.4} color={isDark ? "#3b4a66" : "#c6cad2"} />
         )
       )}
-      <Controls position="bottom-right" />
-      <AutoRouteChip />
       <AutoRouteConfirmDialog />
       <CableAssignDialog />
       <CableInventoryDialog />

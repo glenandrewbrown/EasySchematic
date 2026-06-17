@@ -108,6 +108,17 @@ export default function RightRail() {
   const counts = useMemo(() => countIssues(activeIssues(issues, dismissedSet)), [issues, dismissedSet]);
   const layerItemCount = nodes.length;
 
+  // Current single-selection id: exactly one node and no edges, or exactly one
+  // edge and no nodes. Anything else (none / multi / mixed) is null.
+  const selectedNodes = nodes.filter((n) => n.selected);
+  const selectedEdges = edges.filter((e) => e.selected);
+  const singleSelId =
+    selectedNodes.length === 1 && selectedEdges.length === 0
+      ? selectedNodes[0].id
+      : selectedNodes.length === 0 && selectedEdges.length === 1
+        ? selectedEdges[0].id
+        : null;
+
   const [tab, setTabState] = useState<Tab>(
     () => ((localStorage.getItem(TAB_STORAGE_KEY) as Tab | null) ?? "inspect"),
   );
@@ -115,6 +126,19 @@ export default function RightRail() {
     setTabState(t);
     localStorage.setItem(TAB_STORAGE_KEY, t);
   };
+
+  // When the selection BECOMES a new single device/connection, focus the
+  // Inspector. We adjust state during render (the ref-comparison pattern from
+  // the React docs) rather than in an effect, so the switch is synchronous and
+  // lint-clean. Only switch when the selected id changes to a new non-null
+  // value — manually clicking Issues with the same node still selected stays on
+  // Issues — and the ref is always updated (including to null) so re-selecting
+  // the same device later triggers a switch again.
+  const lastSingleSelId = useRef<string | null>(null);
+  if (singleSelId !== lastSingleSelId.current) {
+    lastSingleSelId.current = singleSelId;
+    if (singleSelId != null) setTab("inspect");
+  }
 
   const [layersOpen, setLayersOpen] = useState<boolean>(
     () => localStorage.getItem(LAYERS_STORAGE_KEY) !== "false",

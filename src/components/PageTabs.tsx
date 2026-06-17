@@ -109,11 +109,6 @@ export default function PageTabs() {
         className="flex items-center gap-1 bg-[var(--color-surface)] border-b border-[var(--ui-border)] px-2 py-0 text-xs select-none overflow-x-auto"
         style={{ minHeight: 32 }}
       >
-        {/* Schematic tab */}
-        <button className={tabClass(activePage === "schematic")} onClick={() => setActivePage("schematic")}>
-          Schematic
-        </button>
-
         {/* Page tabs */}
         {pages.map((page) => {
           const isPrint = page.type === "print-sheet";
