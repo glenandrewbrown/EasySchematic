@@ -5,7 +5,7 @@ import {
   type EdgeProps,
 } from "@xyflow/react";
 import { useSchematicStore } from "../store";
-import { LINE_STYLE_DASHARRAY, type ConnectionEdge, type LineStyle } from "../types";
+import { LINE_STYLE_DASHARRAY, type ConnectionEdge, type LineStyle, type Port } from "../types";
 import { resolvePort } from "../packList";
 import "../liveSignal.css";
 
@@ -15,6 +15,16 @@ const PREFERS_REDUCED_MOTION =
   typeof window !== "undefined" &&
   typeof window.matchMedia === "function" &&
   window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/** Which way signal flows at ONE end of a connection, from that port's direction:
+ *  "out" = signal leaves here · "in" = signal arrives here · "bi" = bidirectional or ambiguous
+ *  (a bidirectional port like Ethernet/USB, a passthrough, or an unresolved port → two-way). */
+function endSignalDir(port: Port | undefined): "out" | "in" | "bi" {
+  const d = port?.direction;
+  if (d === "output") return "out";
+  if (d === "input") return "in";
+  return "bi";
+}
 
 function OffsetEdgeComponent({
   id,
@@ -118,6 +128,23 @@ function OffsetEdgeComponent({
       resolvePort(srcNode, edge.sourceHandle)?.connectorType === "wireless" ||
       resolvePort(tgtNode, edge.targetHandle)?.connectorType === "wireless"
     );
+  });
+
+  // Real signal-flow direction along the cable (OUTPUT end → INPUT end), independent of React
+  // Flow's source/target (which only reflect the order the connection was drawn). Drives the
+  // live-signal band so it always travels out of an output into an input. "bi" = a bidirectional
+  // port (e.g. Ethernet/USB) is involved → the band animates BOTH ways.
+  const flowDir = useSchematicStore((s): "forward" | "reverse" | "bi" => {
+    const edge = s.edges.find((e) => e.id === id);
+    if (!edge) return "forward";
+    const srcNode = s.nodes.find((n) => n.id === edge.source);
+    const tgtNode = s.nodes.find((n) => n.id === edge.target);
+    const sEnd = endSignalDir(resolvePort(srcNode, edge.sourceHandle));
+    const tEnd = endSignalDir(resolvePort(tgtNode, edge.targetHandle));
+    if (sEnd === "bi" || tEnd === "bi") return "bi";
+    if (sEnd === "out") return "forward"; // source is the output → signal flows source→target
+    if (tEnd === "out") return "reverse"; // target is the output → signal flows target→source
+    return "forward";
   });
 
   // Read user-defined connection label (stable primitive selector)
@@ -626,41 +653,58 @@ function OffsetEdgeComponent({
   const bandUy = bandDy / bandLen;
   const BAND_PERIOD = 72;
   const bandBright = `color-mix(in srgb, white 65%, ${signalColor})`;
+  // One travelling brightness band. `sign`: -1 sweeps toward the TARGET (source→target), +1 toward
+  // the source — SVG translate moves the lit band OPPOSITE to the translate (verified empirically).
+  const renderBand = (sign: 1 | -1, key: string) => {
+    const gid = `${bandId}-${key}`;
+    return (
+      <g key={key} style={{ pointerEvents: "none" }}>
+        <defs>
+          <linearGradient
+            id={gid}
+            gradientUnits="userSpaceOnUse"
+            spreadMethod="repeat"
+            x1={sourceX}
+            y1={sourceY}
+            x2={sourceX + bandUx * BAND_PERIOD}
+            y2={sourceY + bandUy * BAND_PERIOD}
+          >
+            <stop offset="0" stopColor={signalColor} stopOpacity={0} />
+            <stop offset="0.38" stopColor={signalColor} stopOpacity={0} />
+            <stop offset="0.5" stopColor={bandBright} stopOpacity={0.9} />
+            <stop offset="0.62" stopColor={signalColor} stopOpacity={0} />
+            <stop offset="1" stopColor={signalColor} stopOpacity={0} />
+            <animateTransform
+              attributeName="gradientTransform"
+              type="translate"
+              from="0 0"
+              to={`${sign * bandUx * BAND_PERIOD} ${sign * bandUy * BAND_PERIOD}`}
+              dur={selected ? "1.7s" : "3s"}
+              repeatCount="indefinite"
+            />
+          </linearGradient>
+        </defs>
+        <path
+          d={edgePath}
+          fill="none"
+          stroke={`url(#${gid})`}
+          strokeWidth={selected ? 2.6 : 1.8}
+          strokeLinecap="round"
+        />
+      </g>
+    );
+  };
+  // Band travels OUTPUT→INPUT: forward (source is the output) sweeps source→target = sign -1;
+  // reverse sweeps the other way = sign +1; bi (a bidirectional port like Ethernet) renders BOTH.
   const liveBandLayer = showLiveBand ? (
-    <g style={{ pointerEvents: "none" }}>
-      <defs>
-        <linearGradient
-          id={bandId}
-          gradientUnits="userSpaceOnUse"
-          spreadMethod="repeat"
-          x1={sourceX}
-          y1={sourceY}
-          x2={sourceX + bandUx * BAND_PERIOD}
-          y2={sourceY + bandUy * BAND_PERIOD}
-        >
-          <stop offset="0" stopColor={signalColor} stopOpacity={0} />
-          <stop offset="0.38" stopColor={signalColor} stopOpacity={0} />
-          <stop offset="0.5" stopColor={bandBright} stopOpacity={0.9} />
-          <stop offset="0.62" stopColor={signalColor} stopOpacity={0} />
-          <stop offset="1" stopColor={signalColor} stopOpacity={0} />
-          <animateTransform
-            attributeName="gradientTransform"
-            type="translate"
-            from="0 0"
-            to={`${bandUx * BAND_PERIOD} ${bandUy * BAND_PERIOD}`}
-            dur={selected ? "1.7s" : "3s"}
-            repeatCount="indefinite"
-          />
-        </linearGradient>
-      </defs>
-      <path
-        d={edgePath}
-        fill="none"
-        stroke={`url(#${bandId})`}
-        strokeWidth={selected ? 2.6 : 1.8}
-        strokeLinecap="round"
-      />
-    </g>
+    flowDir === "bi" ? (
+      <>
+        {renderBand(-1, "fwd")}
+        {renderBand(1, "rev")}
+      </>
+    ) : (
+      renderBand(flowDir === "reverse" ? 1 : -1, "flow")
+    )
   ) : null;
 
   // Wireless broadcast: TX pulse rings radiate from the source (transmitter) when live.
