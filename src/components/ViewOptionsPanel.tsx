@@ -21,6 +21,10 @@ export default function ViewOptionsPanel({ mobile, onClose }: { mobile?: boolean
   const hideUnconnectedPorts = useSchematicStore((s) => s.hideUnconnectedPorts);
   const showPortCounts = useSchematicStore((s) => s.showPortCounts);
   const setShowPortCounts = useSchematicStore((s) => s.setShowPortCounts);
+  const nodeCompact = useSchematicStore((s) => s.nodeCompact);
+  const setNodeCompact = useSchematicStore((s) => s.setNodeCompact);
+  const liveSignal = useSchematicStore((s) => s.liveSignal);
+  const setLiveSignal = useSchematicStore((s) => s.setLiveSignal);
   const toggleSignalTypeVisibility = useSchematicStore((s) => s.toggleSignalTypeVisibility);
   const togglePinSignalTypeVisibility = useSchematicStore((s) => s.togglePinSignalTypeVisibility);
   const setHideUnconnectedPorts = useSchematicStore((s) => s.setHideUnconnectedPorts);
@@ -207,6 +211,26 @@ export default function ViewOptionsPanel({ mobile, onClose }: { mobile?: boolean
             className="w-3 h-3 accent-blue-500 cursor-pointer"
           />
           <span className="text-xs text-[var(--color-text)]">Show grid</span>
+        </label>
+        <label className="flex items-center gap-2 px-1 py-0.5 rounded hover:bg-[var(--color-surface-hover)] cursor-pointer">
+          <input
+            type="checkbox"
+            checked={nodeCompact}
+            onChange={(e) => setNodeCompact(e.target.checked)}
+            className="w-3 h-3 cursor-pointer"
+            style={{ accentColor: "var(--color-accent)" }}
+          />
+          <span className="text-xs text-[var(--color-text)]">Compact devices</span>
+        </label>
+        <label className="flex items-center gap-2 px-1 py-0.5 rounded hover:bg-[var(--color-surface-hover)] cursor-pointer">
+          <input
+            type="checkbox"
+            checked={liveSignal}
+            onChange={(e) => setLiveSignal(e.target.checked)}
+            className="w-3 h-3 cursor-pointer"
+            style={{ accentColor: "var(--color-accent)" }}
+          />
+          <span className="text-xs text-[var(--color-text)]">Live signal</span>
         </label>
         {canvasViewMode === "layout" && (
           <>

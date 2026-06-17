@@ -6,6 +6,14 @@ import {
 } from "@xyflow/react";
 import { useSchematicStore } from "../store";
 import { LINE_STYLE_DASHARRAY, type ConnectionEdge, type LineStyle } from "../types";
+import "../liveSignal.css";
+
+// Whether the user has asked the OS to reduce motion. Read once at module load —
+// matches how the rest of the app treats this as a static environment preference.
+const PREFERS_REDUCED_MOTION =
+  typeof window !== "undefined" &&
+  typeof window.matchMedia === "function" &&
+  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 function OffsetEdgeComponent({
   id,
@@ -20,6 +28,7 @@ function OffsetEdgeComponent({
 }: EdgeProps<ConnectionEdge>) {
   const debugEdges = useSchematicStore((s) => s.debugEdges);
   const debugShowLabels = useSchematicStore((s) => s.debugShowLabels);
+  const liveSignal = useSchematicStore((s) => s.liveSignal);
 
   // Hover state for showing visual reconnect indicators in HTML layer
   const [isHovered, setIsHovered] = useState(false);
@@ -565,6 +574,31 @@ function OffsetEdgeComponent({
     prevDebugRef.current = debugEdges;
   }, [debugEdges, id, sourceX, sourceY, targetX, targetY, turns]);
 
+  // --- Live signal motion overlay (additive, pointer-events:none) ---
+  // Two animated layers that ride the SAME routed path `d` (edgePath) as the static
+  // edge, coloured by the edge's existing signal colour. Rendered only when the
+  // store flag is on, a real route exists, and reduced motion is NOT requested.
+  // None of this touches routing geometry, markers, hit area, or default appearance.
+  const showLiveSignal = liveSignal && !PREFERS_REDUCED_MOTION && !!routeStr;
+  const liveSignalLayer = showLiveSignal ? (
+    <g style={{ color: signalColor }}>
+      {/* Flowing dashes: a moving dash pattern over the static edge. */}
+      <path
+        className="live-signal-flow"
+        d={edgePath}
+        stroke={signalColor}
+        strokeWidth={selected ? 3 : 2}
+      />
+      {/* Traveling packet: a comet riding the path via CSS offset-path. */}
+      <circle
+        className="live-signal-packet"
+        r={2.5}
+        fill={signalColor}
+        style={{ offsetPath: `path("${edgePath}")` }}
+      />
+    </g>
+  ) : null;
+
   // Hidden virtual edges (secondary half of adapter pair) — render nothing
   if (isHiddenVirtualEdge) {
     return null;
@@ -582,6 +616,7 @@ function OffsetEdgeComponent({
         markerEnd={markerEnd}
         interactionWidth={interactionWidth}
       />
+      {liveSignalLayer}
       {edgeLabelsPortal}
       {debugLabel}
     </>

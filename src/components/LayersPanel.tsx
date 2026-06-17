@@ -143,8 +143,8 @@ export default function LayersPanel({ embedded = false }: { embedded?: boolean }
           </svg>
         </button>
         <div
-          className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)] mt-2 select-none"
-          style={{ writingMode: "vertical-rl" }}
+          className="text-[10px] uppercase text-[var(--color-text-muted)] mt-2 select-none"
+          style={{ writingMode: "vertical-rl", fontFamily: "var(--font-mono)", letterSpacing: "0.14em" }}
         >
           Layers
         </div>
@@ -178,7 +178,7 @@ export default function LayersPanel({ embedded = false }: { embedded?: boolean }
             </button>
             <button
               onClick={() => setNodesLocked(memberIds, !gLocked)}
-              className={`cursor-pointer shrink-0 ${gLocked ? "text-amber-500" : "text-[var(--color-text-muted)] opacity-40 group-hover:opacity-100"}`}
+              className={`cursor-pointer shrink-0 ${gLocked ? "text-[var(--color-warning)]" : "text-[var(--color-text-muted)] opacity-40 group-hover:opacity-100"}`}
               title={gLocked ? "Unlock group" : "Lock group"}
             >
               <PadlockIcon open={!gLocked} />
@@ -273,7 +273,7 @@ export default function LayersPanel({ embedded = false }: { embedded?: boolean }
           </button>
           <button
             onClick={() => toggleNodeLocked(node.id)}
-            className={`cursor-pointer shrink-0 ${nLocked ? "text-amber-500" : "text-[var(--color-text-muted)] opacity-40 group-hover:opacity-100"}`}
+            className={`cursor-pointer shrink-0 ${nLocked ? "text-[var(--color-warning)]" : "text-[var(--color-text-muted)] opacity-40 group-hover:opacity-100"}`}
             title={nLocked ? "Unlock" : "Lock"}
           >
             <PadlockIcon open={!nLocked} />
@@ -304,7 +304,10 @@ export default function LayersPanel({ embedded = false }: { embedded?: boolean }
     <div className={`${embedded ? "" : "w-56 bg-[var(--color-surface)] border-l border-[var(--color-border)] "}flex flex-col h-full overflow-hidden`} data-print-hide>
       {!embedded && (
         <div className="px-3 py-2 border-b border-[var(--ui-border)] flex items-center justify-between">
-          <h2 className="text-xs font-semibold text-[var(--color-text-heading)] uppercase tracking-wider">
+          <h2
+            className="text-[11px] font-semibold text-[var(--color-text-muted)] uppercase"
+            style={{ fontFamily: "var(--font-mono)", letterSpacing: "0.12em" }}
+          >
             Layers &amp; Groups
           </h2>
           <button
@@ -345,7 +348,7 @@ export default function LayersPanel({ embedded = false }: { embedded?: boolean }
                 </button>
                 <button
                   onClick={() => toggleLayerLocked(layer.id)}
-                  className={`cursor-pointer shrink-0 ${layer.locked ? "text-amber-500" : "text-[var(--color-text-muted)] opacity-40 group-hover:opacity-100"}`}
+                  className={`cursor-pointer shrink-0 ${layer.locked ? "text-[var(--color-warning)]" : "text-[var(--color-text-muted)] opacity-40 group-hover:opacity-100"}`}
                   title={layer.locked ? "Unlock layer" : "Lock layer"}
                 >
                   <PadlockIcon open={!layer.locked} />
@@ -424,7 +427,7 @@ export default function LayersPanel({ embedded = false }: { embedded?: boolean }
                     )}
                   </span>
                 )}
-                <span className="text-[10px] tabular-nums text-[var(--color-text-muted)] shrink-0">
+                <span className="text-[10px] tabular-nums text-[var(--color-text-muted)] shrink-0" style={{ fontFamily: "var(--font-mono)" }}>
                   {layerNodeIds.length}
                 </span>
                 {hasSelection && (
@@ -441,7 +444,7 @@ export default function LayersPanel({ embedded = false }: { embedded?: boolean }
                 {layer.id !== DEFAULT_LAYER_ID && (
                   <button
                     onClick={() => removeLayer(layer.id)}
-                    className="cursor-pointer shrink-0 text-red-400/70 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="cursor-pointer shrink-0 text-[var(--color-text-muted)] hover:text-[var(--color-error)] opacity-0 group-hover:opacity-100 transition-opacity"
                     title="Delete layer (contents move to Base)"
                   >
                     ✕

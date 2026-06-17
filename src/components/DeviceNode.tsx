@@ -1,8 +1,9 @@
 import { memo, useMemo, useCallback } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
-import type { DeviceNode as DeviceNodeType, Port } from "../types";
+import type { DeviceNode as DeviceNodeType, Port, SchematicNode, ConnectionEdge } from "../types";
 import { SIGNAL_COLORS, SIGNAL_LABELS, portSide } from "../types";
 import { useSchematicStore } from "../store";
+import { validateSchematic, type IssueSeverity } from "../validation";
 import {
   resolveAuxiliaryLine,
   auxRowHeight,
@@ -14,6 +15,58 @@ import {
 import type { AuxRow } from "../types";
 import { useDisplayLabel } from "../labelCaseUtils";
 import { resolveDeviceLabel } from "../displayName";
+import "../deviceNodeMotion.css";
+
+/** Minimal store shape the per-node severity selector reads. Structurally a subset of
+ *  SchematicState so it can be used as a Zustand selector arg without importing the
+ *  (non-exported) store interface. */
+type SeveritySelectorState = {
+  nodes: SchematicNode[];
+  edges: ConnectionEdge[];
+  dismissedIssueIds: string[];
+};
+
+/** Module-level memo so the full-graph validation runs ONCE per (nodes, edges,
+ *  dismissedIssueIds) change — not once per DeviceNode. Every node instance subscribes via
+ *  `selectNodeSeverity`, which returns a primitive string so Zustand's default equality
+ *  prevents re-render storms. Error severity wins over warning; absence ⇒ no issue. */
+let severityCache: {
+  nodes: SchematicNode[];
+  edges: ConnectionEdge[];
+  dismissed: string[];
+  map: Map<string, IssueSeverity>;
+} | null = null;
+
+function severityMapFor(state: SeveritySelectorState): Map<string, IssueSeverity> {
+  if (
+    severityCache &&
+    severityCache.nodes === state.nodes &&
+    severityCache.edges === state.edges &&
+    severityCache.dismissed === state.dismissedIssueIds
+  ) {
+    return severityCache.map;
+  }
+  const dismissed = new Set(state.dismissedIssueIds);
+  const map = new Map<string, IssueSeverity>();
+  for (const issue of validateSchematic(state.nodes, state.edges)) {
+    if (dismissed.has(issue.id)) continue;
+    for (const nodeId of issue.nodeIds) {
+      if (issue.severity === "error" || !map.has(nodeId)) map.set(nodeId, issue.severity);
+    }
+  }
+  severityCache = {
+    nodes: state.nodes,
+    edges: state.edges,
+    dismissed: state.dismissedIssueIds,
+    map,
+  };
+  return map;
+}
+
+/** Status-dot severity for one device: "error" | "warning" | null (clean). */
+function selectNodeSeverity(state: SeveritySelectorState, nodeId: string): IssueSeverity | null {
+  return severityMapFor(state).get(nodeId) ?? null;
+}
 
 type ColumnItem =
   | { type: "port"; port: Port }
@@ -60,6 +113,12 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
   const hideUnconnectedPorts = useSchematicStore((s) => s.hideUnconnectedPorts);
   const showPortCounts = useSchematicStore((s) => s.showPortCounts);
   const currency = useSchematicStore((s) => s.currency);
+  const nodeCompact = useSchematicStore((s) => s.nodeCompact);
+  const liveSignal = useSchematicStore((s) => s.liveSignal);
+  // Real validation-engine severity for this device's status dot. Computed once per
+  // (nodes, edges, dismissedIssueIds) change via a module-level memo; selector returns a
+  // primitive so this subscription only re-renders when THIS node's severity changes.
+  const nodeSeverity = useSchematicStore((s) => selectNodeSeverity(s, id));
   const templateHiddenStr = useSchematicStore((s) => {
     if (!data.templateId) return "";
     const arr = s.templateHiddenSignals[data.templateId];
@@ -153,6 +212,24 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
     }
     return { connected, total };
   }, [showPortCounts, data.ports, connectedHandles]);
+
+  // I/O summary for the compact-mode chip. Always derivable from ports + connected handles,
+  // independent of the showPortCounts preference. Declared before the isHiddenAdapter early
+  // return so hook order stays stable.
+  const ioSummary = useMemo(() => {
+    const total = data.ports.length;
+    let connected = 0;
+    for (const p of data.ports) {
+      if (p.direction === "bidirectional") {
+        if (connectedHandles.has(`${p.id}-in`) || connectedHandles.has(`${p.id}-out`)) connected++;
+      } else if (p.direction === "passthrough") {
+        if (connectedHandles.has(`${p.id}-rear`) || connectedHandles.has(`${p.id}-front`)) connected++;
+      } else if (connectedHandles.has(p.id)) {
+        connected++;
+      }
+    }
+    return { connected, total };
+  }, [data.ports, connectedHandles]);
 
   const openPortMenu = useCallback((e: React.MouseEvent, port: Port) => {
     e.preventDefault();
@@ -249,6 +326,25 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
     [passthroughPorts],
   );
 
+  /** Square signal swatch shown beside a port label.
+   *  Filled = connected; hollow 1.5px ring = open. Colour encodes the signal type.
+   *  When `liveSignal` is on, connected swatches pulse-glow in their signal colour (via the
+   *  scoped `.device-node-swatch--glow` keyframes; reduced-motion users get no animation).
+   *  Purely presentational — the @xyflow Handle remains the connection affordance. */
+  const renderSwatch = (color: string, connected: boolean) => (
+    <span
+      aria-hidden
+      className={`w-[7px] h-[7px] rounded-[2px] flex-none${
+        connected && liveSignal ? " device-node-swatch--glow" : ""
+      }`}
+      style={
+        connected
+          ? ({ background: color, "--swatch-glow": color } as React.CSSProperties)
+          : { background: "transparent", boxShadow: `inset 0 0 0 1.5px ${color}` }
+      }
+    />
+  );
+
   /** Render a port row for a column (left or right). */
   const renderColumnPort = (port: Port, side: "left" | "right") => {
     const h = handleProps(port, side);
@@ -270,13 +366,15 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
             style={{ background: SIGNAL_COLORS[port.signalType], top: "50%" }}
           />
         )}
+        {isLeft && renderSwatch(SIGNAL_COLORS[port.signalType], connectedHandles.has(h.handleId))}
         <span
           className="text-[10px] leading-5 truncate"
-          style={{ color: SIGNAL_COLORS[port.signalType] }}
+          style={{ color: "var(--color-text)" }}
           title={`${displayLabel(port.label)} (${SIGNAL_LABELS[port.signalType]})`}
         >
           {displayLabel(port.label)}
         </span>
+        {!isLeft && renderSwatch(SIGNAL_COLORS[port.signalType], connectedHandles.has(h.handleId))}
         {!isLeft && (
           <Handle
             type={h.handleType}
@@ -388,7 +486,7 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
     const pb = totalPad - pt;
     return (
       <div
-        className="auxiliaryData px-3 border-t border-[var(--color-border)]"
+        className="auxiliaryData px-3 border-t border-[var(--ui-border)]"
         style={{ paddingTop: pt, paddingBottom: pb }}
       >
         {rows.map((row, i) => renderAuxRow(row, i))}
@@ -406,6 +504,7 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
       <div
         key={key}
         className="text-[9px] text-[var(--color-text-muted)] leading-3 truncate whitespace-nowrap text-center"
+        style={{ fontFamily: "var(--font-mono)" }}
         title={resolved}
       >
         {resolved}
@@ -438,44 +537,111 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
       : undefined;
     return (
       <div
-        className="px-3 border-b border-[var(--color-border)] rounded-t-lg flex flex-col"
+        className="px-3 border-b border-[var(--ui-border)] rounded-t-[7px] flex flex-col"
         style={{
-          backgroundColor: data.headerColor || "var(--color-surface)",
+          // Header band stays navy (the "instrument" face). The device-class colour lives
+          // only in the edge-stripe + class icon — using data.headerColor here was what made
+          // the card read as a washed-out grey/pale box.
+          backgroundColor: "var(--color-surface-raised)",
           paddingTop: pt,
           paddingBottom: pb,
         }}
       >
         <div
-          className="flex items-center justify-center"
+          className="relative flex flex-col items-center justify-center overflow-hidden"
           style={{ height: labelZone }}
         >
           <span
             className={
               resolvedLabel.wrap
-                ? "text-xs font-semibold text-[var(--color-text-heading)]"
-                : "text-xs font-semibold text-[var(--color-text-heading)] truncate leading-tight"
+                ? "text-[11.5px] font-semibold text-[var(--color-text-heading)] max-w-full"
+                : "text-[11.5px] font-semibold text-[var(--color-text-heading)] truncate leading-tight max-w-full"
             }
             style={labelStyle}
             title={displayLabel(resolvedLabel.text)}
           >
-            {data.icon && <span style={{ marginRight: 4 }}>{data.icon}</span>}
+            {data.icon && (
+              <span style={{ marginRight: 4, color: stripeColor }}>{data.icon}</span>
+            )}
             {displayLabel(resolvedLabel.text)}
           </span>
+          {/* CATEGORY mono-caps sub-label — sits within the fixed labelZone height (no new row,
+               so the 20px header-band invariant holds). Hidden when the name wraps to 2 lines. */}
+          {categoryText && !resolvedLabel.wrap && (
+            <span
+              className="text-[8px] uppercase truncate max-w-full leading-none text-[var(--color-text-muted)]"
+              style={{ fontFamily: "var(--font-mono)", letterSpacing: "0.08em" }}
+              title={categoryText}
+            >
+              {displayLabel(categoryText)}
+            </span>
+          )}
+          {/* Status dot — absolutely positioned right so it never shifts the name or node width. */}
+          <span
+            className="absolute right-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full"
+            style={{ background: statusColor }}
+            title={statusLabel}
+            role="img"
+            aria-label={statusLabel}
+          />
         </div>
         {rows.map((row, i) => renderAuxRow(row, i))}
       </div>
     );
   }
 
+  // Category edge-stripe colour — the device's class colour. Reuses the existing per-device
+  // headerColor when set, otherwise the workspace accent. Purely presentational (no new data).
+  const stripeColor = data.headerColor || "var(--color-accent)";
+
+  // CATEGORY mono-caps label — the device's class/type, shown under the name. Omitted when empty.
+  const categoryText = (data.category || data.deviceType || "").trim();
+
+  // Status-dot colour mirrors the validation engine: error wins, then warning, else clean.
+  const statusColor =
+    nodeSeverity === "error"
+      ? "var(--color-error)"
+      : nodeSeverity === "warning"
+        ? "var(--color-warning)"
+        : "var(--color-success)";
+  const statusLabel =
+    nodeSeverity === "error"
+      ? "Has errors"
+      : nodeSeverity === "warning"
+        ? "Has warnings"
+        : "No issues";
+
   return (
     <div
       onDoubleClick={() => setEditingNodeId(id)}
       className={`
-        relative rounded-lg border bg-white
-        ${isOverlapping ? "border-red-400 shadow-lg shadow-red-400/30" : selected ? "border-blue-500 shadow-lg shadow-blue-500/20" : "border-[var(--color-border)]"}
+        relative rounded-[7px] border
+        ${
+          isOverlapping
+            ? "border-[var(--color-error)]"
+            : selected
+              ? "border-[var(--color-accent)]"
+              : "border-[var(--ui-border-strong)]"
+        }
       `}
-      style={{ width: 180 }}
+      style={{
+        width: 180,
+        backgroundColor: "var(--color-surface)",
+        boxShadow: isOverlapping
+          ? "0 0 0 3px color-mix(in srgb, var(--color-error) 20%, transparent)"
+          : selected
+            ? "0 0 0 3px var(--color-accent-soft)"
+            : undefined,
+      }}
     >
+      {/* Category edge-stripe — 2.5px vertical bar on the left edge, coloured by device class.
+           Absolutely positioned so it never shifts the port grid. */}
+      <span
+        aria-hidden
+        className="absolute left-0 top-[7px] bottom-[7px] w-[2.5px] rounded-[2px]"
+        style={{ background: stripeColor, pointerEvents: "none" }}
+      />
+
       {/* Header band — merged name strip + header aux rows. Height is always a 20-multiple
            (min 40) so the first port below stays on the pathfinding grid. */}
       {renderHeaderBand(headerAuxRows)}
@@ -496,11 +662,70 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
         </div>
       )}
 
+      {/* Compact density — header only + a mono used/total I/O chip where the port grid would
+           start. The port-row body and footer collapse, but ALL @xyflow Handles still render
+           (positioned at the node's left/right edges with opacity 0) so connected edges keep
+           valid handle bounds and never break. */}
+      {nodeCompact && (
+        <>
+          {/* Same handle ids/types as the canonical (isHiddenAdapter) path, kept at
+               default measurable size but invisible (opacity 0) and pinned to the node's
+               vertical middle. Zero-sized handles can't be measured by React Flow, which
+               breaks edge creation — so we only hide them, never shrink them. */}
+          {data.ports.map((p) => {
+            if (p.direction === "bidirectional") {
+              // A collapsed bidirectional port renders a single handle whose type/id
+              // depends on which side it's connected — reuse handleProps so the compact
+              // handle matches expanded mode exactly (else its edge can't be created).
+              const collapsed = collapsedBidir.get(p.id);
+              if (collapsed) {
+                const h = handleProps(p, "left");
+                return <Handle key={p.id} type={h.handleType} position={Position.Left} id={h.handleId} style={{ opacity: 0, top: "50%" }} />;
+              }
+              return (
+                <span key={p.id}>
+                  <Handle type="target" position={Position.Left} id={`${p.id}-in`} style={{ opacity: 0, top: "50%" }} />
+                  <Handle type="source" position={Position.Right} id={`${p.id}-out`} style={{ opacity: 0, top: "50%" }} />
+                </span>
+              );
+            }
+            if (p.direction === "passthrough") {
+              return (
+                <span key={p.id}>
+                  <Handle type="source" position={Position.Left} id={`${p.id}-rear`} style={{ opacity: 0, top: "50%" }} />
+                  <Handle type="source" position={Position.Right} id={`${p.id}-front`} style={{ opacity: 0, top: "50%" }} />
+                </span>
+              );
+            }
+            const side = portSide(p);
+            return (
+              <Handle
+                key={p.id}
+                type={p.direction === "input" ? "target" : "source"}
+                position={side === "left" ? Position.Left : Position.Right}
+                id={p.id}
+                style={{ opacity: 0, top: "50%" }}
+              />
+            );
+          })}
+          <div className="flex items-center justify-center h-5">
+            <span
+              className="text-[9px] text-[var(--color-text-muted)]"
+              style={{ fontFamily: "var(--font-mono)" }}
+              title={`${ioSummary.connected} of ${ioSummary.total} I/O connected`}
+            >
+              {ioSummary.connected}/{ioSummary.total} I/O
+            </span>
+          </div>
+        </>
+      )}
+
       {/* Port area — 8px top padding lands handle centers on the 20px grid:
            1px (outer top border) + headerBand(20-mult) + 1px (header border-b)
            + 8px (pt) + 10px (half row) ≡ 0 mod 20.
            The header's `border-b` adds 1px between the band and the port column,
            which the `pt` value (8 not 9) compensates for. */}
+      {!nodeCompact && (
       <div className="pt-[8px] pb-[9px]">
       {/* Input/Output Ports — two independent columns */}
       {(leftPorts.length > 0 || rightPorts.length > 0) && (
@@ -555,9 +780,10 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
                           className="!w-2.5 !h-2.5 !border-2 !border-[var(--color-border)] !-left-[5px]"
                           style={{ background: SIGNAL_COLORS[left.signalType], top: "50%" }}
                         />
+                        {renderSwatch(SIGNAL_COLORS[left.signalType], connectedHandles.has(lh.handleId))}
                         <span
                           className="text-[10px] leading-5 truncate"
-                          style={{ color: SIGNAL_COLORS[left.signalType] }}
+                          style={{ color: "var(--color-text)" }}
                           title={`${displayLabel(left.label)} (${SIGNAL_LABELS[left.signalType]})`}
                         >
                           {displayLabel(left.label)}
@@ -570,11 +796,12 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
                       <>
                         <span
                           className="text-[10px] leading-5 truncate"
-                          style={{ color: SIGNAL_COLORS[right.signalType] }}
+                          style={{ color: "var(--color-text)" }}
                           title={`${displayLabel(right.label)} (${SIGNAL_LABELS[right.signalType]})`}
                         >
                           {displayLabel(right.label)}
                         </span>
+                        {renderSwatch(SIGNAL_COLORS[right.signalType], connectedHandles.has(rh.handleId))}
                         <Handle
                           type={rh.handleType}
                           position={Position.Right}
@@ -696,15 +923,44 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
           })}
         </div>
       )}
-      {portCountInfo && (
-        <div className="text-center h-5 flex items-center justify-center">
-          <span className="text-[9px] text-[var(--color-text-muted)]">
-            {portCountInfo.connected} / {portCountInfo.total} IOs connected
-          </span>
+      {/* Instrument footer — always-present mono row: used/total I/O · power W · template ID.
+           Mirrors the design mockup §4. Template ID is faint and right-aligned. Height is a
+           single 20px row so the device bottom stays on the pathfinding grid. Rendered only
+           when there's at least one stat to show. */}
+      {(ioSummary.total > 0 || data.powerDrawW || data.templateId) && (
+        <div className="flex items-center gap-1.5 px-3 h-5 border-t border-[var(--ui-border)]">
+          {ioSummary.total > 0 && (
+            <span
+              className="text-[8px] text-[var(--color-text)]"
+              style={{ fontFamily: "var(--font-mono)" }}
+              title={`${ioSummary.connected} of ${ioSummary.total} I/O connected`}
+            >
+              {ioSummary.connected}/{ioSummary.total} I/O
+            </span>
+          )}
+          {data.powerDrawW ? (
+            <span
+              className="text-[8px] text-[var(--color-text-muted)]"
+              style={{ fontFamily: "var(--font-mono)" }}
+              title={`${data.powerDrawW} watts`}
+            >
+              · {data.powerDrawW}W
+            </span>
+          ) : null}
+          {data.templateId && (
+            <span
+              className="text-[8px] text-[var(--color-text-muted)] truncate ml-auto"
+              style={{ fontFamily: "var(--font-mono)" }}
+              title={data.templateId}
+            >
+              {data.templateId}
+            </span>
+          )}
         </div>
       )}
       {renderFooterAuxBlock(footerAuxRows)}
       </div>
+      )}
     </div>
   );
 }

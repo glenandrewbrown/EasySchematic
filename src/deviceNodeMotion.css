@@ -1,0 +1,25 @@
+/* Device-node motion — scoped to the canvas custom node only.
+ * Connected-port swatch glow, gated by the "Live signal" toggle (the
+ * `.live-signal` marker class the node adds when liveSignal is on).
+ * Reduced-motion users get no animation. The CSS variable --swatch-glow
+ * carries the per-swatch signal colour so the pulse matches the wire. */
+
+@keyframes deviceNodeSwatchGlow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+  50% {
+    box-shadow: 0 0 5px 1px var(--swatch-glow, transparent);
+  }
+}
+
+.device-node-swatch--glow {
+  animation: deviceNodeSwatchGlow 2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .device-node-swatch--glow {
+    animation: none;
+  }
+}

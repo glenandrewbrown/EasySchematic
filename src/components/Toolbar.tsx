@@ -66,8 +66,8 @@ function ToolButton({ label, name, onClick, active, disabled }: ToolButtonProps)
       aria-pressed={active}
       className={`flex items-center justify-center w-8 h-8 rounded-md transition-colors duration-150 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer ${
         active
-          ? "bg-[var(--color-accent)] text-white"
-          : "text-[var(--color-text)] hover:bg-[var(--color-surface-hover)]"
+          ? "bg-[var(--color-accent-soft)] text-[var(--color-accent)]"
+          : "text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)]"
       }`}
     >
       <Icon name={name} />
@@ -99,11 +99,12 @@ export default function Toolbar() {
       onClick={() => setCanvasViewMode(mode)}
       aria-pressed={canvasViewMode === mode}
       title={mode === "schematic" ? "Signal-flow diagram view" : mode === "layout" ? "To-scale layout view — floor plan, vectors, furniture" : "Cable schedule & BOM"}
-      className={`px-3 h-7 text-xs font-medium transition-colors cursor-pointer ${
+      className={`px-3 h-7 text-[11px] font-medium uppercase transition-colors cursor-pointer ${
         canvasViewMode === mode
-          ? "bg-[var(--color-accent)] text-white"
-          : "text-[var(--color-text)] hover:bg-[var(--color-surface-hover)]"
+          ? "bg-[var(--color-accent-soft)] text-[var(--color-accent)] font-semibold"
+          : "text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)]"
       }`}
+      style={{ fontFamily: "var(--font-mono)", letterSpacing: "0.08em" }}
     >
       {text}
     </button>
@@ -149,8 +150,20 @@ export default function Toolbar() {
         aria-label="Validation issues"
         className="flex items-center gap-1 h-7 px-2 rounded-md text-xs font-medium transition-colors cursor-pointer hover:bg-[var(--color-surface-hover)]"
       >
-        <span className={`w-2 h-2 rounded-full ${issueCounts.errors > 0 ? "bg-red-500" : issueCounts.total > 0 ? "bg-amber-500" : "bg-green-500"}`} />
-        <span className="tabular-nums text-[var(--color-text-muted)]">{issueCounts.total}</span>
+        <span
+          className="w-2 h-2 rounded-full"
+          style={{
+            background:
+              issueCounts.errors > 0
+                ? "var(--color-error)"
+                : issueCounts.total > 0
+                  ? "var(--color-warning)"
+                  : "var(--color-success)",
+          }}
+        />
+        <span className="tabular-nums text-[var(--color-text-muted)]" style={{ fontFamily: "var(--font-mono)" }}>
+          {issueCounts.total}
+        </span>
       </button>
 
       <Divider />

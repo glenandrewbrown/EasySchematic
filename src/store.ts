@@ -119,6 +119,15 @@ const TEMPLATES_KEY = "easyschematic-custom-templates";
 const TEMPLATE_META_KEY = "easyschematic-custom-template-meta";
 const CATEGORY_ORDER_KEY = "easyschematic-category-order";
 const CANVAS_VIEW_MODE_KEY = "easyschematic-canvas-view-mode";
+const NODE_COMPACT_KEY = "easyschematic-node-compact";
+const LIVE_SIGNAL_KEY = "easyschematic-live-signal";
+
+/** Read a persisted boolean UI pref. Guards SSR/test envs with no localStorage. */
+function readBoolPref(key: string, fallback: boolean): boolean {
+  if (typeof localStorage === "undefined") return fallback;
+  const stored = localStorage.getItem(key);
+  return stored === null ? fallback : stored === "true";
+}
 
 /** Read the persisted canvas view mode (session/UI pref). Guards SSR/test envs with no localStorage. */
 function readInitialCanvasViewMode(): CanvasViewMode {
@@ -406,6 +415,14 @@ interface SchematicState {
   // Canvas view mode (schematic signal-flow vs to-scale plan) — session/UI pref, not persisted to file
   canvasViewMode: CanvasViewMode;
   setCanvasViewMode: (mode: CanvasViewMode) => void;
+  /** Compact device-node density on the canvas (header + I/O chip, no port grid) —
+   *  session/UI pref, not persisted to file. */
+  nodeCompact: boolean;
+  setNodeCompact: (compact: boolean) => void;
+  /** "Live signal" motion — animated signal packets + flowing dashes on connections,
+   *  connected-port glow. Default off; reduced-motion aware. Session/UI pref. */
+  liveSignal: boolean;
+  setLiveSignal: (on: boolean) => void;
   /** Dominant colour axis for connections — session/UI pref, not persisted to file.
    *  "signal" = signal-family colour (default); "layer" = the connection's layer colour;
    *  "none" = neutral grey (signal recedes for a clean structural read). */
@@ -3354,6 +3371,16 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
   setCanvasViewMode: (mode) => {
     if (typeof localStorage !== "undefined") localStorage.setItem(CANVAS_VIEW_MODE_KEY, mode);
     set({ canvasViewMode: mode });
+  },
+  nodeCompact: readBoolPref(NODE_COMPACT_KEY, false),
+  setNodeCompact: (compact) => {
+    if (typeof localStorage !== "undefined") localStorage.setItem(NODE_COMPACT_KEY, String(compact));
+    set({ nodeCompact: compact });
+  },
+  liveSignal: readBoolPref(LIVE_SIGNAL_KEY, false),
+  setLiveSignal: (on) => {
+    if (typeof localStorage !== "undefined") localStorage.setItem(LIVE_SIGNAL_KEY, String(on));
+    set({ liveSignal: on });
   },
 
   colorBy: "signal",

@@ -1,0 +1,49 @@
+/* Live signal motion layer — additive, GPU-friendly CSS/SVG overlays drawn on top
+   of the static routed edge. Gated by the `liveSignal` store flag (default OFF) and
+   only rendered when the user does NOT prefer reduced motion. These layers never
+   change edge geometry; they are purely decorative and ignore pointer events. */
+
+/* Flowing dashes: a short dash pattern that slides along the edge path by animating
+   stroke-dashoffset. Pattern total length is 7.5 (0.5 dash + 7 gap), so a -7.5 offset
+   advances exactly one period for a seamless loop. */
+@keyframes live-signal-flow {
+  to {
+    stroke-dashoffset: -7.5;
+  }
+}
+
+/* Traveling packet: a small comet rides the edge path via CSS motion path. */
+@keyframes live-signal-travel {
+  from {
+    offset-distance: 0%;
+  }
+  to {
+    offset-distance: 100%;
+  }
+}
+
+.live-signal-flow {
+  pointer-events: none;
+  fill: none;
+  stroke-linecap: round;
+  stroke-dasharray: 0.5 7;
+  opacity: 0.55;
+  animation: live-signal-flow 2s linear infinite;
+}
+
+.live-signal-packet {
+  pointer-events: none;
+  offset-distance: 0%;
+  offset-rotate: 0deg;
+  animation: live-signal-travel 2s linear infinite;
+  filter: drop-shadow(0 0 3px currentColor);
+}
+
+/* Reduced-motion users get no animation. Belt-and-braces alongside the JS guard
+   that skips rendering these layers entirely when reduced motion is requested. */
+@media (prefers-reduced-motion: reduce) {
+  .live-signal-flow,
+  .live-signal-packet {
+    animation: none;
+  }
+}

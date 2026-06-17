@@ -26,9 +26,15 @@ import TagInput from "./ui/TagInput";
 const DEFAULT_CEILING_M = 3;
 const LISTENER_PLANE_M = 1.2;
 
+/** Mono, uppercase, wide-tracked section label — the engineering-instrument label style. */
+const SECTION_LABEL_STYLE = { fontFamily: "var(--font-mono)", letterSpacing: "0.12em" } as const;
+
 function SectionTitle({ children }: { children: ReactNode }) {
   return (
-    <div className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] font-semibold pt-1">
+    <div
+      className="text-[10px] uppercase text-[var(--color-text-muted)] font-semibold pt-1"
+      style={SECTION_LABEL_STYLE}
+    >
       {children}
     </div>
   );
@@ -38,8 +44,8 @@ function SectionTitle({ children }: { children: ReactNode }) {
 function ReadRow({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="flex items-baseline gap-2">
-      <span className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] shrink-0">{label}</span>
-      <span className="text-xs text-[var(--color-text)] truncate text-right flex-1 min-w-0">{value}</span>
+      <span className="text-[10px] uppercase text-[var(--color-text-muted)] shrink-0" style={SECTION_LABEL_STYLE}>{label}</span>
+      <span className="text-xs text-[var(--color-text)] truncate text-right flex-1 min-w-0" style={{ fontFamily: "var(--font-mono)" }}>{value}</span>
     </div>
   );
 }
@@ -59,7 +65,7 @@ function Field({ label, value, onCommit, type = "text", placeholder, suffix, min
   const [v, setV] = useState(value ?? "");
   return (
     <label className="block">
-      <span className="block text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mb-0.5">{label}</span>
+      <span className="block text-[10px] uppercase text-[var(--color-text-muted)] mb-0.5" style={SECTION_LABEL_STYLE}>{label}</span>
       <div className="flex items-center gap-1.5">
         <input
           className="ui-input w-full text-xs"
@@ -93,7 +99,7 @@ interface ComboFieldProps {
 function ComboField({ label, value, onCommit, suggestions, placeholder }: ComboFieldProps) {
   return (
     <label className="block">
-      <span className="block text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mb-0.5">{label}</span>
+      <span className="block text-[10px] uppercase text-[var(--color-text-muted)] mb-0.5" style={SECTION_LABEL_STYLE}>{label}</span>
       <Combobox value={value} onCommit={onCommit} suggestions={suggestions} placeholder={placeholder} compact />
     </label>
   );
@@ -184,7 +190,7 @@ function DeviceBody({ node }: { node: SchematicNode }) {
       />
       <Field label="Serial No." value={data.serialNumber} onCommit={(v) => patch({ serialNumber: v || undefined })} placeholder="e.g. SN-00421" />
       <label className="block">
-        <span className="block text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mb-0.5">Tags</span>
+        <span className="block text-[10px] uppercase text-[var(--color-text-muted)] mb-0.5" style={SECTION_LABEL_STYLE}>Tags</span>
         <TagInput
           tags={data.tags ?? []}
           suggestions={suggestions.tags}
@@ -205,7 +211,7 @@ function DeviceBody({ node }: { node: SchematicNode }) {
         <Field label="H (mm)" value={data.heightMm} onCommit={(v) => patch({ heightMm: numOrUndef(v) })} type="number" min={1} />
       </div>
       <div>
-        <span className="block text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mb-0.5">Rotation / aim</span>
+        <span className="block text-[10px] uppercase text-[var(--color-text-muted)] mb-0.5" style={SECTION_LABEL_STYLE}>Rotation / aim</span>
         <div className="flex items-center gap-1.5">
           <input
             key={`rot-${data.rotationDeg ?? 0}`}
@@ -221,7 +227,7 @@ function DeviceBody({ node }: { node: SchematicNode }) {
         </div>
       </div>
       <label className="block">
-        <span className="block text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mb-0.5">Layer</span>
+        <span className="block text-[10px] uppercase text-[var(--color-text-muted)] mb-0.5" style={SECTION_LABEL_STYLE}>Layer</span>
         <select
           className="ui-input w-full text-xs"
           value={data.layerId ?? DEFAULT_LAYER_ID}
@@ -233,7 +239,7 @@ function DeviceBody({ node }: { node: SchematicNode }) {
         </select>
       </label>
       <div>
-        <span className="block text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mb-0.5">Custom graphic (Layout)</span>
+        <span className="block text-[10px] uppercase text-[var(--color-text-muted)] mb-0.5" style={SECTION_LABEL_STYLE}>Custom graphic (Layout)</span>
         <div className="flex items-center gap-1.5">
           <button className="ui-btn ui-btn-secondary flex-1 text-xs" onClick={() => setSvgImportTarget(node.id)}>
             {data.layoutSvgAssetId ? "Replace SVG…" : "Import SVG…"}
@@ -259,9 +265,12 @@ function DeviceBody({ node }: { node: SchematicNode }) {
               title={info.connected ? `Connected to ${info.otherDeviceLabel}${info.otherPortLabel ? ` [${info.otherPortLabel}]` : ""} — click to select` : "Unconnected"}
               className="flex items-center gap-1.5 px-1.5 py-1 rounded text-left enabled:hover:bg-[var(--color-surface-hover)] enabled:cursor-pointer disabled:cursor-default transition-colors"
             >
-              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${info.connected ? "bg-green-500" : "bg-[var(--color-text-muted)] opacity-40"}`} />
+              <span
+                className={`w-1.5 h-1.5 rounded-full shrink-0 ${info.connected ? "" : "bg-[var(--color-text-muted)] opacity-40"}`}
+                style={info.connected ? { background: "var(--color-success)" } : undefined}
+              />
               <span className="text-[11px] text-[var(--color-text)] truncate shrink-0 max-w-[7rem]">{info.port.label}</span>
-              <span className="text-[9px] uppercase tracking-wide text-[var(--color-text-muted)] shrink-0">{SIGNAL_LABELS[info.port.signalType]}</span>
+              <span className="text-[9px] uppercase text-[var(--color-text-muted)] shrink-0" style={{ fontFamily: "var(--font-mono)", letterSpacing: "0.1em" }}>{SIGNAL_LABELS[info.port.signalType]}</span>
               <span className="flex-1 min-w-0" />
               <span className="text-[10px] text-[var(--color-text-muted)] truncate min-w-0 text-right">
                 {info.connected ? `→ ${info.otherDeviceLabel}${info.otherPortLabel ? ` [${info.otherPortLabel}]` : ""}` : "—"}
@@ -275,7 +284,8 @@ function DeviceBody({ node }: { node: SchematicNode }) {
         <>
           <div className="h-px bg-[var(--ui-border)]" />
           <button
-            className="flex items-center justify-between text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] font-semibold cursor-pointer"
+            className="flex items-center justify-between text-[10px] uppercase text-[var(--color-text-muted)] font-semibold cursor-pointer"
+            style={SECTION_LABEL_STYLE}
             onClick={() => setSpeakerOpen((o) => !o)}
           >
             <span>Loudspeaker / coverage</span>
@@ -335,7 +345,7 @@ function DeviceBody({ node }: { node: SchematicNode }) {
                 return (
                   <div key={p.id} className="flex items-baseline gap-2">
                     <span className="text-[11px] text-[var(--color-text)] truncate shrink-0 max-w-[7rem]">{p.label}</span>
-                    <span className="text-[11px] text-[var(--color-text-muted)] truncate text-right flex-1 min-w-0">
+                    <span className="text-[11px] text-[var(--color-text-muted)] truncate text-right flex-1 min-w-0" style={{ fontFamily: "var(--font-mono)" }}>
                       {net?.ip}
                       {extras.length > 0 ? ` · ${extras.join(" · ")}` : ""}
                     </span>
@@ -400,17 +410,17 @@ function ObjectBody({ node }: { node: SchematicNode }) {
       </div>
       <Field label="Rotation°" value={data.rotationDeg ?? 0} onCommit={(v) => patch({ rotationDeg: Number(v) || 0 })} type="number" step={15} />
       <label className="block">
-        <span className="block text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mb-0.5">Fill colour</span>
+        <span className="block text-[10px] uppercase text-[var(--color-text-muted)] mb-0.5" style={SECTION_LABEL_STYLE}>Fill colour</span>
         <input className="w-full h-7 cursor-pointer rounded border border-[var(--ui-border)] bg-transparent" type="color" value={hexOf(data.color, "#e2e8f0")} onChange={(e) => patch({ color: e.target.value })} />
       </label>
       <label className="block">
-        <span className="block text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mb-0.5">Layer</span>
+        <span className="block text-[10px] uppercase text-[var(--color-text-muted)] mb-0.5" style={SECTION_LABEL_STYLE}>Layer</span>
         <select className="ui-input w-full text-xs" value={data.layerId ?? DEFAULT_LAYER_ID} onChange={(e) => patch({ layerId: e.target.value === DEFAULT_LAYER_ID ? undefined : e.target.value })}>
           {layers.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
         </select>
       </label>
       <div>
-        <span className="block text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mb-0.5">Custom graphic</span>
+        <span className="block text-[10px] uppercase text-[var(--color-text-muted)] mb-0.5" style={SECTION_LABEL_STYLE}>Custom graphic</span>
         <button className="ui-btn ui-btn-secondary w-full text-xs" onClick={() => setSvgImportTarget(node.id)}>
           {data.svgAssetId ? "Replace SVG…" : "Import SVG…"}
         </button>
@@ -429,16 +439,16 @@ function ZoneBody({ node }: { node: SchematicNode }) {
       <SectionTitle>Zone</SectionTitle>
       <Field label="Label" value={data.label} onCommit={(v) => patch({ label: v })} placeholder="Zone name" />
       <label className="block">
-        <span className="block text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mb-0.5">Fill colour</span>
+        <span className="block text-[10px] uppercase text-[var(--color-text-muted)] mb-0.5" style={SECTION_LABEL_STYLE}>Fill colour</span>
         {/* Zones store a translucent fill (#RRGGBB + alpha); keep ~33% alpha on edit. */}
         <input className="w-full h-7 cursor-pointer rounded border border-[var(--ui-border)] bg-transparent" type="color" value={hexOf(data.color, "#38bdf8")} onChange={(e) => patch({ color: e.target.value + "55" })} />
       </label>
       <label className="block">
-        <span className="block text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mb-0.5">Border colour</span>
+        <span className="block text-[10px] uppercase text-[var(--color-text-muted)] mb-0.5" style={SECTION_LABEL_STYLE}>Border colour</span>
         <input className="w-full h-7 cursor-pointer rounded border border-[var(--ui-border)] bg-transparent" type="color" value={hexOf(data.borderColor, "#0284c7")} onChange={(e) => patch({ borderColor: e.target.value })} />
       </label>
       <label className="block">
-        <span className="block text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mb-0.5">Layer</span>
+        <span className="block text-[10px] uppercase text-[var(--color-text-muted)] mb-0.5" style={SECTION_LABEL_STYLE}>Layer</span>
         <select className="ui-input w-full text-xs" value={data.layerId ?? DEFAULT_LAYER_ID} onChange={(e) => patch({ layerId: e.target.value === DEFAULT_LAYER_ID ? undefined : e.target.value })}>
           {layers.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
         </select>
@@ -501,7 +511,7 @@ function ConnectionBody({ edge, nodes }: { edge: ConnectionEdge; nodes: Schemati
         className="flex items-center gap-2 px-1.5 py-1 -mx-1 rounded text-left enabled:hover:bg-[var(--color-surface-hover)] enabled:cursor-pointer disabled:cursor-default"
         title={n ? "Select device" : undefined}
       >
-        <span className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] w-8 shrink-0">{label}</span>
+        <span className="text-[10px] uppercase text-[var(--color-text-muted)] w-8 shrink-0" style={SECTION_LABEL_STYLE}>{label}</span>
         <span className="text-xs text-[var(--color-text)] truncate">
           {nameOf(n)}
           {pl ? <span className="text-[var(--color-text-muted)]"> [{pl}]</span> : null}
@@ -514,7 +524,7 @@ function ConnectionBody({ edge, nodes }: { edge: ConnectionEdge; nodes: Schemati
     <div className="flex flex-col gap-3 px-3 py-3">
       <SectionTitle>Connection</SectionTitle>
       <div className="flex items-center gap-2">
-        <span className="w-3 h-3 rounded-sm shrink-0 border border-black/10" style={{ background: SIGNAL_COLORS[sig] }} />
+        <span className="w-3 h-3 rounded-sm shrink-0 border border-[var(--ui-border)]" style={{ background: SIGNAL_COLORS[sig] }} />
         <span className="text-xs text-[var(--color-text)]">{SIGNAL_LABELS[sig]}</span>
       </div>
 
@@ -530,16 +540,19 @@ function ConnectionBody({ edge, nodes }: { edge: ConnectionEdge; nodes: Schemati
       </div>
       <div className="text-[11px] text-[var(--color-text-muted)]">
         Estimated run:{" "}
-        <span className={run.overMax ? "text-red-500 font-medium" : "text-[var(--color-text)]"}>
+        <span
+          className={run.overMax ? "font-medium" : "text-[var(--color-text)]"}
+          style={{ fontFamily: "var(--font-mono)", ...(run.overMax ? { color: "var(--color-error)" } : {}) }}
+        >
           {run.text ?? "—"}
         </span>
-        {run.overMax && cable ? <span className="text-red-500"> · exceeds {cable.maxRunM} m max</span> : null}
+        {run.overMax && cable ? <span style={{ color: "var(--color-error)" }}> · exceeds {cable.maxRunM} m max</span> : null}
       </div>
       <div className="text-[11px] text-[var(--color-text-muted)]">
-        Assigned: <span className="text-[var(--color-text)]">{data.cableLength ? data.cableLength : "none"}</span>
+        Assigned: <span className="text-[var(--color-text)]" style={{ fontFamily: "var(--font-mono)" }}>{data.cableLength ? data.cableLength : "none"}</span>
       </div>
       {data.connectorMismatch && !data.allowIncompatible && (
-        <div className="text-[11px] text-amber-500">⚠ Connector mismatch on this connection.</div>
+        <div className="text-[11px]" style={{ color: "var(--color-warning)" }}>⚠ Connector mismatch on this connection.</div>
       )}
 
       <div className="h-px bg-[var(--ui-border)]" />
@@ -557,7 +570,7 @@ function DocumentOverview({ nodes, edges }: { nodes: SchematicNode[]; edges: Con
   const connectionCount = edges.length;
   const issues = useMemo(() => countIssues(validateSchematic(nodes, edges)), [nodes, edges]);
   const clean = issues.total === 0;
-  const dotClass = issues.errors > 0 ? "bg-red-500" : issues.warnings > 0 ? "bg-amber-500" : "bg-green-500";
+  const dotColor = issues.errors > 0 ? "var(--color-error)" : issues.warnings > 0 ? "var(--color-warning)" : "var(--color-success)";
 
   return (
     <div className="flex flex-col gap-3 px-3 py-3 overflow-y-auto">
@@ -571,7 +584,7 @@ function DocumentOverview({ nodes, edges }: { nodes: SchematicNode[]; edges: Con
       <div className="h-px bg-[var(--ui-border)]" />
       <SectionTitle>Validation</SectionTitle>
       <div className="flex items-center gap-2">
-        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dotClass}`} />
+        <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: dotColor }} />
         <span className="text-xs text-[var(--color-text)]">
           {clean
             ? "No issues"
@@ -626,7 +639,12 @@ export default function Inspector({ embedded = false }: { embedded?: boolean } =
   return (
     <div className="w-60 bg-[var(--color-surface)] border-l border-[var(--color-border)] flex flex-col h-full overflow-hidden" data-print-hide>
       <div className="px-3 py-2 border-b border-[var(--ui-border)] flex items-center justify-between shrink-0">
-        <h2 className="text-xs font-semibold text-[var(--color-text-heading)] uppercase tracking-wider">{title}</h2>
+        <h2
+          className="text-[11px] font-semibold text-[var(--color-text-muted)] uppercase"
+          style={SECTION_LABEL_STYLE}
+        >
+          {title}
+        </h2>
       </div>
       <div className="flex-1 overflow-y-auto">
         <NodeBody key={node.id} node={node} />

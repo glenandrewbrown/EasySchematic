@@ -31,7 +31,7 @@ import { validateSchematic, type IssueSeverity } from "./validation";
 import DeviceEditor from "./components/DeviceEditor";
 import RightRail from "./components/RightRail";
 import ScheduleView from "./components/ScheduleView";
-import MenuBar from "./components/MenuBar";
+import EditorTopBar from "./components/EditorTopBar";
 import EdgeContextMenu from "./components/EdgeContextMenu";
 import CableAssignDialog from "./components/CableAssignDialog";
 import CableInventoryDialog from "./components/CableInventoryDialog";
@@ -40,7 +40,6 @@ import CanvasRuler from "./components/CanvasRuler";
 import { metresPerWorldUnit } from "./rulerScale";
 import GuidedSetupPanel from "./components/GuidedSetupPanel";
 import CoverageSplReadout from "./components/CoverageSplReadout";
-import Toolbar from "./components/Toolbar";
 import { DEFAULT_LAYER_ID } from "./types";
 import { resolveNodeVisibility } from "./layerVisibility";
 import { expandToGroupSiblings } from "./grouping";
@@ -72,6 +71,7 @@ import { DEVICE_TEMPLATES } from "./deviceLibrary";
 import { loadSharedSchematic, checkSession } from "./templateApi";
 import { refreshCloudCache } from "./cloudSync";
 import { useTheme } from "./hooks/useTheme";
+import CommandPalette from "./components/CommandPalette";
 
 /** Darkens the canvas area left of x=0 and above y=0, marking the printable origin. */
 function CanvasOriginOverlay() {
@@ -1970,6 +1970,19 @@ export default function App() {
   const undo = useSchematicStore((s) => s.undo);
   const redo = useSchematicStore((s) => s.redo);
 
+  // Per-workspace accent (Affinity-style personas): drive [data-workspace] on <html>
+  // from the active view so the rationed accent recolors per persona —
+  // Schematic blue · Plan teal · Schedule amber · Rack violet (see theme.css).
+  useEffect(() => {
+    let workspace: "schematic" | "plan" | "schedule" | "rack";
+    if (activePgType && activePgType.startsWith("rack")) workspace = "rack";
+    else if (!isSchematicActive) workspace = "schematic";
+    else if (canvasViewMode === "layout") workspace = "plan";
+    else if (canvasViewMode === "schedule") workspace = "schedule";
+    else workspace = "schematic";
+    document.documentElement.dataset.workspace = workspace;
+  }, [activePgType, isSchematicActive, canvasViewMode]);
+
   // Hydrate the autosave even when the app opens directly into Schedule mode (where
   // SchematicCanvas, which normally performs this, is not mounted). One-shot guarded.
   useEffect(() => {
@@ -2042,18 +2055,15 @@ export default function App() {
   }, [undo, redo]);
 
   return (
-    <div className="flex flex-col h-full">
-      <div data-print-hide>
-        <MenuBar />
-      </div>
-      <Toolbar />
+    <div className="fixed inset-0 flex flex-col overflow-hidden">
+      <EditorTopBar />
       <UpdatePill />
       <BetaBanner />
       <DemoBanner />
       <PendingSubmissionBanner />
       {printView && isSchematicActive && <PrintViewBar />}
       {isSchematicActive && <PrintTitleBlock />}
-      <PageTabs />
+      {!isSchematicActive && <PageTabs />}
       {isSchematicActive ? (
         canvasViewMode === "schedule" ? (
           <div className="flex flex-1 overflow-hidden">
@@ -2085,6 +2095,7 @@ export default function App() {
       ) : (
         <RackPage />
       )}
+      <CommandPalette />
       <DeviceEditor />
       <RoomEditor />
       <AnnotationEditor />

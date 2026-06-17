@@ -68,7 +68,12 @@ export default function ToolRail({ onQuickAdd }: ToolRailProps) {
               hover:brightness-110 active:scale-[0.94] transition-[transform,filter] duration-100"
           >
             <Plus className="w-[18px] h-[18px]" strokeWidth={2.25} aria-hidden />
-            <span className="text-[9px] font-semibold leading-none tracking-wide">Add</span>
+            <span
+              className="text-[9px] font-semibold leading-none uppercase"
+              style={{ fontFamily: "var(--font-mono)", letterSpacing: "0.12em" }}
+            >
+              Add
+            </span>
             <Tooltip>Quick add · double-click canvas</Tooltip>
           </button>
           <div className="h-px my-1.5 mx-1 bg-[var(--ui-border)]" />
@@ -100,7 +105,12 @@ export default function ToolRail({ onQuickAdd }: ToolRailProps) {
               aria-hidden
             />
             <IconCmp className="w-[18px] h-[18px]" strokeWidth={isActive ? 2.25 : 1.75} aria-hidden />
-            <span className="text-[9px] font-medium leading-none tracking-wide">{tool.label}</span>
+            <span
+              className={`text-[9px] leading-none uppercase ${isActive ? "font-semibold" : "font-medium"}`}
+              style={{ fontFamily: "var(--font-mono)", letterSpacing: "0.12em" }}
+            >
+              {tool.label}
+            </span>
             <Tooltip>
               {tool.title}
               {tool.hotkey && <kbd className="ml-1.5 font-mono opacity-70">{tool.hotkey}</kbd>}

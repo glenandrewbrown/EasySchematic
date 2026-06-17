@@ -13,18 +13,20 @@
      Separate from --color-border, which device nodes and canvas content
      use and which must stay strong for print/export legibility. */
   --color-surface-raised: #ffffff;
-  /* App accent — refined indigo, off the stock Tailwind blue-600 and distinct from
-     the SDI/video signal blue so chrome never reads as a signal colour. */
-  --color-accent: #4f46e5;
-  --color-accent-hover: #4338ca;
-  --color-accent-soft: rgba(79, 70, 229, 0.08);
+  /* App accent — "engineering instrument" schematic blue. Per-workspace accents
+     ([data-workspace]) override this so each persona owns a hue (Affinity-style):
+     Schematic blue · Plan teal · Schedule amber · Rack violet. */
+  --color-accent: #2f6fd0;
+  --color-accent-hover: #2861bd;
+  --color-accent-soft: rgba(47, 111, 208, 0.1);
   /* Semantic status tokens (reserved: never reuse for decoration). */
   --color-success: #16a34a;
   --color-warning: #d97706;
   --color-error: #dc2626;
   --color-info: #0284c7;
-  /* Monospace + tabular figures for numerics (ruler, dimensions, serials, run-lengths). */
-  --font-mono: "SF Mono", "JetBrains Mono", "Berkeley Mono", ui-monospace, "Cascadia Code", Menlo, monospace;
+  /* Monospace + tabular figures for numerics (ruler, dimensions, serials, run-lengths).
+     IBM Plex Mono pairs with Plex Sans; system mono is the offline fallback. */
+  --font-mono: "IBM Plex Mono", "SF Mono", "JetBrains Mono", "Berkeley Mono", ui-monospace, "Cascadia Code", Menlo, monospace;
   --ui-border: #e6e8ec;
   --ui-border-strong: #d7dbe2;
   /* Tinted (cool slate) elevation scale — shadows carry the surface hue, not flat black */
@@ -107,31 +109,49 @@
 }
 
 .dark {
-  --color-bg: #0f172a;
-  --color-surface: #1e293b;
-  --color-surface-hover: #334155;
-  --color-border: #94a3b8;
-  --color-text: #cbd5e1;
-  --color-text-heading: #f1f5f9;
-  --color-text-muted: #94a3b8;
+  /* ── "Engineering instrument" deep-navy system ──────────────────────
+     Flat charcoal-navy surfaces, hairline structure (borders, not shadows),
+     one rationed accent. Replaces the former slate (#0f172a) dark theme. */
+  --color-bg: #071427;          /* app background / canvas (HANDOFF §2) */
+  --color-surface: #0c2138;     /* panels, cards, nodes */
+  --color-surface-hover: #103056;
+  --color-border: #2a6499;      /* strong border — node + canvas content (on-screen) */
+  --color-text: #a6cdee;        /* body */
+  --color-text-heading: #e3f2ff;/* titles, values */
+  --color-text-muted: #5f93c0;  /* labels, meta */
 
   /* UI chrome tokens, dark */
-  --color-surface-raised: #243247;
-  --color-accent: #6366f1;
-  --color-accent-hover: #818cf8;
-  --color-accent-soft: rgba(99, 102, 241, 0.16);
-  --color-success: #22c55e;
-  --color-warning: #f59e0b;
-  --color-error: #ef4444;
-  --color-info: #38bdf8;
-  --ui-border: #2c3a52;
-  --ui-border-strong: #3b4a66;
-  --ui-shadow-menu: 0 16px 40px -12px rgba(2, 6, 23, 0.7), 0 6px 16px -8px rgba(2, 6, 23, 0.45);
-  --ui-shadow-raised: 0 1px 2px rgba(2, 6, 23, 0.4);
-  --ui-shadow-toolbar: 0 1px 0 rgba(2, 6, 23, 0.3), 0 2px 8px -3px rgba(2, 6, 23, 0.5);
+  --color-surface-raised: #103056;  /* raised: node headers, active segments */
+  --color-accent: #3d8bfd;          /* schematic blue — per-workspace overrides below */
+  --color-accent-hover: #5b9dfd;
+  --color-accent-soft: rgba(61, 139, 253, 0.16);
+  --color-success: #46c89a;
+  --color-warning: #e0a345;
+  --color-error: #e5645f;
+  --color-info: #3d8bfd;
+  --ui-border: #1d4b78;         /* hairline border (chrome) */
+  --ui-border-strong: #2a6499;  /* strong / node border */
+  /* Hairline-first elevation — real shadow reserved for true overlays (menus, ⌘K) */
+  --ui-shadow-menu: 0 14px 38px -22px rgba(0, 20, 45, 0.9), 0 6px 16px -10px rgba(0, 12, 30, 0.6);
+  --ui-shadow-raised: 0 1px 2px rgba(0, 8, 22, 0.5);
+  --ui-shadow-toolbar: 0 1px 0 rgba(0, 8, 22, 0.4), 0 10px 30px -20px rgba(0, 6, 18, 0.9);
   /* Power colors adjusted for dark backgrounds */
   --color-power-neutral: #b0b0b0;
   --color-power-l1: #e5e5e5;
   /* Canvas origin overlay — slightly lighter than bg to mark non-printable zone */
-  --color-canvas-origin: #1e293b;
+  --color-canvas-origin: #0c2138;
 }
+
+/* ── Per-workspace accents (Affinity-style "personas") ────────────────
+   data-workspace is set on <html> from the active view; each persona owns
+   a hue that recolors the primary action, active tool, and selection.
+   Placed after :root and .dark so it wins on accent regardless of theme. */
+:root[data-workspace="schematic"] { --color-accent: #2f6fd0; --color-accent-hover: #2861bd; --color-accent-soft: rgba(47, 111, 208, 0.1); }
+:root[data-workspace="plan"]      { --color-accent: #168f82; --color-accent-hover: #127a6f; --color-accent-soft: rgba(22, 143, 130, 0.1); }
+:root[data-workspace="schedule"]  { --color-accent: #b97e20; --color-accent-hover: #a26d18; --color-accent-soft: rgba(185, 126, 32, 0.1); }
+:root[data-workspace="rack"]      { --color-accent: #6c5ce0; --color-accent-hover: #5d4dd0; --color-accent-soft: rgba(108, 92, 224, 0.1); }
+
+.dark[data-workspace="schematic"] { --color-accent: #3d8bfd; --color-accent-hover: #5b9dfd; --color-accent-soft: rgba(61, 139, 253, 0.16); }
+.dark[data-workspace="plan"]      { --color-accent: #1fb6a6; --color-accent-hover: #36c6b7; --color-accent-soft: rgba(31, 182, 166, 0.16); }
+.dark[data-workspace="schedule"]  { --color-accent: #e0a345; --color-accent-hover: #ecb45e; --color-accent-soft: rgba(224, 163, 69, 0.16); }
+.dark[data-workspace="rack"]      { --color-accent: #8b7cf0; --color-accent-hover: #9d90f4; --color-accent-soft: rgba(139, 124, 240, 0.16); }

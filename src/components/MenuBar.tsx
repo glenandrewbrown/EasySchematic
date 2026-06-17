@@ -76,7 +76,10 @@ function MenuItem({
       </span>
       <span className="flex-1 text-[var(--color-text)]">{label}</span>
       {shortcut && (
-        <span className="text-[var(--color-text-muted)] text-[10px] ml-4 whitespace-nowrap">
+        <span
+          className="text-[var(--color-text-muted)] text-[10px] ml-4 whitespace-nowrap"
+          style={{ fontFamily: "var(--font-mono)" }}
+        >
           {shortcut}
         </span>
       )}
@@ -110,7 +113,11 @@ function MenuDropdown({ items, onClose }: { items: MenuEntry[]; onClose: () => v
 
 // ─── Main MenuBar ────────────────────────────────────────────────
 
-export default function MenuBar() {
+export default function MenuBar({ variant = "full" }: { variant?: "full" | "menu" } = {}) {
+  // variant="menu" renders only a compact ≡ menu (for embedding in the new unified
+  // top bar) plus all the dialogs + window-event handlers; the legacy desktop bar is
+  // suppressed. variant="full" is the original standalone menu bar.
+  const [menuRootOpen, setMenuRootOpen] = useState(false);
   const {
     schematicName,
     setSchematicName,
@@ -749,13 +756,73 @@ export default function MenuBar() {
 
   return (
     <div ref={menuBarRef}>
-      {/* Desktop menu bar */}
+      {/* Compact ≡ menu — embedded in the new unified top bar (variant="menu") */}
+      {variant === "menu" && (
+        <div className="relative hidden md:block">
+          <button
+            onClick={() => setMenuRootOpen((o) => !o)}
+            title="Menu"
+            aria-label="Menu"
+            className={`p-1.5 rounded-md transition-colors cursor-pointer ${
+              menuRootOpen
+                ? "bg-[var(--color-surface-hover)] text-[var(--color-text-heading)]"
+                : "text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-heading)]"
+            }`}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round">
+              <line x1="4" y1="7" x2="20" y2="7" />
+              <line x1="4" y1="12" x2="20" y2="12" />
+              <line x1="4" y1="17" x2="20" y2="17" />
+            </svg>
+          </button>
+          {menuRootOpen && (
+            <div
+              className="absolute top-full left-0 mt-1 min-w-[150px] py-1 rounded-lg z-[60] bg-[var(--color-surface)] border border-[var(--ui-border-strong)]"
+              style={{ boxShadow: "var(--ui-shadow-menu)" }}
+            >
+              {menuNames.map((name) => (
+                <div
+                  key={name}
+                  className="relative"
+                  onMouseEnter={() => setOpenMenu(name)}
+                >
+                  <div
+                    className={`flex items-center justify-between px-3 py-1.5 text-xs cursor-default ${
+                      openMenu === name
+                        ? "bg-[var(--color-surface-hover)] text-[var(--color-text-heading)]"
+                        : "text-[var(--color-text)] hover:bg-[var(--color-surface-hover)]"
+                    }`}
+                  >
+                    <span>{name}</span>
+                    <span className="text-[var(--color-text-muted)]">›</span>
+                  </div>
+                  {openMenu === name && (
+                    <MenuDropdown
+                      items={menus[name]}
+                      onClose={() => {
+                        setOpenMenu(null);
+                        setMenuRootOpen(false);
+                      }}
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Desktop menu bar (legacy standalone — variant="full") */}
+      {variant === "full" && (
       <div className="hidden md:flex h-10 bg-[var(--color-surface)] border-b border-[var(--ui-border)] items-center px-1 shrink-0 select-none">
         {/* Left: logo + brand + menus */}
         <div className="flex items-center">
           <div className="flex items-center gap-2 px-3 shrink-0">
             <img src="/favicon.svg" alt="" className="w-5 h-5" />
-            <span className="text-xs font-semibold text-[var(--color-text-heading)] tracking-tight">
+            <span
+              className="text-xs font-semibold text-[var(--color-text-heading)] uppercase"
+              style={{ fontFamily: "var(--font-mono)", letterSpacing: "0.06em" }}
+            >
               EasySchematic
             </span>
           </div>
@@ -786,7 +853,7 @@ export default function MenuBar() {
         <div className="flex-1 flex justify-center">
           {editingName ? (
             <input
-              className="bg-transparent text-[var(--color-text-heading)] text-sm font-semibold outline-none border-b border-blue-500 max-w-[200px] text-center"
+              className="bg-transparent text-[var(--color-text-heading)] text-sm font-semibold outline-none border-b border-[var(--color-accent)] max-w-[200px] text-center"
               value={nameValue}
               onChange={(e) => setNameValue(e.target.value)}
               onBlur={commitName}
@@ -799,7 +866,7 @@ export default function MenuBar() {
           ) : (
             <span className="flex items-center gap-1.5">
               <span
-                className="text-sm font-semibold text-[var(--color-text-heading)] cursor-pointer hover:text-blue-600 transition-colors"
+                className="text-sm font-semibold text-[var(--color-text-heading)] cursor-pointer hover:text-[var(--color-accent)] transition-colors"
                 onDoubleClick={() => {
                   setNameValue(schematicName);
                   setEditingName(true);
@@ -815,21 +882,27 @@ export default function MenuBar() {
                     cloudSavedAt ? `Cloud saved: ${new Date(cloudSavedAt + "Z").toLocaleString()}` : "Cloud-backed schematic"
                   }
                 >
-                  <svg className={`w-3.5 h-3.5 ${isOnline ? "text-blue-500" : "text-amber-500"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <svg className="w-3.5 h-3.5" style={{ color: isOnline ? "var(--color-info)" : "var(--color-warning)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
                   </svg>
                 </span>
               )}
               {fileHandle && !cloudSchematicId && (
                 <span title={`Saving to: ${fileHandle.name}`}>
-                  <svg className="w-3.5 h-3.5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <svg className="w-3.5 h-3.5" style={{ color: "var(--color-success)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M5 3v18l7-5 7 5V3H5z" />
                   </svg>
                 </span>
               )}
               {!isOnline && (
                 <span
-                  className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700"
+                  className="text-[9px] px-1.5 py-0.5 rounded-full uppercase"
+                  style={{
+                    fontFamily: "var(--font-mono)",
+                    letterSpacing: "0.08em",
+                    background: "var(--color-accent-soft)",
+                    color: "var(--color-warning)",
+                  }}
                   title="No internet connection. Editing works normally — save to your computer via File → Save."
                 >
                   Offline
@@ -886,6 +959,7 @@ export default function MenuBar() {
           <UserMenuButton />
         </div>
       </div>
+      )}
 
       {/* Mobile header bar */}
       <div className="flex md:hidden h-10 bg-[var(--color-surface)] border-b border-[var(--color-border)] items-center px-3 shrink-0 select-none justify-between">
@@ -970,7 +1044,10 @@ export default function MenuBar() {
 
             {/* Panels section */}
             <div className="border-b border-[var(--color-border)]">
-              <div className="px-4 py-2 text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">
+              <div
+                className="px-4 py-2 text-[10px] uppercase text-[var(--color-text-muted)]"
+                style={{ fontFamily: "var(--font-mono)", letterSpacing: "0.12em" }}
+              >
                 Panels
               </div>
               {[

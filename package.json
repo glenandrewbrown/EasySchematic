@@ -41,6 +41,8 @@
     "serialize-javascript": "^7.0.5"
   },
   "dependencies": {
+    "@fontsource/ibm-plex-mono": "^5.2.7",
+    "@fontsource/ibm-plex-sans": "^5.2.8",
     "@xyflow/react": "12.10.1",
     "html-to-image": "^1.11.13",
     "jspdf": "^4.2.0",

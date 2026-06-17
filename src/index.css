@@ -43,9 +43,9 @@ html, body, #root {
   overflow: hidden;
   background: var(--color-bg);
   color: var(--color-text);
-  /* Native system stack (SF Pro on macOS, Segoe UI on Windows) — crisp, full weight
-     range, offline-safe, and the authentic OmniGraffle/desktop feel. Inter is fallback. */
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", "Inter", system-ui, sans-serif;
+  /* IBM Plex Sans — Carbon-pedigree "engineering instrument" UI face. Falls back to
+     the native system stack (SF Pro / Segoe UI) when offline so text stays crisp. */
+  font-family: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", "Inter", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
@@ -467,7 +467,7 @@ html, body, #root {
   position: absolute;
   padding: 2px 6px;
   font-size: 10px;
-  font-family: Inter, system-ui, sans-serif;
+  font-family: "IBM Plex Sans", Inter, system-ui, sans-serif;
   white-space: nowrap;
   background: #1f2937;
   color: white;
