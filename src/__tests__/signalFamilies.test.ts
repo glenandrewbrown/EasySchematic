@@ -53,13 +53,23 @@ describe("signal families", () => {
     expect(colors["power-ground"]).toBe("#00aa00");
   });
 
-  it("keeps the family ramp for non-overridden types (taxonomy intact)", () => {
+  it("interpolates non-overridden types across their family's brand anchors", () => {
     const colors = buildDefaultSignalColors();
-    // madi is an audio type with no fixed override → still a teal-family shade.
-    expect(colors.madi).toMatch(/^#[0-9a-f]{6}$/i);
-    expect(colors.madi).not.toBe("#ec8a3e"); // not pulled to the Dante override
-    // ndi is a video type with no fixed override → still a blue-family shade.
-    expect(colors.ndi).not.toBe("#6db0f0"); // not pulled to the SDI override
+    const hex = /^#[0-9a-f]{6}$/i;
+    // madi (audio, no fixed override) is now an interior blend of the audio anchors
+    // (AES violet → analog tan → Dante orange), not the old teal family-ramp base.
+    expect(colors.madi).toMatch(hex);
+    expect(colors.madi).not.toBe("#0d9488"); // no longer the teal family-ramp base
+    expect(colors.madi).not.toBe("#a98bf0"); // a blend, not snapped onto an anchor
+    expect(colors.madi).not.toBe("#cba36a");
+    expect(colors.madi).not.toBe("#ec8a3e");
+    // ndi (video, no override) blends across SDI blue → HDMI coral, not the old blue base.
+    expect(colors.ndi).toMatch(hex);
+    expect(colors.ndi).not.toBe("#2563eb"); // no longer the old blue family-ramp base
+    expect(colors.ndi).not.toBe("#6db0f0"); // a blend, not snapped onto an anchor
+    expect(colors.ndi).not.toBe("#ef7a72");
+    // deterministic across calls
+    expect(buildDefaultSignalColors().madi).toBe(colors.madi);
   });
 
   it("exposes one representative hue per family", () => {

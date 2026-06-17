@@ -162,7 +162,37 @@ export const HANDOFF_SIGNAL_COLORS: Partial<Record<SignalType, string>> = {
   power: "#d6a445",
 };
 
-/** Shade ramps per family (one hue, varied lightness/saturation) for subtype distinction. */
+/**
+ * Brand-anchor sequences per family (HANDOFF §2). Every family that owns one or more of
+ * the fixed signal colours gets its remaining subtypes *interpolated between those anchors*,
+ * so the whole family reads as one coherent gradient pinned to the brief's hues: the named
+ * anchors keep their exact hex (applied last in {@link buildDefaultSignalColors}) and the
+ * other members fill the gradient's interior. Families with no HANDOFF anchor
+ * (speaker / control / rf / other) fall back to their {@link FAMILY_SHADES} ramp; power keeps
+ * its conventional electrical colours.
+ */
+const FAMILY_ANCHORS: Partial<Record<SignalFamily, readonly string[]>> = {
+  audio: ["#a98bf0", "#cba36a", "#ec8a3e"], // AES violet → analog tan → Dante orange
+  network: ["#3fc3d6", "#e06aa6"], // Ethernet cyan → USB pink
+  video: ["#6db0f0", "#ef7a72"], // SDI blue → HDMI coral
+};
+
+/** Parse `#rrggbb` → [r, g, b]. */
+function parseHex(hex: string): [number, number, number] {
+  const s = hex.replace("#", "");
+  return [parseInt(s.slice(0, 2), 16), parseInt(s.slice(2, 4), 16), parseInt(s.slice(4, 6), 16)];
+}
+
+/** Linear RGB blend of two `#rrggbb` colours at t ∈ [0,1]. */
+function lerpHex(a: string, b: string, t: number): string {
+  const [ar, ag, ab] = parseHex(a);
+  const [br, bg, bb] = parseHex(b);
+  const ch = (x: number, y: number) => Math.round(x + (y - x) * t).toString(16).padStart(2, "0");
+  return `#${ch(ar, br)}${ch(ag, bg)}${ch(ab, bb)}`;
+}
+
+/** Shade ramps for families WITHOUT a HANDOFF anchor (speaker / control / rf / other).
+ *  Anchored families (audio / video / network) interpolate {@link FAMILY_ANCHORS} instead. */
 const FAMILY_SHADES: Record<SignalFamily, readonly string[]> = {
   audio: ["#0d9488", "#0f766e", "#14b8a6", "#0e7490", "#06b6d4", "#155e63", "#2dd4bf", "#0891b2"],
   speaker: ["#7c3aed"],
@@ -179,26 +209,53 @@ export function familyFor(type: SignalType): SignalFamily {
 }
 
 /**
- * Build the default per-type colour map from the family taxonomy: power types take their
- * conventional electrical colour; every other type takes the next shade (cycling) from
- * its family's ramp, so subtypes within a family stay visually related.
+ * Build the default per-type colour map from the brand-spec palette (HANDOFF §2):
+ *  - Power phase/neutral/ground keep their conventional electrical colours.
+ *  - Families with HANDOFF anchors (audio / video / network) interpolate: the named anchor
+ *    types render their exact hex, and every other member fills the *interior* of that
+ *    family's anchor gradient — so the whole family reads as one coherent gradient pinned
+ *    to the brief's hues (e.g. audio spans AES violet → analog tan → Dante orange).
+ *  - Families without an anchor (speaker / control / rf / other) take their FAMILY_SHADES ramp.
+ * Subtypes within a family stay visually related; the label disambiguates the exact subtype.
  */
 export function buildDefaultSignalColors(): Record<SignalType, string> {
   const out = {} as Record<SignalType, string>;
-  const counters: Partial<Record<SignalFamily, number>> = {};
+  // Group non-power-special signals by family, preserving declaration order for stable colours.
+  const membersByFamily = {} as Record<SignalFamily, SignalType[]>;
   for (const type of Object.keys(SIGNAL_FAMILY) as SignalType[]) {
     if (type in POWER_COLORS) {
-      out[type] = POWER_COLORS[type];
+      out[type] = POWER_COLORS[type]; // conventional electrical colour (base power overridden below)
       continue;
     }
-    const fam = familyFor(type);
-    const ramp = FAMILY_SHADES[fam];
-    const i = counters[fam] ?? 0;
-    out[type] = ramp[i % ramp.length];
-    counters[fam] = i + 1;
+    (membersByFamily[familyFor(type)] ??= []).push(type);
   }
-  // Apply the fixed brand-spec colours LAST so they win over the family ramp and
-  // POWER_COLORS for the 8 named types (HANDOFF §2 — these are data, not styling).
+  for (const fam of Object.keys(membersByFamily) as SignalFamily[]) {
+    const members = membersByFamily[fam];
+    // Gradient stops: brand anchors where the family owns HANDOFF colours, else its shade ramp.
+    const stops = FAMILY_ANCHORS[fam] ?? FAMILY_SHADES[fam];
+    // The named HANDOFF anchors render their exact hex (applied below); every other member
+    // fills the interior of a gradient *segment* between two consecutive stops, members split
+    // evenly across segments — so none lands on a stop node (no colour dup) and the whole
+    // family reads as one even gradient (pinned to the brief's hues where it has anchors).
+    const fill = members.filter((t) => !(t in HANDOFF_SIGNAL_COLORS));
+    if (stops.length <= 1) {
+      fill.forEach((type) => { out[type] = stops[0]; });
+      continue;
+    }
+    const segs = stops.length - 1;
+    const buckets: SignalType[][] = Array.from({ length: segs }, () => []);
+    fill.forEach((type, j) => {
+      const seg = Math.min(segs - 1, Math.floor((j * segs) / Math.max(1, fill.length)));
+      buckets[seg].push(type);
+    });
+    buckets.forEach((bucket, si) => {
+      bucket.forEach((type, i) => {
+        out[type] = lerpHex(stops[si], stops[si + 1], (i + 1) / (bucket.length + 1));
+      });
+    });
+  }
+  // Apply the fixed brand-spec colours LAST so the 8 named anchor types (and the base power
+  // colour) render their exact hex (HANDOFF §2 — these are data, not styling).
   for (const [type, color] of Object.entries(HANDOFF_SIGNAL_COLORS)) {
     out[type as SignalType] = color;
   }
