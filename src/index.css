@@ -476,8 +476,8 @@ html, body, #root {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: rgba(59, 130, 246, 0.15);
-  border: 1.5px solid rgba(59, 130, 246, 0.6);
+  background: color-mix(in srgb, var(--color-accent) 15%, transparent);
+  border: 1.5px solid color-mix(in srgb, var(--color-accent) 60%, transparent);
   pointer-events: none;
   z-index: 1;
 }
@@ -512,7 +512,7 @@ html, body, #root {
 
 /* Connected handle hover ring */
 .react-flow__handle[data-connected]:hover {
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.4);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 40%, transparent);
   cursor: move;
 }
 
