@@ -36,6 +36,19 @@ function setDeviceDragPayload(event: DragEvent, template: DeviceTemplate) {
     JSON.stringify(template),
   );
   event.dataTransfer.effectAllowed = "move";
+  // Crisp custom drag ghost. The browser's default drag image is a heavy snapshot of the
+  // whole row (icon chip + two text lines) which can stutter; a small accent chip with a
+  // fixed cursor hotspot tracks smoothly. The browser snapshots it synchronously here, so
+  // it is safe to remove on the next tick.
+  const ghost = document.createElement("div");
+  ghost.textContent = template.label;
+  ghost.style.cssText =
+    "position:fixed;top:-1000px;left:-1000px;padding:4px 10px;border-radius:6px;" +
+    "font:600 12px/1.2 system-ui,-apple-system,sans-serif;color:#fff;white-space:nowrap;" +
+    "pointer-events:none;background:var(--color-accent);box-shadow:0 6px 16px rgba(0,0,0,.35);z-index:9999;";
+  document.body.appendChild(ghost);
+  event.dataTransfer.setDragImage(ghost, 14, 14);
+  setTimeout(() => ghost.remove(), 0);
 }
 
 function getTemplateKey(template: DeviceTemplate): string {
