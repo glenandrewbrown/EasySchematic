@@ -8,7 +8,7 @@
  */
 
 /** The active canvas interaction tool. */
-export type ToolId = "select" | "device" | "room" | "connect" | "note" | "pan" | "object" | "zone";
+export type ToolId = "select" | "device" | "room" | "connect" | "note" | "pan" | "object" | "zone" | "measure";
 
 /** The tool the canvas starts in — direct selection/manipulation. */
 export const DEFAULT_TOOL: ToolId = "select";
@@ -36,6 +36,7 @@ export const TOOL_DEFS: readonly ToolDef[] = [
   { id: "connect", label: "Connect", hotkey: "C", title: "Connect ports — signal-aware (C)" },
   { id: "room", label: "Room", hotkey: "R", title: "Draw a room (R)" },
   { id: "note", label: "Note", hotkey: "N", title: "Add a note (N)" },
+  { id: "measure", label: "Measure", hotkey: "M", title: "Draw a measured ruler / dimension line — Schematic or Plan (M)" },
   { id: "object", label: "Object", hotkey: "O", title: "Place a room object — furniture, fixtures (O) · Layout view", layoutOnly: true },
   { id: "zone", label: "Zone", hotkey: "Z", title: "Draw a colour-coded zone (Z) · Layout view", layoutOnly: true },
 ];

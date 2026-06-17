@@ -482,7 +482,24 @@ export interface ZoneData {
 
 export type ZoneNode = Node<ZoneData, "zone">;
 
-export type SchematicNode = DeviceNode | RoomNode | NoteNode | AnnotationNode | StubLabelNode | WaypointNode | ObjectNode | ZoneNode;
+/** A free measured ruler / dimension line drawn anywhere on the canvas (Schematic or
+ *  Layout). End-point A is the node origin; B is `(dx, dy)` in flow pixels. The label
+ *  reports the real-world distance at the document scale. No ports/connections — excluded
+ *  from the pack list, validation and reports like notes/annotations. */
+export interface DimensionData {
+  [key: string]: unknown;
+  /** End-point B relative to the node position, in flow pixels (A is the origin). */
+  dx: number;
+  dy: number;
+  /** Optional line/label colour (defaults to the accent token). */
+  color?: string;
+  /** Layer membership (SchematicLayer.id). Absent = default layer. */
+  layerId?: string;
+}
+
+export type DimensionNode = Node<DimensionData, "dimension">;
+
+export type SchematicNode = DeviceNode | RoomNode | NoteNode | AnnotationNode | StubLabelNode | WaypointNode | ObjectNode | ZoneNode | DimensionNode;
 
 export interface ConnectionData {
   [key: string]: unknown;

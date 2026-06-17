@@ -15,6 +15,7 @@ describe("toolMode", () => {
       "connect",
       "room",
       "note",
+      "measure",
       "object",
       "zone",
     ]);
@@ -59,6 +60,7 @@ describe("toolMode", () => {
     expect(toolForHotkey("c")).toBe("connect");
     expect(toolForHotkey("n")).toBe("note");
     expect(toolForHotkey("N")).toBe("note");
+    expect(toolForHotkey("m")).toBe("measure");
     expect(toolForHotkey("o")).toBe("object");
     expect(toolForHotkey("z")).toBe("zone");
   });

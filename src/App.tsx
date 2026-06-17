@@ -230,6 +230,7 @@ function SchematicCanvas() {
     reparentAllDevices,
     addObject,
     addZone,
+    addDimension,
     pendingObjectPlacement,
     setPendingObjectPlacement,
     loadFromLocalStorage,
@@ -1301,10 +1302,11 @@ function SchematicCanvas() {
         setPendingObjectPlacement(null);
         return;
       }
-      if (activeTool === "room" || activeTool === "note" || activeTool === "zone") {
+      if (activeTool === "room" || activeTool === "note" || activeTool === "zone" || activeTool === "measure") {
         const pos = screenToFlowPosition({ x: event.clientX, y: event.clientY });
         if (activeTool === "room") addRoom("Room", pos);
         else if (activeTool === "zone") addZone(pos);
+        else if (activeTool === "measure") addDimension(pos);
         else addNote(pos);
         setActiveTool("select");
         return;
@@ -1330,7 +1332,7 @@ function SchematicCanvas() {
       }
       lastPaneClickRef.current = { time: now, x: event.clientX, y: event.clientY };
     },
-    [clearClickConnect, rfStore, screenToFlowPosition, activeTool, addRoom, addNote, setActiveTool, pendingObjectPlacement, addObject, addZone, setPendingObjectPlacement],
+    [clearClickConnect, rfStore, screenToFlowPosition, activeTool, addRoom, addNote, setActiveTool, pendingObjectPlacement, addObject, addZone, addDimension, setPendingObjectPlacement],
   );
 
   const onNodeDragStart = useCallback(() => {

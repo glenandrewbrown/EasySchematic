@@ -360,6 +360,12 @@ interface SchematicState {
   toggleRoomLock: (nodeId: string) => void;
   toggleEquipmentRack: (nodeId: string) => void;
   addNote: (position: { x: number; y: number }) => void;
+  addDimension: (position: { x: number; y: number }) => void;
+  updateDimension: (
+    id: string,
+    patch: { position?: { x: number; y: number }; dx?: number; dy?: number },
+    recordUndo?: boolean,
+  ) => void;
   updateNoteHtml: (nodeId: string, html: string) => void;
   reparentNode: (nodeId: string, absolutePosition: { x: number; y: number }, options?: { skipUndo?: boolean }) => void;
   /** Re-evaluate room membership for every non-room node. Used after a room is
@@ -3059,6 +3065,43 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
     };
     set({ nodes: [...state.nodes, newNote] });
     get().saveToLocalStorage();
+  },
+
+  addDimension: (position) => {
+    const state = get();
+    pushUndo({ nodes: state.nodes, edges: state.edges });
+    const mpp = state.gridSettings.metresPerPixel;
+    const defaultLenPx = mpp > 0 ? Math.max(80, 2 / mpp) : 200; // ~2 m at the document scale
+    const newDim: SchematicNode = {
+      id: crypto.randomUUID(),
+      type: "dimension",
+      position,
+      data: { dx: defaultLenPx, dy: 0 },
+      selected: true,
+    };
+    const deselected = state.nodes.map((n) => (n.selected ? { ...n, selected: false } : n));
+    set({ nodes: [...deselected, newDim] });
+    get().saveToLocalStorage();
+  },
+
+  updateDimension: (id, patch, recordUndo) => {
+    const state = get();
+    if (recordUndo) pushUndo({ nodes: state.nodes, edges: state.edges });
+    set({
+      nodes: state.nodes.map((n) =>
+        n.id === id && n.type === "dimension"
+          ? {
+              ...n,
+              ...(patch.position ? { position: patch.position } : {}),
+              data: {
+                ...n.data,
+                ...(patch.dx !== undefined ? { dx: patch.dx } : {}),
+                ...(patch.dy !== undefined ? { dy: patch.dy } : {}),
+              },
+            }
+          : n,
+      ) as SchematicNode[],
+    });
   },
 
   updateNoteHtml: (nodeId, html) => {

@@ -9,6 +9,7 @@ import {
   SquareDashed,
   Hand,
   Plus,
+  Ruler,
   type LucideIcon,
 } from "lucide-react";
 import { TOOL_DEFS, type ToolId } from "../toolMode";
@@ -34,6 +35,7 @@ const ICON: Record<ToolId, LucideIcon> = {
   room: Square,
   connect: Cable,
   note: StickyNote,
+  measure: Ruler,
   object: Armchair,
   zone: SquareDashed,
   pan: Hand,

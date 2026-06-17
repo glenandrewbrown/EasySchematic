@@ -7,6 +7,7 @@ import StubLabelNodeComponent from "./components/StubLabelNode";
 import WaypointNodeComponent from "./components/WaypointNode";
 import ObjectPlanNode from "./components/ObjectPlanNode";
 import ZoneNode from "./components/ZoneNode";
+import DimensionNodeComponent from "./components/DimensionNode";
 import OffsetEdgeComponent from "./components/OffsetEdge";
 
 export const nodeTypes: NodeTypes = {
@@ -18,6 +19,7 @@ export const nodeTypes: NodeTypes = {
   waypoint: WaypointNodeComponent,
   object: ObjectPlanNode,
   zone: ZoneNode,
+  dimension: DimensionNodeComponent,
 };
 
 export const edgeTypes: EdgeTypes = {
