@@ -1876,15 +1876,18 @@ function SchematicCanvas() {
     </ReactFlow>
     {clickConnectActive && (
       <div
-        className="absolute left-1/2 -translate-x-1/2 bottom-6 z-40 flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-full bg-[var(--color-text-heading)] text-[var(--color-surface-raised)] shadow-[var(--ui-shadow-menu)] text-xs"
+        className="absolute left-1/2 -translate-x-1/2 top-16 z-40 flex items-center gap-2.5 px-3 py-2 rounded-[9px] bg-[var(--color-surface)] border text-xs"
+        style={{ borderColor: "var(--color-accent)", boxShadow: "var(--ui-shadow-menu)" }}
         data-print-hide
         role="status"
       >
-        <span>Click a port to connect</span>
+        <span className="w-[7px] h-[7px] rounded-full" style={{ background: "var(--color-accent)", animation: "pr 1.6s ease-in-out infinite" }} />
+        <span className="font-medium text-[var(--color-text-heading)]">Connect mode</span>
+        <span className="text-[var(--color-text-muted)]">Click a source port — compatible targets highlight</span>
         <button
           type="button"
           onClick={() => clearClickConnect()}
-          className="flex items-center gap-1 rounded-full bg-white/15 hover:bg-white/25 px-2 py-0.5 transition-colors cursor-pointer"
+          className="flex items-center gap-1 rounded-md border border-[var(--ui-border)] hover:bg-[var(--color-surface-hover)] px-2 py-0.5 transition-colors cursor-pointer text-[var(--color-text-muted)]"
         >
           Cancel <kbd className="font-mono opacity-70">Esc</kbd>
         </button>
