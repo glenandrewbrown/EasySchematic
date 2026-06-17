@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useSchematicStore } from "../store";
 import { validateSchematic, countIssues, activeIssues } from "../validation";
 import Inspector from "./Inspector";
@@ -23,6 +23,11 @@ import SignalColorPanel from "./SignalColorPanel";
 type Tab = "inspect" | "issues";
 const TAB_STORAGE_KEY = "easyschematic-rightrail-tab";
 const LAYERS_STORAGE_KEY = "easyschematic-rightrail-layers-open";
+const LAYERS_HEIGHT_STORAGE_KEY = "easyschematic-rightrail-layers-height";
+/** Docked Layers section: drag-resizable height bounds (px). */
+const LAYERS_MIN_H = 120;
+const LAYERS_MAX_H = 620;
+const LAYERS_DEFAULT_H = 224;
 
 /** Mono section/count label style — engineering-instrument look. */
 const MONO_STYLE = { fontFamily: "var(--font-mono)" } as const;
@@ -151,6 +156,34 @@ export default function RightRail() {
     });
   };
 
+  // Drag-to-resize the docked Layers section (mirrors the RotationHandle pointer-capture
+  // pattern). Dragging the divider up grows the panel; the height persists across reloads.
+  const [layersHeight, setLayersHeight] = useState<number>(() => {
+    const stored = Number(localStorage.getItem(LAYERS_HEIGHT_STORAGE_KEY));
+    return Number.isFinite(stored) && stored >= LAYERS_MIN_H
+      ? Math.min(stored, LAYERS_MAX_H)
+      : LAYERS_DEFAULT_H;
+  });
+  const layersResizeRef = useRef<{ startY: number; startH: number } | null>(null);
+  const onLayersResizeDown = (e: ReactPointerEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    layersResizeRef.current = { startY: e.clientY, startH: layersHeight };
+  };
+  const onLayersResizeMove = (e: ReactPointerEvent) => {
+    const drag = layersResizeRef.current;
+    if (!drag) return;
+    const next = Math.max(LAYERS_MIN_H, Math.min(LAYERS_MAX_H, drag.startH + (drag.startY - e.clientY)));
+    setLayersHeight(next);
+  };
+  const onLayersResizeUp = (e: ReactPointerEvent) => {
+    if (!layersResizeRef.current) return;
+    layersResizeRef.current = null;
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+    localStorage.setItem(LAYERS_HEIGHT_STORAGE_KEY, String(layersHeight));
+  };
+
   const [viewOpen, setViewOpen] = useState(false);
   const viewRef = useRef<HTMLDivElement | null>(null);
 
@@ -261,9 +294,26 @@ export default function RightRail() {
           </span>
         </button>
         {layersOpen && (
-          <div className="h-56 min-h-0 border-t border-[var(--ui-border)] overflow-hidden">
-            <LayersPanel embedded />
-          </div>
+          <>
+            <div
+              role="separator"
+              aria-orientation="horizontal"
+              aria-label="Resize layers panel"
+              title="Drag to resize"
+              onPointerDown={onLayersResizeDown}
+              onPointerMove={onLayersResizeMove}
+              onPointerUp={onLayersResizeUp}
+              className="group relative z-10 h-2 -my-1 flex items-center justify-center cursor-ns-resize touch-none"
+            >
+              <span className="h-[3px] w-8 rounded-full bg-[var(--color-border)] transition-colors group-hover:bg-[var(--color-accent)]" />
+            </div>
+            <div
+              className="min-h-0 border-t border-[var(--ui-border)] overflow-hidden"
+              style={{ height: layersHeight }}
+            >
+              <LayersPanel embedded />
+            </div>
+          </>
         )}
       </div>
     </div>
