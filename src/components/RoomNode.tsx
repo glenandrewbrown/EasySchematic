@@ -178,7 +178,6 @@ function RoomNodeComponent({ id, data, selected, width, height }: NodeProps<Room
   const updateRoomShape = useSchematicStore((s) => s.updateRoomShape);
   const setEditingRoomShape = useSchematicStore((s) => s.setEditingRoomShape);
   const updateRoom = useSchematicStore((s) => s.updateRoom);
-  const canvasViewMode = useSchematicStore((s) => s.canvasViewMode);
   const zoom = useStore((s) => s.transform[2]);
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(data.label);
@@ -281,14 +280,14 @@ function RoomNodeComponent({ id, data, selected, width, height }: NodeProps<Room
     [w, h, id, data, updateRoom],
   );
 
-  // Layout (CAD floor-plan) view: rectangular rooms read as architectural drawings —
-  // solid hairline walls, faint accent fill, mono labels, dimension lines. Gated so the
-  // schematic view renders byte-identically to before.
-  const isLayout = canvasViewMode === "layout";
-
+  // Rooms render as architectural CAD floor-plans — solid hairline walls, faint accent
+  // fill, mono labels and dimension lines — in BOTH the schematic and Layout views. The
+  // legacy rounded "box" schematic visual was retired so a room reads identically in every
+  // workspace. Equipment racks keep their distinct grey-box treatment.
   const isRack = data.isEquipmentRack ?? false;
+  const cadRoom = !isRack;
   const borderStyleVal =
-    isLayout && !data.shape && !isRack
+    cadRoom && !data.shape
       ? "solid"
       : isRack
         ? "solid"
@@ -351,14 +350,14 @@ function RoomNodeComponent({ id, data, selected, width, height }: NodeProps<Room
         handleStyle={{ width: 8, height: 8, borderRadius: 2, backgroundColor: "var(--color-border)" }}
       />
       <div
-        className={`w-full h-full ${shape ? "" : "rounded-lg"} ${shape ? "" : isLayout && !isRack ? "" : "border-2"} ${
+        className={`w-full h-full ${shape ? "" : "rounded-lg"} ${shape ? "" : cadRoom ? "" : "border-2"} ${
           !shape && selected ? "border-[var(--color-accent)]" : ""
         }`}
         style={{
           pointerEvents: "none",
           ...(shape
             ? {}
-            : isLayout && !isRack
+            : cadRoom
               ? {
                   // CAD floor-plan: solid hairline wall + faint accent fill.
                   border: `1.5px ${borderStyleVal} ${selected ? "var(--color-accent)" : borderColorVal || "var(--color-border)"}`,
@@ -378,7 +377,7 @@ function RoomNodeComponent({ id, data, selected, width, height }: NodeProps<Room
         {/* CAD dimension lines (Layout view, rectangular room with a real width):
             architectural width/depth annotations drawn OUTSIDE the box. Calibration
             still happens via the click-to-edit DimTags below/right. */}
-        {isLayout && !shape && !isRack && !!data.widthM && data.widthM > 0 && (() => {
+        {cadRoom && !shape && !!data.widthM && data.widthM > 0 && (() => {
           const depthM = data.depthM ?? (data.widthM! * h) / w;
           const OFF = 12; // px the dimension line sits outside the wall
           const TICK = 4; // px half-length of the end ticks
@@ -569,8 +568,8 @@ function RoomNodeComponent({ id, data, selected, width, height }: NodeProps<Room
               className="font-semibold uppercase tracking-wide cursor-text select-none flex items-center gap-1"
               style={{
                 fontSize,
-                color: isLayout && !isRack ? "var(--color-text-muted)" : borderColorVal || (isRack ? "#374151" : "var(--color-text-muted)"),
-                fontFamily: isLayout && !isRack ? "var(--font-mono)" : undefined,
+                color: cadRoom ? "var(--color-text-muted)" : borderColorVal || (isRack ? "#374151" : "var(--color-text-muted)"),
+                fontFamily: cadRoom ? "var(--font-mono)" : undefined,
               }}
               onDoubleClick={() => { setValue(data.label); setEditing(true); }}
             >
