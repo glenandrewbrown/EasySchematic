@@ -41,6 +41,12 @@ const ICON = {
   ),
   coverage: <path d="M8 13 4.2 5.4a5 5 0 0 1 7.6 0z" />,
   fit: <path d="M3 6V3.4h2.6M13 6V3.4h-2.6M3 10v2.6h2.6M13 10v2.6h-2.6" />,
+  zoomSel: (
+    <>
+      <rect x="6" y="6" width="4" height="4" rx="0.5" />
+      <path d="M3 5V3h2M13 5V3h-2M3 11v2h2M13 11v2h-2" />
+    </>
+  ),
   bom: (
     <>
       <rect x="2.6" y="3" width="10.8" height="10" rx="1.2" />
@@ -172,6 +178,7 @@ export default function Toolbar() {
         onClick={() => setCoverageVisible(!coverageVisible)}
       />
       <ToolButton label="Fit to screen" name="fit" onClick={() => fire("easyschematic:fit-view")} />
+      <ToolButton label="Zoom to selection" name="zoomSel" onClick={() => fire("easyschematic:zoom-to-selection")} />
       <button
         type="button"
         onClick={() => fire("easyschematic:show-validate")}

@@ -541,13 +541,22 @@ export default function MenuBar() {
     const onNew = () => { handleNew(); };
     const onReports = () => setReportsTab("devices");
     const onFit = () => reactFlowInstance.fitView({ padding: 0.2, duration: 300 });
+    // Zoom to the current selection (falls back to fit-all when nothing is selected),
+    // mirroring the Shift+2 shortcut so the action has a visible, clickable home.
+    const onZoomSel = () => {
+      const selected = reactFlowInstance.getNodes().filter((n) => n.selected && !n.hidden);
+      if (selected.length > 0) reactFlowInstance.fitView({ nodes: selected, padding: 0.3, duration: 300 });
+      else reactFlowInstance.fitView({ padding: 0.2, duration: 300 });
+    };
     window.addEventListener("easyschematic:new", onNew);
     window.addEventListener("easyschematic:open-reports", onReports);
     window.addEventListener("easyschematic:fit-view", onFit);
+    window.addEventListener("easyschematic:zoom-to-selection", onZoomSel);
     return () => {
       window.removeEventListener("easyschematic:new", onNew);
       window.removeEventListener("easyschematic:open-reports", onReports);
       window.removeEventListener("easyschematic:fit-view", onFit);
+      window.removeEventListener("easyschematic:zoom-to-selection", onZoomSel);
     };
   }, [handleNew, reactFlowInstance]);
 

@@ -1058,6 +1058,7 @@ export default function DeviceLibrary() {
   const addOwnedGear = useSchematicStore((s) => s.addOwnedGear);
   const templatePresets = useSchematicStore((s) => s.templatePresets);
   const favoriteTemplates = useSchematicStore((s) => s.favoriteTemplates);
+  const recentTemplates = useSchematicStore((s) => s.recentTemplates);
   const toggleFavoriteTemplate = useSchematicStore((s) => s.toggleFavoriteTemplate);
   const categoryOrder = useSchematicStore((s) => s.categoryOrder);
   const reorderCategory = useSchematicStore((s) => s.reorderCategory);
@@ -1193,6 +1194,20 @@ export default function DeviceLibrary() {
     if (selectedSignalTypes.size > 0) favs = favs.filter(matchesSignalFilter);
     return favs;
   }, [templates, customTemplates, favoriteTemplates, selectedCategories, selectedBrands, selectedSignalTypes, matchesSignalFilter]);
+
+  // Recently-placed devices: resolve keys to templates (most-recent-first), honouring
+  // active filters. Surfaces the fast re-add path at the top of the library.
+  const recentsList = useMemo(() => {
+    if (recentTemplates.length === 0) return [];
+    const all = [...templates, ...customTemplates];
+    const byKey = new Map<string, DeviceTemplate>();
+    for (const t of all) byKey.set(t.id ?? t.deviceType, t);
+    let recents = recentTemplates.map((k) => byKey.get(k)).filter((t): t is DeviceTemplate => !!t);
+    if (selectedCategories.size > 0) recents = recents.filter((t) => t.category && selectedCategories.has(t.category));
+    if (selectedBrands.size > 0) recents = recents.filter((t) => t.manufacturer && selectedBrands.has(t.manufacturer));
+    if (selectedSignalTypes.size > 0) recents = recents.filter(matchesSignalFilter);
+    return recents;
+  }, [templates, customTemplates, recentTemplates, selectedCategories, selectedBrands, selectedSignalTypes, matchesSignalFilter]);
 
   const filteredCategories = useMemo(() => {
     const groups = new Map<string, DeviceTemplate[]>();
@@ -1552,6 +1567,20 @@ export default function DeviceLibrary() {
           </>
         ) : (
           <>
+            {recentsList.length > 0 && (
+              <CategorySection
+                label="Recent"
+                templates={recentsList}
+                query={query}
+                defaultOpen={true}
+                presetIds={presetIds}
+                favoriteSet={favoriteSet}
+                ownedQuantityMap={ownedQuantityMap}
+                onToggleFavorite={toggleFavoriteTemplate}
+                onAddToOwned={handleAddToOwned}
+                compact={compact}
+              />
+            )}
             {favoritesList.length > 0 && (
               <CategorySection
                 label="Favorites"
