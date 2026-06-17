@@ -708,6 +708,9 @@ interface SchematicState {
   // Active canvas tool (left tool rail) + device-library drawer pin state.
   activeTool: ToolId;
   setActiveTool: (tool: ToolId) => void;
+  /** Bumped to request the quick/bulk-add spotlight open at viewport centre. */
+  quickAddNonce: number;
+  requestQuickAdd: () => void;
   deviceDrawerPinned: boolean;
   setDeviceDrawerPinned: (pinned: boolean) => void;
 
@@ -3576,6 +3579,8 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
 
   activeTool: DEFAULT_TOOL,
   setActiveTool: (tool) => set({ activeTool: tool }),
+  quickAddNonce: 0,
+  requestQuickAdd: () => set({ quickAddNonce: get().quickAddNonce + 1 }),
   deviceDrawerPinned: readInitialDeviceDrawerPinned(),
   setDeviceDrawerPinned: (pinned) => {
     if (typeof localStorage !== "undefined") localStorage.setItem(DEVICE_DRAWER_PINNED_KEY, pinned ? "1" : "0");

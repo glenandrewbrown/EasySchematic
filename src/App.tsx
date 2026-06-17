@@ -525,6 +525,19 @@ function SchematicCanvas() {
 
   // Quick-add device dialog state
   const [quickAddPos, setQuickAddPos] = useState<{ x: number; y: number } | null>(null);
+  // Open the quick-add spotlight at viewport centre when the tool rail's Add button
+  // bumps the store nonce (the button lives in App, the spotlight lives here).
+  const quickAddNonce = useSchematicStore((s) => s.quickAddNonce);
+  useEffect(() => {
+    // nonce starts at 0 and only ever increments on a real request, so this never
+    // fires on mount (even under StrictMode's double-invoke).
+    if (quickAddNonce === 0) return;
+    const el = document.querySelector(".react-flow");
+    const r = el?.getBoundingClientRect();
+    const cx = r ? r.left + r.width / 2 : window.innerWidth / 2;
+    const cy = r ? r.top + r.height / 2 : window.innerHeight / 2;
+    setQuickAddPos(screenToFlowPosition({ x: cx, y: cy }));
+  }, [quickAddNonce, screenToFlowPosition]);
   const [showDeviceCreator, setShowDeviceCreator] = useState(false);
   const deviceCreatorPosRef = useRef<{ x: number; y: number } | undefined>(undefined);
   const lastPaneClickRef = useRef<{ time: number; x: number; y: number }>({ time: 0, x: 0, y: 0 });
@@ -2028,7 +2041,7 @@ export default function App() {
           </div>
         ) : (
           <div className="flex flex-1 overflow-hidden">
-            <ToolRail />
+            <ToolRail onQuickAdd={() => useSchematicStore.getState().requestQuickAdd()} />
             {(activeTool === "device" || deviceDrawerPinned) && (
               <div data-print-hide data-mobile-hide>
                 <DeviceDrawer />
