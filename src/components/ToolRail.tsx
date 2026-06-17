@@ -41,9 +41,11 @@ const ICON: Record<ToolId, LucideIcon> = {
 interface ToolRailProps {
   /** Open the quick/bulk-add spotlight (wired by App to viewport centre). */
   onQuickAdd?: () => void;
+  /** Render as a floating, icon-only rounded pill (design §3) rather than a docked rail. */
+  floating?: boolean;
 }
 
-export default function ToolRail({ onQuickAdd }: ToolRailProps) {
+export default function ToolRail({ onQuickAdd, floating = false }: ToolRailProps) {
   const activeTool = useSchematicStore((s) => s.activeTool);
   const setActiveTool = useSchematicStore((s) => s.setActiveTool);
   const canvasViewMode = useSchematicStore((s) => s.canvasViewMode);
@@ -52,7 +54,12 @@ export default function ToolRail({ onQuickAdd }: ToolRailProps) {
 
   return (
     <div
-      className="flex flex-col items-stretch gap-0.5 w-16 h-full py-2 px-1.5 bg-[var(--color-surface-raised)] border-r border-[var(--ui-border)] shrink-0 select-none"
+      className={
+        floating
+          ? "flex flex-col items-stretch gap-0.5 p-1 rounded-[11px] bg-[var(--color-surface)] border border-[var(--ui-border)] select-none"
+          : "flex flex-col items-stretch gap-0.5 w-16 h-full py-2 px-1.5 bg-[var(--color-surface-raised)] border-r border-[var(--ui-border)] shrink-0 select-none"
+      }
+      style={floating ? { boxShadow: "var(--ui-shadow-toolbar)" } : undefined}
       data-print-hide
       role="toolbar"
       aria-label="Tools"
@@ -63,20 +70,24 @@ export default function ToolRail({ onQuickAdd }: ToolRailProps) {
             type="button"
             onClick={onQuickAdd}
             title="Quick add — devices, bulk, paste a list (double-click canvas)"
-            className="group relative flex flex-col items-center justify-center gap-0.5 h-12 rounded-lg cursor-pointer
+            className={`group relative flex flex-col items-center justify-center gap-0.5 rounded-lg cursor-pointer
               bg-[var(--color-accent)] text-white shadow-sm
-              hover:brightness-110 active:scale-[0.94] transition-[transform,filter] duration-100"
+              hover:brightness-110 active:scale-[0.94] transition-[transform,filter] duration-100 ${
+              floating ? "w-9 h-9" : "h-12"
+            }`}
           >
             <Plus className="w-[18px] h-[18px]" strokeWidth={2.25} aria-hidden />
-            <span
-              className="text-[9px] font-semibold leading-none uppercase"
-              style={{ fontFamily: "var(--font-mono)", letterSpacing: "0.12em" }}
-            >
-              Add
-            </span>
+            {!floating && (
+              <span
+                className="text-[9px] font-semibold leading-none uppercase"
+                style={{ fontFamily: "var(--font-mono)", letterSpacing: "0.12em" }}
+              >
+                Add
+              </span>
+            )}
             <Tooltip>Quick add · double-click canvas</Tooltip>
           </button>
-          <div className="h-px my-1.5 mx-1 bg-[var(--ui-border)]" />
+          <div className="h-px my-1 mx-1 bg-[var(--ui-border)]" />
         </>
       )}
 
@@ -90,27 +101,33 @@ export default function ToolRail({ onQuickAdd }: ToolRailProps) {
             onClick={() => setActiveTool(tool.id)}
             aria-pressed={isActive}
             aria-label={tool.label}
-            className={`group relative flex flex-col items-center justify-center gap-0.5 h-12 rounded-lg cursor-pointer
+            className={`group relative flex flex-col items-center justify-center gap-0.5 rounded-lg cursor-pointer
               active:scale-[0.94] transition-[transform,background-color,color] duration-100 ${
+              floating ? "w-9 h-9" : "h-12"
+            } ${
               isActive
                 ? "bg-[var(--color-accent-soft)] text-[var(--color-accent)] font-semibold"
                 : "text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)]"
             }`}
           >
-            {/* Left indicator bar — only on the active tool. */}
-            <span
-              className={`absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full bg-[var(--color-accent)] transition-opacity ${
-                isActive ? "opacity-100" : "opacity-0"
-              }`}
-              aria-hidden
-            />
+            {/* Left indicator bar — only on the active tool (docked rail only). */}
+            {!floating && (
+              <span
+                className={`absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full bg-[var(--color-accent)] transition-opacity ${
+                  isActive ? "opacity-100" : "opacity-0"
+                }`}
+                aria-hidden
+              />
+            )}
             <IconCmp className="w-[18px] h-[18px]" strokeWidth={isActive ? 2.25 : 1.75} aria-hidden />
-            <span
-              className={`text-[9px] leading-none uppercase ${isActive ? "font-semibold" : "font-medium"}`}
-              style={{ fontFamily: "var(--font-mono)", letterSpacing: "0.12em" }}
-            >
-              {tool.label}
-            </span>
+            {!floating && (
+              <span
+                className={`text-[9px] leading-none uppercase ${isActive ? "font-semibold" : "font-medium"}`}
+                style={{ fontFamily: "var(--font-mono)", letterSpacing: "0.12em" }}
+              >
+                {tool.label}
+              </span>
+            )}
             <Tooltip>
               {tool.title}
               {tool.hotkey && <kbd className="ml-1.5 font-mono opacity-70">{tool.hotkey}</kbd>}

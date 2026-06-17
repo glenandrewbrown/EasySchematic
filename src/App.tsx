@@ -32,6 +32,7 @@ import DeviceEditor from "./components/DeviceEditor";
 import RightRail from "./components/RightRail";
 import ScheduleView from "./components/ScheduleView";
 import EditorTopBar from "./components/EditorTopBar";
+import CanvasBottomBar from "./components/CanvasBottomBar";
 import EdgeContextMenu from "./components/EdgeContextMenu";
 import CableAssignDialog from "./components/CableAssignDialog";
 import CableInventoryDialog from "./components/CableInventoryDialog";
@@ -2070,23 +2071,44 @@ export default function App() {
             <ScheduleView />
           </div>
         ) : (
-          <div className="flex flex-1 overflow-hidden">
-            <ToolRail onQuickAdd={() => useSchematicStore.getState().requestQuickAdd()} />
-            {(activeTool === "device" || deviceDrawerPinned) && (
-              <div data-print-hide data-mobile-hide>
-                <DeviceDrawer />
-              </div>
-            )}
-            {canvasViewMode === "layout" && activeTool === "object" && (
-              <div data-print-hide data-mobile-hide>
-                <ObjectDrawer />
-              </div>
-            )}
-            <div className="flex-1">
+          <div className="relative flex-1 overflow-hidden">
+            {/* Canvas fills the workspace; floating chrome sits over it (design §3). */}
+            <div className="absolute inset-0">
               <SchematicCanvas />
             </div>
-            <div data-print-hide className="hidden md:flex">
-              <RightRail />
+            {/* Floating overlay — pointer-events pass through to the canvas except on panels. */}
+            <div className="absolute inset-0 pointer-events-none z-20 hidden md:block" data-print-hide data-mobile-hide>
+              {/* Tool rail (floating pill, vertical-centre left) */}
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-auto">
+                <ToolRail floating onQuickAdd={() => useSchematicStore.getState().requestQuickAdd()} />
+              </div>
+              {/* Insert panel (floating card) */}
+              {(activeTool === "device" || deviceDrawerPinned) && (
+                <div
+                  className="absolute left-[60px] top-3 bottom-[58px] w-[266px] pointer-events-auto rounded-[11px] overflow-hidden border border-[var(--ui-border)]"
+                  style={{ boxShadow: "var(--ui-shadow-menu)" }}
+                >
+                  <DeviceDrawer />
+                </div>
+              )}
+              {/* Object drawer (Layout view, floating card) */}
+              {canvasViewMode === "layout" && activeTool === "object" && (
+                <div
+                  className="absolute left-[60px] top-3 bottom-[58px] w-[266px] pointer-events-auto rounded-[11px] overflow-hidden border border-[var(--ui-border)]"
+                  style={{ boxShadow: "var(--ui-shadow-menu)" }}
+                >
+                  <ObjectDrawer />
+                </div>
+              )}
+              {/* Inspector + docked Layers (floating card, right) */}
+              <div
+                className="absolute right-3 top-3 bottom-[58px] w-72 pointer-events-auto rounded-[11px] overflow-hidden border border-[var(--ui-border)]"
+                style={{ boxShadow: "var(--ui-shadow-menu)" }}
+              >
+                <RightRail />
+              </div>
+              {/* Floating bottom bar */}
+              <CanvasBottomBar />
             </div>
           </div>
         )
