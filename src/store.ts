@@ -16,6 +16,7 @@ import type {
   DeviceTemplate,
   OwnedGearItem,
   OwnedCableItem,
+  OwnedInventoryItem,
   SchematicLayer,
   Port,
   SchematicFile,
@@ -303,6 +304,7 @@ interface SchematicState {
   customTemplates: DeviceTemplate[];
   ownedGear: OwnedGearItem[];
   ownedCables: OwnedCableItem[];
+  ownedInventory: OwnedInventoryItem[];
   showOwnedGearPane: boolean;
   libraryActiveTab: "devices" | "owned";
 
@@ -408,6 +410,9 @@ interface SchematicState {
 
   // Owned cable inventory + per-connection assignment (cable fit)
   addOwnedCable: (item: Omit<OwnedCableItem, "id">) => void;
+  addOwnedInventoryItem: (item: Omit<OwnedInventoryItem, "id">) => void;
+  updateOwnedInventoryItem: (id: string, patch: Partial<Omit<OwnedInventoryItem, "id">>) => void;
+  removeOwnedInventoryItem: (id: string) => void;
   updateOwnedCable: (id: string, patch: Partial<Omit<OwnedCableItem, "id">>) => void;
   removeOwnedCable: (id: string) => void;
   setEdgeAssignedCables: (edgeId: string, cableIds: string[]) => void;
@@ -1419,6 +1424,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
   customTemplates: _initCustomTemplates,
   ownedGear: [],
   ownedCables: [],
+  ownedInventory: [],
   gearUnits: [],
   svgAssets: {},
   tagSuggestions: [],
@@ -3354,6 +3360,20 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
     get().saveToLocalStorage();
   },
 
+  addOwnedInventoryItem: (item) => {
+    const entry: OwnedInventoryItem = { ...item, id: crypto.randomUUID() };
+    set({ ownedInventory: [...get().ownedInventory, entry] });
+    get().saveToLocalStorage();
+  },
+  updateOwnedInventoryItem: (id, patch) => {
+    set({ ownedInventory: get().ownedInventory.map((it) => (it.id === id ? { ...it, ...patch } : it)) });
+    get().saveToLocalStorage();
+  },
+  removeOwnedInventoryItem: (id) => {
+    set({ ownedInventory: get().ownedInventory.filter((it) => it.id !== id) });
+    get().saveToLocalStorage();
+  },
+
   updateOwnedCable: (id, patch) => {
     set({
       ownedCables: get().ownedCables.map((c) => (c.id === id ? { ...c, ...patch } : c)),
@@ -5152,6 +5172,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
       edges: state.edges.map(({ zIndex: _, selected: _s, ...rest }) => rest) as ConnectionEdge[],
       ownedGear: state.ownedGear.length > 0 ? state.ownedGear : undefined,
       ownedCables: state.ownedCables.length > 0 ? state.ownedCables : undefined,
+      ownedInventory: state.ownedInventory.length > 0 ? state.ownedInventory : undefined,
       layers: state.layers,
       gearUnits: state.gearUnits.length > 0 ? state.gearUnits : undefined,
       svgAssets: Object.keys(state.svgAssets).length > 0 ? state.svgAssets : undefined,
@@ -5252,6 +5273,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
             schematicName: data.name ?? "Demo Schematic",
             ownedGear: data.ownedGear ?? [],
         ownedCables: data.ownedCables ?? [],
+        ownedInventory: data.ownedInventory ?? [],
         layers: data.layers ?? [{ id: DEFAULT_LAYER_ID, name: "Base", visible: true, locked: false }],
         gearUnits: data.gearUnits ?? [],
         svgAssets: sanitizeSvgAssets(data.svgAssets),
@@ -5339,6 +5361,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
         schematicName: data.name ?? "Untitled Schematic",
         ownedGear: data.ownedGear ?? [],
         ownedCables: data.ownedCables ?? [],
+        ownedInventory: data.ownedInventory ?? [],
         layers: data.layers ?? [{ id: DEFAULT_LAYER_ID, name: "Base", visible: true, locked: false }],
         gearUnits: data.gearUnits ?? [],
         svgAssets: sanitizeSvgAssets(data.svgAssets),
@@ -5426,6 +5449,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
       customTemplates: state.customTemplates.length > 0 ? state.customTemplates : undefined,
       ownedGear: state.ownedGear.length > 0 ? state.ownedGear : undefined,
       ownedCables: state.ownedCables.length > 0 ? state.ownedCables : undefined,
+      ownedInventory: state.ownedInventory.length > 0 ? state.ownedInventory : undefined,
       layers: state.layers,
       gearUnits: state.gearUnits.length > 0 ? state.gearUnits : undefined,
       svgAssets: Object.keys(state.svgAssets).length > 0 ? state.svgAssets : undefined,
@@ -5528,6 +5552,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
       isDemo: false,
       ownedGear: data.ownedGear ?? [],
         ownedCables: data.ownedCables ?? [],
+        ownedInventory: data.ownedInventory ?? [],
         layers: data.layers ?? [{ id: DEFAULT_LAYER_ID, name: "Base", visible: true, locked: false }],
         gearUnits: data.gearUnits ?? [],
         svgAssets: sanitizeSvgAssets(data.svgAssets),
@@ -5642,6 +5667,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
         isDemo: false,
         ownedGear: [],
         ownedCables: [],
+        ownedInventory: [],
         gearUnits: [],
         svgAssets: {},
         tagSuggestions: [],

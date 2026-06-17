@@ -7,6 +7,7 @@ import { renderCableBomPdf } from "../cableBomPdf";
 import { downloadCsv } from "../downloadCsv";
 import CableScheduleGrid from "./CableScheduleGrid";
 import GearInventoryPanel from "./GearInventoryPanel";
+import InventoryListPanel from "./InventoryListPanel";
 import LogisticsPanel from "./LogisticsPanel";
 
 /**
@@ -17,7 +18,7 @@ import LogisticsPanel from "./LogisticsPanel";
  * the old floating modals (round-2 review: working data does not belong in modals
  * launched from the Reports menu).
  */
-type ScheduleTab = "bom" | "inventory" | "logistics";
+type ScheduleTab = "bom" | "inventory" | "items" | "logistics";
 
 export default function ScheduleView() {
   const [tab, setTab] = useState<ScheduleTab>("bom");
@@ -32,11 +33,13 @@ export default function ScheduleView() {
       >
         <ScheduleTabButton id="bom" label="Cable BOM" active={tab} onSelect={setTab} />
         <ScheduleTabButton id="inventory" label="Inventory" active={tab} onSelect={setTab} />
+        <ScheduleTabButton id="items" label="Items" active={tab} onSelect={setTab} />
         <ScheduleTabButton id="logistics" label="Logistics" active={tab} onSelect={setTab} />
       </div>
 
       {tab === "bom" && <CableBomTab />}
       {tab === "inventory" && <GearInventoryPanel />}
+      {tab === "items" && <InventoryListPanel />}
       {tab === "logistics" && <LogisticsPanel />}
     </div>
   );

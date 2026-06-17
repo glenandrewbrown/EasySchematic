@@ -648,6 +648,21 @@ export interface OwnedCableItem {
   quantity: number;
 }
 
+/** A general owned-inventory line item — cables, adapters, peripherals, spares and other
+ *  gear kept in stock that need not appear as a device on the diagram. The lightweight
+ *  counterpart to the per-unit {@link GearUnit} and the cable-stock {@link OwnedCableItem}. */
+export interface OwnedInventoryItem {
+  id: string;
+  /** Display name, e.g. "USB-C → HDMI adapter", "Cat6A patch 0.5 m". */
+  label: string;
+  /** Optional free-text grouping, e.g. "Cable", "Adapter", "Peripheral", "Spare". */
+  category?: string;
+  /** How many are owned. */
+  quantity: number;
+  /** Optional notes (e.g. "needs PSU", "venue loan"). */
+  notes?: string;
+}
+
 export interface OwnedGearFile {
   version: 1;
   ownedGear: OwnedGearItem[];
@@ -935,6 +950,8 @@ export interface SchematicFile {
   customTemplates?: DeviceTemplate[];
   ownedGear?: OwnedGearItem[];
   ownedCables?: OwnedCableItem[];
+  /** General owned-inventory items (cables, peripherals, spares) not on the diagram. */
+  ownedInventory?: OwnedInventoryItem[];
   layers?: SchematicLayer[];
   signalColors?: Partial<Record<SignalType, string>>;
   signalLineStyles?: Partial<Record<SignalType, LineStyle>>;
