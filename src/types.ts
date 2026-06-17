@@ -454,6 +454,10 @@ export interface ObjectData {
   widthM?: number;
   /** Real-world depth in metres. */
   depthM?: number;
+  /** When true, this object also appears in the Schematic view (not just Layout) — for
+   *  AV-relevant furniture (speaker/mic stands, racks, screens) that is essential
+   *  hardware. Defaults on for the av-furniture catalog category at placement. */
+  showInSchematic?: boolean;
 }
 
 export type ObjectNode = Node<ObjectData, "object">;

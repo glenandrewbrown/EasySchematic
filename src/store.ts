@@ -3510,6 +3510,9 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
         widthM: entry.defaultWidthM,
         depthM: entry.defaultDepthM,
         color: entry.defaultColor,
+        // AV-relevant furniture (lecterns, screens, stands, racks) is essential hardware,
+        // so it defaults to appearing in the Schematic view too — toggleable in the Inspector.
+        ...(entry.category === "av-furniture" ? { showInSchematic: true } : {}),
         ...(svgAssetId ? { svgAssetId } : {}),
       },
       selected: true,

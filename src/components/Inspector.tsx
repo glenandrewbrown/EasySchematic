@@ -484,6 +484,18 @@ function ObjectBody({ node }: { node: SchematicNode }) {
         <Field label="Depth m" value={data.depthM} onCommit={(v) => patch({ depthM: numOrUndef(v) })} type="number" step={0.1} />
       </div>
       <Field label="Rotation°" value={data.rotationDeg ?? 0} onCommit={(v) => patch({ rotationDeg: Number(v) || 0 })} type="number" step={15} />
+      <label className="flex items-center gap-2 cursor-pointer select-none">
+        <input
+          type="checkbox"
+          className="accent-[var(--color-accent)]"
+          checked={!!data.showInSchematic}
+          onChange={(e) => patch({ showInSchematic: e.target.checked || undefined })}
+        />
+        <span className="text-[11px] text-[var(--color-text)]">Show in Schematic view</span>
+      </label>
+      <p className="text-[10px] text-[var(--color-text-muted)] -mt-1.5 leading-snug">
+        Keep AV-relevant furniture (speaker stands, racks) visible in the Schematic, not just Plan.
+      </p>
       <label className="block">
         <span className="block text-[10px] uppercase text-[var(--color-text-muted)] mb-0.5" style={SECTION_LABEL_STYLE}>Fill colour</span>
         <input className="w-full h-7 cursor-pointer rounded border border-[var(--ui-border)] bg-transparent" type="color" value={hexOf(data.color, "#e2e8f0")} onChange={(e) => patch({ color: e.target.value })} />

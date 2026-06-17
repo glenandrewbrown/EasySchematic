@@ -66,7 +66,7 @@ import PageTabs from "./components/PageTabs";
 import RackPage from "./components/RackPage";
 import PrintSheetPage from "./components/PrintSheetPage";
 import { computeSnap, enforceMinSpacing, detectOverlap, speculativeReparent, type GuideLine } from "./snapUtils";
-import type { ConnectionEdge, DeviceData, DeviceTemplate, SchematicFile, SchematicNode } from "./types";
+import type { ConnectionEdge, DeviceData, DeviceTemplate, ObjectData, SchematicFile, SchematicNode } from "./types";
 import { findAdaptersForSignalBridge, findAdaptersForConnectorBridge, areConnectorsCompatible } from "./connectorTypes";
 import { DEVICE_TEMPLATES } from "./deviceLibrary";
 import { loadSharedSchematic, checkSession } from "./templateApi";
@@ -632,11 +632,14 @@ function SchematicCanvas() {
         : null;
     const hasItemOverrides =
       hiddenNodeIds.length > 0 || lockedNodeIds.length > 0 || effectiveSolo !== null;
+    // Colour zones are Layout-only; objects too, EXCEPT those flagged showInSchematic
+    // (AV-relevant furniture — speaker stands, racks — that belong in both views).
+    const hideInSchematic = (n: SchematicNode) =>
+      n.type === "zone" || (n.type === "object" && !(n.data as ObjectData).showInSchematic);
     if (hiddenLayers.size === 0 && lockedLayers.size === 0 && !hasItemOverrides) {
-      // Objects + colour zones live only in the Layout view; hide them elsewhere.
-      const needLayoutHide = canvasViewMode !== "layout" && nodes.some((n) => n.type === "object" || n.type === "zone");
+      const needLayoutHide = canvasViewMode !== "layout" && nodes.some(hideInSchematic);
       const base = needLayoutHide
-        ? nodes.map((n) => ((n.type === "object" || n.type === "zone") ? { ...n, hidden: true } : n))
+        ? nodes.map((n) => (hideInSchematic(n) ? { ...n, hidden: true } : n))
         : nodes;
       return { renderNodes: base, visibleEdges: planHideEdges ? [] : recolorEdges(sigFiltered) };
     }
@@ -657,7 +660,7 @@ function SchematicCanvas() {
       },
     );
     const mappedNodes = nodes.map((n) => {
-      if (canvasViewMode !== "layout" && (n.type === "object" || n.type === "zone")) return { ...n, hidden: true };
+      if (canvasViewMode !== "layout" && hideInSchematic(n)) return { ...n, hidden: true };
       if (n.type === "waypoint" || n.type === "stub-label") return n; // follow their edge below
       const hidden = hiddenSet.has(n.id);
       const locked = lockedSet.has(n.id);
