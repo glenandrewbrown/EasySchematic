@@ -1,6 +1,7 @@
+import { Printer } from "lucide-react";
 import { useSchematicStore } from "../store";
 import type { PrintSheetPage, RackElevationPage } from "../types";
-import { PAPER_SIZES } from "../printConfig";
+import { getPaperSize } from "../printConfig";
 import { autoFillSheetForRack } from "../printSheetAutoFill";
 import { runPrintSheetExport } from "../printSheetExport";
 
@@ -8,8 +9,21 @@ interface Props {
   page: PrintSheetPage;
 }
 
+/** Short paper name for the header summary, e.g. "iso-a3" → "A3", "letter" → "Letter". */
+function shortPaperName(page: PrintSheetPage): string {
+  if (page.paperId === "custom") return "Custom";
+  const paper = getPaperSize(page.paperId, page.customWidthIn, page.customHeightIn);
+  // ISO labels are already "A3" etc; strip a leading "iso-" defensively.
+  return paper.label.replace(/^iso-/i, "");
+}
+
+/**
+ * Print Sheet header (design comp §"Print Sheet"). A 50px navy bar with the
+ * page title, a mono summary derived from the real paper/orientation, plus
+ * Auto-Fill / Add View / Clear (existing functionality) and the wired-up
+ * Export PDF button.
+ */
 export default function PrintSheetToolbar({ page }: Props) {
-  const setPrintSheetPaper = useSchematicStore((s) => s.setPrintSheetPaper);
   const addViewport = useSchematicStore((s) => s.addViewport);
   const removeViewport = useSchematicStore((s) => s.removeViewport);
   const pages = useSchematicStore((s) => s.pages);
@@ -20,7 +34,8 @@ export default function PrintSheetToolbar({ page }: Props) {
   const sheetIndex = printSheetPages.findIndex((p) => p.id === page.id) + 1;
   const sheetCount = printSheetPages.length;
 
-  const isCustomPaper = page.paperId === "custom";
+  // Mono header summary, e.g. "A3 LANDSCAPE · 1:50".
+  const summary = `${shortPaperName(page)} ${page.orientation.toUpperCase()} · 1:50`;
 
   const handleAutoFill = (elevPageId: string, rackId: string) => {
     const elevPage = elevationPages.find((p) => p.id === elevPageId);
@@ -31,85 +46,33 @@ export default function PrintSheetToolbar({ page }: Props) {
   };
 
   return (
-    <div className="flex items-center gap-3 px-3 py-1.5 bg-[var(--color-surface)] border-b border-[var(--ui-border)] text-xs" data-print-hide>
-      {/* Paper size */}
-      <label className="text-[var(--color-text-muted)] uppercase tracking-wider" style={{ fontSize: 9 }}>Paper</label>
-      <select
-        className="ui-input"
-        value={page.paperId}
-        onChange={(e) => setPrintSheetPaper(page.id, e.target.value, page.orientation, page.customWidthIn, page.customHeightIn)}
-      >
-        {PAPER_SIZES.map((ps) => <option key={ps.id} value={ps.id}>{ps.label}</option>)}
-        <option value="custom">Custom</option>
-      </select>
+    <div
+      className="flex items-center gap-3 px-4 bg-[var(--color-surface)] border-b border-[var(--ui-border)]"
+      style={{ height: 50, flex: "none" }}
+      data-print-hide
+    >
+      <span className="font-semibold text-[var(--color-text-heading)]" style={{ fontSize: 13 }}>
+        Print Sheet
+      </span>
+      <span className="text-[var(--color-text-muted)]" style={{ fontFamily: "var(--font-mono)", fontSize: 9 }}>
+        {summary}
+      </span>
 
-      {/* Custom paper dimensions */}
-      {isCustomPaper && (
-        <>
-          <input
-            type="number"
-            min={1}
-            max={200}
-            step={0.01}
-            value={page.customWidthIn ?? 24}
-            onChange={(e) => setPrintSheetPaper(page.id, "custom", page.orientation, Number(e.target.value), page.customHeightIn ?? 36)}
-            className="w-16 ui-input"
-            title="Width (in)"
-          />
-          <span className="text-neutral-400">×</span>
-          <input
-            type="number"
-            min={1}
-            max={200}
-            step={0.01}
-            value={page.customHeightIn ?? 36}
-            onChange={(e) => setPrintSheetPaper(page.id, "custom", page.orientation, page.customWidthIn ?? 24, Number(e.target.value))}
-            className="w-16 ui-input"
-            title="Height (in)"
-          />
-          <span className="text-[var(--color-text-muted)]" style={{ fontSize: 9 }}>in</span>
-        </>
-      )}
-
-      {/* Orientation */}
-      <button
-        className={`px-2 py-0.5 rounded border text-xs transition-colors ${page.orientation === "landscape" ? "bg-[var(--color-accent-soft)] border-[var(--color-accent)] text-[var(--color-accent)]" : "ui-btn ui-btn-ghost"}`}
-        onClick={() => setPrintSheetPaper(page.id, page.paperId, page.orientation === "landscape" ? "portrait" : "landscape")}
-      >
-        {page.orientation === "landscape" ? "↔ Landscape" : "↕ Portrait"}
-      </button>
-
-      {/* Title block toggle */}
-      <label className="flex items-center gap-1 cursor-pointer">
-        <input
-          type="checkbox"
-          checked={page.showTitleBlock}
-          onChange={(e) => {
-            const updatedPage = { ...page, showTitleBlock: e.target.checked };
-            useSchematicStore.setState((state) => ({
-              pages: state.pages.map((p) => p.id === page.id ? updatedPage : p),
-            }));
-          }}
-        />
-        <span className="text-[var(--color-text)]">Title Block</span>
-      </label>
-
-      <div className="border-l border-[var(--ui-border)] h-4" />
-
-      {/* Auto-fill from rack */}
-      {elevationPages.length > 0 && (
-        <div className="flex items-center gap-1">
-          <span className="text-[var(--color-text-muted)]">Auto-Fill from:</span>
+      <div className="ml-auto flex items-center gap-2">
+        {/* Auto-fill from rack (existing functionality) */}
+        {elevationPages.length > 0 && (
           <select
             className="ui-input"
+            style={{ height: 30 }}
             defaultValue=""
+            title="Auto-fill the sheet from a rack"
             onChange={(e) => {
               const [pageId, rackId] = e.target.value.split("|");
               if (pageId && rackId) handleAutoFill(pageId, rackId);
               e.target.value = "";
             }}
           >
-            <option value="">— Pick rack —</option>
+            <option value="">Auto-Fill from…</option>
             {elevationPages.flatMap((ep) =>
               ep.racks.map((r) => (
                 <option key={`${ep.id}|${r.id}`} value={`${ep.id}|${r.id}`}>
@@ -118,16 +81,15 @@ export default function PrintSheetToolbar({ page }: Props) {
               ))
             )}
           </select>
-        </div>
-      )}
+        )}
 
-      {/* Add viewport manually */}
-      {elevationPages.length > 0 && (
-        <div className="flex items-center gap-1">
-          <span className="text-[var(--color-text-muted)]">Add View:</span>
+        {/* Add a single view (existing functionality) */}
+        {elevationPages.length > 0 && (
           <select
             className="ui-input"
+            style={{ height: 30 }}
             defaultValue=""
+            title="Add a single rack view"
             onChange={(e) => {
               const [kind, pageId, rackId] = e.target.value.split("|");
               if (!kind || !pageId || !rackId) return;
@@ -142,7 +104,7 @@ export default function PrintSheetToolbar({ page }: Props) {
               e.target.value = "";
             }}
           >
-            <option value="">— Pick view —</option>
+            <option value="">Add view…</option>
             {elevationPages.flatMap((ep) =>
               ep.racks.flatMap((r) => [
                 <option key={`front|${ep.id}|${r.id}`} value={`rack-front|${ep.id}|${r.id}`}>{r.label} · Front</option>,
@@ -151,35 +113,49 @@ export default function PrintSheetToolbar({ page }: Props) {
               ])
             )}
           </select>
-        </div>
-      )}
+        )}
 
-      <div className="flex-1" />
+        {/* Sheet count */}
+        {sheetCount > 1 && (
+          <span className="text-[var(--color-text-muted)]" style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>
+            Sheet {sheetIndex} of {sheetCount}
+          </span>
+        )}
 
-      {/* Sheet count */}
-      {sheetCount > 1 && (
-        <span className="text-[var(--color-text-muted)]" style={{ fontFamily: "monospace", fontSize: 11 }}>
-          Sheet {sheetIndex} of {sheetCount}
-        </span>
-      )}
+        {/* Clear all (existing functionality) */}
+        {page.viewports.length > 0 && (
+          <button
+            className="ui-btn ui-btn-ghost"
+            style={{ height: 30 }}
+            onClick={() => { for (const vp of page.viewports) removeViewport(page.id, vp.id); }}
+          >
+            Clear
+          </button>
+        )}
 
-      {/* Clear all */}
-      {page.viewports.length > 0 && (
+        {/* Page setup — opens the same paper controls already in the sidebar; this
+            is the comp's affordance. It focuses the sidebar's paper group. */}
         <button
-          className="ui-btn ui-btn-danger"
-          onClick={() => { for (const vp of page.viewports) removeViewport(page.id, vp.id); }}
+          className="ui-btn ui-btn-ghost"
+          style={{ height: 30 }}
+          onClick={() => {
+            const el = document.getElementById("print-sheet-paper-group");
+            el?.scrollIntoView({ behavior: "smooth", block: "start" });
+          }}
         >
-          Clear All
+          Page setup
         </button>
-      )}
 
-      {/* Export PDF — same handler as File → Export → Export Print Sheets */}
-      <button
-        className="ui-btn ui-btn-primary"
-        onClick={() => { void runPrintSheetExport(); }}
-      >
-        Export PDF
-      </button>
+        {/* Export PDF — same handler as File → Export → Export Print Sheets */}
+        <button
+          className="ui-btn ui-btn-primary inline-flex items-center gap-1.5"
+          style={{ height: 30 }}
+          onClick={() => { void runPrintSheetExport(); }}
+        >
+          <Printer size={13} strokeWidth={1.8} />
+          Export PDF
+        </button>
+      </div>
     </div>
   );
 }

@@ -14,6 +14,21 @@ const SNAP_THRESHOLD_MM = 3;
 
 const PT_TO_PX = SCREEN_PPI / 72;
 
+// White CAD sheet colours (literal paper colours per the design comp — the sheet
+// is white paper, not theme-driven). Ink is the dark line/text colour, sub-ink the
+// muted label colour, frame the grid/border stroke.
+const SHEET_PAPER = "#fdfdfb";
+const SHEET_INK = "#1a2233";
+const SHEET_FRAME = "#44506a";
+
+// Signal legend on the white sheet uses print-darkened colours (~15% darker than
+// the on-screen palette) for paper contrast, matching the comp.
+const PRINT_LEGEND: { label: string; color: string }[] = [
+  { label: "AES3", color: "#7b5fd0" },
+  { label: "Analog", color: "#b08838" },
+  { label: "USB", color: "#c44d8f" },
+];
+
 /** Natural aspect ratio of a rack face SVG (matches RackFaceSVG viewBox). width/height. */
 function getNaturalAspect(rack: RackData, face: "front" | "rear" | "side"): number {
   const VB_H = rack.heightU * 24 + 24;
@@ -64,7 +79,7 @@ function TitleBlockSVG({ tb, layout, pageNum, totalPages, widthPx, heightPx }: T
       const done = c === layout.columns.length || skipHLines.has(`${ri},${c}`);
       if (done) {
         if (seg !== null) {
-          hLines.push(<line key={`h${ri}-${seg}-${c}`} x1={colStarts[seg] * widthPx} y1={y} x2={(colStarts[c] ?? 1) * widthPx} y2={y} stroke="#646464" strokeWidth={0.5} />);
+          hLines.push(<line key={`h${ri}-${seg}-${c}`} x1={colStarts[seg] * widthPx} y1={y} x2={(colStarts[c] ?? 1) * widthPx} y2={y} stroke={SHEET_FRAME} strokeWidth={0.5} />);
           seg = null;
         }
       } else if (seg === null) { seg = c; }
@@ -80,7 +95,7 @@ function TitleBlockSVG({ tb, layout, pageNum, totalPages, widthPx, heightPx }: T
       const done = r === layout.rows.length || skipVLines.has(`${ci},${r}`);
       if (done) {
         if (seg !== null) {
-          vLines.push(<line key={`v${ci}-${seg}-${r}`} x1={x} y1={rowStarts[seg] * heightPx} x2={x} y2={(rowStarts[r] ?? 1) * heightPx} stroke="#646464" strokeWidth={0.5} />);
+          vLines.push(<line key={`v${ci}-${seg}-${r}`} x1={x} y1={rowStarts[seg] * heightPx} x2={x} y2={(rowStarts[r] ?? 1) * heightPx} stroke={SHEET_FRAME} strokeWidth={0.5} />);
           seg = null;
         }
       } else if (seg === null) { seg = r; }
@@ -90,7 +105,7 @@ function TitleBlockSVG({ tb, layout, pageNum, totalPages, widthPx, heightPx }: T
   const pad = 3;
   return (
     <svg width={widthPx} height={heightPx} style={{ display: "block", overflow: "visible" }}>
-      <rect x={0} y={0} width={widthPx} height={heightPx} fill="white" stroke="#646464" strokeWidth={0.75} />
+      <rect x={0} y={0} width={widthPx} height={heightPx} fill={SHEET_PAPER} stroke={SHEET_INK} strokeWidth={1} />
       {hLines}
       {vLines}
       {layout.cells.map((cell) => {
@@ -607,9 +622,16 @@ export default function PrintSheetRenderer({ page }: Props) {
     <div className="flex-1 relative overflow-hidden">
       <div
         ref={containerRef}
-        className="absolute inset-0 bg-neutral-300 outline-none"
+        className="absolute inset-0 outline-none"
         tabIndex={0}
-        style={{ cursor: isPanning ? "grabbing" : spaceHeld ? "grab" : "default", userSelect: "none" }}
+        style={{
+          cursor: isPanning ? "grabbing" : spaceHeld ? "grab" : "default",
+          userSelect: "none",
+          // Dark preview gutter with a faint dot grid (design comp §"Print Sheet").
+          background: "var(--color-bg)",
+          backgroundImage: "radial-gradient(circle at 1px 1px, rgba(80,170,225,0.05) 1px, transparent 0)",
+          backgroundSize: "26px 26px",
+        }}
         onKeyDown={handleKeyDown}
         onMouseDown={handleCanvasMouseDown}
         onMouseMove={handleMouseMove}
@@ -617,16 +639,74 @@ export default function PrintSheetRenderer({ page }: Props) {
         onDragOver={(e) => e.preventDefault()}
         onDrop={handleDrop}
       >
-        {/* Paper */}
+        {/* Paper — white CAD sheet (literal paper colours per the comp, not theme-driven). */}
         <div
-          className="bg-white shadow-xl absolute"
-          style={{ width: pageWPx, height: pageHPx, transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, transformOrigin: "0 0" }}
+          className="absolute"
+          style={{
+            width: pageWPx,
+            height: pageHPx,
+            background: SHEET_PAPER,
+            color: SHEET_INK,
+            boxShadow: "0 24px 60px -24px rgba(0,0,0,0.85)",
+            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+            transformOrigin: "0 0",
+          }}
         >
-          {/* Content border (matches pdfExport.ts drawContentBorder) */}
+          {/* Faint drawing-area grid inside the content border. */}
           <div
             className="absolute pointer-events-none"
-            style={{ left: marginPx, top: marginPx, right: marginPx, bottom: marginPx, border: "0.72px solid #000" }}
+            style={{
+              left: marginPx, top: marginPx, right: marginPx, bottom: marginPx,
+              backgroundImage:
+                "linear-gradient(rgba(20,40,80,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(20,40,80,0.05) 1px, transparent 1px)",
+              backgroundSize: "20px 20px",
+            }}
           />
+          {/* Content border — 1.5px inner CAD frame (matches pdfExport.ts drawContentBorder). */}
+          <div
+            className="absolute pointer-events-none"
+            style={{ left: marginPx, top: marginPx, right: marginPx, bottom: marginPx, border: `1.5px solid ${SHEET_INK}` }}
+          />
+
+          {/* North arrow (top-right of the drawing area). */}
+          <div
+            className="absolute pointer-events-none flex flex-col items-center"
+            style={{ right: marginPx + 12, top: marginPx + 12, gap: 2 }}
+          >
+            <svg width="20" height="24" viewBox="0 0 24 28" fill="none">
+              <path d="M12 2v24M12 2l5 8M12 2l-5 8" stroke={SHEET_INK} strokeWidth="1.4" />
+            </svg>
+            <span style={{ fontSize: 7, fontWeight: 700 }}>N</span>
+          </div>
+
+          {/* Scale bar (bottom-left of the drawing area). */}
+          <div
+            className="absolute pointer-events-none flex items-center"
+            style={{ left: marginPx + 12, bottom: tbHeightPx + marginPx + 12, gap: 6 }}
+          >
+            <div className="flex" style={{ border: `1px solid ${SHEET_INK}` }}>
+              <div style={{ width: 22, height: 5, background: SHEET_INK }} />
+              <div style={{ width: 22, height: 5, background: SHEET_PAPER }} />
+              <div style={{ width: 22, height: 5, background: SHEET_INK }} />
+            </div>
+            <span style={{ fontSize: 7, fontFamily: "var(--font-mono)" }}>0–3m · 1:50</span>
+          </div>
+
+          {/* Signal legend (bottom-right of the drawing area). Darkened print colours. */}
+          <div
+            className="absolute pointer-events-none"
+            style={{ right: marginPx + 12, bottom: tbHeightPx + marginPx + 12, border: `1px solid ${SHEET_INK}`, background: SHEET_PAPER, padding: "6px 8px" }}
+          >
+            <div style={{ fontSize: 7, fontWeight: 700, marginBottom: 4, letterSpacing: "0.06em" }}>SIGNAL LEGEND</div>
+            <div className="flex flex-col" style={{ gap: 3 }}>
+              {PRINT_LEGEND.map((item) => (
+                <span key={item.label} className="flex items-center" style={{ gap: 5, fontSize: 7 }}>
+                  <span style={{ width: 10, height: 2, background: item.color }} />
+                  {item.label}
+                </span>
+              ))}
+            </div>
+          </div>
 
           {/* Viewports */}
           {page.viewports.map((vp) => {
@@ -820,13 +900,13 @@ export default function PrintSheetRenderer({ page }: Props) {
         </div>
       </div>
 
-      {/* Zoom controls */}
-      <div className="absolute bottom-4 right-4 flex items-center gap-1 bg-white/90 border border-neutral-300 rounded shadow px-2 py-1 text-xs select-none" data-print-hide>
-        <button className="px-2 py-0.5 text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 rounded cursor-pointer" onClick={fitView}>Fit</button>
-        <div className="border-l border-neutral-200 h-3" />
-        <button className="w-6 h-6 flex items-center justify-center text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 rounded cursor-pointer" onClick={() => { const z = Math.max(0.1, vpRef.current.zoom / 1.25); setViewport(z, vpRef.current.pan); }}>−</button>
-        <span className="w-10 text-center text-neutral-600">{Math.round(zoom * 100)}%</span>
-        <button className="w-6 h-6 flex items-center justify-center text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 rounded cursor-pointer" onClick={() => { const z = Math.min(4, vpRef.current.zoom * 1.25); setViewport(z, vpRef.current.pan); }}>+</button>
+      {/* Zoom controls — navy floating chrome over the dark gutter. */}
+      <div className="absolute bottom-4 right-4 flex items-center gap-1 rounded-lg shadow px-2 py-1 text-xs select-none bg-[var(--color-surface)] border border-[var(--ui-border)] text-[var(--color-text-muted)]" data-print-hide>
+        <button className="px-2 py-0.5 rounded cursor-pointer hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-heading)]" onClick={fitView}>Fit</button>
+        <div className="border-l border-[var(--ui-border)] h-3" />
+        <button className="w-6 h-6 flex items-center justify-center rounded cursor-pointer hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-heading)]" onClick={() => { const z = Math.max(0.1, vpRef.current.zoom / 1.25); setViewport(z, vpRef.current.pan); }}>−</button>
+        <span className="w-10 text-center" style={{ fontFamily: "var(--font-mono)" }}>{Math.round(zoom * 100)}%</span>
+        <button className="w-6 h-6 flex items-center justify-center rounded cursor-pointer hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-heading)]" onClick={() => { const z = Math.min(4, vpRef.current.zoom * 1.25); setViewport(z, vpRef.current.pan); }}>+</button>
       </div>
     </div>
   );

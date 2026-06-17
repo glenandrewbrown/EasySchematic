@@ -1,380 +1,517 @@
 import { useEffect } from "react";
-import { sponsors } from "../sponsors";
 
-const features = [
-  {
-    title: "Drag-and-drop device library",
-    description:
-      "2,000+ professional AV templates: cameras, switchers, routers, consoles, media servers, and displays. Drop a device and connect it in seconds.",
-  },
-  {
-    title: "Pack lists & cable schedules",
-    description:
-      "Generate paperwork straight from the schematic: pack lists, cable schedules with signal types and cable IDs. No separate spreadsheets.",
-  },
-  {
-    title: "Rack builder",
-    description:
-      "Drag devices into rack elevations with front, rear, and side views. Racks stay linked to the schematic, so edits sync both ways.",
-  },
-  {
-    title: "Export to DXF, PDF & PNG",
-    description:
-      "DXF for AutoCAD and Vectorworks, PDF for print, PNG for decks. Configurable page sizes and title blocks built for integration shops.",
-  },
-  {
-    title: "Room grouping",
-    description:
-      "Organize devices into rooms, racks, and nested groups: control rooms, stages, OB trucks, and equipment closets.",
-  },
-  {
-    title: "Community device database",
-    description:
-      "Browse and contribute real-world device templates with accurate port layouts and connector specs. Open REST API included.",
-  },
-];
+/* ── Landing palette ───────────────────────────────────────────────────────
+   The landing page renders OUTSIDE the app's `.dark` class context (main.tsx
+   mounts it standalone), so CSS theme tokens would resolve to their light
+   values. To guarantee the navy "engineering instrument" look regardless of
+   the visitor's OS theme, the marketing surface uses the comp's literal navy
+   hexes. These mirror the `.dark` token values in theme.css. The deepest bg
+   (#050d1c) has no token by design — it is the marketing-only canvas colour.   */
+const C = {
+  bgDeep: "#050d1c", // page canvas (no token — marketing only)
+  surface: "#071427", // --color-bg (dark)
+  card: "#0c2138", // --color-surface (dark)
+  panel: "#0a1c33", // hero-mock / brand panel
+  border: "#1d4b78", // --ui-border (dark)
+  borderSoft: "#143a5e", // hairline dividers
+  borderStrong: "#2a6499", // --ui-border-strong / --color-border (dark)
+  text: "#a6cdee", // --color-text (dark)
+  textHeading: "#e3f2ff", // --color-text-heading (dark)
+  textMuted: "#5f93c0", // --color-text-muted (dark)
+  textBright: "#f3faff", // hero H1
+  accent: "#37c2e0", // marketing accent (cyan)
+  accentInk: "#04222b", // text on accent buttons
+  accentSoft: "rgba(55,194,224,0.1)",
+} as const;
 
-const useCases = [
-  {
-    heading: "Broadcast & live production",
-    text: "Map SDI, NDI, and MADI signal paths through cameras, switchers, multiviewers, and routers. Document entire OB trucks and control rooms.",
-  },
-  {
-    heading: "AV integration & install",
-    text: "Design hook-up sheets, system block diagrams, and AV schematics for conference rooms, auditoriums, and venues. Export DXF for CAD workflows.",
-  },
-  {
-    heading: "Event & rental",
-    text: "Plan signal flow for live events, rental packages, and temporary installs. Share schematics with your crew via link.",
-  },
-];
+/* Workspace-accent hexes for the feature-strip line icons (data, not theme). */
+const FEATURE_ACCENTS = {
+  schematic: "#3d8bfd",
+  plan: "#1fb6a6",
+  schedule: "#e0a345",
+  rack: "#8b7cf0",
+} as const;
 
-const marqueeSignals = [
-  { name: "SDI", color: "var(--color-sdi)" },
-  { name: "HDMI", color: "var(--color-hdmi)" },
-  { name: "NDI", color: "var(--color-ndi)" },
-  { name: "Dante", color: "var(--color-dante)" },
-  { name: "AES67", color: "var(--color-aes)" },
-  { name: "MADI", color: "var(--color-madi)" },
-  { name: "DMX", color: "var(--color-dmx)" },
-  { name: "HDBaseT", color: "var(--color-hdbaset)" },
-  { name: "Analog Audio", color: "var(--color-analog-audio)" },
-  { name: "ST 2110", color: "var(--color-sdi)" },
-  { name: "USB", color: "var(--color-usb)" },
-  { name: "Ethernet", color: "var(--color-ethernet)" },
-  { name: "Fiber", color: "var(--color-fiber)" },
-  { name: "DisplayPort", color: "var(--color-displayport)" },
-  { name: "Genlock", color: "var(--color-genlock)" },
-  { name: "Timecode", color: "var(--color-timecode)" },
-  { name: "MIDI", color: "var(--color-midi)" },
-  { name: "sACN", color: "var(--color-sacn)" },
-  { name: "Thunderbolt", color: "var(--color-thunderbolt)" },
-  { name: "Word Clock", color: "var(--color-wordclock)" },
-];
-
+/* Preserved enter-app path: opt out of the landing page, then load the editor.
+   This is the same contract main.tsx reads in shouldShowLanding(). */
 function openEditor() {
   localStorage.setItem("easyschematic-skip-landing", "1");
   window.location.href = "/";
 }
 
-function SignalPill({ name, color }: { name: string; color: string }) {
+/** Logo lockup: rounded tile with an accent stripe + a small node-graph glyph. */
+function LogoMark() {
   return (
-    <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-slate-800 bg-slate-900/80 text-sm font-medium text-slate-200 whitespace-nowrap">
-      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
-      {name}
+    <span
+      style={{
+        width: 27,
+        height: 27,
+        borderRadius: 7,
+        background: C.card,
+        border: `1px solid ${C.border}`,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        position: "relative",
+        flexShrink: 0,
+      }}
+    >
+      <span
+        style={{
+          position: "absolute",
+          left: 0,
+          top: 6,
+          bottom: 6,
+          width: 2.5,
+          borderRadius: 2,
+          background: C.accent,
+        }}
+      />
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+        <circle cx="6" cy="6" r="2" fill={C.textHeading} />
+        <circle cx="18" cy="6" r="2" fill={C.textHeading} />
+        <circle cx="12" cy="18" r="2" fill={C.accent} />
+        <path
+          d="M6 8v3a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V8M12 13v3"
+          stroke="#5f93c0"
+          strokeWidth="1.4"
+        />
+      </svg>
     </span>
   );
 }
 
-/* Miniature of the editor's actual device-node rendering: two device cards
-   joined by orthogonal, signal-colored cables. Built from the same visual
-   vocabulary the canvas uses, so the preview stays truthful. */
-function MiniSchematic() {
-  const port = (color: string) => (
-    <span className="w-2 h-2 rounded-full border border-slate-500 shrink-0" style={{ backgroundColor: color }} />
-  );
+interface FeatureCell {
+  title: string;
+  description: string;
+  color: string;
+  icon: React.ReactNode;
+}
+
+const FEATURES: FeatureCell[] = [
+  {
+    title: "Signal-flow canvas",
+    description: "Color-coded wires, smart connect, auto-route.",
+    color: FEATURE_ACCENTS.schematic,
+    icon: (
+      <>
+        <rect x="3" y="4" width="7" height="5" rx="1.2" stroke="currentColor" strokeWidth="1.6" />
+        <rect x="14" y="15" width="7" height="5" rx="1.2" stroke="currentColor" strokeWidth="1.6" />
+        <path d="M6.5 9v3a2 2 0 0 0 2 2h9" stroke="currentColor" strokeWidth="1.6" />
+      </>
+    ),
+  },
+  {
+    title: "To-scale plans",
+    description: "Room layouts, coverage, dimensions.",
+    color: FEATURE_ACCENTS.plan,
+    icon: (
+      <>
+        <rect x="3" y="3" width="18" height="18" rx="1.5" stroke="currentColor" strokeWidth="1.6" />
+        <path d="M3 9h6V3" stroke="currentColor" strokeWidth="1.6" />
+      </>
+    ),
+  },
+  {
+    title: "Cable schedules",
+    description: "Auto BOM with run-length validation.",
+    color: FEATURE_ACCENTS.schedule,
+    icon: (
+      <>
+        <rect x="3" y="4" width="18" height="16" rx="1.5" stroke="currentColor" strokeWidth="1.6" />
+        <path d="M3 9h18M9 9v11" stroke="currentColor" strokeWidth="1.4" />
+      </>
+    ),
+  },
+  {
+    title: "Rack builder",
+    description: "U-accurate elevations and pack lists.",
+    color: FEATURE_ACCENTS.rack,
+    icon: (
+      <>
+        <rect x="5" y="3" width="14" height="18" rx="1.5" stroke="currentColor" strokeWidth="1.6" />
+        <path d="M8 7h8M8 11h8" stroke="currentColor" strokeWidth="1.4" />
+      </>
+    ),
+  },
+];
+
+/* Static stylised canvas mock for the hero — a small node-graph card with a
+   couple of signal-coloured wires/nodes. Purely decorative. */
+function HeroCanvasMock() {
+  const nodeChrome: React.CSSProperties = {
+    position: "absolute",
+    background: C.card,
+    borderRadius: 6,
+  };
   return (
-    <div className="relative select-none" aria-hidden>
-      <svg viewBox="0 0 440 220" className="w-full h-auto">
-        {/* cables: orthogonal, like the A* router draws them */}
-        <path d="M150 62 H210 V58 H290" fill="none" stroke="var(--color-sdi)" strokeWidth="2.5" />
-        <path d="M150 92 H196 V104 H290" fill="none" stroke="var(--color-dante)" strokeWidth="2.5" />
-        <path d="M150 122 H182 V150 H290" fill="none" stroke="var(--color-ndi)" strokeWidth="2.5" />
+    <div
+      style={{
+        position: "relative",
+        height: 300,
+        borderRadius: 12,
+        border: `1px solid ${C.border}`,
+        background: C.panel,
+        backgroundImage:
+          "radial-gradient(circle at 1px 1px,rgba(80,170,225,.09) 1px,transparent 0)",
+        backgroundSize: "16px 16px",
+        overflow: "hidden",
+        boxShadow: "0 16px 40px -20px #000",
+      }}
+      aria-hidden
+    >
+      <svg width="100%" height="100%" style={{ position: "absolute", inset: 0 }} fill="none">
+        <path d="M120 90 H180 V80 H250" stroke="#e06aa6" strokeWidth="2" strokeDasharray="0.5 7" />
+        <path d="M360 88 H410 V150 H470" stroke="#a98bf0" strokeWidth="2" strokeDasharray="0.5 7" />
+        <path d="M360 110 H395 V230 H300" stroke="#cba36a" strokeWidth="2" strokeDasharray="0.5 7" />
       </svg>
-      <div className="absolute inset-0 flex items-center justify-between">
-        {/* source device */}
-        <div className="w-[34%] rounded-lg border border-slate-600 bg-slate-900 shadow-xl shadow-slate-950/50 overflow-hidden">
-          <div className="px-3 py-2 border-b border-slate-700 bg-slate-800">
-            <p className="text-[11px] font-bold text-slate-100 leading-tight">Camera 1</p>
-            <p className="text-[9px] text-slate-400">Cinema Camera</p>
+      {/* source node */}
+      <div style={{ ...nodeChrome, left: 50, top: 70, width: 70, border: `1px solid ${C.borderStrong}` }}>
+        <div
+          style={{
+            height: 20,
+            borderBottom: `1px solid ${C.border}`,
+            display: "flex",
+            alignItems: "center",
+            padding: "0 7px",
+          }}
+        >
+          <span style={{ fontSize: 8, color: C.textHeading, fontWeight: 600 }}>Laptop</span>
+        </div>
+        <div style={{ height: 14, display: "flex", alignItems: "center", justifyContent: "flex-end", padding: "0 6px" }}>
+          <span style={{ width: 6, height: 6, borderRadius: 2, background: "#e06aa6" }} />
+        </div>
+      </div>
+      {/* highlighted node */}
+      <div
+        style={{
+          ...nodeChrome,
+          left: 250,
+          top: 60,
+          width: 110,
+          border: `1px solid ${C.accent}`,
+          boxShadow: "0 0 0 3px rgba(55,194,224,.14)",
+        }}
+      >
+        <div
+          style={{
+            height: 20,
+            borderBottom: `1px solid ${C.border}`,
+            display: "flex",
+            alignItems: "center",
+            gap: 5,
+            padding: "0 7px",
+          }}
+        >
+          <span style={{ fontSize: 8, color: C.textHeading, fontWeight: 600 }}>Audient ORIA</span>
+          <span style={{ marginLeft: "auto", width: 5, height: 5, borderRadius: "50%", background: "#3ec9a0" }} />
+        </div>
+        <div style={{ display: "flex" }}>
+          <div
+            style={{
+              flex: 1,
+              height: 30,
+              borderRight: `1px solid ${C.borderSoft}`,
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              gap: 4,
+              padding: "0 6px",
+            }}
+          >
+            <span style={{ width: 6, height: 6, borderRadius: 2, background: "#e06aa6" }} />
+            <span style={{ width: 6, height: 6, borderRadius: 2, background: "#cba36a" }} />
           </div>
-          <div className="px-3 py-2 space-y-2">
-            <div className="flex items-center justify-end gap-1.5 text-[9px] text-slate-300">SDI Out {port("var(--color-sdi)")}</div>
-            <div className="flex items-center justify-end gap-1.5 text-[9px] text-slate-300">Audio {port("var(--color-dante)")}</div>
-            <div className="flex items-center justify-end gap-1.5 text-[9px] text-slate-300">NDI {port("var(--color-ndi)")}</div>
+          <div
+            style={{
+              flex: 1,
+              height: 30,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "flex-end",
+              justifyContent: "center",
+              gap: 4,
+              padding: "0 6px",
+            }}
+          >
+            <span style={{ width: 6, height: 6, borderRadius: 2, background: "#a98bf0" }} />
           </div>
         </div>
-        {/* destination device */}
-        <div className="w-[34%] rounded-lg border border-slate-600 bg-slate-900 shadow-xl shadow-slate-950/50 overflow-hidden">
-          <div className="px-3 py-2 border-b border-slate-700 bg-slate-800">
-            <p className="text-[11px] font-bold text-slate-100 leading-tight">Switcher</p>
-            <p className="text-[9px] text-slate-400">Production Switcher</p>
-          </div>
-          <div className="px-3 py-2 space-y-2">
-            <div className="flex items-center gap-1.5 text-[9px] text-slate-300">{port("var(--color-sdi)")} In 1</div>
-            <div className="flex items-center gap-1.5 text-[9px] text-slate-300">{port("var(--color-dante)")} In 2</div>
-            <div className="flex items-center gap-1.5 text-[9px] text-slate-300">{port("var(--color-ndi)")} In 3</div>
-          </div>
+      </div>
+      {/* sink node */}
+      <div style={{ ...nodeChrome, left: 470, top: 128, width: 62, border: `1px solid ${C.borderStrong}` }}>
+        <div
+          style={{
+            height: 20,
+            borderBottom: `1px solid ${C.border}`,
+            display: "flex",
+            alignItems: "center",
+            padding: "0 7px",
+          }}
+        >
+          <span style={{ fontSize: 8, color: C.textHeading, fontWeight: 600 }}>8351B</span>
+        </div>
+        <div style={{ height: 14, display: "flex", alignItems: "center", padding: "0 6px" }}>
+          <span style={{ width: 6, height: 6, borderRadius: 2, background: "#a98bf0" }} />
         </div>
       </div>
     </div>
   );
 }
 
+const NAV_LINK: React.CSSProperties = { fontSize: 12.5, color: C.text, textDecoration: "none" };
+
 export default function LandingPage() {
-  // Override overflow:hidden from index.css so landing page can scroll
+  // Override overflow:hidden from index.css so the landing page can scroll.
   useEffect(() => {
     document.documentElement.style.overflow = "auto";
     document.body.style.overflow = "auto";
-    document.getElementById("root")!.style.overflow = "auto";
+    const root = document.getElementById("root");
+    if (root) root.style.overflow = "auto";
     return () => {
       document.documentElement.style.overflow = "";
       document.body.style.overflow = "";
-      document.getElementById("root")!.style.overflow = "";
+      if (root) root.style.overflow = "";
     };
   }, []);
 
   return (
     <div
-      className="min-h-screen bg-slate-950 text-slate-100"
-      style={{ overflow: "auto", fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}
+      style={{
+        minHeight: "100vh",
+        background: C.bgDeep,
+        backgroundImage:
+          "radial-gradient(circle at 1px 1px,rgba(80,170,225,.05) 1px,transparent 0)",
+        backgroundSize: "26px 26px",
+        padding: "34px 38px 80px",
+        color: C.text,
+        fontFamily: "'IBM Plex Sans', system-ui, sans-serif",
+        WebkitFontSmoothing: "antialiased",
+      }}
     >
-      {/* Nav */}
-      <nav className="border-b border-slate-800/80 sticky top-0 z-40 bg-slate-950/90 backdrop-blur-sm">
-        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <span className="flex items-center gap-2.5">
-            <img src="/favicon.svg" alt="" className="w-8 h-8 rounded-lg" />
-            <span className="text-base font-bold tracking-tight text-white">EasySchematic</span>
-          </span>
-          <div className="hidden sm:flex items-center gap-6 text-sm text-slate-400">
-            <a href="https://docs.easyschematic.live" className="hover:text-white transition-colors">Docs</a>
-            <a href="https://devices.easyschematic.live" className="hover:text-white transition-colors">Devices</a>
-            <a href="https://github.com/duremovich/EasySchematic" className="hover:text-white transition-colors">GitHub</a>
-            <button
-              onClick={openEditor}
-              className="bg-blue-600 hover:bg-blue-500 active:scale-[0.98] text-white font-semibold px-4 py-2 rounded-lg transition-all cursor-pointer"
-            >
-              Open Editor
-            </button>
-          </div>
-        </div>
-      </nav>
-
-      {/* Hero: asymmetric split, screenshot carries the right side */}
-      <header className="relative overflow-hidden">
-        <div className="max-w-6xl mx-auto px-6 pt-16 pb-20 lg:pt-20 grid lg:grid-cols-12 gap-12 items-center">
-          <div className="lg:col-span-5 landing-rise">
-            <h1 className="text-4xl md:text-5xl font-bold tracking-tight leading-[1.05] text-white mb-5">
-              AV Signal Flow Diagram Tool
-            </h1>
-            <p className="text-lg text-slate-400 leading-relaxed mb-8 max-w-md">
-              Design signal flow schematics for broadcast, live production, and AV integration. Free and browser-based.
-            </p>
-            <div className="flex flex-wrap items-center gap-4">
-              <button
-                onClick={openEditor}
-                className="bg-blue-600 hover:bg-blue-500 active:scale-[0.98] text-white font-semibold px-7 py-3 rounded-lg text-base transition-all cursor-pointer"
-              >
-                Open Editor
-              </button>
-              <a
-                href="https://devices.easyschematic.live"
-                className="text-slate-300 hover:text-white font-medium px-2 py-3 transition-colors"
-              >
-                Browse the device library
-              </a>
-            </div>
-          </div>
-          <div className="lg:col-span-7 landing-rise-delay">
-            <div className="relative">
-              <div
-                className="absolute -inset-6 rounded-3xl opacity-30 blur-3xl"
-                style={{
-                  background:
-                    "radial-gradient(40% 50% at 30% 40%, rgba(37,99,235,0.5), transparent), radial-gradient(40% 50% at 70% 60%, rgba(22,163,74,0.35), transparent)",
-                }}
-                aria-hidden
-              />
-              <img
-                src="/landing-screenshot.png"
-                alt="EasySchematic editor showing a signal flow diagram with Thunderbolt, HDMI, SDI, and USB connections between Mac Studios, adapters, video wall controllers, and converters"
-                className="relative w-full rounded-xl ring-1 ring-slate-700/80 shadow-2xl shadow-slate-950/80"
-                loading="eager"
-              />
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Stat band */}
-      <section className="border-y border-slate-800/80 bg-slate-900/40">
-        <div className="max-w-6xl mx-auto px-6 py-10 grid grid-cols-2 lg:grid-cols-4 gap-y-8">
-          {[
-            { value: "2,000+", label: "device templates" },
-            { value: "68", label: "color-coded signal types" },
-            { value: "DXF, PDF, PNG", label: "export formats" },
-            { value: "$0", label: "no account required" },
-          ].map((stat, i) => (
-            <div key={stat.label} className={`px-2 lg:px-8 ${i > 0 ? "lg:border-l lg:border-slate-800" : ""}`}>
-              <p className="text-2xl md:text-3xl font-bold text-white tracking-tight">{stat.value}</p>
-              <p className="text-sm text-slate-400 mt-1">{stat.label}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Signal type marquee */}
-      <section className="py-14 overflow-hidden" aria-label="Supported signal types">
-        <h2 className="text-center text-xl font-bold text-white mb-8 px-6">
-          Every signal type in your AV system, color-coded
-        </h2>
-        <div className="relative">
-          <div className="landing-marquee gap-3 px-3">
-            <div className="flex gap-3">
-              {marqueeSignals.map((s) => (
-                <SignalPill key={s.name} name={s.name} color={s.color} />
-              ))}
-            </div>
-            <div className="flex gap-3" aria-hidden>
-              {marqueeSignals.map((s) => (
-                <SignalPill key={`${s.name}-dup`} name={s.name} color={s.color} />
-              ))}
-            </div>
-          </div>
-          <div className="pointer-events-none absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-slate-950 to-transparent" />
-          <div className="pointer-events-none absolute inset-y-0 right-0 w-24 bg-gradient-to-l from-slate-950 to-transparent" />
-        </div>
-        <p className="text-center text-sm text-slate-500 mt-8 px-6">
-          48 more, from AES50 to Word Clock. Recolor any of them per project.
-        </p>
-      </section>
-
-      {/* Smart routing: split feature with live-style preview */}
-      <section className="border-t border-slate-800/80">
-        <div className="max-w-6xl mx-auto px-6 py-20 grid lg:grid-cols-2 gap-14 items-center">
-          <div className="order-2 lg:order-1 rounded-2xl border border-slate-800 bg-slate-900/40 p-6 md:p-10">
-            <MiniSchematic />
-          </div>
-          <div className="order-1 lg:order-2">
-            <h2 className="text-3xl font-bold tracking-tight text-white mb-4">
-              Connections that route themselves
-            </h2>
-            <p className="text-slate-400 leading-relaxed mb-6 max-w-lg">
-              Click a port, click a destination. Pathfinding routes every cable around devices with clean
-              orthogonal lines, parallel spacing, and crossing arcs. When you want control, drop waypoints
-              and route it by hand.
-            </p>
-            <ul className="space-y-3 text-slate-300">
-              <li className="flex gap-3">
-                <span className="text-blue-400 font-bold shrink-0">01</span>
-                Snap-to-port connecting with live compatibility checks
-              </li>
-              <li className="flex gap-3">
-                <span className="text-blue-400 font-bold shrink-0">02</span>
-                Automatic adapter insertion between mismatched connectors
-              </li>
-              <li className="flex gap-3">
-                <span className="text-blue-400 font-bold shrink-0">03</span>
-                Cable IDs, lengths, and labels tracked for the cable schedule
-              </li>
-            </ul>
-          </div>
-        </div>
-      </section>
-
-      {/* Feature grid: hairline rows, no cards */}
-      <section className="border-t border-slate-800/80 bg-slate-900/30">
-        <div className="max-w-6xl mx-auto px-6 py-20">
-          <h2 className="text-3xl font-bold tracking-tight text-white mb-12 max-w-xl">
-            Everything you need to document a system
-          </h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-x-12 gap-y-10">
-            {features.map((f) => (
-              <div key={f.title} className="border-t border-slate-800 pt-5">
-                <h3 className="text-base font-semibold text-white mb-2">{f.title}</h3>
-                <p className="text-sm text-slate-400 leading-relaxed">{f.description}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Use cases: definition rows */}
-      <section className="border-t border-slate-800/80">
-        <div className="max-w-6xl mx-auto px-6 py-20">
-          <h2 className="text-3xl font-bold tracking-tight text-white mb-12">
-            Built for AV professionals
-          </h2>
-          <div className="divide-y divide-slate-800">
-            {useCases.map((uc) => (
-              <div key={uc.heading} className="grid md:grid-cols-12 gap-3 md:gap-8 py-7">
-                <h3 className="md:col-span-4 text-lg font-semibold text-white">{uc.heading}</h3>
-                <p className="md:col-span-8 text-slate-400 leading-relaxed max-w-2xl">{uc.text}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Sponsors */}
-      <section className="border-t border-slate-800/80 bg-slate-900/30">
-        <div className="max-w-6xl mx-auto px-6 py-12 text-center">
-          <p className="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-6">
-            Supported by
-          </p>
-          <div className="flex justify-center gap-8">
-            {sponsors.filter((s) => s.kind === "organization").map((s) => (
-              <a key={s.name} href={s.url} target="_blank" rel="noopener noreferrer" title={s.name}>
-                <img src={s.logo} alt={s.name} className="h-14 rounded-lg opacity-90 hover:opacity-100 transition-opacity" />
-              </a>
-            ))}
-          </div>
-          {sponsors.some((s) => s.kind === "individual") && (
-            <p className="text-sm text-slate-500 mt-6">
-              {sponsors.filter((s) => s.kind === "individual").map((s) => s.name).join(", ")}
-            </p>
-          )}
-        </div>
-      </section>
-
-      {/* CTA */}
-      <section className="border-t border-slate-800/80">
-        <div className="max-w-6xl mx-auto px-6 py-24 text-center">
-          <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-white mb-4">
-            Start drawing your signal flow
-          </h2>
-          <p className="text-slate-400 mb-9 max-w-md mx-auto">
-            No signup required. Your work is saved locally in your browser.
-          </p>
-          <button
-            onClick={openEditor}
-            className="bg-blue-600 hover:bg-blue-500 active:scale-[0.98] text-white font-semibold px-8 py-3.5 rounded-lg text-lg transition-all cursor-pointer"
+      <div style={{ maxWidth: 1280, margin: "0 auto" }}>
+        <div
+          className="landing-rise"
+          style={{
+            border: `1px solid ${C.border}`,
+            borderRadius: 14,
+            overflow: "hidden",
+            background: C.surface,
+            boxShadow: "0 18px 50px -26px rgba(0,20,45,.9)",
+          }}
+        >
+          {/* ── nav ── */}
+          <nav
+            style={{
+              height: 58,
+              display: "flex",
+              alignItems: "center",
+              gap: 13,
+              padding: "0 26px",
+              borderBottom: `1px solid ${C.borderSoft}`,
+              background: "rgba(12,33,56,.5)",
+            }}
           >
-            Open Editor
-          </button>
-        </div>
-      </section>
+            <LogoMark />
+            <span style={{ fontSize: 14, fontWeight: 600, color: C.textHeading }}>EasySchematic</span>
+            <div style={{ marginLeft: 24, display: "flex", gap: 20 }}>
+              <a href="#features" style={NAV_LINK}>
+                Features
+              </a>
+              <a href="https://devices.easyschematic.live" style={NAV_LINK}>
+                Devices
+              </a>
+              <a href="#pricing" style={NAV_LINK}>
+                Pricing
+              </a>
+            </div>
+            <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 11 }}>
+              <button
+                type="button"
+                onClick={openEditor}
+                style={{
+                  fontSize: 12.5,
+                  color: C.text,
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                }}
+              >
+                Sign in
+              </button>
+              <button
+                type="button"
+                onClick={openEditor}
+                style={{
+                  height: 32,
+                  padding: "0 15px",
+                  background: C.accent,
+                  border: "none",
+                  borderRadius: 8,
+                  cursor: "pointer",
+                  color: C.accentInk,
+                  fontFamily: "inherit",
+                  fontSize: 12,
+                  fontWeight: 600,
+                }}
+              >
+                Start free
+              </button>
+            </div>
+          </nav>
 
-      {/* Footer */}
-      <footer className="border-t border-slate-800/80 text-slate-400 text-sm">
-        <div className="max-w-6xl mx-auto px-6 py-10 flex flex-wrap gap-x-8 gap-y-3 justify-center">
-          <a href="https://docs.easyschematic.live" className="hover:text-white transition-colors">Documentation</a>
-          <a href="https://devices.easyschematic.live" className="hover:text-white transition-colors">Device Database</a>
-          <a href="https://github.com/duremovich/EasySchematic" className="hover:text-white transition-colors">GitHub</a>
-          <a href="https://discord.gg/dxXn3Jk2a6" className="hover:text-white transition-colors">Discord</a>
-          <a href="mailto:support@easyschematic.live" className="hover:text-white transition-colors">Support</a>
+          {/* ── hero ── */}
+          <div
+            style={{
+              position: "relative",
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: 30,
+              padding: "56px 40px",
+              alignItems: "center",
+              background:
+                "radial-gradient(120% 90% at 80% 10%, rgba(55,194,224,.09), transparent 55%)",
+            }}
+          >
+            <div>
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 7,
+                  padding: "5px 11px",
+                  borderRadius: 20,
+                  background: C.accentSoft,
+                  border: `1px solid ${C.borderStrong}`,
+                  fontSize: 11,
+                  color: "#7fd3e8",
+                  marginBottom: 20,
+                }}
+              >
+                <span style={{ width: 6, height: 6, borderRadius: "50%", background: C.accent }} />
+                AV signal-flow, reimagined
+              </span>
+              <h1
+                style={{
+                  margin: 0,
+                  fontSize: 42,
+                  lineHeight: 1.08,
+                  fontWeight: 600,
+                  letterSpacing: "-.03em",
+                  color: C.textBright,
+                }}
+              >
+                Design AV systems
+                <br />
+                at the speed of thought.
+              </h1>
+              <p
+                style={{
+                  margin: "18px 0 0",
+                  fontSize: 14.5,
+                  lineHeight: 1.6,
+                  color: "#7ba8d0",
+                  maxWidth: 430,
+                }}
+              >
+                Draw signal flow, place gear to scale, and generate cable schedules — all in one fast
+                canvas. The deep technical layer is there when you need it, hidden when you don't.
+              </p>
+              <div style={{ display: "flex", gap: 12, marginTop: 28 }}>
+                <button
+                  type="button"
+                  onClick={openEditor}
+                  style={{
+                    height: 42,
+                    padding: "0 22px",
+                    background: C.accent,
+                    border: "none",
+                    borderRadius: 9,
+                    cursor: "pointer",
+                    color: C.accentInk,
+                    fontFamily: "inherit",
+                    fontSize: 13.5,
+                    fontWeight: 600,
+                  }}
+                >
+                  Open the editor
+                </button>
+                <a
+                  href="https://docs.easyschematic.live"
+                  style={{
+                    height: 42,
+                    padding: "0 20px",
+                    background: "none",
+                    border: `1px solid ${C.borderStrong}`,
+                    borderRadius: 9,
+                    cursor: "pointer",
+                    color: "#cfe4f7",
+                    fontFamily: "inherit",
+                    fontSize: 13.5,
+                    fontWeight: 500,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    textDecoration: "none",
+                  }}
+                >
+                  Watch demo
+                </a>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 18, marginTop: 26 }}>
+                <span
+                  style={{
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    fontSize: 10,
+                    color: C.textMuted,
+                  }}
+                >
+                  TRUSTED BY AV TEAMS AT
+                </span>
+                <span style={{ fontSize: 12, color: C.textMuted, fontWeight: 600, letterSpacing: ".04em" }}>
+                  Audient · Genelec · d&amp;b
+                </span>
+              </div>
+            </div>
+            <HeroCanvasMock />
+          </div>
+
+          {/* ── feature strip ── */}
+          <div
+            id="features"
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(4,1fr)",
+              borderTop: `1px solid ${C.borderSoft}`,
+            }}
+          >
+            {FEATURES.map((f, i) => (
+              <div
+                key={f.title}
+                style={{
+                  padding: "22px 24px",
+                  borderRight: i < FEATURES.length - 1 ? `1px solid ${C.borderSoft}` : "none",
+                }}
+              >
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  style={{ color: f.color, marginBottom: 11 }}
+                  aria-hidden
+                >
+                  {f.icon}
+                </svg>
+                <div style={{ fontSize: 13, fontWeight: 600, color: C.textHeading, marginBottom: 4 }}>
+                  {f.title}
+                </div>
+                <div style={{ fontSize: 11, color: C.textMuted, lineHeight: 1.5 }}>{f.description}</div>
+              </div>
+            ))}
+          </div>
         </div>
-      </footer>
+      </div>
     </div>
   );
 }

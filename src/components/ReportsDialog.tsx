@@ -41,8 +41,31 @@ import { formatCurrency } from "../auxiliaryData";
 import { useSpreadsheetSelection } from "../spreadsheet/useSpreadsheetSelection";
 import type { SpreadsheetColumn } from "../spreadsheet/types";
 import FillSeriesDialog from "../spreadsheet/FillSeriesDialog";
+import {
+  buildPowerDashboard,
+  buildThermalDashboard,
+  buildNetworkDashboard,
+  type ReportDashboard,
+  type ReportStatus,
+} from "../reportMetrics";
 
 export type ReportsTab = "network" | "devices" | "packList" | "cableSchedule" | "cableBom" | "patchPanel" | "power";
+
+/** Dashboard tabs (comp-styled "engineering instrument" view). */
+type DashboardTab = "power" | "thermal" | "network";
+/**
+ * Table tabs (full editing surfaces, reached from the "More" menu). `networkDetail`
+ * and `powerDetail` expose the original editable Network / Power report tables so the
+ * read-only dashboards don't drop any existing editing or export capability.
+ */
+type TableTab =
+  | "devices"
+  | "packList"
+  | "cableSchedule"
+  | "cableBom"
+  | "patchPanel"
+  | "networkDetail"
+  | "powerDetail";
 
 interface ReportsDialogProps {
   initialTab: ReportsTab;
@@ -55,9 +78,49 @@ const CABLE_SCHEDULE_LAYOUT_KEY = "easyschematic-cable-schedule-layout";
 const PATCH_PANEL_LAYOUT_KEY = "easyschematic-patch-panel-layout";
 const POWER_LAYOUT_KEY = "easyschematic-power-report-layout";
 
+/** Labels for the table-tab "More" menu (full editing surfaces). */
+const TABLE_TAB_LABELS: Record<TableTab, string> = {
+  devices: "Devices",
+  cableSchedule: "Cable Schedule",
+  cableBom: "Cable BOM",
+  patchPanel: "Patch Panels",
+  packList: "Pack List",
+  networkDetail: "Network (detail)",
+  powerDetail: "Power (detail)",
+};
+
+/** Map a table tab onto the ReportsTab used by the CSV/PDF export routing. */
+function tableTabToReportTab(t: TableTab): ReportsTab {
+  if (t === "networkDetail") return "network";
+  if (t === "powerDetail") return "power";
+  return t;
+}
+
+const DASHBOARD_TABS: { id: DashboardTab; label: string }[] = [
+  { id: "power", label: "Power" },
+  { id: "thermal", label: "Thermal" },
+  { id: "network", label: "Network" },
+];
+
 function ReportsDialog({ initialTab, onClose }: ReportsDialogProps) {
-  const [tab, setTab] = useState<ReportsTab>(initialTab);
-  const [maximized, setMaximized] = useState(false);
+  // The comp surfaces three dashboard tabs (Power / Thermal / Network). The
+  // remaining editing surfaces stay reachable via the "More" menu so no existing
+  // report or export is lost. Map the requested initialTab onto either set.
+  const initialDashboard: DashboardTab =
+    initialTab === "power" || initialTab === "network" ? initialTab : "power";
+  const initialTable: TableTab | null =
+    initialTab === "devices" ||
+    initialTab === "packList" ||
+    initialTab === "cableSchedule" ||
+    initialTab === "cableBom" ||
+    initialTab === "patchPanel"
+      ? initialTab
+      : null;
+
+  const [dashTab, setDashTab] = useState<DashboardTab>(initialDashboard);
+  const [tableTab, setTableTab] = useState<TableTab | null>(initialTable);
+  const [moreOpen, setMoreOpen] = useState(false);
+
   const [showPreview, setShowPreview] = useState(false);
   const [showNetworkPreview, setShowNetworkPreview] = useState(false);
   const [showCableSchedulePreview, setShowCableSchedulePreview] = useState(false);
@@ -69,17 +132,29 @@ function ReportsDialog({ initialTab, onClose }: ReportsDialogProps) {
   const schematicName = useSchematicStore((s) => s.schematicName);
   const titleBlock = useSchematicStore((s) => s.titleBlock);
 
-  const tabClass = (t: ReportsTab) =>
-    `px-3 py-1.5 text-xs rounded-t cursor-pointer border border-b-0 transition-colors ${
-      tab === t
-        ? "bg-[var(--color-surface-raised)] text-[var(--color-text-heading)] font-semibold border-[var(--ui-border)]"
-        : "bg-[var(--color-surface)] text-[var(--color-text-muted)] border-transparent hover:text-[var(--color-text)]"
-    }`;
+  // Close on Escape (matches dialog behaviour the menu relied on).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
 
-  const btnClass = "ui-btn ui-btn-secondary";
+  /**
+   * The tab whose CSV/PDF export should fire. A table tab takes precedence when
+   * open; otherwise the dashboard tab maps onto a ReportsTab — thermal reuses the
+   * power report (its CSV/PDF already carry the BTU/h columns).
+   */
+  const activeReportTab: ReportsTab = tableTab
+    ? tableTabToReportTab(tableTab)
+    : dashTab === "thermal"
+      ? "power"
+      : dashTab;
 
   const handleCsvExport = useCallback(() => {
     const ownedGear = useSchematicStore.getState().ownedGear;
+    const tab = activeReportTab;
     if (tab === "network") {
       exportNetworkCsv(nodes, edges, schematicName);
     } else if (tab === "devices") {
@@ -107,6 +182,7 @@ function ReportsDialog({ initialTab, onClose }: ReportsDialogProps) {
       });
       exportPatchPanelScheduleCsv(rows, schematicName);
     } else if (tab === "power") {
+      // Thermal shares the power CSV (it carries both watts and BTU/h columns).
       const data = computePowerReport(nodes, edges);
       exportPowerReportCsv(data, schematicName);
     } else {
@@ -114,7 +190,7 @@ function ReportsDialog({ initialTab, onClose }: ReportsDialogProps) {
       const cableCosts = useSchematicStore.getState().cableCosts;
       exportPackListCsv(data, schematicName, cableCosts);
     }
-  }, [tab, nodes, edges, schematicName]);
+  }, [activeReportTab, nodes, edges, schematicName]);
 
   const handleCableBomPdf = useCallback(() => {
     const s = useSchematicStore.getState();
@@ -126,119 +202,172 @@ function ReportsDialog({ initialTab, onClose }: ReportsDialogProps) {
     renderCableBomPdf(bom, runLengthWarnings(rows), schematicName);
   }, [nodes, edges, schematicName]);
 
+  // Route the header "Export PDF" button to the existing per-tab PDF preview/export.
+  const handlePdfExport = useCallback(() => {
+    const tab = activeReportTab;
+    if (tab === "network") setShowNetworkPreview(true);
+    else if (tab === "packList") setShowPreview(true);
+    else if (tab === "cableSchedule") setShowCableSchedulePreview(true);
+    else if (tab === "cableBom") handleCableBomPdf();
+    else if (tab === "patchPanel") setShowPatchPanelPreview(true);
+    // Power AND thermal both use the power report PDF (it includes thermal columns).
+    else if (tab === "power") setShowPowerPreview(true);
+    // "devices" has no standalone PDF in the original; fall back to network preview path is wrong,
+    // so devices simply has no PDF — CSV remains available (matches original behaviour).
+  }, [activeReportTab, handleCableBomPdf]);
+
+  const hasPdfExport = activeReportTab !== "devices";
+
   const defaultLayout = useMemo(() => createDefaultPackListLayout(), []);
   const networkDefaultLayout = useMemo(() => createDefaultNetworkReportLayout(), []);
   const cableScheduleDefaultLayout = useMemo(() => createDefaultCableScheduleLayout(), []);
   const patchPanelDefaultLayout = useMemo(() => createDefaultPatchPanelScheduleLayout(), []);
   const powerDefaultLayout = useMemo(() => createDefaultPowerReportLayout(), []);
 
-  const tabLabels: Record<ReportsTab, string> = {
-    devices: "Devices",
-    cableSchedule: "Cable Schedule",
-    cableBom: "Cable BOM",
-    patchPanel: "Patch Panels",
-    packList: "Pack List",
-    network: "Network",
-    power: "Power",
-  };
+  const projectSubtitle =
+    (titleBlock.showName || titleBlock.venue || schematicName || "Untitled").toUpperCase();
+
+  const segBtn = (active: boolean) =>
+    `relative h-7 px-3.5 rounded-md cursor-pointer text-[11.5px] font-medium transition-colors ${
+      active
+        ? "text-[var(--color-text-heading)]"
+        : "text-[var(--color-text)] hover:text-[var(--color-text-heading)]"
+    }`;
 
   return (
     <>
       <div
-        className="ui-dialog-backdrop"
-        onClick={onClose}
+        className="fixed inset-0 z-50 flex flex-col bg-[var(--color-bg)]"
+        style={{ animation: "ui-fade-in 0.16s var(--ui-ease) both" }}
       >
-        <div
-          className={`ui-dialog bg-[var(--color-surface-raised)] transition-all duration-200 ${
-            maximized
-              ? "w-[calc(100%-2rem)] h-[calc(100%-2rem)]"
-              : "w-[900px] h-[80vh]"
-          }`}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Header */}
-          <div className="px-4 py-3 border-b border-[var(--ui-border)] flex items-center gap-3 shrink-0">
-            <h2 className="text-sm font-semibold text-[var(--color-text-heading)]">
-              Reports
-            </h2>
-            <div className="flex-1" />
-            <button onClick={handleCsvExport} className={btnClass}>
+        {/* ── Header (50px) ── */}
+        <header className="h-[50px] flex-none flex items-center gap-3 px-4 bg-[var(--color-surface)] border-b border-[var(--ui-border)] relative">
+          <button
+            onClick={onClose}
+            title="Back to editor"
+            className="flex items-center justify-center w-7 h-7 -ml-1 rounded-md text-[var(--color-text-muted)] hover:text-[var(--color-text-heading)] hover:bg-[var(--color-surface-hover)] cursor-pointer transition-colors"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M15 18l-6-6 6-6" />
+            </svg>
+          </button>
+          <div className="flex flex-col leading-[1.25]">
+            <span className="text-[13px] font-semibold text-[var(--color-text-heading)]">Reports</span>
+            <span className="text-[9px] tracking-[0.04em] text-[var(--color-text-muted)]" style={{ fontFamily: "var(--font-mono)" }}>
+              {projectSubtitle}
+            </span>
+          </div>
+
+          {/* Centered segmented dashboard tabs */}
+          <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-0.5 p-[3px] rounded-[9px] bg-[var(--color-bg)] border border-[var(--ui-border)]">
+            {DASHBOARD_TABS.map((t) => {
+              const active = tableTab == null && dashTab === t.id;
+              return (
+                <button
+                  key={t.id}
+                  className={segBtn(active)}
+                  onClick={() => {
+                    setTableTab(null);
+                    setDashTab(t.id);
+                  }}
+                >
+                  {active && (
+                    <span
+                      className="absolute inset-0 rounded-md bg-[var(--color-surface-raised)] border border-[var(--color-accent)]"
+                      style={{ boxShadow: "0 -2px 0 var(--color-accent) inset" }}
+                    />
+                  )}
+                  <span className="relative z-[1]">{t.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="ml-auto flex items-center gap-2">
+            {/* "More" menu for the full editing/table surfaces */}
+            <div className="relative">
+              <button
+                onClick={() => setMoreOpen((o) => !o)}
+                className={`flex items-center gap-1.5 h-[30px] px-3 rounded-lg border cursor-pointer text-[11.5px] font-medium transition-colors ${
+                  tableTab != null
+                    ? "bg-[var(--color-surface-raised)] border-[var(--color-accent)] text-[var(--color-text-heading)]"
+                    : "bg-transparent border-[var(--ui-border)] text-[var(--color-text)] hover:bg-[var(--color-surface-hover)]"
+                }`}
+                title="More report tables"
+              >
+                {tableTab != null ? TABLE_TAB_LABELS[tableTab] : "Tables"}
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M6 9l6 6 6-6" />
+                </svg>
+              </button>
+              {moreOpen && (
+                <>
+                  <div className="fixed inset-0 z-[1]" onClick={() => setMoreOpen(false)} />
+                  <div className="chrome-menu absolute right-0 top-[36px] z-[2] min-w-[170px] py-1 rounded-lg bg-[var(--color-surface-raised)] border border-[var(--ui-border)] shadow-[var(--ui-shadow-menu)]">
+                    {(Object.keys(TABLE_TAB_LABELS) as TableTab[]).map((t) => (
+                      <button
+                        key={t}
+                        onClick={() => {
+                          setTableTab(t);
+                          setMoreOpen(false);
+                        }}
+                        className={`block w-full text-left px-3 py-1.5 text-[12px] cursor-pointer transition-colors ${
+                          tableTab === t
+                            ? "text-[var(--color-text-heading)] bg-[var(--color-surface-hover)]"
+                            : "text-[var(--color-text)] hover:bg-[var(--color-surface-hover)]"
+                        }`}
+                      >
+                        {TABLE_TAB_LABELS[t]}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+
+            <button
+              onClick={handleCsvExport}
+              className="flex items-center gap-1.5 h-[30px] px-3 rounded-lg bg-transparent border border-[var(--ui-border)] text-[var(--color-text)] hover:bg-[var(--color-surface-hover)] cursor-pointer text-[11.5px] font-medium transition-colors"
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 16V4M8 8l4-4 4 4" />
+              </svg>
               CSV
             </button>
-            {tab === "network" && (
-              <button onClick={() => setShowNetworkPreview(true)} className={btnClass}>
-                PDF
-              </button>
-            )}
-            {tab === "packList" && (
-              <button onClick={() => setShowPreview(true)} className={btnClass}>
-                PDF
-              </button>
-            )}
-            {tab === "cableSchedule" && (
-              <button onClick={() => setShowCableSchedulePreview(true)} className={btnClass}>
-                PDF
-              </button>
-            )}
-            {tab === "cableBom" && (
-              <button onClick={handleCableBomPdf} className={btnClass}>
-                PDF
-              </button>
-            )}
-            {tab === "patchPanel" && (
-              <button onClick={() => setShowPatchPanelPreview(true)} className={btnClass}>
-                PDF
-              </button>
-            )}
-            {tab === "power" && (
-              <button onClick={() => setShowPowerPreview(true)} className={btnClass}>
-                PDF
-              </button>
-            )}
-            <button
-              onClick={() => setMaximized(!maximized)}
-              className="text-[var(--color-text-muted)] hover:text-[var(--color-text-heading)] text-sm leading-none cursor-pointer p-1 rounded hover:bg-[var(--color-surface-hover)] transition-colors"
-              title={maximized ? "Restore size" : "Maximize"}
-            >
-              {maximized ? (
-                <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="4" y="4" width="8" height="8" rx="1" />
-                  <path d="M4 6h-1.5a.5.5 0 01-.5-.5v-3a.5.5 0 01.5-.5h3a.5.5 0 01.5.5V4" />
+            {hasPdfExport && (
+              <button
+                onClick={handlePdfExport}
+                className="flex items-center gap-1.5 h-[30px] px-[13px] rounded-lg bg-[var(--color-accent)] text-white border-none cursor-pointer text-[11.5px] font-semibold transition-colors hover:bg-[var(--color-accent-hover)]"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 16V4M8 8l4-4 4 4M5 16v3a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3" />
                 </svg>
-              ) : (
-                <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="2" y="2" width="12" height="12" rx="1.5" />
-                </svg>
-              )}
-            </button>
-            <button
-              onClick={onClose}
-              className="text-[var(--color-text-muted)] hover:text-[var(--color-text-heading)] text-lg leading-none cursor-pointer ml-1"
-            >
-              &times;
-            </button>
-          </div>
-
-          {/* Tabs */}
-          <div className="px-4 pt-2 flex items-center gap-1 border-b border-[var(--ui-border)]">
-            {(Object.keys(tabLabels) as ReportsTab[]).map((t) => (
-              <button key={t} className={tabClass(t)} onClick={() => setTab(t)}>
-                {tabLabels[t]}
+                Export PDF
               </button>
-            ))}
+            )}
           </div>
+        </header>
 
-          {/* Body */}
-          <div className="overflow-auto flex-1 p-4">
-            {tab === "network" && <NetworkReportTab />}
-            {tab === "devices" && <DeviceReportTab />}
-            {tab === "packList" && <PackListTabInline />}
-            {tab === "cableSchedule" && <CableScheduleTabInline />}
-            {tab === "cableBom" && <CableBomTab />}
-            {tab === "patchPanel" && <PatchPanelScheduleTabInline />}
-            {tab === "power" && <PowerReportTab />}
+        {/* ── Scrolling content ── */}
+        {tableTab == null ? (
+          <DashboardScroll>
+            {dashTab === "power" && <PowerDashboard />}
+            {dashTab === "thermal" && <ThermalDashboard />}
+            {dashTab === "network" && <NetworkDashboard />}
+          </DashboardScroll>
+        ) : (
+          <div className="flex-1 overflow-auto p-4 bg-[var(--color-bg)]">
+            <div className="max-w-[1080px] mx-auto">
+              {tableTab === "devices" && <DeviceReportTab />}
+              {tableTab === "packList" && <PackListTabInline />}
+              {tableTab === "cableSchedule" && <CableScheduleTabInline />}
+              {tableTab === "cableBom" && <CableBomTab />}
+              {tableTab === "patchPanel" && <PatchPanelScheduleTabInline />}
+              {tableTab === "networkDetail" && <NetworkReportTab />}
+              {tableTab === "powerDetail" && <PowerReportTab />}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {showNetworkPreview && (
@@ -324,6 +453,324 @@ function ReportsDialog({ initialTab, onClose }: ReportsDialogProps) {
 }
 
 export default memo(ReportsDialog);
+
+// ─── Dashboard surface (comp-styled Power / Thermal / Network) ─────────────
+// Presentational only: all numbers come from the reportMetrics view-models, which
+// are pure functions of the real computed schematic reports.
+
+/** Dotted-grid scroll container matching the comp's content backdrop. */
+function DashboardScroll({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      className="flex-1 overflow-auto"
+      style={{
+        padding: "22px 26px",
+        backgroundColor: "var(--color-bg)",
+        backgroundImage:
+          "radial-gradient(circle at 1px 1px, var(--color-accent-soft) 1px, transparent 0)",
+        backgroundSize: "26px 26px",
+      }}
+    >
+      <div className="max-w-[1080px] mx-auto">{children}</div>
+    </div>
+  );
+}
+
+const STATUS_TOKEN: Record<ReportStatus, string> = {
+  ok: "var(--color-success)",
+  watch: "var(--color-warning)",
+  over: "var(--color-error)",
+};
+
+function PowerDashboard() {
+  const nodes = useSchematicStore((s) => s.nodes);
+  const edges = useSchematicStore((s) => s.edges);
+  const report = useMemo(() => computePowerReport(nodes, edges), [nodes, edges]);
+  const view = useMemo(() => buildPowerDashboard(report), [report]);
+  if (report.devices.length === 0) {
+    return <DashboardEmpty message="No devices with power data in this schematic." />;
+  }
+  return <DashboardView view={view} />;
+}
+
+function ThermalDashboard() {
+  const nodes = useSchematicStore((s) => s.nodes);
+  const edges = useSchematicStore((s) => s.edges);
+  const report = useMemo(() => computePowerReport(nodes, edges), [nodes, edges]);
+  const view = useMemo(() => buildThermalDashboard(report), [report]);
+  if (report.totalThermalBtuh <= 0) {
+    return <DashboardEmpty message="No thermal data yet — add power draw or rated BTU/h to devices." />;
+  }
+  return <DashboardView view={view} />;
+}
+
+function NetworkDashboard() {
+  const nodes = useSchematicStore((s) => s.nodes);
+  const edges = useSchematicStore((s) => s.edges);
+  const rows = useMemo(() => computeNetworkReport(nodes, edges), [nodes, edges]);
+  const poeBudgets = useMemo(() => computePoeBudget(nodes, edges), [nodes, edges]);
+  const dhcpServers = useMemo(() => computeDhcpServerSummary(nodes), [nodes]);
+  const view = useMemo(
+    () => buildNetworkDashboard({ rows, poeBudgets, dhcpServers }),
+    [rows, poeBudgets, dhcpServers],
+  );
+  if (rows.length === 0) {
+    return <DashboardEmpty message="No addressable network ports in this schematic." />;
+  }
+  return <DashboardView view={view} />;
+}
+
+function DashboardEmpty({ message }: { message: string }) {
+  return (
+    <div className="text-sm text-[var(--color-text-muted)] text-center py-16">{message}</div>
+  );
+}
+
+/** The full dashboard layout for one tab: KPI row · chart+breakdown · detail table. */
+function DashboardView({ view }: { view: ReportDashboard }) {
+  return (
+    <>
+      {/* KPI row */}
+      <div className="grid grid-cols-4 gap-[13px] mb-4">
+        {view.kpis.map((k, i) => (
+          <KpiCardView key={i} card={k} />
+        ))}
+      </div>
+
+      {/* Chart + breakdown */}
+      <div className="grid gap-[13px] mb-4" style={{ gridTemplateColumns: "1.6fr 1fr" }}>
+        <BarChartCard view={view} />
+        <BreakdownCard view={view} />
+      </div>
+
+      {/* Detail table */}
+      <DetailTableCard view={view} />
+    </>
+  );
+}
+
+function KpiCardView({ card }: { card: KpiCardModel }) {
+  const valueColor = card.accent ? "var(--color-accent)" : "var(--color-text-heading)";
+  const noteColor = card.status ? STATUS_TOKEN[card.status] : "var(--color-text-muted)";
+  return (
+    <div className="rounded-[10px] px-4 py-[15px] bg-[var(--color-surface)] border border-[var(--ui-border)]">
+      <div
+        className="mb-[9px] text-[9px] uppercase"
+        style={{ fontFamily: "var(--font-mono)", letterSpacing: "0.13em", color: "var(--color-text-muted)" }}
+      >
+        {card.label}
+      </div>
+      <div
+        className="text-[26px] font-semibold leading-none"
+        style={{ fontFamily: "var(--font-mono)", color: valueColor }}
+      >
+        {card.value}
+        {card.unit ? (
+          <span className="text-[12px] ml-[3px] text-[var(--color-text-muted)]">{card.unit}</span>
+        ) : null}
+      </div>
+      <div className="mt-[7px] text-[10.5px] flex items-center gap-[5px]" style={{ color: noteColor }}>
+        {card.status && (
+          <span className="w-[6px] h-[6px] rounded-full" style={{ background: noteColor }} />
+        )}
+        {card.note}
+      </div>
+    </div>
+  );
+}
+
+function BarChartCard({ view }: { view: ReportDashboard }) {
+  const max = Math.max(1, ...view.bars.map((b) => b.value));
+  return (
+    <div className="rounded-[10px] px-[18px] py-[17px] bg-[var(--color-surface)] border border-[var(--ui-border)]">
+      <div className="flex items-center mb-[18px]">
+        <span className="text-[13px] font-semibold text-[var(--color-text-heading)]">{view.chartTitle}</span>
+        <span
+          className="ml-auto text-[9px] uppercase"
+          style={{ fontFamily: "var(--font-mono)", letterSpacing: "0.13em", color: "var(--color-text-muted)" }}
+        >
+          {view.chartUnit}
+        </span>
+      </div>
+      <div className="flex items-end gap-[14px] h-[180px] pb-[22px] relative">
+        {/* Gridline underlay — 4 hairlines */}
+        <div
+          className="absolute left-0 right-0 top-0 flex flex-col justify-between pointer-events-none"
+          style={{ bottom: "22px" }}
+        >
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="h-px bg-[var(--ui-border)]" />
+          ))}
+        </div>
+        {view.bars.length === 0 ? (
+          <div className="text-[11px] text-[var(--color-text-muted)] self-center mx-auto">
+            No data to chart.
+          </div>
+        ) : (
+          view.bars.map((b, i) => {
+            const h = Math.round((b.value / max) * 150);
+            return (
+              <div
+                key={i}
+                className="flex-1 flex flex-col items-center h-full justify-end relative z-[1]"
+              >
+                <span
+                  className="text-[9.5px] mb-[5px] text-[var(--color-text)]"
+                  style={{ fontFamily: "var(--font-mono)" }}
+                >
+                  {b.valueLabel}
+                </span>
+                <div
+                  className="w-full"
+                  style={{
+                    maxWidth: "46px",
+                    height: `${h}px`,
+                    borderRadius: "4px 4px 0 0",
+                    background: `${b.color}33`,
+                    border: `1px solid ${b.color}`,
+                    borderBottom: "none",
+                  }}
+                />
+                <span
+                  className="absolute text-[8.5px] whitespace-nowrap text-[var(--color-text-muted)]"
+                  style={{ bottom: "-20px", fontFamily: "var(--font-mono)" }}
+                  title={b.name}
+                >
+                  {b.name}
+                </span>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
+
+function BreakdownCard({ view }: { view: ReportDashboard }) {
+  return (
+    <div className="rounded-[10px] px-[18px] py-[17px] bg-[var(--color-surface)] border border-[var(--ui-border)]">
+      <div className="text-[13px] font-semibold text-[var(--color-text-heading)] mb-4">
+        {view.breakdownTitle}
+      </div>
+      <div className="flex flex-col gap-[13px]">
+        {view.breakdown.length === 0 ? (
+          <div className="text-[11px] text-[var(--color-text-muted)]">No data.</div>
+        ) : (
+          view.breakdown.map((d, i) => (
+            <div key={i} className="flex flex-col gap-[6px]">
+              <div className="flex items-center gap-2">
+                <span
+                  className="w-2 h-2 flex-none"
+                  style={{ borderRadius: "2px", background: d.color }}
+                />
+                <span className="text-[11.5px] text-[var(--color-text)]">{d.name}</span>
+                <span
+                  className="ml-auto text-[10.5px] text-[var(--color-text)]"
+                  style={{ fontFamily: "var(--font-mono)" }}
+                >
+                  {d.valueLabel}
+                </span>
+              </div>
+              <div className="h-[5px] rounded-[3px] bg-[var(--color-bg)] overflow-hidden">
+                <div
+                  className="h-full rounded-[3px]"
+                  style={{ width: `${d.pct}%`, background: d.color }}
+                />
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+function DetailTableCard({ view }: { view: ReportDashboard }) {
+  return (
+    <div className="rounded-[10px] overflow-hidden bg-[var(--color-surface)] border border-[var(--ui-border)]">
+      <div className="flex items-center px-[18px] py-[14px] border-b border-[var(--ui-border)]">
+        <span className="text-[13px] font-semibold text-[var(--color-text-heading)]">{view.tableTitle}</span>
+        <span
+          className="ml-auto text-[9px] uppercase"
+          style={{ fontFamily: "var(--font-mono)", letterSpacing: "0.13em", color: "var(--color-text-muted)" }}
+        >
+          {view.rows.length} {view.rows.length === 1 ? "device" : "devices"}
+        </span>
+      </div>
+      <table className="w-full text-[11.5px]" style={{ borderCollapse: "separate", borderSpacing: 0 }}>
+        <thead>
+          <tr className="text-left">
+            <DashTh>Device</DashTh>
+            <DashTh>Location</DashTh>
+            <DashTh align="right">{view.col3}</DashTh>
+            <DashTh align="right">{view.col4}</DashTh>
+            <DashTh>Status</DashTh>
+          </tr>
+        </thead>
+        <tbody>
+          {view.rows.map((r, i) => (
+            <tr key={i} style={{ borderBottom: "1px solid var(--ui-border)" }}>
+              <td className="px-[18px] py-[10px] font-medium text-[var(--color-text-heading)]">{r.device}</td>
+              <td className="px-[14px] py-[10px] text-[var(--color-text-muted)]">{r.location}</td>
+              <td
+                className="px-[14px] py-[10px] text-right text-[var(--color-text)]"
+                style={{ fontFamily: "var(--font-mono)" }}
+              >
+                {r.v3}
+              </td>
+              <td
+                className="px-[14px] py-[10px] text-right text-[var(--color-text)]"
+                style={{ fontFamily: "var(--font-mono)" }}
+              >
+                {r.v4}
+              </td>
+              <td className="px-[18px] py-[10px]">
+                <StatusChip status={r.status} label={r.statusLabel} />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function DashTh({ children, align = "left" }: { children: React.ReactNode; align?: "left" | "right" }) {
+  return (
+    <th
+      className="px-[18px] py-[9px] text-[9px] uppercase font-medium text-[var(--color-text-muted)]"
+      style={{
+        fontFamily: "var(--font-mono)",
+        letterSpacing: "0.08em",
+        textAlign: align,
+        borderBottom: "1px solid var(--ui-border)",
+      }}
+    >
+      {children}
+    </th>
+  );
+}
+
+function StatusChip({ status, label }: { status: ReportStatus; label: string }) {
+  const color = STATUS_TOKEN[status];
+  return (
+    <span
+      className="inline-flex items-center gap-[5px] px-2 py-0.5 rounded-[5px] text-[10px] font-medium"
+      style={{
+        // Token-tinted chip: 13–18% alpha background, 30% border, full-strength text.
+        background: `color-mix(in srgb, ${color} 14%, transparent)`,
+        border: `1px solid color-mix(in srgb, ${color} 32%, transparent)`,
+        color,
+      }}
+    >
+      {label}
+    </span>
+  );
+}
+
+/** Local alias so the card renderer keeps a tidy prop type. */
+type KpiCardModel = ReportDashboard["kpis"][number];
 
 // ─── Shared styling ────────────────────────────────────────────
 

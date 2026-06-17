@@ -11,12 +11,14 @@ export default function PrintSheetPage() {
   const page = pages.find((p) => p.id === activePage);
   if (!page || page.type !== "print-sheet") return null;
 
+  const sheetPage = page as PrintSheetPageType;
+
   return (
-    <div className="flex flex-1 overflow-hidden flex-col">
-      <PrintSheetToolbar page={page as PrintSheetPageType} />
-      <div className="flex flex-1 overflow-hidden">
-        <PrintSheetSidebar />
-        <PrintSheetRenderer page={page as PrintSheetPageType} />
+    <div className="flex flex-1 overflow-hidden flex-col bg-[var(--color-bg)]">
+      <PrintSheetToolbar page={sheetPage} />
+      <div className="flex flex-1 overflow-hidden min-h-0">
+        <PrintSheetSidebar page={sheetPage} />
+        <PrintSheetRenderer page={sheetPage} />
       </div>
     </div>
   );
