@@ -1,0 +1,2110 @@
+[
+  {
+    "id": "antenna",
+    "name": "Antenna",
+    "category": "audio",
+    "subcategory": "antenna",
+    "tags": [
+      "antenna",
+      "audio",
+      "reach",
+      "tv",
+      "network",
+      "connetion",
+      "signal",
+      "communication"
+    ],
+    "file": "audio/antenna.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "broadcast-tower",
+    "name": "Broadcast Tower",
+    "category": "audio",
+    "subcategory": "antenna",
+    "tags": [
+      "antenna",
+      "audio"
+    ],
+    "file": "audio/broadcast-tower.svg",
+    "source": "https://github.com/FortAwesome/Font-Awesome",
+    "license": "CC-BY-4.0",
+    "attribution": "Font Awesome Free 6 (fontawesome.com) \u2014 Icons: CC BY 4.0 License, \u00a9 Fonticons, Inc."
+  },
+  {
+    "id": "podcast-rf",
+    "name": "Podcast RF",
+    "category": "audio",
+    "subcategory": "antenna",
+    "tags": [
+      "antenna",
+      "audio"
+    ],
+    "file": "audio/podcast-rf.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+  },
+  {
+    "id": "ceiling-speaker",
+    "name": "Ceiling Speaker",
+    "category": "audio",
+    "subcategory": "ceiling-speaker",
+    "tags": [
+      "ceiling speaker",
+      "audio"
+    ],
+    "file": "audio/ceiling-speaker.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+  },
+  {
+    "id": "column-speaker",
+    "name": "Column Speaker",
+    "category": "audio",
+    "subcategory": "column-speaker",
+    "tags": [
+      "column speaker",
+      "audio",
+      "sound",
+      "music",
+      "loud",
+      "media",
+      "device"
+    ],
+    "file": "audio/column-speaker.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "di-box",
+    "name": "DI Box",
+    "category": "audio",
+    "subcategory": "di-box",
+    "tags": [
+      "di box",
+      "audio",
+      "cube",
+      "app",
+      "application",
+      "package",
+      "container",
+      "box"
+    ],
+    "file": "audio/di-box.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "dsp-processor",
+    "name": "DSP Processor",
+    "category": "audio",
+    "subcategory": "dsp-processor",
+    "tags": [
+      "dsp processor",
+      "audio"
+    ],
+    "file": "audio/dsp-processor.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+  },
+  {
+    "id": "equalizer",
+    "name": "Equalizer",
+    "category": "audio",
+    "subcategory": "dsp-processor",
+    "tags": [
+      "dsp processor",
+      "audio",
+      "equalizer",
+      "sliders",
+      "controls",
+      "settings",
+      "filter",
+      "adjustments"
+    ],
+    "file": "audio/equalizer.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "headphones",
+    "name": "Headphones",
+    "category": "audio",
+    "subcategory": "headphones",
+    "tags": [
+      "headphones",
+      "audio",
+      "music",
+      "headset",
+      "sound",
+      "customer"
+    ],
+    "file": "audio/headphones.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "headphones-fa",
+    "name": "Headphones",
+    "category": "audio",
+    "subcategory": "headphones",
+    "tags": [
+      "headphones",
+      "audio"
+    ],
+    "file": "audio/headphones-fa.svg",
+    "source": "https://github.com/FortAwesome/Font-Awesome",
+    "license": "CC-BY-4.0",
+    "attribution": "Font Awesome Free 6 (fontawesome.com) \u2014 Icons: CC BY 4.0 License, \u00a9 Fonticons, Inc."
+  },
+  {
+    "id": "iem-in-ear-monitor",
+    "name": "IEM In Ear Monitor",
+    "category": "audio",
+    "subcategory": "iem",
+    "tags": [
+      "iem",
+      "audio",
+      "music",
+      "headset",
+      "sound",
+      "customer",
+      "headphones"
+    ],
+    "file": "audio/iem-in-ear-monitor.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "line-array",
+    "name": "Line Array",
+    "category": "audio",
+    "subcategory": "line-array",
+    "tags": [
+      "line array",
+      "audio"
+    ],
+    "file": "audio/line-array.svg",
+    "source": "https://github.com/game-icons/icons",
+    "license": "CC-BY-3.0",
+    "attribution": "Delapouite (delapouite.com) \u2014 game-icons.net, CC BY 3.0"
+  },
+  {
+    "id": "loudspeaker",
+    "name": "Loudspeaker",
+    "category": "audio",
+    "subcategory": "loudspeaker",
+    "tags": [
+      "loudspeaker",
+      "audio",
+      "voice",
+      "loud",
+      "microphone",
+      "event",
+      "protest"
+    ],
+    "file": "audio/loudspeaker.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "speaker-fa",
+    "name": "Speaker",
+    "category": "audio",
+    "subcategory": "loudspeaker",
+    "tags": [
+      "loudspeaker",
+      "audio"
+    ],
+    "file": "audio/speaker-fa.svg",
+    "source": "https://github.com/FortAwesome/Font-Awesome",
+    "license": "CC-BY-4.0",
+    "attribution": "Font Awesome Free 6 (fontawesome.com) \u2014 Icons: CC BY 4.0 License, \u00a9 Fonticons, Inc."
+  },
+  {
+    "id": "media-player",
+    "name": "Media Player",
+    "category": "audio",
+    "subcategory": "media-player",
+    "tags": [
+      "media player",
+      "audio",
+      "start",
+      "video",
+      "film",
+      "music",
+      "player",
+      "play"
+    ],
+    "file": "audio/media-player.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "playlist",
+    "name": "Playlist",
+    "category": "audio",
+    "subcategory": "media-player",
+    "tags": [
+      "media player",
+      "audio",
+      "music",
+      "song",
+      "artist",
+      "spotify",
+      "track",
+      "play"
+    ],
+    "file": "audio/playlist.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "microphone-boundary",
+    "name": "Microphone Boundary",
+    "category": "audio",
+    "subcategory": "microphone-boundary",
+    "tags": [
+      "microphone boundary",
+      "audio"
+    ],
+    "file": "audio/microphone-boundary.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+  },
+  {
+    "id": "microphone-condenser",
+    "name": "Microphone Condenser",
+    "category": "audio",
+    "subcategory": "microphone-condenser",
+    "tags": [
+      "microphone condenser",
+      "audio"
+    ],
+    "file": "audio/microphone-condenser.svg",
+    "source": "https://github.com/game-icons/icons",
+    "license": "CC-BY-3.0",
+    "attribution": "Delapouite (delapouite.com) \u2014 game-icons.net, CC BY 3.0"
+  },
+  {
+    "id": "microphone-fa",
+    "name": "Microphone",
+    "category": "audio",
+    "subcategory": "microphone-handheld",
+    "tags": [
+      "microphone handheld",
+      "audio"
+    ],
+    "file": "audio/microphone-fa.svg",
+    "source": "https://github.com/FortAwesome/Font-Awesome",
+    "license": "CC-BY-4.0",
+    "attribution": "Font Awesome Free 6 (fontawesome.com) \u2014 Icons: CC BY 4.0 License, \u00a9 Fonticons, Inc."
+  },
+  {
+    "id": "microphone-handheld",
+    "name": "Microphone Handheld",
+    "category": "audio",
+    "subcategory": "microphone-handheld",
+    "tags": [
+      "microphone handheld",
+      "audio",
+      "record",
+      "sound",
+      "listen",
+      "microphone",
+      "content",
+      "entertainment"
+    ],
+    "file": "audio/microphone-handheld.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "microphone-lavalier",
+    "name": "Microphone Lavalier",
+    "category": "audio",
+    "subcategory": "microphone-lavalier",
+    "tags": [
+      "microphone lavalier",
+      "audio"
+    ],
+    "file": "audio/microphone-lavalier.svg",
+    "source": "https://github.com/FortAwesome/Font-Awesome",
+    "license": "CC-BY-4.0",
+    "attribution": "Font Awesome Free 6 (fontawesome.com) \u2014 Icons: CC BY 4.0 License, \u00a9 Fonticons, Inc."
+  },
+  {
+    "id": "microphone-studio",
+    "name": "Microphone Studio",
+    "category": "audio",
+    "subcategory": "microphone-studio",
+    "tags": [
+      "microphone studio",
+      "audio"
+    ],
+    "file": "audio/microphone-studio.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+  },
+  {
+    "id": "mixer-faders",
+    "name": "Mixer Faders",
+    "category": "audio",
+    "subcategory": "mixing-console",
+    "tags": [
+      "mixing console",
+      "audio",
+      "equalizer",
+      "sliders",
+      "controls",
+      "settings",
+      "filter",
+      "adjustments"
+    ],
+    "file": "audio/mixer-faders.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "mixing-console",
+    "name": "Mixing Console",
+    "category": "audio",
+    "subcategory": "mixing-console",
+    "tags": [
+      "mixing console",
+      "audio"
+    ],
+    "file": "audio/mixing-console.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+  },
+  {
+    "id": "mixing-desk",
+    "name": "Mixing Desk",
+    "category": "audio",
+    "subcategory": "mixing-console",
+    "tags": [
+      "mixing console",
+      "audio"
+    ],
+    "file": "audio/mixing-desk.svg",
+    "source": "https://github.com/game-icons/icons",
+    "license": "CC-BY-3.0",
+    "attribution": "Delapouite (delapouite.com) \u2014 game-icons.net, CC BY 3.0"
+  },
+  {
+    "id": "point-source-speaker",
+    "name": "Point Source Speaker",
+    "category": "audio",
+    "subcategory": "point-source",
+    "tags": [
+      "point source",
+      "audio"
+    ],
+    "file": "audio/point-source-speaker.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+  },
+  {
+    "id": "amplifier-fa",
+    "name": "Amplifier",
+    "category": "audio",
+    "subcategory": "power-amplifier",
+    "tags": [
+      "power amplifier",
+      "audio"
+    ],
+    "file": "audio/amplifier-fa.svg",
+    "source": "https://github.com/FortAwesome/Font-Awesome",
+    "license": "CC-BY-4.0",
+    "attribution": "Font Awesome Free 6 (fontawesome.com) \u2014 Icons: CC BY 4.0 License, \u00a9 Fonticons, Inc."
+  },
+  {
+    "id": "power-amplifier",
+    "name": "Power Amplifier",
+    "category": "audio",
+    "subcategory": "power-amplifier",
+    "tags": [
+      "power amplifier",
+      "audio",
+      "gear",
+      "configuration",
+      "adjust",
+      "setup",
+      "control",
+      "power"
+    ],
+    "file": "audio/power-amplifier.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "stage-box-snake",
+    "name": "Stage Box Snake",
+    "category": "audio",
+    "subcategory": "stage-box-snake",
+    "tags": [
+      "stage box snake",
+      "audio",
+      "power",
+      "electricity",
+      "cable",
+      "socket",
+      "plug",
+      "connected"
+    ],
+    "file": "audio/stage-box-snake.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "stage-monitor-wedge",
+    "name": "Stage Monitor Wedge",
+    "category": "audio",
+    "subcategory": "stage-monitor",
+    "tags": [
+      "stage monitor",
+      "audio"
+    ],
+    "file": "audio/stage-monitor-wedge.svg",
+    "source": "https://github.com/game-icons/icons",
+    "license": "CC-BY-3.0",
+    "attribution": "Delapouite (delapouite.com) \u2014 game-icons.net, CC BY 3.0"
+  },
+  {
+    "id": "subwoofer",
+    "name": "Subwoofer",
+    "category": "audio",
+    "subcategory": "subwoofer",
+    "tags": [
+      "subwoofer",
+      "audio"
+    ],
+    "file": "audio/subwoofer.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+  },
+  {
+    "id": "subwoofer-speaker",
+    "name": "Subwoofer Speaker",
+    "category": "audio",
+    "subcategory": "subwoofer",
+    "tags": [
+      "subwoofer",
+      "audio"
+    ],
+    "file": "audio/subwoofer-speaker.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+  },
+  {
+    "id": "waveform",
+    "name": "Waveform",
+    "category": "audio",
+    "subcategory": "waveform",
+    "tags": [
+      "waveform",
+      "audio",
+      "pulse",
+      "signal",
+      "ratio",
+      "rate",
+      "volume",
+      "wave"
+    ],
+    "file": "audio/waveform.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "wireless-mic",
+    "name": "Wireless Mic",
+    "category": "audio",
+    "subcategory": "wireless-mic",
+    "tags": [
+      "wireless mic",
+      "audio"
+    ],
+    "file": "audio/wireless-mic.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+  },
+  {
+    "id": "banquet-table",
+    "name": "Banquet Table",
+    "category": "furniture",
+    "subcategory": "banquet-table",
+    "tags": [
+      "banquet table",
+      "furniture"
+    ],
+    "file": "furniture/banquet-table.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+  },
+  {
+    "id": "bar-counter",
+    "name": "Bar Counter",
+    "category": "furniture",
+    "subcategory": "bar",
+    "tags": [
+      "bar",
+      "furniture"
+    ],
+    "file": "furniture/bar-counter.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+  },
+  {
+    "id": "chair",
+    "name": "Chair",
+    "category": "furniture",
+    "subcategory": "chair",
+    "tags": [
+      "chair",
+      "furniture"
+    ],
+    "file": "furniture/chair.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+  },
+  {
+    "id": "chair-gameicon",
+    "name": "Chair Gameicon",
+    "category": "furniture",
+    "subcategory": "chair",
+    "tags": [
+      "chair",
+      "furniture"
+    ],
+    "file": "furniture/chair-gameicon.svg",
+    "source": "https://github.com/game-icons/icons",
+    "license": "CC-BY-3.0",
+    "attribution": "Delapouite (delapouite.com) \u2014 game-icons.net, CC BY 3.0"
+  },
+  {
+    "id": "cocktail-poseur-table",
+    "name": "Cocktail Poseur Table",
+    "category": "furniture",
+    "subcategory": "cocktail-table",
+    "tags": [
+      "cocktail table",
+      "furniture"
+    ],
+    "file": "furniture/cocktail-poseur-table.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+  },
+  {
+    "id": "dancefloor",
+    "name": "Dancefloor",
+    "category": "furniture",
+    "subcategory": "dancefloor",
+    "tags": [
+      "dancefloor",
+      "furniture"
+    ],
+    "file": "furniture/dancefloor.svg",
+    "source": "https://github.com/game-icons/icons",
+    "license": "CC-BY-3.0",
+    "attribution": "Delapouite (delapouite.com) \u2014 game-icons.net, CC BY 3.0"
+  },
+  {
+    "id": "dj-booth",
+    "name": "DJ Booth",
+    "category": "furniture",
+    "subcategory": "dj-booth",
+    "tags": [
+      "dj booth",
+      "furniture"
+    ],
+    "file": "furniture/dj-booth.svg",
+    "source": "https://github.com/game-icons/icons",
+    "license": "CC-BY-3.0",
+    "attribution": "Delapouite (delapouite.com) \u2014 game-icons.net, CC BY 3.0"
+  },
+  {
+    "id": "door",
+    "name": "Door",
+    "category": "furniture",
+    "subcategory": "door",
+    "tags": [
+      "door",
+      "furniture"
+    ],
+    "file": "furniture/door.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+  },
+  {
+    "id": "door-open",
+    "name": "Door Open",
+    "category": "furniture",
+    "subcategory": "door",
+    "tags": [
+      "door",
+      "furniture"
+    ],
+    "file": "furniture/door-open.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+  },
+  {
+    "id": "double-door",
+    "name": "Double Door",
+    "category": "furniture",
+    "subcategory": "double-door",
+    "tags": [
+      "double door",
+      "furniture"
+    ],
+    "file": "furniture/double-door.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+  },
+  {
+    "id": "lectern-podium",
+    "name": "Lectern Podium",
+    "category": "furniture",
+    "subcategory": "lectern-podium",
+    "tags": [
+      "lectern podium",
+      "furniture"
+    ],
+    "file": "furniture/lectern-podium.svg",
+    "source": "https://github.com/game-icons/icons",
+    "license": "CC-BY-3.0",
+    "attribution": "Delapouite (delapouite.com) \u2014 game-icons.net, CC BY 3.0"
+  },
+  {
+    "id": "podium-speaker",
+    "name": "Podium Speaker",
+    "category": "furniture",
+    "subcategory": "lectern-podium",
+    "tags": [
+      "lectern podium",
+      "furniture"
+    ],
+    "file": "furniture/podium-speaker.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+  },
+  {
+    "id": "lighting-fixture",
+    "name": "Lighting Fixture",
+    "category": "furniture",
+    "subcategory": "lighting",
+    "tags": [
+      "lighting",
+      "furniture"
+    ],
+    "file": "furniture/lighting-fixture.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+  },
+  {
+    "id": "mic-stand",
+    "name": "Mic Stand",
+    "category": "furniture",
+    "subcategory": "mic-stand",
+    "tags": [
+      "mic stand",
+      "furniture"
+    ],
+    "file": "furniture/mic-stand.svg",
+    "source": "https://github.com/game-icons/icons",
+    "license": "CC-BY-3.0",
+    "attribution": "Delapouite (delapouite.com) \u2014 game-icons.net, CC BY 3.0"
+  },
+  {
+    "id": "people-group",
+    "name": "People Group",
+    "category": "furniture",
+    "subcategory": "person-audience",
+    "tags": [
+      "person audience",
+      "furniture",
+      "community",
+      "team",
+      "cluster",
+      "society",
+      "gathering",
+      "crowd"
+    ],
+    "file": "furniture/people-group.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "person-audience",
+    "name": "Person Audience",
+    "category": "furniture",
+    "subcategory": "person-audience",
+    "tags": [
+      "person audience",
+      "furniture"
+    ],
+    "file": "furniture/person-audience.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+  },
+  {
+    "id": "pillar-column",
+    "name": "Pillar Column",
+    "category": "furniture",
+    "subcategory": "pillar-column",
+    "tags": [
+      "pillar column",
+      "furniture"
+    ],
+    "file": "furniture/pillar-column.svg",
+    "source": "https://github.com/game-icons/icons",
+    "license": "CC-BY-3.0",
+    "attribution": "Delapouite (delapouite.com) \u2014 game-icons.net, CC BY 3.0"
+  },
+  {
+    "id": "pipe-and-drape",
+    "name": "Pipe And Drape",
+    "category": "furniture",
+    "subcategory": "pipe-and-drape",
+    "tags": [
+      "pipe and drape",
+      "furniture"
+    ],
+    "file": "furniture/pipe-and-drape.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+  },
+  {
+    "id": "plant-tree",
+    "name": "Plant Tree",
+    "category": "furniture",
+    "subcategory": "plant-tree",
+    "tags": [
+      "plant tree",
+      "furniture"
+    ],
+    "file": "furniture/plant-tree.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+  },
+  {
+    "id": "potted-plant",
+    "name": "Potted Plant",
+    "category": "furniture",
+    "subcategory": "plant-tree",
+    "tags": [
+      "plant tree",
+      "furniture"
+    ],
+    "file": "furniture/potted-plant.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+  },
+  {
+    "id": "rectangular-table",
+    "name": "Rectangular Table",
+    "category": "furniture",
+    "subcategory": "rectangular-table",
+    "tags": [
+      "rectangular table",
+      "furniture"
+    ],
+    "file": "furniture/rectangular-table.svg",
+    "source": "https://github.com/game-icons/icons",
+    "license": "CC-BY-3.0",
+    "attribution": "Delapouite (delapouite.com) \u2014 game-icons.net, CC BY 3.0"
+  },
+  {
+    "id": "round-table",
+    "name": "Round Table",
+    "category": "furniture",
+    "subcategory": "round-table",
+    "tags": [
+      "round table",
+      "furniture"
+    ],
+    "file": "furniture/round-table.svg",
+    "source": "https://github.com/game-icons/icons",
+    "license": "CC-BY-3.0",
+    "attribution": "Delapouite (delapouite.com) \u2014 game-icons.net, CC BY 3.0"
+  },
+  {
+    "id": "round-table-restaurant",
+    "name": "Round Table Restaurant",
+    "category": "furniture",
+    "subcategory": "round-table",
+    "tags": [
+      "round table",
+      "furniture"
+    ],
+    "file": "furniture/round-table-restaurant.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+  },
+  {
+    "id": "sofa",
+    "name": "Sofa",
+    "category": "furniture",
+    "subcategory": "sofa",
+    "tags": [
+      "sofa",
+      "furniture"
+    ],
+    "file": "furniture/sofa.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+  },
+  {
+    "id": "sofa-couch",
+    "name": "Sofa Couch",
+    "category": "furniture",
+    "subcategory": "sofa",
+    "tags": [
+      "sofa",
+      "furniture",
+      "chair",
+      "seat",
+      "home",
+      "couch"
+    ],
+    "file": "furniture/sofa-couch.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "speaker-stand-tripod",
+    "name": "Speaker Stand Tripod",
+    "category": "furniture",
+    "subcategory": "speaker-stand",
+    "tags": [
+      "speaker stand",
+      "furniture",
+      "competition",
+      "competitor",
+      "sport",
+      "game",
+      "play",
+      "champion"
+    ],
+    "file": "furniture/speaker-stand-tripod.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "stackable-chair",
+    "name": "Stackable Chair",
+    "category": "furniture",
+    "subcategory": "stackable-chair",
+    "tags": [
+      "stackable chair",
+      "furniture"
+    ],
+    "file": "furniture/stackable-chair.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+  },
+  {
+    "id": "stage-deck-riser",
+    "name": "Stage Deck Riser",
+    "category": "furniture",
+    "subcategory": "stage-deck",
+    "tags": [
+      "stage deck",
+      "furniture"
+    ],
+    "file": "furniture/stage-deck-riser.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+  },
+  {
+    "id": "stage-platform",
+    "name": "Stage Platform",
+    "category": "furniture",
+    "subcategory": "stage-deck",
+    "tags": [
+      "stage deck",
+      "furniture"
+    ],
+    "file": "furniture/stage-platform.svg",
+    "source": "https://github.com/game-icons/icons",
+    "license": "CC-BY-3.0",
+    "attribution": "Delapouite (delapouite.com) \u2014 game-icons.net, CC BY 3.0"
+  },
+  {
+    "id": "truss-segment",
+    "name": "Truss Segment",
+    "category": "furniture",
+    "subcategory": "truss-segment",
+    "tags": [
+      "truss segment",
+      "furniture",
+      "grid",
+      "mesh",
+      "net",
+      "line",
+      "pattern"
+    ],
+    "file": "furniture/truss-segment.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "window",
+    "name": "Window",
+    "category": "furniture",
+    "subcategory": "window",
+    "tags": [
+      "window",
+      "furniture"
+    ],
+    "file": "furniture/window.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+  },
+  {
+    "id": "arrow-narrow-right",
+    "name": "Arrow Narrow Right",
+    "category": "generic",
+    "subcategory": "arrow",
+    "tags": [
+      "arrow",
+      "generic",
+      "next",
+      "proceed",
+      "point",
+      "pointer",
+      "narrow"
+    ],
+    "file": "generic/arrow-narrow-right.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "arrow-right",
+    "name": "Arrow Right",
+    "category": "generic",
+    "subcategory": "arrow",
+    "tags": [
+      "arrow",
+      "generic",
+      "next",
+      "proceed",
+      "swipe",
+      "right",
+      "direction"
+    ],
+    "file": "generic/arrow-right.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "brace",
+    "name": "Brace",
+    "category": "generic",
+    "subcategory": "bracket-group",
+    "tags": [
+      "bracket group",
+      "generic",
+      "punctuation",
+      "additional",
+      "information",
+      "braces",
+      "calculation",
+      "equation"
+    ],
+    "file": "generic/brace.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "bracket",
+    "name": "Bracket",
+    "category": "generic",
+    "subcategory": "bracket-group",
+    "tags": [
+      "bracket group",
+      "generic",
+      "punctuation",
+      "additional",
+      "information",
+      "brackets",
+      "calculation",
+      "equation"
+    ],
+    "file": "generic/bracket.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "callout-corner",
+    "name": "Callout Corner",
+    "category": "generic",
+    "subcategory": "callout",
+    "tags": [
+      "callout",
+      "generic"
+    ],
+    "file": "generic/callout-corner.svg",
+    "source": "https://github.com/lucide-icons/lucide",
+    "license": "ISC",
+    "attribution": "Lucide (lucide.dev) \u2014 ISC License, \u00a9 Lucide Contributors. Forked from Feather (MIT, \u00a9 Cole Bemis)."
+  },
+  {
+    "id": "callout-speech",
+    "name": "Callout Speech",
+    "category": "generic",
+    "subcategory": "callout",
+    "tags": [
+      "callout",
+      "generic",
+      "comment",
+      "chat",
+      "reply",
+      "communication",
+      "conversation",
+      "faq"
+    ],
+    "file": "generic/callout-speech.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "circle",
+    "name": "Circle",
+    "category": "generic",
+    "subcategory": "circle",
+    "tags": [
+      "circle",
+      "generic",
+      "off",
+      "zero",
+      "round",
+      "circular",
+      "geometry"
+    ],
+    "file": "generic/circle.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "circle-lucide",
+    "name": "Circle Lucide",
+    "category": "generic",
+    "subcategory": "circle",
+    "tags": [
+      "circle",
+      "generic"
+    ],
+    "file": "generic/circle-lucide.svg",
+    "source": "https://github.com/lucide-icons/lucide",
+    "license": "ISC",
+    "attribution": "Lucide (lucide.dev) \u2014 ISC License, \u00a9 Lucide Contributors. Forked from Feather (MIT, \u00a9 Cole Bemis)."
+  },
+  {
+    "id": "x",
+    "name": "X",
+    "category": "generic",
+    "subcategory": "cross",
+    "tags": [
+      "cross",
+      "generic",
+      "cancel",
+      "remove",
+      "delete",
+      "empty",
+      "close",
+      "x"
+    ],
+    "file": "generic/x.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "dimensions",
+    "name": "Dimensions",
+    "category": "generic",
+    "subcategory": "dimension-marker",
+    "tags": [
+      "dimension marker",
+      "generic",
+      "width",
+      "height",
+      "size",
+      "breadth",
+      "depth",
+      "dimensions"
+    ],
+    "file": "generic/dimensions.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "ruler",
+    "name": "Ruler",
+    "category": "generic",
+    "subcategory": "dimension-marker",
+    "tags": [
+      "dimension marker",
+      "generic",
+      "maths",
+      "dimensions",
+      "size",
+      "width",
+      "length",
+      "geometry"
+    ],
+    "file": "generic/ruler.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "ruler-measure",
+    "name": "Ruler Measure",
+    "category": "generic",
+    "subcategory": "dimension-marker",
+    "tags": [
+      "dimension marker",
+      "generic",
+      "maths",
+      "dimensions",
+      "size",
+      "width",
+      "length",
+      "geometry"
+    ],
+    "file": "generic/ruler-measure.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "arrow-left-right",
+    "name": "Arrow Left Right",
+    "category": "generic",
+    "subcategory": "double-arrow",
+    "tags": [
+      "double arrow",
+      "generic"
+    ],
+    "file": "generic/arrow-left-right.svg",
+    "source": "https://github.com/lucide-icons/lucide",
+    "license": "ISC",
+    "attribution": "Lucide (lucide.dev) \u2014 ISC License, \u00a9 Lucide Contributors. Forked from Feather (MIT, \u00a9 Cole Bemis)."
+  },
+  {
+    "id": "arrows-horizontal",
+    "name": "Arrows Horizontal",
+    "category": "generic",
+    "subcategory": "double-arrow",
+    "tags": [
+      "double arrow",
+      "generic",
+      "zoom",
+      "stretch",
+      "left",
+      "right",
+      "arrows",
+      "horizontal"
+    ],
+    "file": "generic/arrows-horizontal.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "ellipse",
+    "name": "Ellipse",
+    "category": "generic",
+    "subcategory": "ellipse",
+    "tags": [
+      "ellipse",
+      "generic",
+      "shape",
+      "circle",
+      "oval",
+      "vertical",
+      "geometry",
+      "form"
+    ],
+    "file": "generic/ellipse.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "grid",
+    "name": "Grid",
+    "category": "generic",
+    "subcategory": "grid",
+    "tags": [
+      "grid",
+      "generic",
+      "layout",
+      "matrix",
+      "pattern",
+      "gridlines",
+      "arrangement",
+      "structure"
+    ],
+    "file": "generic/grid.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "grid-dots",
+    "name": "Grid Dots",
+    "category": "generic",
+    "subcategory": "grid",
+    "tags": [
+      "grid",
+      "generic",
+      "network",
+      "pattern",
+      "layout",
+      "dots",
+      "control"
+    ],
+    "file": "generic/grid-dots.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "hexagon",
+    "name": "Hexagon",
+    "category": "generic",
+    "subcategory": "hexagon",
+    "tags": [
+      "hexagon",
+      "generic",
+      "shape",
+      "geometric",
+      "math",
+      "2d",
+      "geometry"
+    ],
+    "file": "generic/hexagon.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "line",
+    "name": "Line",
+    "category": "generic",
+    "subcategory": "line",
+    "tags": [
+      "line",
+      "generic",
+      "geometric",
+      "segment",
+      "link",
+      "connection",
+      "creative"
+    ],
+    "file": "generic/line.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "line-dashed",
+    "name": "Line Dashed",
+    "category": "generic",
+    "subcategory": "line",
+    "tags": [
+      "line",
+      "generic",
+      "geometric",
+      "segment",
+      "link",
+      "connection",
+      "dashed"
+    ],
+    "file": "generic/line-dashed.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "navigation",
+    "name": "Navigation",
+    "category": "generic",
+    "subcategory": "north-arrow",
+    "tags": [
+      "north arrow",
+      "generic"
+    ],
+    "file": "generic/navigation.svg",
+    "source": "https://github.com/lucide-icons/lucide",
+    "license": "ISC",
+    "attribution": "Lucide (lucide.dev) \u2014 ISC License, \u00a9 Lucide Contributors. Forked from Feather (MIT, \u00a9 Cole Bemis)."
+  },
+  {
+    "id": "north-arrow-compass",
+    "name": "North Arrow Compass",
+    "category": "generic",
+    "subcategory": "north-arrow",
+    "tags": [
+      "north arrow",
+      "generic",
+      "navigation",
+      "safari",
+      "travel",
+      "direction",
+      "discover",
+      "compass"
+    ],
+    "file": "generic/north-arrow-compass.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "plus",
+    "name": "Plus",
+    "category": "generic",
+    "subcategory": "plus",
+    "tags": [
+      "plus",
+      "generic",
+      "add",
+      "create",
+      "new",
+      "+",
+      "calculation"
+    ],
+    "file": "generic/plus.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "rectangle",
+    "name": "Rectangle",
+    "category": "generic",
+    "subcategory": "rectangle",
+    "tags": [
+      "rectangle",
+      "generic",
+      "shape",
+      "geometric",
+      "math",
+      "geometry",
+      "form"
+    ],
+    "file": "generic/rectangle.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "rounded-rectangle",
+    "name": "Rounded Rectangle",
+    "category": "generic",
+    "subcategory": "rounded-rect",
+    "tags": [
+      "rounded rect",
+      "generic",
+      "shape",
+      "box",
+      "figure",
+      "geometry",
+      "square",
+      "rounded"
+    ],
+    "file": "generic/rounded-rectangle.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "scale-ruler-2",
+    "name": "Scale Ruler 2",
+    "category": "generic",
+    "subcategory": "scale-bar",
+    "tags": [
+      "scale bar",
+      "generic",
+      "maths",
+      "dimensions",
+      "size",
+      "width",
+      "length",
+      "geometry"
+    ],
+    "file": "generic/scale-ruler-2.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "star",
+    "name": "Star",
+    "category": "generic",
+    "subcategory": "star",
+    "tags": [
+      "star",
+      "generic",
+      "favorite",
+      "like",
+      "mark",
+      "bookmark",
+      "grade"
+    ],
+    "file": "generic/star.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "letter-t",
+    "name": "Letter T",
+    "category": "generic",
+    "subcategory": "text-label",
+    "tags": [
+      "text label",
+      "generic",
+      "alphabet",
+      "text",
+      "code",
+      "letter",
+      "character",
+      "typography"
+    ],
+    "file": "generic/letter-t.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "text-label",
+    "name": "Text Label",
+    "category": "generic",
+    "subcategory": "text-label",
+    "tags": [
+      "text label",
+      "generic",
+      "font",
+      "edit",
+      "document",
+      "type",
+      "letter",
+      "text"
+    ],
+    "file": "generic/text-label.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "triangle",
+    "name": "Triangle",
+    "category": "generic",
+    "subcategory": "triangle",
+    "tags": [
+      "triangle",
+      "generic",
+      "delta",
+      "shape",
+      "geometry",
+      "form",
+      "figure"
+    ],
+    "file": "generic/triangle.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "triangle-bootstrap",
+    "name": "Triangle Bootstrap",
+    "category": "generic",
+    "subcategory": "triangle",
+    "tags": [
+      "triangle",
+      "generic"
+    ],
+    "file": "generic/triangle-bootstrap.svg",
+    "source": "https://github.com/twbs/icons",
+    "license": "MIT",
+    "attribution": "Bootstrap Icons (icons.getbootstrap.com) \u2014 MIT License, \u00a9 The Bootstrap Authors"
+  },
+  {
+    "id": "zone-polygon",
+    "name": "Zone Polygon",
+    "category": "generic",
+    "subcategory": "zone-area",
+    "tags": [
+      "zone area",
+      "generic",
+      "shape",
+      "form",
+      "geometry",
+      "circle",
+      "line",
+      "polygon"
+    ],
+    "file": "generic/zone-polygon.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "zone-rectangle-dashed",
+    "name": "Zone Rectangle Dashed",
+    "category": "generic",
+    "subcategory": "zone-area",
+    "tags": [
+      "zone area",
+      "generic",
+      "box",
+      "line",
+      "shape",
+      "geometry",
+      "pattern",
+      "design"
+    ],
+    "file": "generic/zone-rectangle-dashed.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "wifi",
+    "name": "Wifi",
+    "category": "network",
+    "subcategory": "access-point",
+    "tags": [
+      "access point",
+      "network",
+      "online",
+      "connection",
+      "signal",
+      "wireless",
+      "wifi",
+      "internet"
+    ],
+    "file": "network/wifi.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "wireless-access-point",
+    "name": "Wireless Access Point",
+    "category": "network",
+    "subcategory": "access-point",
+    "tags": [
+      "access point",
+      "network",
+      "device",
+      "hosts",
+      "airwaves",
+      "wireless",
+      "access"
+    ],
+    "file": "network/wireless-access-point.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "cloud",
+    "name": "Cloud",
+    "category": "network",
+    "subcategory": "cloud",
+    "tags": [
+      "cloud",
+      "network",
+      "weather",
+      "online",
+      "storage",
+      "climate",
+      "forecast"
+    ],
+    "file": "network/cloud.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "cloud-network",
+    "name": "Cloud Network",
+    "category": "network",
+    "subcategory": "cloud",
+    "tags": [
+      "cloud",
+      "network",
+      "server",
+      "data",
+      "storage",
+      "share",
+      "internet"
+    ],
+    "file": "network/cloud-network.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "equipment-rack",
+    "name": "Equipment Rack",
+    "category": "network",
+    "subcategory": "equipment-rack",
+    "tags": [
+      "equipment rack",
+      "network",
+      "settings",
+      "storage",
+      "data",
+      "database",
+      "server",
+      "cog"
+    ],
+    "file": "network/equipment-rack.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "rack-fa",
+    "name": "Rack",
+    "category": "network",
+    "subcategory": "equipment-rack",
+    "tags": [
+      "equipment rack",
+      "network"
+    ],
+    "file": "network/rack-fa.svg",
+    "source": "https://github.com/FortAwesome/Font-Awesome",
+    "license": "CC-BY-4.0",
+    "attribution": "Font Awesome Free 6 (fontawesome.com) \u2014 Icons: CC BY 4.0 License, \u00a9 Fonticons, Inc."
+  },
+  {
+    "id": "firewall",
+    "name": "Firewall",
+    "category": "network",
+    "subcategory": "firewall",
+    "tags": [
+      "firewall",
+      "network",
+      "brick",
+      "security",
+      "building",
+      "renovation",
+      "construction"
+    ],
+    "file": "network/firewall.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "shield-firewall",
+    "name": "Shield Firewall",
+    "category": "network",
+    "subcategory": "firewall",
+    "tags": [
+      "firewall",
+      "network",
+      "secure",
+      "security",
+      "closed",
+      "key",
+      "safety",
+      "shield"
+    ],
+    "file": "network/shield-firewall.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "media-converter",
+    "name": "Media Converter",
+    "category": "network",
+    "subcategory": "media-converter",
+    "tags": [
+      "media converter",
+      "network",
+      "move",
+      "exchange",
+      "send",
+      "transfer",
+      "switch",
+      "change"
+    ],
+    "file": "network/media-converter.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "modem",
+    "name": "Modem",
+    "category": "network",
+    "subcategory": "modem",
+    "tags": [
+      "modem",
+      "network",
+      "telephone",
+      "call",
+      "comunication",
+      "digital",
+      "device",
+      "landline"
+    ],
+    "file": "network/modem.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "modem-router",
+    "name": "Modem Router",
+    "category": "network",
+    "subcategory": "modem",
+    "tags": [
+      "modem",
+      "network"
+    ],
+    "file": "network/modem-router.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+  },
+  {
+    "id": "nas-database",
+    "name": "NAS Database",
+    "category": "network",
+    "subcategory": "nas",
+    "tags": [
+      "nas",
+      "network",
+      "storage",
+      "data",
+      "memory",
+      "database",
+      "repository",
+      "records"
+    ],
+    "file": "network/nas-database.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "nas-stack",
+    "name": "NAS Stack",
+    "category": "network",
+    "subcategory": "nas",
+    "tags": [
+      "nas",
+      "network",
+      "pile",
+      "elements",
+      "layout",
+      "wrap",
+      "stack",
+      "creative"
+    ],
+    "file": "network/nas-stack.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "topology-ring",
+    "name": "Topology Ring",
+    "category": "network",
+    "subcategory": "network-topology",
+    "tags": [
+      "network topology",
+      "network",
+      "hierarchy",
+      "structure",
+      "connection",
+      "topology",
+      "ring"
+    ],
+    "file": "network/topology-ring.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "topology-star",
+    "name": "Topology Star",
+    "category": "network",
+    "subcategory": "network-topology",
+    "tags": [
+      "network topology",
+      "network",
+      "hierarchy",
+      "structure",
+      "connection",
+      "topology",
+      "star"
+    ],
+    "file": "network/topology-star.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "ethernet-port",
+    "name": "Ethernet Port",
+    "category": "network",
+    "subcategory": "nic-endpoint",
+    "tags": [
+      "nic endpoint",
+      "network"
+    ],
+    "file": "network/ethernet-port.svg",
+    "source": "https://github.com/FortAwesome/Font-Awesome",
+    "license": "CC-BY-4.0",
+    "attribution": "Font Awesome Free 6 (fontawesome.com) \u2014 Icons: CC BY 4.0 License, \u00a9 Fonticons, Inc."
+  },
+  {
+    "id": "nic-endpoint-desktop",
+    "name": "NIC Endpoint Desktop",
+    "category": "network",
+    "subcategory": "nic-endpoint",
+    "tags": [
+      "nic endpoint",
+      "network",
+      "monitor",
+      "computer",
+      "imac",
+      "device",
+      "desktop",
+      "hardware"
+    ],
+    "file": "network/nic-endpoint-desktop.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "patch-panel",
+    "name": "Patch Panel",
+    "category": "network",
+    "subcategory": "patch-panel",
+    "tags": [
+      "patch panel",
+      "network",
+      "layout",
+      "table",
+      "pattern",
+      "grid",
+      "creative"
+    ],
+    "file": "network/patch-panel.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "poe-injector",
+    "name": "PoE Injector",
+    "category": "network",
+    "subcategory": "poe-injector",
+    "tags": [
+      "poe injector",
+      "network",
+      "electricity",
+      "charger",
+      "socket",
+      "connection",
+      "plug",
+      "hardware"
+    ],
+    "file": "network/poe-injector.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "router",
+    "name": "Router",
+    "category": "network",
+    "subcategory": "router",
+    "tags": [
+      "router",
+      "network",
+      "wifi",
+      "device",
+      "wireless",
+      "signal",
+      "station",
+      "cast"
+    ],
+    "file": "network/router.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "router-fa",
+    "name": "Router",
+    "category": "network",
+    "subcategory": "router",
+    "tags": [
+      "router",
+      "network"
+    ],
+    "file": "network/router-fa.svg",
+    "source": "https://github.com/FortAwesome/Font-Awesome",
+    "license": "CC-BY-4.0",
+    "attribution": "Font Awesome Free 6 (fontawesome.com) \u2014 Icons: CC BY 4.0 License, \u00a9 Fonticons, Inc."
+  },
+  {
+    "id": "server",
+    "name": "Server",
+    "category": "network",
+    "subcategory": "server",
+    "tags": [
+      "server",
+      "network",
+      "storage",
+      "hosting",
+      "www",
+      "hardware",
+      "technology"
+    ],
+    "file": "network/server.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "server-2",
+    "name": "Server 2",
+    "category": "network",
+    "subcategory": "server",
+    "tags": [
+      "server",
+      "network",
+      "storage",
+      "hosting",
+      "www",
+      "hardware",
+      "technology"
+    ],
+    "file": "network/server-2.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "server-fa",
+    "name": "Server",
+    "category": "network",
+    "subcategory": "server",
+    "tags": [
+      "server",
+      "network"
+    ],
+    "file": "network/server-fa.svg",
+    "source": "https://github.com/FortAwesome/Font-Awesome",
+    "license": "CC-BY-4.0",
+    "attribution": "Font Awesome Free 6 (fontawesome.com) \u2014 Icons: CC BY 4.0 License, \u00a9 Fonticons, Inc."
+  },
+  {
+    "id": "network-switch",
+    "name": "Network Switch",
+    "category": "network",
+    "subcategory": "switch",
+    "tags": [
+      "switch",
+      "network",
+      "arrows",
+      "direction",
+      "music",
+      "spotify",
+      "change"
+    ],
+    "file": "network/network-switch.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "switch-horizontal",
+    "name": "Switch Horizontal",
+    "category": "network",
+    "subcategory": "switch",
+    "tags": [
+      "switch",
+      "network",
+      "toggle",
+      "left",
+      "right",
+      "arrows",
+      "horizontal"
+    ],
+    "file": "network/switch-horizontal.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  }
+]

@@ -504,8 +504,8 @@ interface SchematicState {
   /** Apply an imported SVG asset to a device (layoutSvgAssetId) or object (svgAssetId). */
   setNodeSvgAsset: (nodeId: string, assetId: string) => void;
   // Layout objects (furniture) + colour zones (Phase 5)
-  pendingObjectPlacement: FurnitureCatalogEntry | null;
-  setPendingObjectPlacement: (entry: FurnitureCatalogEntry | null) => void;
+  pendingObjectPlacement: { entry: FurnitureCatalogEntry; svgAssetId?: string } | null;
+  setPendingObjectPlacement: (value: { entry: FurnitureCatalogEntry; svgAssetId?: string } | null) => void;
   addObject: (position: { x: number; y: number }, entry: FurnitureCatalogEntry, svgAssetId?: string) => void;
   addZone: (position: { x: number; y: number }, size?: { width: number; height: number }) => void;
   updateObjectData: (id: string, patch: Partial<ObjectData>) => void;
@@ -3538,7 +3538,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
 
   // ── Layout objects (furniture) + colour zones (Phase 5) — undoable canvas changes ──
   pendingObjectPlacement: null,
-  setPendingObjectPlacement: (entry) => set({ pendingObjectPlacement: entry }),
+  setPendingObjectPlacement: (value) => set({ pendingObjectPlacement: value }),
   addObject: (position, entry, svgAssetId) => {
     const state = get();
     pushUndo({ nodes: state.nodes, edges: state.edges });

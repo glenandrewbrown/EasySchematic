@@ -1298,7 +1298,7 @@ function SchematicCanvas() {
       // Armed furniture placement from the Object drawer drops at the click point.
       if (pendingObjectPlacement) {
         const pos = screenToFlowPosition({ x: event.clientX, y: event.clientY });
-        addObject(pos, pendingObjectPlacement);
+        addObject(pos, pendingObjectPlacement.entry, pendingObjectPlacement.svgAssetId);
         setPendingObjectPlacement(null);
         return;
       }

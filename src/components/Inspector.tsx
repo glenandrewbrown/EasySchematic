@@ -13,6 +13,7 @@ import { buildDeviceSuggestions } from "../deviceSuggestions";
 import { deviceClassColor } from "../deviceClassColor";
 import Combobox from "./ui/Combobox";
 import TagInput from "./ui/TagInput";
+import SymbolPickerDialog from "./SymbolPickerDialog";
 
 /**
  * Figma-style contextual inspector: edits the currently-selected device or room
@@ -299,6 +300,7 @@ function DeviceBody({ node }: { node: SchematicNode }) {
                 <button className="ui-btn ui-btn-secondary text-xs" onClick={() => patch({ layoutSvgAssetId: undefined })} title="Remove custom graphic">Clear</button>
               )}
             </div>
+            <ChooseSymbolButton nodeId={node.id} />
           </div>
         </div>
       )}
@@ -468,6 +470,32 @@ function hexOf(c: string | undefined, fallback: string): string {
   return c && /^#[0-9a-f]{6}/i.test(c) ? c.slice(0, 7) : fallback;
 }
 
+/** "Browse symbol library" button + picker: registers the chosen glyph as an SVG asset
+ *  and assigns it to the device/object (layoutSvgAssetId / svgAssetId via setNodeSvgAsset). */
+function ChooseSymbolButton({ nodeId }: { nodeId: string }) {
+  const [open, setOpen] = useState(false);
+  const addSvgAsset = useSchematicStore((s) => s.addSvgAsset);
+  const setNodeSvgAsset = useSchematicStore((s) => s.setNodeSvgAsset);
+  return (
+    <>
+      <button className="ui-btn ui-btn-secondary w-full text-xs mt-1.5" onClick={() => setOpen(true)}>
+        Browse symbol library…
+      </button>
+      {open && (
+        <SymbolPickerDialog
+          title="Choose a graphic"
+          onPick={(entry) => {
+            const id = addSvgAsset(entry.svg);
+            setNodeSvgAsset(nodeId, id);
+            setOpen(false);
+          }}
+          onClose={() => setOpen(false)}
+        />
+      )}
+    </>
+  );
+}
+
 function ObjectBody({ node }: { node: SchematicNode }) {
   const data = node.data as ObjectData;
   const updateObjectData = useSchematicStore((s) => s.updateObjectData);
@@ -511,6 +539,7 @@ function ObjectBody({ node }: { node: SchematicNode }) {
         <button className="ui-btn ui-btn-secondary w-full text-xs" onClick={() => setSvgImportTarget(node.id)}>
           {data.svgAssetId ? "Replace SVG…" : "Import SVG…"}
         </button>
+        <ChooseSymbolButton nodeId={node.id} />
       </div>
     </div>
   );
