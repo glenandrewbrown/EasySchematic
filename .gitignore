@@ -82,6 +82,8 @@ desktop/dist/
 desktop/out/
 desktop/icon.iconset/
 desktop/icon.icns
+# Live-control token consumed by the desktop wrapper (local secret, never committed)
+desktop/live-control-token.txt
 
 # Local tool state
 .omc/

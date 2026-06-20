@@ -74,6 +74,25 @@ function startServer() {
   });
 }
 
+/**
+ * Builds the `?liveControl=…` query the app consumes (once) into localStorage to
+ * auto-connect to Claude live control. The token is read from the environment or
+ * a local, gitignored `live-control-token.txt` next to this file — never baked
+ * into the shared web bundle, so the public/beta build stays token-free. Absent
+ * token → empty string → the app loads exactly as before.
+ */
+function liveControlQuery() {
+  let token = (process.env.EASYS_CONTROL_TOKEN || "").trim();
+  if (!token) {
+    try {
+      token = fs.readFileSync(path.join(__dirname, "live-control-token.txt"), "utf8").trim();
+    } catch {
+      token = "";
+    }
+  }
+  return token ? `?liveControl=1&liveControlToken=${encodeURIComponent(token)}` : "";
+}
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 1500,
@@ -99,7 +118,7 @@ function createWindow() {
     }
   });
 
-  win.loadURL(`http://${HOST}:${PORT}/`);
+  win.loadURL(`http://${HOST}:${PORT}/${liveControlQuery()}`);
   return win;
 }
 
