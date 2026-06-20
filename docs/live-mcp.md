@@ -30,6 +30,29 @@ VITE_LIVE_CONTROL_ENABLED=true VITE_LIVE_CONTROL_TOKEN=change-me npm run dev
 
 Resolution priority: URL query → localStorage → `VITE_LIVE_CONTROL_*` build env.
 
+## Desktop app (auto-enabled, zero-touch)
+
+The Electron wrapper (`desktop/main.cjs`) opts the local desktop app into live
+control on **every launch** with no console step — even on a fresh profile. On
+startup it appends `?liveControl=1&liveControlToken=<token>` to the loaded URL,
+which the app consumes once into `localStorage` (and strips from the address).
+
+The token is read from the `EASYS_CONTROL_TOKEN` env var, or — for a normal
+double-click launch — from a local file `desktop/live-control-token.txt` next to
+`main.cjs`. That file is **gitignored**, so the token never ships in the shared
+web/beta bundle. With no token present the app loads exactly as before.
+
+Set it up once:
+
+```sh
+printf '%s\n' "<token>" > desktop/live-control-token.txt
+```
+
+The same `main.cjs` + token file must exist inside the installed app bundle
+(`/Applications/EasySchematic.app/Contents/Resources/app/`). A routine
+`ditto dist …/app/dist` bundle update only touches `dist/`, so the wrapper and
+token file persist; a full app-bundle replace must re-copy them.
+
 ## Multiple clients (Claude Desktop + Claude Code + Codex at once)
 
 Each client launches its own copy of `server.js`. The first to start binds the
