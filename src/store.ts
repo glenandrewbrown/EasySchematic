@@ -383,6 +383,9 @@ interface SchematicState {
   setPendingUndoSnapshot: () => void;
   clearPendingUndoSnapshot: () => void;
   flushPendingSnapshot: () => void;
+  beginLiveControlBatch: () => void;
+  commitLiveControlBatch: () => void;
+  cancelLiveControlBatch: () => void;
   undo: () => void;
   redo: () => void;
   canUndo: () => boolean;
@@ -1012,6 +1015,8 @@ const redoStack: Snapshot[] = [];
 
 /** If set, the next pushUndo call uses this instead of the passed snapshot. */
 let pendingUndoSnapshot: Snapshot | null = null;
+let liveControlBatchSnapshot: Snapshot | null = null;
+let liveControlBatchDepth = 0;
 
 /** Edge ID being reconnected — excluded from isValidConnection duplicate checks. */
 let _reconnectingEdgeId: string | null = null;
@@ -1022,6 +1027,11 @@ export function setReconnectingEdgeId(id: string | null) {
 function pushUndo(partial: { nodes: SchematicNode[]; edges: ConnectionEdge[]; autoRoute?: boolean }) {
   const pages = useSchematicStore?.getState?.()?.pages ?? [];
   const snapshot: Snapshot = { ...partial, pages };
+  if (liveControlBatchDepth > 0) {
+    liveControlBatchSnapshot ??= structuredClone(pendingUndoSnapshot ?? snapshot);
+    pendingUndoSnapshot = null;
+    return;
+  }
   undoStack.push(structuredClone(pendingUndoSnapshot ?? snapshot));
   pendingUndoSnapshot = null;
   if (undoStack.length > MAX_HISTORY) undoStack.shift();
@@ -3262,6 +3272,38 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
       // pushUndo consumes pendingUndoSnapshot automatically
       pushUndo({ nodes: get().nodes, edges: get().edges });
     }
+  },
+
+  beginLiveControlBatch: () => {
+    const state = get();
+    if (liveControlBatchDepth === 0) {
+      liveControlBatchSnapshot = structuredClone({ nodes: state.nodes, edges: state.edges, pages: state.pages, autoRoute: state.autoRoute });
+    }
+    liveControlBatchDepth += 1;
+  },
+
+  commitLiveControlBatch: () => {
+    if (liveControlBatchDepth === 0) return;
+    liveControlBatchDepth -= 1;
+    if (liveControlBatchDepth > 0) return;
+    const snapshot = liveControlBatchSnapshot;
+    liveControlBatchSnapshot = null;
+    pendingUndoSnapshot = null;
+    if (!snapshot) return;
+    const state = get();
+    const changed = JSON.stringify({ nodes: snapshot.nodes, edges: snapshot.edges, pages: snapshot.pages, autoRoute: snapshot.autoRoute }) !==
+      JSON.stringify({ nodes: state.nodes, edges: state.edges, pages: state.pages, autoRoute: state.autoRoute });
+    if (!changed) return;
+    undoStack.push(structuredClone(snapshot));
+    if (undoStack.length > MAX_HISTORY) undoStack.shift();
+    redoStack.length = 0;
+    useSchematicStore.setState({ undoSize: undoStack.length, redoSize: 0 });
+  },
+
+  cancelLiveControlBatch: () => {
+    liveControlBatchDepth = 0;
+    liveControlBatchSnapshot = null;
+    pendingUndoSnapshot = null;
   },
 
   undo: () => {

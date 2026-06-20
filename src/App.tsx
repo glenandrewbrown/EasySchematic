@@ -73,6 +73,8 @@ import { loadSharedSchematic, checkSession } from "./templateApi";
 import { refreshCloudCache } from "./cloudSync";
 import { useTheme } from "./hooks/useTheme";
 import CommandPalette from "./components/CommandPalette";
+import LiveControlIndicator from "./components/LiveControlIndicator";
+import { startLiveControlClient } from "./liveControl/client";
 
 /** Darkens the canvas area left of x=0 and above y=0, marking the printable origin. */
 function CanvasOriginOverlay() {
@@ -1614,6 +1616,19 @@ function SchematicCanvas() {
       // Locked room context menu is handled by capture-phase listener on rfContainerRef
 
       onNodeClick={(event, node) => {
+        // One-shot placement tools (room, note, zone, measure) and armed object
+        // placement treat clicks on existing nodes the same as pane clicks so the
+        // user doesn't have to find empty canvas space when the diagram is dense.
+        if (
+          pendingObjectPlacement ||
+          activeTool === "room" ||
+          activeTool === "note" ||
+          activeTool === "zone" ||
+          activeTool === "measure"
+        ) {
+          onPaneClick(event);
+          return;
+        }
         if (!isClickConnectMode.current) return;
         // If clicking a handle, let the normal click-connect flow handle it
         const target = event.target as HTMLElement;
@@ -1661,6 +1676,20 @@ function SchematicCanvas() {
 
         clearClickConnect();
         rfStore.setState({ connectionClickStartHandle: null });
+      }}
+      onEdgeClick={(event) => {
+        // Placement tools must work even when the user clicks on an existing edge,
+        // same as the onNodeClick guard — otherwise the click is swallowed by
+        // ReactFlow's edge selection and the placement silently fails.
+        if (
+          pendingObjectPlacement ||
+          activeTool === "room" ||
+          activeTool === "note" ||
+          activeTool === "zone" ||
+          activeTool === "measure"
+        ) {
+          onPaneClick(event);
+        }
       }}
       onNodeDoubleClick={(event, node) => {
         if (node.type !== "room") return;
@@ -1939,6 +1968,11 @@ export default function App() {
   const undo = useSchematicStore((s) => s.undo);
   const redo = useSchematicStore((s) => s.redo);
 
+  useEffect(() => {
+    const liveControl = startLiveControlClient();
+    return () => liveControl?.stop();
+  }, []);
+
   // Per-workspace accent (Affinity-style personas): drive [data-workspace] on <html>
   // from the active view so the rationed accent recolors per persona —
   // Schematic blue · Plan teal · Schedule amber · Rack violet (see theme.css).
@@ -2027,6 +2061,7 @@ export default function App() {
     <div className="fixed inset-0 flex flex-col overflow-hidden">
       <EditorTopBar />
       <UpdatePill />
+      <LiveControlIndicator />
       <BetaBanner />
       <DemoBanner />
       <PendingSubmissionBanner />

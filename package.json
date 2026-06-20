@@ -27,12 +27,16 @@
   ],
   "scripts": {
     "dev": "vite",
+    "dev:live": "VITE_LIVE_CONTROL_ENABLED=true VITE_LIVE_CONTROL_TOKEN=$EASYS_CONTROL_TOKEN vite",
     "generate-fallback": "npx tsx api/seed/generate-fallback.ts",
     "build": "npm run generate-fallback && tsc -b && vite build",
     "build:dev-reference": "typedoc",
     "lint": "eslint .",
     "db:sync": "cd api && npm run seed:remote",
     "preview": "vite preview",
+    "mcp:check": "tsc -p mcp/tsconfig.json --noEmit",
+    "mcp:build": "tsc -p mcp/tsconfig.json",
+    "mcp:start": "node mcp/dist/server.js",
     "postinstall": "patch-package",
     "test": "vitest run",
     "test:watch": "vitest"
