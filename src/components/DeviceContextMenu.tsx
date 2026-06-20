@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo } from "react";
 import { useSchematicStore } from "../store";
-import type { DeviceData, RackElevationPage } from "../types";
+import type { DeviceData, DeviceTemplate, RackElevationPage } from "../types";
 import { useContextMenuPosition } from "../hooks/useContextMenuPosition";
 import MenuSubmenu from "./MenuSubmenu";
 import { inferRackHeightU } from "../rackUtils";
@@ -246,6 +246,30 @@ export default function DeviceContextMenu() {
         );
       })()}
 
+      {deviceData && (() => {
+        const template: DeviceTemplate = {
+          id: deviceData.templateId as string | undefined,
+          label: deviceData.label,
+          deviceType: deviceData.deviceType,
+          ports: deviceData.ports,
+          color: deviceData.color,
+          shortName: deviceData.shortName,
+          manufacturer: deviceData.manufacturer as string | undefined,
+          modelNumber: deviceData.modelNumber as string | undefined,
+        };
+        return (
+          <>
+            <div className="h-px bg-[var(--ui-border)] my-1" />
+            <MenuItem
+              label="Add to Owned Inventory"
+              onClick={() => {
+                useSchematicStore.getState().addOwnedGear(template, 1);
+                useSchematicStore.setState({ deviceContextMenu: null });
+              }}
+            />
+          </>
+        );
+      })()}
       <div className="h-px bg-[var(--ui-border)] my-1" />
       <MenuItem label="Delete Device" onClick={deleteDevice} danger />
     </div>

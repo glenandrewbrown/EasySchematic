@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useSchematicStore } from "../store";
 import { validateSchematic, countIssues, activeIssues } from "../validation";
+import { computeCableSchedule } from "../cableSchedule";
+import { runLengthWarnings } from "../cableBomBuild";
 import Inspector from "./Inspector";
 import LayersPanel from "./LayersPanel";
 import ValidationPanel from "./ValidationPanel";
+import CablesPanel from "./CablesPanel";
 import ViewOptionsPanel from "./ViewOptionsPanel";
 import ShowInfoPanel from "./ShowInfoPanel";
 import SignalColorPanel from "./SignalColorPanel";
@@ -20,7 +23,7 @@ import SignalColorPanel from "./SignalColorPanel";
  *     while freeing the tab row for just Inspect | Issues.
  */
 
-type Tab = "inspect" | "issues";
+type Tab = "inspect" | "issues" | "cables";
 const TAB_STORAGE_KEY = "easyschematic-rightrail-tab";
 const LAYERS_STORAGE_KEY = "easyschematic-rightrail-layers-open";
 const LAYERS_HEIGHT_STORAGE_KEY = "easyschematic-rightrail-layers-height";
@@ -108,7 +111,17 @@ export default function RightRail() {
   const dismissedIssueIds = useSchematicStore((s) => s.dismissedIssueIds);
   const dismissIssue = useSchematicStore((s) => s.dismissIssue);
   const undismissIssue = useSchematicStore((s) => s.undismissIssue);
+  const cableNamingScheme = useSchematicStore((s) => s.cableNamingScheme);
+  const roomDistances = useSchematicStore((s) => s.roomDistances);
+  const distanceSettings = useSchematicStore((s) => s.distanceSettings);
+
   const issues = useMemo(() => validateSchematic(nodes, edges), [nodes, edges]);
+
+  const cableRows = useMemo(
+    () => computeCableSchedule(nodes, edges, cableNamingScheme, { roomDistances, distanceSettings }),
+    [nodes, edges, cableNamingScheme, roomDistances, distanceSettings],
+  );
+  const cableWarnings = useMemo(() => runLengthWarnings(cableRows), [cableRows]);
   const dismissedSet = useMemo(() => new Set(dismissedIssueIds), [dismissedIssueIds]);
   const counts = useMemo(() => countIssues(activeIssues(issues, dismissedSet)), [issues, dismissedSet]);
   const layerItemCount = nodes.length;
@@ -197,6 +210,16 @@ export default function RightRail() {
     return () => window.removeEventListener("easyschematic:show-validate", onShow);
   }, []);
 
+  // Command-palette "Go to cables" jumps directly to the Cables tab.
+  useEffect(() => {
+    const onShow = () => {
+      setTabState("cables");
+      localStorage.setItem(TAB_STORAGE_KEY, "cables");
+    };
+    window.addEventListener("easyschematic:show-cables", onShow);
+    return () => window.removeEventListener("easyschematic:show-cables", onShow);
+  }, []);
+
   // Close the View popover on outside-click / Escape.
   useEffect(() => {
     if (!viewOpen) return;
@@ -230,6 +253,14 @@ export default function RightRail() {
           onSelect={setTab}
           badge={counts.total}
           badgeTone={counts.errors > 0 ? "error" : "warning"}
+        />
+        <TabButton
+          id="cables"
+          label="Cables"
+          active={tab}
+          onSelect={setTab}
+          badge={cableWarnings.length}
+          badgeTone="error"
         />
         <div className="ml-auto" ref={viewRef}>
           <button
@@ -271,6 +302,9 @@ export default function RightRail() {
             onDismiss={dismissIssue}
             onUndismiss={undismissIssue}
           />
+        )}
+        {tab === "cables" && (
+          <CablesPanel rows={cableRows} warnings={cableWarnings} />
         )}
       </div>
 
