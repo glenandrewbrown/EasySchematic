@@ -34,6 +34,11 @@ const WIRE_CASING = "color-mix(in srgb, var(--color-text-heading) 24%, transpare
 /** How much wider the casing is than the core it sits under. */
 const CASING_EXTRA = 2.4;
 
+/** Bundle trunk: the neutral sheath a multicore's cores run inside. Wide enough to read as one
+ *  physical thing behind the cores, faint enough that the cores stay the signal. */
+const TRUNK_WIDTH = 12;
+const TRUNK_OPACITY = 0.26;
+
 /** Which way signal flows at ONE end of a connection, from that port's direction:
  *  "out" = signal leaves here · "in" = signal arrives here · "bi" = bidirectional or ambiguous
  *  (a bidirectional port like Ethernet/USB, a passthrough, or an unresolved port → two-way). */
@@ -244,6 +249,40 @@ function OffsetEdgeComponent({
   // When the "Colour by" axis is not signal, connections take a flat axis colour
   // (set on style.stroke upstream) — suppress the multi-signal gradient so it shows through.
   const colorBySignal = useSchematicStore((s) => s.colorBy === "signal");
+
+  // Bundle trunk — the neutral sheath under the coloured cores of every connection sharing a
+  // ConnectionData.bundleId (the multicore/snake read). A bundle is ONE trunk shared by N
+  // connections, but each connection renders itself, so exactly one member draws it: the first in
+  // the edges array. React Flow paints edges in array order (elevateEdgesOnSelect is off on
+  // <ReactFlow>), so drawing there puts the trunk beneath every sibling's core. Serialized like
+  // every selector here — an object identity would re-render on each store tick.
+  const trunkStr = useSchematicStore((s) => {
+    if (!s.bundleView) return "";
+    const bundleId = s.edges.find((e) => e.id === id)?.data?.bundleId;
+    if (!bundleId) return "";
+    // The hidden half of a virtual adapter pair renders nothing, so it can never be the drawer.
+    const members = s.edges.filter(
+      (e) => e.data?.bundleId === bundleId && !s.hiddenVirtualEdgeIds.has(e.id),
+    );
+    // One cable is not a multicore — a trunk behind a lone core would assert something untrue.
+    if (members.length < 2 || members[0].id !== id) return "";
+    let sumX = 0;
+    let routed = 0;
+    let y1 = Infinity;
+    let y2 = -Infinity;
+    for (const m of members) {
+      const r = s.routedEdges[m.id];
+      const wps = r?.waypoints;
+      if (!wps || wps.length < 2) continue;
+      sumX += r.labelX;
+      y1 = Math.min(y1, wps[0].y, wps[wps.length - 1].y);
+      y2 = Math.max(y2, wps[0].y, wps[wps.length - 1].y);
+      routed += 1;
+    }
+    // Mid-route (or an unroutable bundle): draw nothing rather than a trunk in the wrong place.
+    if (routed < 2) return "";
+    return `${Math.round(sumX / routed)}\0${y1}\0${y2}\0${members.length}\0${bundleId}`;
+  });
 
   // Read effective line style: per-connection override > per-signal-type default > solid
   const lineStyle = useSchematicStore((s) => {
@@ -773,13 +812,96 @@ function OffsetEdgeComponent({
     </div>
   ) : null;
 
+  // --- Bundle trunk (multicore / snake) ---
+  const trunk = trunkStr
+    ? (() => {
+        const [gx, ty1, ty2, n, label] = trunkStr.split("\0");
+        return { gx: Number(gx), y1: Number(ty1), y2: Number(ty2), n: Number(n), label };
+      })()
+    : null;
+
+  // The sheath itself: one neutral stroke down the shared channel. Neutral is the point — the
+  // trunk is the conduit, and each core keeps its own signal colour riding on top of it.
+  const trunkLayer = trunk ? (
+    <path
+      d={`M ${trunk.gx} ${trunk.y1} L ${trunk.gx} ${trunk.y2}`}
+      fill="none"
+      stroke="var(--color-text-muted)"
+      strokeWidth={TRUNK_WIDTH}
+      strokeLinecap="round"
+      opacity={TRUNK_OPACITY}
+      style={{ pointerEvents: "none" }}
+    />
+  ) : null;
+
+  // Trunk badge — names the bundle and counts its cores, so the trunk is read from words rather
+  // than from a reader inferring "thick grey line" = multicore. The count is spelled "6×" beside
+  // the id, matching how a snake is called out on a real patch sheet.
+  const trunkBadge = trunk ? (
+    <div
+      key="bundle-badge"
+      style={{
+        position: "absolute",
+        pointerEvents: "none",
+        transform: `translate(-50%, -100%) translate(${trunk.gx}px, ${trunk.y1 - 6}px)`,
+        display: "flex",
+        alignItems: "center",
+        gap: 5,
+        padding: "2px 7px",
+        borderRadius: 6,
+        background: "var(--color-surface)",
+        border: "1px solid var(--ui-border)",
+        whiteSpace: "nowrap",
+      }}
+    >
+      <svg
+        width="11"
+        height="11"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="var(--color-text-muted)"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        aria-hidden="true"
+      >
+        <path d="M4 7h16M4 12h16M4 17h16" />
+      </svg>
+      <span
+        style={{
+          fontSize: 8.5,
+          fontFamily: "var(--font-mono)",
+          fontWeight: 700,
+          color: "var(--color-text-heading)",
+          letterSpacing: "0.02em",
+          // Display-only: bundle ids are slugs ("snake1"), and a trunk is called out in caps on a
+          // patch sheet. The stored id is never rewritten.
+          textTransform: "uppercase",
+        }}
+      >
+        {trunk.label}
+      </span>
+      <span
+        style={{
+          fontSize: 8.5,
+          fontFamily: "var(--font-mono)",
+          fontWeight: 600,
+          color: "var(--color-text-muted)",
+        }}
+      >
+        {trunk.n}×
+      </span>
+    </div>
+  ) : null;
+
   // All labels + reconnect visuals rendered via EdgeLabelRenderer (HTML layer above all SVG edges)
-  const hasPortalContent = customLabels || cableIdLabels || reconnectVisuals || wirelessBadge;
+  const hasPortalContent =
+    customLabels || cableIdLabels || reconnectVisuals || wirelessBadge || trunkBadge;
   const edgeLabelsPortal = hasPortalContent ? (
     <EdgeLabelRenderer>
       {cableIdLabels}
       {customLabels}
       {wirelessBadge}
+      {trunkBadge}
       {reconnectVisuals}
     </EdgeLabelRenderer>
   ) : null;
@@ -901,6 +1023,8 @@ function OffsetEdgeComponent({
   return (
     <>
       {gradientDef}
+      {/* First in paint order — the trunk is the sheath, so every core sits on top of it. */}
+      {trunkLayer}
       {casingLayer}
       <BaseEdge
         id={id}

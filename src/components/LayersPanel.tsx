@@ -108,6 +108,8 @@ export default function LayersPanel({ embedded = false }: { embedded?: boolean }
   // Drag-to-reorder (z-order) state for node rows.
   const [dragNodeId, setDragNodeId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<{ id: string; place: "before" | "after" } | null>(null);
+  // Layer header currently a valid drop target for a device-row drag (reassign layer), or null.
+  const [dropLayerId, setDropLayerId] = useState<string | null>(null);
 
   const setCollapsedPersist = (v: boolean) => {
     setCollapsed(v);
@@ -214,6 +216,7 @@ export default function LayersPanel({ embedded = false }: { embedded?: boolean }
           onDragEnd={() => {
             setDragNodeId(null);
             setDropTarget(null);
+            setDropLayerId(null);
           }}
           onDragOver={(e) => {
             const valid =
@@ -330,7 +333,35 @@ export default function LayersPanel({ embedded = false }: { embedded?: boolean }
           return (
             <div key={layer.id}>
               <div
+                onDragOver={(e) => {
+                  // A locked layer is never a valid drop target — no preventDefault,
+                  // no indicator, so the browser shows its native "not allowed" cursor.
+                  if (dragNodeId == null || layer.locked) return;
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = "move";
+                  if (dropLayerId !== layer.id) setDropLayerId(layer.id);
+                }}
+                onDragLeave={() => setDropLayerId((id) => (id === layer.id ? null : id))}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const dragged = dragNodeId;
+                  setDragNodeId(null);
+                  setDropTarget(null);
+                  setDropLayerId(null);
+                  if (dragged == null || layer.locked) return;
+                  // Selection-aware: dragging a row that's part of the current
+                  // selection reassigns the whole selection, not just that row.
+                  const selectedIds = nodes.filter((n) => n.selected).map((n) => n.id);
+                  const idsToMove = selectedIds.includes(dragged) ? selectedIds : [dragged];
+                  selectNodes(new Set(idsToMove));
+                  assignSelectionToLayer(layer.id);
+                }}
                 className={`flex items-center gap-1 px-1.5 py-1.5 rounded-md group hover:bg-[var(--color-surface-hover)] ${!layer.visible ? "opacity-50" : ""}`}
+                style={
+                  dropLayerId === layer.id
+                    ? { boxShadow: "inset 0 0 0 2px var(--color-accent)" }
+                    : undefined
+                }
               >
                 <button
                   onClick={() => toggleExpand(layer.id)}
@@ -430,6 +461,14 @@ export default function LayersPanel({ embedded = false }: { embedded?: boolean }
                 <span className="text-[10px] tabular-nums text-[var(--color-text-muted)] shrink-0" style={{ fontFamily: "var(--font-mono)" }}>
                   {layerNodeIds.length}
                 </span>
+                {dropLayerId === layer.id && (
+                  <span
+                    className="text-[9px] px-1 py-0.5 rounded border border-[var(--color-accent)] text-[var(--color-accent)] shrink-0"
+                    style={{ fontFamily: "var(--font-mono)" }}
+                  >
+                    Move here
+                  </span>
+                )}
                 {hasSelection && (
                   <button
                     onClick={() => assignSelectionToLayer(layer.id)}

@@ -70,6 +70,13 @@ function selectNodeSeverity(state: SeveritySelectorState, nodeId: string): Issue
   return severityMapFor(state).get(nodeId) ?? null;
 }
 
+/** The one hue that means "logical, not a socket" — used for virtual Ports and the internal-link
+ *  markers. It is deliberately the AES violet: that token already carries this exact value, and a
+ *  device is never simultaneously read for its AES ports and its virtual ones. A token rather than
+ *  a hex so it tracks the theme. Shape + tooltip carry the meaning too; the colour never does it
+ *  alone. */
+const VIRTUAL_PORT_COLOR = "var(--color-aes)";
+
 type ColumnItem =
   | { type: "port"; port: Port }
   | { type: "section"; name: string };
@@ -215,6 +222,26 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
     });
   }, [data.ports, data.showAllPorts, data.hiddenPorts,
       hiddenPinSignalTypes, templateHiddenStr, hideUnconnectedPorts, connectedHandles]);
+
+  // Intra-device routing, keyed BOTH ways so either end of a link finds its partner. Endpoints are
+  // port LABELS (not ids) — that is the schema's contract, so a template sync that re-issues ids
+  // leaves the links intact.
+  //  A port may hold SEVERAL internal links (one input feeding two aux buses is ordinary), so
+  //  each label maps to a LIST — a plain last-write-wins map would silently drop every partner
+  //  but the last, and mis-mark rows when a device repeats a port label.
+  const internalPartnersByLabel = useMemo(() => {
+    const m = new Map<string, string[]>();
+    const add = (key: string, partner: string) => {
+      const existing = m.get(key);
+      if (existing) existing.push(partner);
+      else m.set(key, [partner]);
+    };
+    for (const link of data.internalLinks ?? []) {
+      add(link.from, link.to);
+      add(link.to, link.from);
+    }
+    return m;
+  }, [data.internalLinks]);
 
   const headerAuxRows = useMemo(
     () => rowsInSlot(data.auxiliaryData, "header"),
@@ -367,25 +394,74 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
     );
   };
 
-  /** Square signal swatch shown beside a port label.
-   *  Filled = connected; hollow 1.5px ring = open. Colour encodes the signal type.
+  /** Signal swatch shown beside a port label — three states, each mirroring the connector itself:
+   *  filled square = wired; hollow 1.5px square ring = an open PHYSICAL socket, i.e. an actionable
+   *  gap; hollow CIRCLE = a virtual port, which is logical — there is no socket to fill, so its
+   *  emptiness is not a gap at all. That is why the shape, not just the hue, changes. Colour
+   *  encodes the signal type except on virtual ports, where the violet stands in for "no socket".
+   *  The word "virtual" is in the row's tooltip, so shape and colour never carry it alone.
    *  When `liveSignal` is on, connected swatches pulse-glow in their signal colour (via the
    *  scoped `.device-node-swatch--glow` keyframes; the CSS also honours prefers-reduced-motion,
    *  which the `reduceMotion` preference overrides for users who can't set it at the OS level).
    *  Purely presentational — the @xyflow Handle remains the connection affordance. */
-  const renderSwatch = (color: string, connected: boolean) => (
-    <span
-      aria-hidden
-      className={`w-[7px] h-[7px] rounded-[2px] flex-none${
-        connected && liveSignal && !reduceMotion ? " device-node-swatch--glow" : ""
-      }`}
-      style={
-        connected
-          ? ({ background: color, "--swatch-glow": color } as React.CSSProperties)
-          : { background: "transparent", boxShadow: `inset 0 0 0 1.5px ${color}` }
-      }
-    />
-  );
+  const renderSwatch = (color: string, connected: boolean, virtual?: boolean) => {
+    const swatchColor = virtual ? VIRTUAL_PORT_COLOR : color;
+    return (
+      <span
+        aria-hidden
+        // Two independent facts, two independent channels: SHAPE says whether the port is a
+        // physical socket (square) or a virtual bus (round); FILL says whether it is wired
+        // (solid) or open (ring). Shape must not depend on `connected` — virtual violet is
+        // literally --color-aes, so a *connected* virtual port drawn square would be
+        // pixel-identical to a connected AES port and colour would become the only cue.
+        className={`w-[7px] h-[7px] flex-none ${
+          virtual ? "rounded-full" : "rounded-[2px]"
+        }${connected && liveSignal && !reduceMotion ? " device-node-swatch--glow" : ""}`}
+        style={
+          connected
+            ? ({ background: swatchColor, "--swatch-glow": swatchColor } as React.CSSProperties)
+            : { background: "transparent", boxShadow: `inset 0 0 0 1.5px ${swatchColor}` }
+        }
+      />
+    );
+  };
+
+  /** Colour of a port's outer connector (the @xyflow Handle). Virtual ports drop their signal hue
+   *  for the violet: the handle is a picture of a socket, and a virtual port has none. */
+  const portHandleColor = (port: Port) =>
+    port.virtual ? VIRTUAL_PORT_COLOR : SIGNAL_COLORS[port.signalType];
+
+  /** Port row tooltip: name, signal, and — on a virtual port — the fact that it is logical, in
+   *  words. Matches the " — passthrough" / " — bidirectional" suffix convention used below. */
+  const portRowTitle = (port: Port) =>
+    `${portRowLabel(port)} (${signalTypeLabel(port.signalType, detailLevel)})${
+      port.virtual ? " — virtual (no socket)" : ""
+    }`;
+
+  /** Violet pip marking a port that is internally linked to another port on the SAME device. It
+   *  sits in the gap between the outer Handle and the signal swatch, mirroring the outer connector
+   *  on the inside — the design uses these instead of curves drawn across the block, which read as
+   *  messy the moment a device has more than one link. Absolutely positioned inside the (already
+   *  `relative`) port row, so it adds no height and the 20px port grid is untouched. The tile tier
+   *  hides it for free: the whole port tree sits under that tier's `visibility: hidden` wrapper. */
+  const renderInternalMark = (port: Port, side: "left" | "right") => {
+    const partners = internalPartnersByLabel.get(port.label);
+    if (!partners?.length) return null;
+    const title = `Internal link → ${partners.map((p) => displayLabel(p)).join(", ")}`;
+    return (
+      <span
+        className="absolute w-[5px] h-[5px] rounded-full top-1/2 -translate-y-1/2"
+        style={
+          side === "left"
+            ? { background: VIRTUAL_PORT_COLOR, left: 6 }
+            : { background: VIRTUAL_PORT_COLOR, right: 6 }
+        }
+        title={title}
+        role="img"
+        aria-label={title}
+      />
+    );
+  };
 
   /** Render a port row for a column (left or right). */
   const renderColumnPort = (port: Port, side: "left" | "right") => {
@@ -405,18 +481,20 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
             data-connected={connectedHandles.has(h.handleId) || undefined}
             data-multi-connect={port.multiConnect || undefined}
             className="!w-2.5 !h-2.5 !border-2 !border-[var(--color-border)] !-left-[5px]"
-            style={{ background: SIGNAL_COLORS[port.signalType], top: "50%" }}
+            style={{ background: portHandleColor(port), top: "50%" }}
           />
         )}
-        {isLeft && renderSwatch(SIGNAL_COLORS[port.signalType], connectedHandles.has(h.handleId))}
+        {isLeft && renderInternalMark(port, "left")}
+        {isLeft && renderSwatch(SIGNAL_COLORS[port.signalType], connectedHandles.has(h.handleId), port.virtual)}
         <span
           className="text-[10px] leading-5 truncate"
           style={{ color: "var(--color-text)" }}
-          title={`${portRowLabel(port)} (${signalTypeLabel(port.signalType, detailLevel)})`}
+          title={portRowTitle(port)}
         >
           {portRowLabel(port)}
         </span>
-        {!isLeft && renderSwatch(SIGNAL_COLORS[port.signalType], connectedHandles.has(h.handleId))}
+        {!isLeft && renderSwatch(SIGNAL_COLORS[port.signalType], connectedHandles.has(h.handleId), port.virtual)}
+        {!isLeft && renderInternalMark(port, "right")}
         {!isLeft && (
           <Handle
             type={h.handleType}
@@ -425,7 +503,7 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
             data-connected={connectedHandles.has(h.handleId) || undefined}
             data-multi-connect={port.multiConnect || undefined}
             className="!w-2.5 !h-2.5 !border-2 !border-[var(--color-border)] !-right-[5px]"
-            style={{ background: SIGNAL_COLORS[port.signalType], top: "50%" }}
+            style={{ background: portHandleColor(port), top: "50%" }}
           />
         )}
       </div>
@@ -883,13 +961,14 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
                           data-connected={connectedHandles.has(lh.handleId) || undefined}
                           data-multi-connect={left.multiConnect || undefined}
                           className="!w-2.5 !h-2.5 !border-2 !border-[var(--color-border)] !-left-[5px]"
-                          style={{ background: SIGNAL_COLORS[left.signalType], top: "50%" }}
+                          style={{ background: portHandleColor(left), top: "50%" }}
                         />
-                        {renderSwatch(SIGNAL_COLORS[left.signalType], connectedHandles.has(lh.handleId))}
+                        {renderInternalMark(left, "left")}
+                        {renderSwatch(SIGNAL_COLORS[left.signalType], connectedHandles.has(lh.handleId), left.virtual)}
                         <span
                           className="text-[10px] leading-5 truncate"
                           style={{ color: "var(--color-text)" }}
-                          title={`${portRowLabel(left)} (${signalTypeLabel(left.signalType, detailLevel)})`}
+                          title={portRowTitle(left)}
                         >
                           {portRowLabel(left)}
                         </span>
@@ -902,11 +981,12 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
                         <span
                           className="text-[10px] leading-5 truncate"
                           style={{ color: "var(--color-text)" }}
-                          title={`${portRowLabel(right)} (${signalTypeLabel(right.signalType, detailLevel)})`}
+                          title={portRowTitle(right)}
                         >
                           {portRowLabel(right)}
                         </span>
-                        {renderSwatch(SIGNAL_COLORS[right.signalType], connectedHandles.has(rh.handleId))}
+                        {renderSwatch(SIGNAL_COLORS[right.signalType], connectedHandles.has(rh.handleId), right.virtual)}
+                        {renderInternalMark(right, "right")}
                         <Handle
                           type={rh.handleType}
                           position={Position.Right}
@@ -914,7 +994,7 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
                           data-connected={connectedHandles.has(rh.handleId) || undefined}
                           data-multi-connect={right.multiConnect || undefined}
                           className="!w-2.5 !h-2.5 !border-2 !border-[var(--color-border)] !-right-[5px]"
-                          style={{ background: SIGNAL_COLORS[right.signalType], top: "50%" }}
+                          style={{ background: portHandleColor(right), top: "50%" }}
                         />
                       </>
                     )}
@@ -998,15 +1078,19 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
                   data-multi-connect={port.multiConnect || undefined}
                   className="!w-2.5 !h-2.5 !border-2 !border-[var(--color-border)] !-left-[5px]"
                   style={{
-                    background: inDisabled ? "#d1d5db" : SIGNAL_COLORS[port.signalType],
+                    background: inDisabled ? "#d1d5db" : portHandleColor(port),
                     opacity: inDisabled ? 0.4 : 1,
                     top: "50%",
                   }}
                 />
+                {/* No internal-link mark here: a bidirectional row is centred with a connector on
+                     each face, so there is no single side for the mark to mirror. Internal links
+                     are drawn on the left/right column ports, which is where the design scopes
+                     them and where the geometry is unambiguous. */}
                 <span
                   className="text-[10px] leading-5 truncate"
-                  style={{ color: SIGNAL_COLORS[port.signalType] }}
-                  title={`${portRowLabel(port)} (${signalTypeLabel(port.signalType, detailLevel)}) — bidirectional`}
+                  style={{ color: portHandleColor(port) }}
+                  title={portRowTitle(port) + " — bidirectional"}
                 >
                   ↔ {portRowLabel(port)}
                 </span>
@@ -1018,7 +1102,7 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
                   data-multi-connect={port.multiConnect || undefined}
                   className="!w-2.5 !h-2.5 !border-2 !border-[var(--color-border)] !-right-[5px]"
                   style={{
-                    background: outDisabled ? "#d1d5db" : SIGNAL_COLORS[port.signalType],
+                    background: outDisabled ? "#d1d5db" : portHandleColor(port),
                     opacity: outDisabled ? 0.4 : 1,
                     top: "50%",
                   }}

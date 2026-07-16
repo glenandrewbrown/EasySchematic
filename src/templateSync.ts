@@ -101,6 +101,9 @@ function mergePort(templatePort: Port, devicePort: Port): Port {
   if (devicePort.poeDrawW != null) merged.poeDrawW = devicePort.poeDrawW;
   if (devicePort.linkSpeed) merged.linkSpeed = devicePort.linkSpeed;
   if (devicePort.gender) merged.gender = devicePort.gender;
+  // `virtual` is user-authored in the Device Editor and describes THIS device's wiring, not the
+  // template's — a sync must not silently un-mark a port the user declared socket-less.
+  if (devicePort.virtual) merged.virtual = devicePort.virtual;
   return merged;
 }
 

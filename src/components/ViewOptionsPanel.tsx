@@ -34,8 +34,12 @@ export default function ViewOptionsPanel({ mobile, onClose }: { mobile?: boolean
   const setShowFacePlateDetail = useSchematicStore((s) => s.setShowFacePlateDetail);
   const showCableIdLabels = useSchematicStore((s) => s.showCableIdLabels);
   const setShowCableIdLabels = useSchematicStore((s) => s.setShowCableIdLabels);
+  const cableIdLabelScope = useSchematicStore((s) => s.cableIdLabelScope);
+  const setCableIdLabelScope = useSchematicStore((s) => s.setCableIdLabelScope);
   const showCustomLabels = useSchematicStore((s) => s.showCustomLabels);
   const setShowCustomLabels = useSchematicStore((s) => s.setShowCustomLabels);
+  const bundleView = useSchematicStore((s) => s.bundleView);
+  const setBundleView = useSchematicStore((s) => s.setBundleView);
   const cableIdGap = useSchematicStore((s) => s.cableIdGap);
   const setCableIdGap = useSchematicStore((s) => s.setCableIdGap);
   const cableIdMidOffset = useSchematicStore((s) => s.cableIdMidOffset);
@@ -455,12 +459,50 @@ export default function ViewOptionsPanel({ mobile, onClose }: { mobile?: boolean
         <label className="flex items-center gap-2 px-1 py-0.5 rounded hover:bg-[var(--color-surface-hover)] cursor-pointer">
           <input
             type="checkbox"
+            checked={bundleView}
+            onChange={(e) => setBundleView(e.target.checked)}
+            className="w-3 h-3 accent-[var(--color-accent)] cursor-pointer"
+          />
+          <span className="text-xs text-[var(--color-text)]">Show bundled runs as trunks</span>
+        </label>
+        <label className="flex items-center gap-2 px-1 py-0.5 rounded hover:bg-[var(--color-surface-hover)] cursor-pointer">
+          <input
+            type="checkbox"
             checked={showCableIdLabels}
             onChange={(e) => setShowCableIdLabels(e.target.checked)}
             className="w-3 h-3 accent-[var(--color-accent)] cursor-pointer"
           />
           <span className="text-xs text-[var(--color-text)]">Show cable IDs</span>
         </label>
+        <div className="flex items-center gap-2 px-1 py-0.5">
+          <span className={`text-xs flex-1 ${showCableIdLabels ? "text-[var(--color-text)]" : "text-[var(--color-text-muted)]"}`}>
+            Label scope
+          </span>
+          <div
+            className={`flex rounded-md border border-[var(--color-border)] overflow-hidden transition-opacity ${
+              showCableIdLabels ? "" : "opacity-40"
+            }`}
+          >
+            {(["selected", "all"] as const).map((scope) => (
+              <button
+                key={scope}
+                type="button"
+                disabled={!showCableIdLabels}
+                onClick={() => setCableIdLabelScope(scope)}
+                title={scope === "selected" ? "Label only the selected connection" : "Label every connection"}
+                className={`px-2 py-0.5 text-[11px] capitalize transition-colors ${
+                  showCableIdLabels ? "cursor-pointer" : "cursor-not-allowed"
+                } ${
+                  cableIdLabelScope === scope
+                    ? "bg-[var(--color-accent)] text-[var(--color-on-accent)]"
+                    : "bg-[var(--color-surface)] text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+                }`}
+              >
+                {scope}
+              </button>
+            ))}
+          </div>
+        </div>
         <label className="flex items-center gap-2 px-1 py-0.5 rounded hover:bg-[var(--color-surface-hover)] cursor-pointer">
           <input
             type="checkbox"

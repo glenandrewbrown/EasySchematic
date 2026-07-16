@@ -337,6 +337,8 @@ export function computePackList(
       if (srcNode?.type === "device" && (srcNode.data as DeviceData).deviceType === "adapter" && srcPort?.directAttach) return false;
       if (tgtNode?.type === "device" && (tgtNode.data as DeviceData).deviceType === "adapter" && tgtPort?.directAttach) return false;
       if (srcPort?.connectorType === "wireless" || tgtPort?.connectorType === "wireless") return false;
+      // A virtual port is a logical bus with no socket — there is no cable to pack for it.
+      if (srcPort?.virtual || tgtPort?.virtual) return false;
       return true;
     })
     .map((e) => {

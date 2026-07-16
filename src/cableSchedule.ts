@@ -41,9 +41,34 @@ export interface CableScheduleRow {
   computedLengthM?: number;
   /** Raw signal-type id — note `signalType` above is the human display label. */
   signalTypeId?: SignalType;
+  /** Trunk this leg physically runs inside (ConnectionData.bundleId), when it is bundled.
+   *  Bundling is presentation + grouping only: every bundled leg keeps its own row, its own
+   *  cable ID and its own length, because a multicore is still pulled and terminated per core. */
+  bundleId?: string;
   sourceRoom: string;
   targetRoom: string;
   multicableLabel: string;
+}
+
+/** Sort key that keeps a trunk's legs adjacent without reordering within the trunk.
+ *  Unbundled legs sort after every bundle — "￿" is above any real bundle id. */
+const UNBUNDLED_SORT_KEY = "￿";
+
+/**
+ * Reorder schedule rows so legs sharing a bundle sit together, bundles first (id order) and
+ * loose runs last. Row order within a bundle — and the rows themselves — are untouched: this
+ * only moves rows, it never merges them.
+ */
+export function groupCableScheduleByBundle(rows: CableScheduleRow[]): CableScheduleRow[] {
+  return rows
+    .map((row, index) => ({ row, index }))
+    .sort((a, b) => {
+      const ka = a.row.bundleId || UNBUNDLED_SORT_KEY;
+      const kb = b.row.bundleId || UNBUNDLED_SORT_KEY;
+      if (ka !== kb) return ka < kb ? -1 : 1;
+      return a.index - b.index; // stable within a bundle — preserves cable numbering order
+    })
+    .map((entry) => entry.row);
 }
 
 /** Prefix letter for each signal type when using type-prefix cable naming */
@@ -145,11 +170,14 @@ export function computeCableSchedule(
 
   const connections = edges
     .filter((e) => e.data?.signalType && !e.data?.directAttach)
-    // A wireless link is a broadcast, not a cable — it gets no schedule row and no estimated
-    // length. Mirrors the same exclusion packList.ts applies to the BOM, so the two agree.
+    // Nothing you can physically pull gets a row. A wireless link is a broadcast, and a virtual
+    // port is a logical bus with no socket on the chassis — neither is a cable, so neither gets
+    // a row or an estimated length. Mirrors the exclusions packList.ts applies to the BOM, so
+    // the two reports never disagree about the same document.
     .filter((e) => {
       const srcPort = resolvePort(nodes.find((n) => n.id === e.source), e.sourceHandle);
       const tgtPort = resolvePort(nodes.find((n) => n.id === e.target), e.targetHandle);
+      if (srcPort?.virtual || tgtPort?.virtual) return false;
       return srcPort?.connectorType !== "wireless" && tgtPort?.connectorType !== "wireless";
     })
     // For linked pairs, only process the source-side leg (the one whose source is a real device).
@@ -192,6 +220,7 @@ export function computeCableSchedule(
         rawSignalType: signalType,
         storedCableId: e.data?.cableId as string | undefined,
         storedCableLength: (e.data?.cableLength as string | undefined) ?? "",
+        bundleId: e.data?.bundleId as string | undefined,
         multicableLabel: (e.data?.multicableLabel as string) ?? "",
         sourceDevice,
         sourcePort,
@@ -232,6 +261,7 @@ export function computeCableSchedule(
         computedLength: c.computedLength,
         computedLengthM: c.computedLengthM,
         signalTypeId: c.rawSignalType,
+        bundleId: c.bundleId,
         sourceRoom: c.sourceRoom,
         targetRoom: c.targetRoom,
         multicableLabel: c.multicableLabel,
@@ -254,6 +284,7 @@ export function computeCableSchedule(
     computedLength: c.computedLength,
     computedLengthM: c.computedLengthM,
     signalTypeId: c.rawSignalType,
+    bundleId: c.bundleId,
     sourceRoom: c.sourceRoom,
     targetRoom: c.targetRoom,
     multicableLabel: c.multicableLabel,
@@ -277,10 +308,14 @@ function computeRowEstimatedLength(
   };
 }
 
-export function exportCableScheduleCsv(
+/**
+ * The cable-schedule CSV as a string. Split out from the download so the exported columns can be
+ * asserted in tests — the CSV and the on-screen schedule must not drift apart.
+ */
+export function buildCableScheduleCsv(
   rows: CableScheduleRow[],
   schematicName: string,
-): void {
+): string {
   const lines: string[] = [];
 
   lines.push(`Cable Schedule — ${escapeCsv(schematicName)}`);
@@ -291,18 +326,25 @@ export function exportCableScheduleCsv(
     "Cable ID", "Source", "Src Port", "Src Conn",
     "Target", "Tgt Port", "Tgt Conn",
     "Cable Type", "Signal", "Length", "Est. Length",
-    "Src Room", "Tgt Room", "Snake",
+    "Src Room", "Tgt Room", "Bundle", "Snake",
   ]));
   for (const r of rows) {
     lines.push(csvRow([
       r.cableId, r.sourceDevice, r.sourcePort, r.sourceConnector,
       r.targetDevice, r.targetPort, r.targetConnector,
       r.cableType, r.signalType, r.cableLength, r.computedLength ?? "",
-      r.sourceRoom, r.targetRoom, r.multicableLabel,
+      r.sourceRoom, r.targetRoom, r.bundleId ?? "", r.multicableLabel,
     ]));
   }
 
-  const blob = new Blob([lines.join("\n")], { type: "text/csv" });
+  return lines.join("\n");
+}
+
+export function exportCableScheduleCsv(
+  rows: CableScheduleRow[],
+  schematicName: string,
+): void {
+  const blob = new Blob([buildCableScheduleCsv(rows, schematicName)], { type: "text/csv" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;

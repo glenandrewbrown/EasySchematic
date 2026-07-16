@@ -221,6 +221,23 @@ export default function EdgeContextMenu() {
     useSchematicStore.setState({ edgeContextMenu: null });
   }, [menu]);
 
+  // Bundling reads the SELECTION, not the right-clicked connection: a multicore is a set, so the
+  // action only appears once at least two connections are selected.
+  const selectedEdgeCount = useSchematicStore((s) => s.edges.filter((e) => e.selected).length);
+  const selectedBundledCount = useSchematicStore(
+    (s) => s.edges.filter((e) => e.selected && e.data?.bundleId).length,
+  );
+
+  const bundleSelected = useCallback(() => {
+    useSchematicStore.getState().bundleSelectedConnections();
+    useSchematicStore.setState({ edgeContextMenu: null });
+  }, []);
+
+  const unbundleSelected = useCallback(() => {
+    useSchematicStore.getState().unbundleSelectedConnections();
+    useSchematicStore.setState({ edgeContextMenu: null });
+  }, []);
+
   const [editingLabel, setEditingLabel] = useState<false | "label" | "multicable" | "source" | "target">(false);
   const [labelValue, setLabelValue] = useState("");
 
@@ -488,6 +505,20 @@ export default function EdgeContextMenu() {
         <>
           <div className="h-px bg-[var(--ui-border)] my-1" />
           <MenuItem label="Reset Route" onClick={resetRoute} />
+        </>
+      )}
+      {(selectedEdgeCount >= 2 || selectedBundledCount > 0) && (
+        <>
+          <div className="h-px bg-[var(--ui-border)] my-1" />
+          {selectedEdgeCount >= 2 && (
+            <MenuItem
+              label={`Bundle ${selectedEdgeCount} Connections into a Trunk`}
+              onClick={bundleSelected}
+            />
+          )}
+          {selectedBundledCount > 0 && (
+            <MenuItem label="Remove from Trunk" onClick={unbundleSelected} />
+          )}
         </>
       )}
       <div className="h-px bg-[var(--ui-border)] my-1" />

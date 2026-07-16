@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import type { CableScheduleRow } from "../cableSchedule";
+import { groupCableScheduleByBundle, type CableScheduleRow } from "../cableSchedule";
 import type { RunLengthWarning } from "../cableBomBuild";
 import { DEFAULT_SIGNAL_COLORS } from "../signalColors";
 import type { SignalType } from "../types";
@@ -89,21 +89,33 @@ export default function CableScheduleGrid({
 }: CableScheduleGridProps) {
   // null = "all signal types"; otherwise filter to a single signal display label.
   const [signalFilter, setSignalFilter] = useState<string | null>(null);
+  // Sort a trunk's legs together instead of in cable order. Off by default: schedule order IS
+  // cable order, and reordering it is a deliberate act.
+  const [groupBundle, setGroupBundle] = useState(false);
+
+  // A schematic with no bundled runs gets no Bundle column and no grouping control — an empty
+  // column and a toggle that reorders nothing are chrome asserting a feature this document
+  // doesn't use.
+  const hasBundles = useMemo(() => rows.some((r) => !!r.bundleId), [rows]);
 
   const runs = useMemo<RunView[]>(() => {
     const overMaxIds = new Set(warnings.map((w) => w.edgeId));
-    return rows.map((row, i) => {
+    // Display numbers are fixed to schedule order (= cable-ID order) BEFORE any grouping, so
+    // grouping moves rows without renumbering the cables someone is pulling from this sheet.
+    const numberByEdgeId = new Map(rows.map((row, i) => [row.edgeId, i + 1]));
+    const ordered = groupBundle && hasBundles ? groupCableScheduleByBundle(rows) : rows;
+    return ordered.map((row) => {
       const overMax = overMaxIds.has(row.edgeId);
       return {
         row,
-        index: i + 1,
+        index: numberByEdgeId.get(row.edgeId) ?? 0,
         signalColor: resolveSignalColor(row),
         lengthM: row.computedLengthM,
         overMax,
         status: resolveStatus(row, overMax),
       };
     });
-  }, [rows, warnings]);
+  }, [rows, warnings, groupBundle, hasBundles]);
 
   const kpis = useMemo(() => {
     let inStock = 0;
@@ -151,7 +163,14 @@ export default function CableScheduleGrid({
       />
 
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-        <HeaderBar onExportCsv={onExportCsv} onExportPdf={onExportPdf} disabled={isEmpty} />
+        <HeaderBar
+          onExportCsv={onExportCsv}
+          onExportPdf={onExportPdf}
+          disabled={isEmpty}
+          showGroupBundle={hasBundles}
+          groupBundle={groupBundle}
+          onToggleGroupBundle={() => setGroupBundle((on) => !on)}
+        />
 
         {warnings.length > 0 && <WarningBanner count={warnings.length} />}
 
@@ -159,7 +178,11 @@ export default function CableScheduleGrid({
           {isEmpty ? (
             <EmptyState />
           ) : (
-            <ScheduleTable runs={visibleRuns} filtered={signalFilter !== null} />
+            <ScheduleTable
+              runs={visibleRuns}
+              filtered={signalFilter !== null}
+              showBundle={hasBundles}
+            />
           )}
         </div>
       </div>
@@ -320,15 +343,53 @@ interface HeaderBarProps {
   onExportCsv: () => void;
   onExportPdf: () => void;
   disabled: boolean;
+  /** Only shown once some run is bundled — see `hasBundles`. */
+  showGroupBundle: boolean;
+  groupBundle: boolean;
+  onToggleGroupBundle: () => void;
 }
 
-function HeaderBar({ onExportCsv, onExportPdf, disabled }: HeaderBarProps) {
+function HeaderBar({
+  onExportCsv,
+  onExportPdf,
+  disabled,
+  showGroupBundle,
+  groupBundle,
+  onToggleGroupBundle,
+}: HeaderBarProps) {
   return (
     <div className="h-[50px] shrink-0 flex items-center gap-3 px-[18px] border-b border-[var(--ui-border)]">
       <span className="text-[13px] font-semibold text-[var(--color-text-heading)]">
         Cable Schedule
       </span>
       <div className="ml-auto flex items-center gap-2">
+        {showGroupBundle && (
+          <button
+            type="button"
+            onClick={onToggleGroupBundle}
+            aria-pressed={groupBundle}
+            title="Sort runs sharing a bundle together"
+            className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] cursor-pointer transition-colors ${
+              groupBundle
+                ? "border-[var(--color-accent)] bg-[var(--color-accent-soft)] text-[var(--color-text-heading)] font-semibold"
+                : "border-[var(--ui-border)] text-[var(--color-text)] hover:bg-[var(--color-surface-hover)]"
+            }`}
+          >
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              aria-hidden="true"
+            >
+              <path d="M4 7h16M4 12h16M4 17h16" />
+            </svg>
+            Group: Bundle
+          </button>
+        )}
         <button
           type="button"
           className="ui-btn ui-btn-secondary"
@@ -400,12 +461,13 @@ function EmptyState() {
 interface ScheduleTableProps {
   runs: RunView[];
   filtered: boolean;
+  showBundle: boolean;
 }
 
 const HEAD_CELL =
   "sticky top-0 z-10 bg-[var(--color-bg)] px-2.5 py-2 text-[9px] uppercase tracking-[0.08em] font-medium text-[var(--color-text-muted)] border-b border-[var(--ui-border)]";
 
-function ScheduleTable({ runs, filtered }: ScheduleTableProps) {
+function ScheduleTable({ runs, filtered, showBundle }: ScheduleTableProps) {
   if (runs.length === 0) {
     return (
       <div className="flex items-center justify-center py-16 px-6">
@@ -440,6 +502,11 @@ function ScheduleTable({ runs, filtered }: ScheduleTableProps) {
           <th className={HEAD_CELL} style={{ fontFamily: "var(--font-mono)" }}>
             Cable
           </th>
+          {showBundle && (
+            <th className={HEAD_CELL} style={{ fontFamily: "var(--font-mono)" }}>
+              Bundle
+            </th>
+          )}
           <th
             className={`${HEAD_CELL} text-right`}
             style={{ fontFamily: "var(--font-mono)" }}
@@ -453,14 +520,14 @@ function ScheduleTable({ runs, filtered }: ScheduleTableProps) {
       </thead>
       <tbody>
         {runs.map((run) => (
-          <ScheduleRow key={run.row.edgeId} run={run} />
+          <ScheduleRow key={run.row.edgeId} run={run} showBundle={showBundle} />
         ))}
       </tbody>
     </table>
   );
 }
 
-function ScheduleRow({ run }: { run: RunView }) {
+function ScheduleRow({ run, showBundle }: { run: RunView; showBundle: boolean }) {
   const { row } = run;
   const lengthLabel =
     run.lengthM != null ? `${run.lengthM.toFixed(1)} m` : row.cableLength || "—";
@@ -508,6 +575,24 @@ function ScheduleRow({ run }: { run: RunView }) {
           </span>
         )}
       </td>
+      {showBundle && (
+        <td className="px-2.5 py-2.5">
+          {row.bundleId ? (
+            <span
+              className="inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-semibold uppercase text-[var(--color-text)]"
+              style={{
+                fontFamily: "var(--font-mono)",
+                background: "color-mix(in srgb, var(--color-text-muted) 15%, transparent)",
+                letterSpacing: "0.02em",
+              }}
+            >
+              {row.bundleId}
+            </span>
+          ) : (
+            <span className="text-[var(--color-text-muted)]">—</span>
+          )}
+        </td>
+      )}
       <td
         className="px-2.5 py-2.5 text-right"
         style={{

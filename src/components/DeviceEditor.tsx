@@ -101,6 +101,7 @@ interface PortDraft {
   channelCount?: number;
   multiConnect?: boolean;
   directAttach?: boolean;
+  virtual?: boolean;
   notes?: string;
   poeDrawW?: number;
   linkSpeed?: string;
@@ -285,6 +286,7 @@ export default function DeviceEditor() {
       channelCount: p.channelCount,
       multiConnect: p.multiConnect,
       directAttach: p.directAttach,
+      virtual: p.virtual,
       notes: p.notes,
       poeDrawW: p.poeDrawW,
       linkSpeed: p.linkSpeed,
@@ -378,6 +380,9 @@ export default function DeviceEditor() {
       ...(existing?.layerId ? { layerId: existing.layerId } : {}),
       ...(existing?.groupId ? { groupId: existing.groupId } : {}),
       ...(existing?.hostDeviceId ? { hostDeviceId: existing.hostDeviceId } : {}),
+      // Intra-device routing has no control in this form, so it can only survive by being carried
+      // across explicitly — this save rebuilds DeviceData from the listed fields and drops the rest.
+      ...(existing?.internalLinks?.length ? { internalLinks: existing.internalLinks } : {}),
       // rotationDeg (placement/aim) is set via the plan-view rotate/aim handle, not this form — preserve it.
       ...(existing?.rotationDeg !== undefined ? { rotationDeg: existing.rotationDeg } : {}),
       // Loudspeaker acoustic spec — edited via the "Loudspeaker / Coverage" inputs below.
@@ -670,6 +675,7 @@ export default function DeviceEditor() {
       capabilities: p.capabilities ? { ...p.capabilities } : undefined,
       multiConnect: p.multiConnect,
       directAttach: p.directAttach,
+      virtual: p.virtual,
       notes: p.notes,
       poeDrawW: p.poeDrawW,
       linkSpeed: p.linkSpeed,
@@ -721,6 +727,7 @@ export default function DeviceEditor() {
       networkConfig: p.networkConfig ? { ...p.networkConfig } : undefined,
       capabilities: p.capabilities ? { ...p.capabilities } : undefined,
       directAttach: p.directAttach,
+      virtual: p.virtual,
       notes: p.notes,
       poeDrawW: p.poeDrawW,
       linkSpeed: p.linkSpeed,
@@ -2510,6 +2517,14 @@ function PortConfigPanel({
                 <input type="checkbox" checked={port.multiConnect ?? false} onChange={(e) => onUpdate({ multiConnect: e.target.checked || undefined })} className="cursor-pointer" />
                 Multi-connect
               </label>
+              {/* A passthrough port is a physical patch circuit by definition, so "virtual" is
+                   offered on every other direction only. */}
+              {port.direction !== "passthrough" && (
+                <label className="flex items-center gap-1.5 text-[11px] text-[var(--color-text)] cursor-pointer select-none" title="Virtual — a logical port (internal bus, loopback) with no socket on the chassis. Carries signal but is never field-terminated.">
+                  <input type="checkbox" checked={port.virtual ?? false} onChange={(e) => onUpdate({ virtual: e.target.checked || undefined })} className="cursor-pointer" />
+                  Virtual (no socket)
+                </label>
+              )}
               <label className="flex items-center gap-1.5 text-[11px] text-[var(--color-text)] cursor-pointer select-none" title="Multicable trunk port (carries multiple channels)">
                 <input
                   type="checkbox"
