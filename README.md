@@ -64,6 +64,7 @@
 - **Cable assignment & chaining** — right-click a connection → Assign Cables to cover a run with cables from your stock, chaining several through couplers (10 m + 5 m = one 15 m run); assignments deduct from stock globally and the chain total flows into the cable schedule
 - **Cable fit validation** — required run length (from room distances, or device positions inside a dimensioned room) is compared against the assigned chain: too short / fits / wastefully long, with a best-fit suggestion from remaining stock
 - **Multicable support** — cable accessory templates (snakes, socapex), trunk ports, break-in/break-out devices
+- **Connection bundling** — select 2+ connections and route them along one shared trunk that gathers at one end and fans out at the other (like running a snake/multicore). Mixed signal types allowed — the trunk draws neutral with an `N×` badge while each connection keeps its color. Each member stays its own cable in the schedule/pack list (counts never collapse); the cable schedule gains an optional **Bundle** column and group-by-bundle. Manage from the bulk-edit panel or by right-clicking a member (Select Members / Remove / Dissolve)
 - **Cable ID labels** — auto-assigned with type-prefix naming (e.g. "SDI-1", "HDMI-2") or sequential ("Cable 1", "Cable 2")
 - **Line jump arcs** at connection crossings
 - **Stubbed connections** — render as short stubs with destination labels (device name, optional port, room, page) instead of full routed lines; drag labels to reposition, add intermediate waypoints via right-click. Globally toggle port-name display and page-number mode (cross-page only / always / never), or override per connection.
@@ -162,6 +163,7 @@ Paper-based layout pages for composing rack viewports into a printable drawing.
 ### Community Device Database
 
 - **[devices.easyschematic.live](https://devices.easyschematic.live)** — browse, search, and submit device templates
+- **Works offline** — the devices site is an installable PWA; visit once online and browsing, search, and every device page keep working without a connection, with the saved library refreshing automatically when you're back online
 - **Community submissions** — submit new devices or suggest edits to existing templates via magic-link email auth
 - **Submit from the canvas** — right-click any device and choose "Submit to Community" to seed a submission with all the fields you've already filled in, instead of re-entering them on the devices site
 - **Moderation workflow** — submissions are reviewed by moderators before going live

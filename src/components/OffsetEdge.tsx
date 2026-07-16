@@ -12,6 +12,7 @@ import {
   type LineStyle,
   type Port,
 } from "../types";
+import { usbcPowerShortfallW } from "../connectorTypes";
 import { resolvePort } from "../packList";
 import { computeCableLength, getRoomDistance } from "../roomDistance";
 import { FEET_PER_METER, formatLengthMode } from "../lengthFormat";
@@ -113,6 +114,20 @@ function OffsetEdgeComponent({
   const connectorMismatch = useSchematicStore((s) => {
     const edge = s.edges.find((e) => e.id === id);
     return edge?.data?.connectorMismatch === true;
+  });
+
+  // USB-C Power Delivery shortfall — derived live from the connected ports (wattage is
+  // edited after the connection exists, so it can't be a flag frozen at creation time).
+  // Returns the deficit in watts, or null when adequately supplied / not applicable.
+  const usbcShortfall = useSchematicStore((s) => {
+    const edge = s.edges.find((e) => e.id === id);
+    if (!edge) return null;
+    const srcNode = s.nodes.find((n) => n.id === edge.source);
+    const tgtNode = s.nodes.find((n) => n.id === edge.target);
+    return usbcPowerShortfallW(
+      resolvePort(srcNode, edge.sourceHandle),
+      resolvePort(tgtNode, edge.targetHandle),
+    );
   });
 
   // Check if this edge is hidden (part of a virtual pair, the secondary half)
@@ -401,6 +416,8 @@ function OffsetEdgeComponent({
           : coreDash
             ? { strokeDasharray: coreDash }
             : {}),
+        // USB-C power undersupply: amber dashed cue (yields to a gradient edge, which is rare here)
+        ...(usbcShortfall != null && !hasGradient ? { stroke: "#f59e0b", strokeDasharray: "5 3" } : {}),
         ...(hasGradient ? { stroke: `url(#${gradientId})` } : {}),
         ...(strandGlow ? { filter: strandGlow } : {}),
       }
@@ -570,18 +587,21 @@ function OffsetEdgeComponent({
     lineHeight: 1,
   };
 
+  // Custom labels match the cable-ID badge in size and color (font 9, signal-colored
+  // border) so the two read as one consistent set instead of the custom label being
+  // greyer and a touch larger. (#209)
   const customLabelStyle: React.CSSProperties = {
     position: "absolute",
     pointerEvents: "none",
-    fontSize: 10,
+    fontSize: 9,
     fontFamily: "var(--font-ui)",
-    fontWeight: 500,
+    fontWeight: 600,
     color: "var(--color-text-heading)",
     background: "var(--color-surface)",
-    padding: "1px 4px",
-    borderRadius: 3,
+    padding: "0 3px",
+    borderRadius: 2,
     whiteSpace: "nowrap",
-    border: "1px solid var(--ui-border)",
+    border: `1px solid ${signalColor}`,
   };
 
   // Estimate badge width from text length (for offset positioning)
@@ -682,11 +702,17 @@ function OffsetEdgeComponent({
     ? cableIdGap + cableIdBadgeWidth + 3 // base gap + badge + 3px padding
     : CUSTOM_LABEL_GAP;
 
-  // Compute midpoint position along the path (for cable ID midpoint and custom midpoint label)
-  const cidMidPt = totalLen > 0 ? pointAtDistance(totalLen / 2 + cidMidOff) : { x: lx, y: ly };
+  // Compute midpoint position along the path (for cable ID midpoint and custom midpoint label).
+  // When a custom middle label shares the midpoint, the cable ID is nudged further along
+  // the route so the two render side by side instead of stacking on top of each other —
+  // the custom label stays centered, the cable ID sits just past it (#175).
+  const midPairOffset = showMidLabel
+    ? estimateBadgeWidth(edgeLabel, 9, 3) / 2 + estimateBadgeWidth(labelText, 9, 3) / 2 + 6
+    : 0;
+  const cidMidPt = totalLen > 0 ? pointAtDistance(totalLen / 2 + cidMidOff + midPairOffset) : { x: lx, y: ly };
   const customMidPt = totalLen > 0 ? pointAtDistance(totalLen / 2) : { x: lx, y: ly };
 
-  // Cable ID labels — at endpoints or midpoint depending on mode (unchanged)
+  // Cable ID labels — at endpoints or midpoint depending on mode.
   const cableIdLabels = showCableId ? (
     cableIdLabelMode === "endpoint" ? (
       <>
@@ -727,6 +753,29 @@ function OffsetEdgeComponent({
       {showTgtLabel && makeEndpointLabel(false, customEndpointOffset, edgeTargetLabel, customLabelStyle, "clbl-tgt",
         tgtLabelX, tgtLabelY, -tgtDx, -tgtDy)}
     </>
+  ) : null;
+
+  // USB-C power undersupply badge — amber pill at the midpoint stating the shortfall.
+  const usbcWarningBadge = usbcShortfall != null ? (
+    <div
+      key="usbc-undersupply"
+      title={`USB-C power undersupply: source delivers ${usbcShortfall}W less than the connected device draws`}
+      style={{
+        position: "absolute",
+        transform: `translate(-50%, -50%) translate(${customMidPt.x}px, ${customMidPt.y}px)`,
+        fontSize: 9,
+        fontWeight: 700,
+        lineHeight: 1.4,
+        color: "#fff",
+        background: "#f59e0b",
+        padding: "0 4px",
+        borderRadius: 4,
+        whiteSpace: "nowrap",
+        pointerEvents: "auto",
+      }}
+    >
+      ⚡ −{usbcShortfall}W
+    </div>
   ) : null;
 
   // Visual-only reconnect circles + tooltip — rendered in HTML layer above cable labels.
@@ -895,13 +944,15 @@ function OffsetEdgeComponent({
 
   // All labels + reconnect visuals rendered via EdgeLabelRenderer (HTML layer above all SVG edges)
   const hasPortalContent =
-    customLabels || cableIdLabels || reconnectVisuals || wirelessBadge || trunkBadge;
+    customLabels || cableIdLabels || reconnectVisuals || wirelessBadge || trunkBadge ||
+    usbcWarningBadge;
   const edgeLabelsPortal = hasPortalContent ? (
     <EdgeLabelRenderer>
       {cableIdLabels}
       {customLabels}
       {wirelessBadge}
       {trunkBadge}
+      {usbcWarningBadge}
       {reconnectVisuals}
     </EdgeLabelRenderer>
   ) : null;

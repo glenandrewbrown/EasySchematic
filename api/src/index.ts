@@ -8,24 +8,43 @@ import { checkRateLimit, cleanupExpiredRateLimits } from "./rateLimiter";
 
 const app = new Hono<Env>();
 
-app.use(
-  "*",
-  cors({
-    origin: [
-      "https://easyschematic.live",
-      "https://www.easyschematic.live",
-      "https://beta.easyschematic.live",
-      "https://devices.easyschematic.live",
-      "http://localhost:4173",
-      "http://localhost:5173",
-      "http://localhost:5174",
-      "http://localhost:5175",
-    ],
-    allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowHeaders: ["Authorization", "Content-Type"],
-    credentials: true,
-  })
-);
+// Credentialed CORS for everything that can carry a session cookie or admin token:
+// echoes back only official hosts and loopback (see corsOrigin), never a wildcard.
+const credentialedCors = cors({
+  origin: corsOrigin,
+  allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowHeaders: ["Authorization", "Content-Type"],
+  credentials: true,
+});
+
+// Open, credential-less CORS for the public community library reads. These return the
+// same session-invariant public data to everyone (all gated on flagged_for_deletion = 0),
+// so any origin may read them — that's what lets self-hosters (Docker on any port, or
+// behind a reverse proxy at any domain) load the live library instead of the bundled
+// subset. Safety: a wildcard ACAO cannot carry credentials, so no cookie/token rides
+// along and nothing private is exposed. Per-id and write routes deliberately stay on the
+// credentialed CORS above — GET /templates/:id varies by role (mods see flagged rows).
+const PUBLIC_LIBRARY_READS = new Set([
+  "/templates",
+  "/templates/summary",
+  "/templates/categories",
+  "/templates/device-types",
+  "/templates/manufacturers",
+  "/templates/search-terms",
+]);
+const publicLibraryCors = cors({
+  origin: "*",
+  allowMethods: ["GET", "OPTIONS"],
+  allowHeaders: ["Content-Type"],
+});
+
+app.use("*", (c, next) => {
+  // On a preflight the real method is in Access-Control-Request-Method, not the OPTIONS verb.
+  const requested =
+    c.req.method === "OPTIONS" ? c.req.header("Access-Control-Request-Method") ?? "" : c.req.method;
+  const isPublicLibraryRead = requested === "GET" && PUBLIC_LIBRARY_READS.has(c.req.path);
+  return (isPublicLibraryRead ? publicLibraryCors : credentialedCors)(c, next);
+});
 
 // Security response headers
 app.use("*", async (c, next) => {
@@ -70,19 +89,30 @@ function getClientIP(c: { req: { header: (name: string) => string | undefined } 
   return c.req.header("CF-Connecting-IP") || c.req.header("X-Forwarded-For")?.split(",")[0]?.trim() || "unknown";
 }
 
-const ALLOWED_ORIGINS = [
+const STATIC_ALLOWED_ORIGINS = [
   "https://easyschematic.live",
   "https://www.easyschematic.live",
   "https://beta.easyschematic.live",
   "https://devices.easyschematic.live",
-  "http://localhost:4173",
-  "http://localhost:5173",
-  "http://localhost:5174",
-  "http://localhost:5175",
 ];
 
+// Any loopback origin, on any port. Self-hosters run the Docker image on arbitrary
+// ports (prod image defaults to 8080, dev to 5173) and need to read the public
+// community library — a fixed port allowlist silently broke that and fell the app
+// back to the bundled device subset. Loopback is the user's own machine, so echoing
+// it back (even with credentials, for login/cloud) is safe.
+const LOOPBACK_ORIGIN = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/;
+
+/** CORS origin resolver: echoes an origin back iff it's an official host or loopback. */
+function corsOrigin(origin: string): string | null {
+  if (!origin) return null;
+  if (STATIC_ALLOWED_ORIGINS.includes(origin)) return origin;
+  if (LOOPBACK_ORIGIN.test(origin)) return origin;
+  return null;
+}
+
 function isAllowedOrigin(url: string): boolean {
-  try { return ALLOWED_ORIGINS.includes(new URL(url).origin); }
+  try { return corsOrigin(new URL(url).origin) !== null; }
   catch { return false; }
 }
 
@@ -169,7 +199,7 @@ app.post("/auth/login", async (c) => {
       ].join("\n"),
       html: `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:480px;margin:0 auto;padding:24px">
 <h2 style="font-size:18px;color:#0f172a;margin:0 0 16px">Log in to EasySchematic</h2>
-<p style="color:#334155;font-size:14px;line-height:1.6;margin:0 0 8px">We received a login request for <strong>${email}</strong>.</p>
+<p style="color:#334155;font-size:14px;line-height:1.6;margin:0 0 8px">We received a login request for <strong>${escapeHtml(email)}</strong>.</p>
 <p style="color:#334155;font-size:14px;line-height:1.6;margin:0 0 24px">Click the button below to sign in:</p>
 <p style="margin:0 0 24px"><a href="${verifyUrl}" style="display:inline-block;padding:12px 24px;background:#1e293b;color:white;text-decoration:none;border-radius:8px;font-weight:600;">Log in to EasySchematic</a></p>
 <p style="color:#64748b;font-size:13px;line-height:1.6;margin:0 0 4px">Or copy and paste this URL into your browser:</p>
@@ -253,7 +283,7 @@ app.get("/auth/verify", async (c) => {
     : "/auth/verify";
 
   return c.html(authPage("Confirm Login", `<h1>Confirm Login</h1>
-    <p>Click below to complete your login as <strong>${link.email}</strong>.</p>
+    <p>Click below to complete your login as <strong>${escapeHtml(link.email)}</strong>.</p>
     <form method="POST" action="${formAction}">
       <input type="hidden" name="token" value="${token}">
       <button type="submit" class="btn">Complete Login</button>
@@ -1369,8 +1399,14 @@ app.get("/templates/search-terms", async (c) => {
     .all();
   const allTerms = new Set<string>();
   for (const row of results) {
-    const terms = JSON.parse((row as { search_terms: string }).search_terms) as string[];
-    for (const t of terms) allTerms.add(t.toLowerCase());
+    let terms: unknown;
+    try {
+      terms = JSON.parse((row as { search_terms: string }).search_terms);
+    } catch {
+      continue; // skip a row with malformed JSON rather than 500 the whole endpoint
+    }
+    if (!Array.isArray(terms)) continue;
+    for (const t of terms) if (typeof t === "string") allTerms.add(t.toLowerCase());
   }
   const sorted = [...allTerms].sort();
   return c.json(sorted, 200, CACHE_HEADERS);

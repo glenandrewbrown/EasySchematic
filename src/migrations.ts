@@ -17,7 +17,11 @@ import { getPortAbsolutePositions } from "./snapUtils";
 import { mostCommonRoomScale, DEFAULT_METRES_PER_PIXEL } from "./layoutScale";
 import { DEFAULT_GRID_SETTINGS, type SchematicNode } from "./types";
 
-export const CURRENT_SCHEMA_VERSION = 45;
+export const CURRENT_SCHEMA_VERSION = 48;
+
+/** Stub-label nodes paint at this z-index so connection lines render UNDER their
+ *  white box (matches waypoint/junction z — above edge z, below the 10000 edge labels). */
+export const STUB_LABEL_Z_INDEX = 100;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Migration = (data: any) => any;
@@ -485,53 +489,64 @@ const migrations: Record<number, Migration> = {
     data.version = 39;
     return data;
   },
-  39: (data) => {
-    // v39 → v40: cable-fit feature. Adds optional fields only — ownedCables
+  // ---------------------------------------------------------------------------
+  // Fork lineage (42–47). These six shipped on this fork as 39–44 while upstream
+  // independently shipped ITS OWN 39–41 (bundling, the 16px grid, PM metadata).
+  // Both numbering schemes are real and both are in the wild, so the two chains are
+  // stacked rather than interleaved: upstream keeps 39–41 because its files are the
+  // published ones, and the fork's six move up to 42–47 behind them. Files written
+  // by the pre-merge fork build are rewound to 39 by normalizeForkVersion() so they
+  // traverse the whole unified chain exactly once.
+  // ---------------------------------------------------------------------------
+  42: (data) => {
+    // v42 → v43: cable-fit feature. Adds optional fields only — ownedCables
     // inventory on the file, assignedCableIds on edges, widthM/depthM on rooms.
     // No data transform needed for existing files.
-    data.version = 40;
+    data.version = 43;
     return data;
   },
-  40: (data) => {
-    // v40 → v41: floor-plan rooms. Adds optional heightM and shape (normalized
+  43: (data) => {
+    // v43 → v44: floor-plan rooms. Adds optional heightM and shape (normalized
     // polygon vertices) to RoomData. No data transform needed.
-    data.version = 41;
+    data.version = 44;
     return data;
   },
-  41: (data) => {
-    // v41 → v42: layers, device icons, software-host links. Seeds the layers
+  44: (data) => {
+    // v44 → v45: layers, device icons, software-host links. Seeds the layers
     // array with the default layer; everything else is optional fields.
     data.layers ??= [{ id: "default", name: "Base", visible: true, locked: false }];
-    data.version = 42;
+    data.version = 45;
     return data;
   },
-  42: (data) => {
-    // v42 → v43: venue-CAD + Figma redesign release. Adds only optional fields across the
+  45: (data) => {
+    // v45 → v46: venue-CAD + Figma redesign release. Adds only optional fields across the
     // whole feature set — per-unit gear inventory, device tags/serial, layer colour,
     // custom Layout-view SVG assets, colour zones, furniture "object" nodes, transport
     // containers, dismissed-validation ids, grid settings, and suggestion pools. Every new
     // field has a sensible runtime default, so no per-node/file backfill is required.
     // (Custom SVG assets are re-sanitized in the store load path, not here, to keep this
     // migration free of browser-only APIs for the node test environment.)
-    data.version = 43;
+    data.version = 46;
     return data;
   },
-  43: (data) => {
-    // v43 → v44: document-level Layout scale replaces per-room scale. Choose
+  46: (data) => {
+    // v46 → v47: document-level Layout scale replaces per-room scale. Choose
     // metresPerPixel = the most-common existing room scale (so the largest number of
     // rooms render unchanged), then rescale every off-scale room's pixel box and its
     // children by k = oldRoomScale / documentScale. Real-world dimensions (widthM /
     // depthM / heightM) are preserved; off-scale rooms visibly resize once on open.
+    // Replay-safe: rooms already at the document scale have k ≈ 1 and are skipped.
     migrateToDocumentScale(data);
-    data.version = 44;
+    data.version = 47;
     return data;
   },
-  44: (data) => {
-    // v44 → v45: virtual ports, intra-device internal links, connection bundles, and
-    // cable part-number/asset-tag tracking. Every new field is optional and absent means
-    // "off" (no virtual port, no internal routing, unbundled, untracked), so a v44 file is
-    // already a valid v45 file — nothing to transform.
-    data.version = 45;
+  47: (data) => {
+    // v47 → v48: virtual ports, intra-device internal links, and cable part-number/asset-tag
+    // tracking. Every new field is optional and absent means "off" (no virtual port, no
+    // internal routing, untracked), so a v47 file is already a valid v48 file — nothing to
+    // transform. (Bundle membership is upstream's data.bundleId + data.bundles, reconciled
+    // at v39→v40; this fork's separate bundle grouping folded into that model.)
+    data.version = 48;
     return data;
   },
 
@@ -551,6 +566,106 @@ const migrations: Record<number, Migration> = {
       }
     }
     data.version = 34;
+    return data;
+  },
+
+  39: (data) => {
+    // v39 → v40: connection bundling. Additive — ensure a bundles map exists, drop any
+    // dangling bundleId (references a bundle with no meta), and dissolve bundles that end
+    // up with fewer than 2 members (a bundle is meaningless below 2).
+    if (typeof data.bundles !== "object" || data.bundles === null) data.bundles = {};
+    const counts: Record<string, number> = {};
+    if (Array.isArray(data.edges)) {
+      for (const e of data.edges) {
+        const id = e?.data?.bundleId;
+        if (typeof id === "string") counts[id] = (counts[id] ?? 0) + 1;
+      }
+      for (const e of data.edges) {
+        const id = e?.data?.bundleId;
+        if (typeof id === "string" && (!data.bundles[id] || counts[id] < 2)) {
+          delete e.data.bundleId;
+        }
+      }
+    }
+    for (const id of Object.keys(data.bundles)) {
+      if ((counts[id] ?? 0) < 2) delete data.bundles[id];
+    }
+    data.version = 40;
+    return data;
+  },
+  40: (data) => {
+    // v40 → v41: THE 16px GRID. Every layout constant scaled x0.8 (20px snap grid → 16px;
+    // port row pitch 20→16; header band min 40→32; default device width 180→144), so every
+    // saved pixel coordinate rescales by exactly 0.8 — a 20-multiple maps onto a 16-multiple
+    // with zero rounding error, preserving all alignments. Text-sized objects (stub label
+    // boxes) keep their size; their position is rescaled around the CONNECTING HANDLE so
+    // they stay colinear with the partner port.
+    const s = 0.8;
+    const nodes = data.nodes ?? [];
+    const edges = data.edges ?? [];
+
+    // A stub-label's connecting side is the l/r handle its leg edge references.
+    const stubSideById = new Map<string, "l" | "r">();
+    for (const e of edges) {
+      if (e.sourceHandle === "l" || e.sourceHandle === "r") stubSideById.set(e.source, e.sourceHandle);
+      if (e.targetHandle === "l" || e.targetHandle === "r") stubSideById.set(e.target, e.targetHandle);
+    }
+
+    for (const n of nodes) {
+      if (!n.position) continue;
+      if (n.type === "stub-label") {
+        // Box size is text-driven (unscaled); rescale around the handle point. Works in
+        // parent-relative coords too — a scaled parent contributes uniformly.
+        const w = n.measured?.width ?? n.width ?? 80;
+        const h = n.measured?.height ?? n.height ?? 14;
+        const side = stubSideById.get(n.id) ?? "l";
+        const hx = (n.position.x ?? 0) + (side === "r" ? w : 0);
+        const hy = (n.position.y ?? 0) + h / 2;
+        n.position.x = Math.round(hx * s - (side === "r" ? w : 0));
+        n.position.y = Math.round(hy * s - h / 2);
+        continue;
+      }
+      n.position.x = (n.position.x ?? 0) * s;
+      n.position.y = (n.position.y ?? 0) * s;
+      if (typeof n.width === "number") n.width *= s;
+      if (typeof n.height === "number") n.height *= s;
+      if (n.style && typeof n.style.width === "number") n.style.width *= s;
+      if (n.style && typeof n.style.height === "number") n.style.height *= s;
+      if (n.measured) {
+        if (typeof n.measured.width === "number") n.measured.width *= s;
+        if (typeof n.measured.height === "number") n.measured.height *= s;
+      }
+    }
+
+    for (const e of edges) {
+      const d = e.data;
+      if (!d) continue;
+      if (Array.isArray(d.manualWaypoints)) {
+        d.manualWaypoints = d.manualWaypoints.map((p: { x: number; y: number }) => ({ ...p, x: p.x * s, y: p.y * s }));
+      }
+      if (typeof d.cableIdGap === "number") d.cableIdGap = Math.round(d.cableIdGap * s);
+      if (typeof d.cableIdMidOffset === "number") d.cableIdMidOffset = Math.round(d.cableIdMidOffset * s);
+    }
+
+    if (data.bundles) {
+      for (const b of Object.values(data.bundles) as { trunkWaypoints?: { x: number; y: number }[] }[]) {
+        if (Array.isArray(b?.trunkWaypoints)) {
+          b.trunkWaypoints = b.trunkWaypoints.map((p) => ({ ...p, x: p.x * s, y: p.y * s }));
+        }
+      }
+    }
+    if (typeof data.cableIdGap === "number") data.cableIdGap = Math.round(data.cableIdGap * s);
+    if (typeof data.cableIdMidOffset === "number") data.cableIdMidOffset = Math.round(data.cableIdMidOffset * s);
+
+    data.version = 41;
+    return data;
+  },
+  41: (data) => {
+    // v41 → v42: project-management metadata batch. All purely additive optional fields —
+    // device serialNumber/note/isSpare/procurementSource, connection gaugeAwg/cableAlias/
+    // tested/testedDate, file-level status, rack unitCost, note color. No transform needed;
+    // absent fields read as undefined on the new code paths.
+    data.version = 42;
     return data;
   },
 };
@@ -791,7 +906,16 @@ function migrateStubsToNodes(data: any): void {
       schematicNodeMap,
     );
     const match = positions.find((p) => p.handleId === handleId);
-    if (match) return { x: match.absX, y: match.absY, side: match.side };
+    if (match) {
+      // FROZEN-WORLD CORRECTION: this migration runs on pre-v41 (20px-grid) data, but
+      // getPortAbsolutePositions is live code and computes the 16px-grid layout since
+      // v41. Every band/row constant scaled by exactly 0.8, so the legacy node-local
+      // port offset is the new offset x 1.25 (exact for default display settings;
+      // within a few px when header aux rows change the band rounding — close enough
+      // for stub placement, which only needs the port row).
+      const dTop = absPos(deviceNode).y;
+      return { x: match.absX, y: dTop + (match.absY - dTop) * 1.25, side: match.side };
+    }
     // Fallback for malformed handle ids.
     const dPos = absPos(deviceNode);
     const w = deviceNode.measured?.width ?? deviceNode.width ?? 180;
@@ -964,11 +1088,54 @@ function migrateStubsToNodes(data: any): void {
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
 /**
+ * Rewind a file written by the pre-merge fork build onto the unified chain.
+ *
+ * The fork shipped versions 40–45 that mean something entirely different from upstream's
+ * 40–42 of the same name, so a version number alone is ambiguous in the 40–42 band. Two
+ * facts disambiguate it:
+ *
+ *   - Upstream's v39→v40 unconditionally creates a `bundles` map, so EVERY genuine
+ *     upstream file at v40+ has one. The fork never wrote that field at any version.
+ *   - Upstream never went above 42, so 43–45 can only be fork-written.
+ *
+ * A fork file is rewound to 39 and re-walks the whole chain. That is safe because the
+ * fork's own migrations are replay-safe: 42/43/45/47 are pure version bumps, 44 seeds
+ * layers with `??=`, and 46 skips rooms already at the document scale. Meanwhile
+ * upstream's 39–41 (bundles, the 16px rescale, PM metadata) apply exactly once — which
+ * is precisely what a fork file has never received.
+ *
+ * Bundle membership is carried across rather than dropped: the fork grouped connections
+ * with a bare `data.bundleId` and no metadata map, and upstream's v39→v40 deletes any
+ * bundleId whose bundle has no meta. Synthesizing the missing BundleMeta first means the
+ * fork's bundles survive and inherit upstream's trunk rendering instead of being wiped.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function normalizeForkVersion(data: any): void {
+  const version = data.version;
+  if (typeof version !== "number" || version < 40 || version > 45) return;
+
+  const hasUpstreamBundles = typeof data.bundles === "object" && data.bundles !== null;
+  if (hasUpstreamBundles) return; // a genuine upstream file — its numbering is authoritative
+
+  if (Array.isArray(data.edges)) {
+    const bundles: Record<string, { id: string }> = {};
+    for (const edge of data.edges) {
+      const id = edge?.data?.bundleId;
+      if (typeof id === "string") bundles[id] = { id };
+    }
+    if (Object.keys(bundles).length > 0) data.bundles = bundles;
+  }
+
+  data.version = 39;
+}
+
+/**
  * Migrate a schematic file from its current version to CURRENT_SCHEMA_VERSION.
  * Returns the migrated data (mutated in place).
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function migrateSchematic(data: any): any {
+  normalizeForkVersion(data);
   let version = data.version ?? 1;
 
   while (version < CURRENT_SCHEMA_VERSION) {
@@ -982,6 +1149,25 @@ export function migrateSchematic(data: any): any {
     }
     data = migrate(data);
     version = data.version;
+  }
+
+  // Version-independent invariant: stub-label nodes must paint ABOVE connection
+  // lines. React Flow elevates edges whose endpoints sit inside a room, so a
+  // z-index-less stub tag ends up under those lines — the cable then renders over
+  // the tag (and the target-leg tail overlaps it). A fixed z-index above edge z
+  // (matching waypoints/junctions) fixes both, and re-applies on every load so
+  // pre-existing files are healed too. (#178)
+  if (Array.isArray(data.nodes)) {
+    let changed = false;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- loosely-typed migration node
+    const nodes = data.nodes.map((n: any) => {
+      if (n?.type === "stub-label" && n.zIndex !== STUB_LABEL_Z_INDEX) {
+        changed = true;
+        return { ...n, zIndex: STUB_LABEL_Z_INDEX };
+      }
+      return n;
+    });
+    if (changed) data = { ...data, nodes };
   }
 
   return data;

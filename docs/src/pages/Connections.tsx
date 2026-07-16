@@ -90,6 +90,49 @@ export default function ConnectionsPage() {
         <li>Right-click a trunk connection to set a <strong>cable label</strong></li>
       </ul>
 
+      <h2>Bundling connections</h2>
+      <p>
+        <strong>Bundling</strong> lets you route several connections along one shared <strong>trunk</strong> — the way
+        you'd run a multicore, snake, or a taped-together bundle of cables down a single path in the real world. Unlike
+        a <strong>multicable accessory</strong> (which is a physical device with trunk ports), a bundle is a routing
+        choice you make over connections that already exist: it changes how they're drawn, not what they are. Each
+        bundled connection stays its own cable.
+      </p>
+      <ul>
+        <li>
+          Select <strong>2 or more connections</strong>, then in the <strong>Edit connections</strong> panel
+          click <strong>Bundle onto one trunk</strong>. The connections gather at one end, run together along a single
+          trunk, and fan back out at the other end.
+        </li>
+        <li>
+          You can bundle connections with <strong>mixed signal types</strong>. The trunk draws in a
+          neutral grey with an <strong>N×</strong> badge showing how many connections it carries, while each
+          connection keeps its own signal color at the gather/fan ends.
+        </li>
+        <li>
+          Give the bundle a <strong>label</strong> (e.g. "Stage Snake A") in the same panel — it appears in the
+          cable schedule's optional <strong>Bundle</strong> column.
+        </li>
+        <li>
+          <strong>Click the trunk</strong> to select all of its connections at once.
+        </li>
+        <li>
+          <strong>Right-click</strong> a bundled connection for <strong>Select Bundle Members</strong>,
+          <strong> Remove from Bundle</strong>, and <strong>Dissolve Bundle</strong>.
+        </li>
+      </ul>
+      <p>
+        Bundling never changes your <strong>cable counts</strong>: every connection in a bundle is still its own row in
+        the cable schedule and its own cable in the pack list. Converting a bundled connection to a{" "}
+        <strong>stub</strong> removes it from the bundle, and a bundle automatically dissolves back into normal
+        connections when fewer than two members remain. The cable schedule can also <strong>group by bundle</strong> if
+        you want all of a bundle's cables listed together.
+      </p>
+      <p>
+        Bundling is the deliberate opposite of the auto-router's usual job: instead of keeping connections separable,
+        you're telling EasySchematic that these specific cables <em>should</em> share one physical path.
+      </p>
+
       <h2>Multi-connect ports</h2>
       <p>
         By default, each port accepts <strong>one connection</strong>. Some signals don't work that way in real life —
@@ -242,9 +285,14 @@ export default function ConnectionsPage() {
         </li>
       </ul>
       <p>
+        Cable IDs are <strong>permanent</strong>: each connection's ID is assigned once, saved in your schematic
+        file, and never renumbered — so printed labels and pull sheets stay valid as the drawing evolves. Switching
+        the naming scheme only affects connections that don't have an ID yet; new connections continue numbering
+        from the highest stored ID. Duplicating or pasting a connection gets a fresh ID (it's a new physical cable).
+      </p>
+      <p>
         Use the <strong>View</strong> menu to toggle cable labels on or off across the entire canvas. You can also
-        hide the label on a single connection by right-clicking it and choosing <strong>Hide Label</strong>. To start
-        fresh, use the option to <strong>Clear All Cable IDs</strong> from the same menu.
+        hide the label on a single connection by right-clicking it and choosing <strong>Hide Label</strong>.
       </p>
 
       <h2>Line jump arcs</h2>

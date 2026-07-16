@@ -44,7 +44,11 @@ export default function RoomEditor() {
   const [depthMStr, setDepthMStr] = useState<string>("");
   const [heightMStr, setHeightMStr] = useState<string>("");
 
-  /* eslint-disable react-hooks/set-state-in-effect -- syncing props to local editor state */
+  // Key on editingNodeId, NOT node: toggleRoomLock replaces the node object, and keying
+  // on `node` re-ran this effect on that mutation, wiping unsaved name/color edits made
+  // before pressing Position Lock (same class as DeviceEditor #180). The lock button below
+  // updates `locked` itself, so this effect doesn't need to observe the node reference.
+  /* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps -- syncing props to local editor state */
   useEffect(() => {
     if (!node) return;
     setLabel(node.data.label);
@@ -59,8 +63,8 @@ export default function RoomEditor() {
     setWidthMStr(node.data.widthM != null ? String(node.data.widthM) : "");
     setDepthMStr(node.data.depthM != null ? String(node.data.depthM) : "");
     setHeightMStr(node.data.heightM != null ? String(node.data.heightM) : "");
-  }, [node]);
-  /* eslint-enable react-hooks/set-state-in-effect */
+  }, [editingNodeId]);
+  /* eslint-enable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
 
   const selectedPage = pages.find((p) => p.id === linkedRackPageId);
 

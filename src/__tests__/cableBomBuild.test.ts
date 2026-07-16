@@ -20,6 +20,11 @@ function mkRow(partial: Partial<CableScheduleRow>): CableScheduleRow {
     sourceRoom: "Room A",
     targetRoom: "Room B",
     multicableLabel: "",
+    bundle: "", // blank = not bundled
+    gaugeAwg: "",
+    cableAlias: "",
+    tested: "",
+    cableUse: "",
     ...partial,
   };
 }

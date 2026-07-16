@@ -44,6 +44,7 @@ const packData: PackListData = {
   ],
   accessories: [],
   adapters: [],
+  racks: [],
 };
 
 /** A container: 1 present device, 1 missing device, 1 present cable. */

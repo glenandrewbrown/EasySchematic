@@ -10,6 +10,7 @@ import {
   MAX_BULK_COUNT,
   DEFAULT_MAX_COLS,
 } from "../quickAddLayout";
+import { GRID_SIZE } from "../gridConstants";
 import type { DeviceTemplate, Port } from "../types";
 
 function port(direction: Port["direction"]): Port {
@@ -31,44 +32,44 @@ function template(ports: Port[]): DeviceTemplate {
 
 describe("deviceFootprint", () => {
   it("returns base height for a portless device", () => {
-    expect(deviceFootprint(template([]))).toEqual({ w: 180, h: 60 });
+    expect(deviceFootprint(template([]))).toEqual({ w: 144, h: 48 });
   });
 
   it("uses the larger of input/output rows plus bidirectional rows", () => {
     const t = template([port("input"), port("input"), port("output"), port("bidirectional")]);
-    // max(2 inputs, 1 output) + 1 bidir = 3 rows → 60 + 60
-    expect(deviceFootprint(t)).toEqual({ w: 180, h: 120 });
+    // max(2 inputs, 1 output) + 1 bidir = 3 rows → 48 + 3×16
+    expect(deviceFootprint(t)).toEqual({ w: 144, h: 48 + 3 * GRID_SIZE });
   });
 
   it("tolerates a template with no ports array", () => {
     expect(deviceFootprint({ deviceType: "x", label: "X" } as DeviceTemplate)).toEqual({
-      w: 180,
-      h: 60,
+      w: 144,
+      h: 48,
     });
   });
 });
 
 describe("gridPositions", () => {
-  const fp = { w: 180, h: 60 };
+  const fp = { w: 144, h: 48 }; // the real device footprint (both GRID_SIZE multiples)
 
   it("returns one grid-snapped position centered on the anchor", () => {
     const [p] = gridPositions({ x: 100, y: 100 }, fp, 1);
-    // origin = (100-90, 100-30) = (10, 70) → snap (round half-up) → (20, 80)
-    expect(p).toEqual({ x: 20, y: 80 });
+    // origin = (100-72, 100-24) = (28, 76) → snap to 16 (round half-up) → (32, 80)
+    expect(p).toEqual({ x: 32, y: 80 });
   });
 
   it("lays devices left-to-right then wraps after maxCols", () => {
-    const pts = gridPositions({ x: 0, y: 0 }, fp, DEFAULT_MAX_COLS + 1, { gap: 20 });
-    const stepX = 180 + 20;
+    const pts = gridPositions({ x: 0, y: 0 }, fp, DEFAULT_MAX_COLS + 1, { gap: GRID_SIZE });
+    const stepX = fp.w + GRID_SIZE;
     // First row shares a y; the wrapped one drops to the next row.
     expect(pts[0].y).toBe(pts[DEFAULT_MAX_COLS - 1].y);
     expect(pts[DEFAULT_MAX_COLS].y).toBeGreaterThan(pts[0].y);
-    // Columns advance by stepX (already grid-aligned since 200 % 20 === 0).
+    // Columns advance by stepX — grid-aligned, since footprint and gap are both GRID_SIZE multiples.
     expect(pts[1].x - pts[0].x).toBe(stepX);
   });
 
   it("respects a custom maxCols", () => {
-    const pts = gridPositions({ x: 0, y: 0 }, fp, 4, { maxCols: 2, gap: 20 });
+    const pts = gridPositions({ x: 0, y: 0 }, fp, 4, { maxCols: 2, gap: GRID_SIZE });
     expect(pts[0].y).toBe(pts[1].y); // row 0
     expect(pts[2].y).toBe(pts[3].y); // row 1
     expect(pts[2].y).toBeGreaterThan(pts[0].y);
@@ -80,10 +81,11 @@ describe("gridPositions", () => {
   });
 
   it("snaps every position to the grid", () => {
+    // Deliberately off-grid anchor, footprint and gap — every result must still land on the grid.
     const pts = gridPositions({ x: 37, y: 91 }, { w: 180, h: 100 }, 6, { gap: 13 });
     for (const p of pts) {
-      expect(p.x % 20 === 0).toBe(true);
-      expect(p.y % 20 === 0).toBe(true);
+      expect(p.x % GRID_SIZE === 0).toBe(true);
+      expect(p.y % GRID_SIZE === 0).toBe(true);
     }
   });
 });

@@ -20,8 +20,10 @@ export default function DevicesAndPortsPage() {
       <h2>Signal types</h2>
       <p>
         Every port has a <strong>signal type</strong> that determines its color and connection compatibility. You can
-        only connect ports of the <strong>same signal type</strong>. EasySchematic includes 68 built-in signal types
-        covering video, audio, data, power, and control:
+        only connect ports of the <strong>same signal type</strong>, with exceptions where the real hardware
+        interoperates: an Allen &amp; Heath <strong>SLink</strong> port connects directly to <strong>dSnake</strong>,
+        <strong> DX5</strong>, and <strong>GigaACE</strong> ports, since SLink auto-senses all three protocols.
+        EasySchematic includes 68 built-in signal types covering video, audio, data, power, and control:
       </p>
       <table>
         <thead>
@@ -87,6 +89,7 @@ export default function DevicesAndPortsPage() {
           <tr><td><strong>Tally</strong></td><td>Rose</td><td>Tally/status indicators</td></tr>
           <tr><td><strong>Art-Net</strong></td><td>Amber</td><td>Lighting network protocol (Ethernet)</td></tr>
           <tr><td><strong>sACN</strong></td><td>Yellow</td><td>Streaming ACN lighting protocol</td></tr>
+          <tr><td><strong>nLight</strong></td><td>Golden Amber</td><td>Acuity nLight architectural lighting control bus (over Cat5/RJ45)</td></tr>
           <tr><td><strong>IR</strong></td><td>Orange</td><td>Infrared control</td></tr>
           <tr><td><strong>DX Link</strong></td><td>Blue</td><td>AMX/Harman control network</td></tr>
           <tr><td><strong>eBUS</strong></td><td>Slate</td><td>Crestron eBUS control bus</td></tr>
@@ -137,6 +140,8 @@ export default function DevicesAndPortsPage() {
         <li>Each card contributes its own ports to the parent device</li>
         <li>Slots show the currently installed card name (or "Empty" if unoccupied)</li>
         <li>Swapping a card removes the old card's ports and adds the new card's ports</li>
+        <li>In the device editor, <strong>+ Add Slot</strong> adds one bay; <strong>+ Bulk Add</strong>
+          creates a numbered range at once (e.g. Slot 1–16) for large modular frames</li>
       </ul>
       <p>
         Some expansion cards have their own <strong>sub-slots</strong> — for example, a network
@@ -166,6 +171,7 @@ export default function DevicesAndPortsPage() {
           <tr><td>DisplayPort</td><td>DisplayPort</td></tr>
           <tr><td>DVI</td><td>DVI</td></tr>
           <tr><td>Mini HDMI</td><td>Mini HDMI</td></tr>
+          <tr><td>Micro HDMI</td><td>Micro HDMI</td></tr>
           <tr><td>Mini DisplayPort</td><td>Mini DisplayPort</td></tr>
           <tr><td>VGA (DB15)</td><td>VGA</td></tr>
 
@@ -174,7 +180,8 @@ export default function DevicesAndPortsPage() {
           <tr><td>XLR-5</td><td>XLR-5</td></tr>
           <tr><td>Mini XLR</td><td>Mini XLR</td></tr>
           <tr><td>XLR/TRS Combo</td><td>XLR</td></tr>
-          <tr><td>{"1/4\" TRS"}</td><td>{"1/4\" TRS"}</td></tr>
+          <tr><td>{"1/4\" TRS (6.35mm)"}</td><td>{"1/4\" TRS"}</td></tr>
+          <tr><td>{"1/4\" TS (6.35mm)"}</td><td>{"1/4\" TS"}</td></tr>
           <tr><td>3.5mm TRS</td><td>3.5mm TRS</td></tr>
           <tr><td>RCA</td><td>RCA</td></tr>
           <tr><td>TOSLINK</td><td>TOSLINK</td></tr>
@@ -217,7 +224,7 @@ export default function DevicesAndPortsPage() {
           <tr><td>powerCON</td><td>powerCON</td></tr>
           <tr><td>powerCON TRUE1</td><td>powerCON TRUE1</td></tr>
           <tr><td>Edison</td><td>Edison</td></tr>
-          <tr><td>IEC C14</td><td>IEC C14</td></tr>
+          <tr><td>IEC C13/C14</td><td>IEC C13/C14 (kettle lead — inlet C14, outlet C13)</td></tr>
           <tr><td>IEC C5</td><td>IEC C5</td></tr>
           <tr><td>IEC C7</td><td>IEC C7</td></tr>
           <tr><td>IEC C15</td><td>IEC C15</td></tr>
@@ -229,6 +236,7 @@ export default function DevicesAndPortsPage() {
           <tr><td>Cam-Lok</td><td>Cam-Lok</td></tr>
           <tr><td>Socapex</td><td>Socapex</td></tr>
           <tr><td>DC Barrel</td><td>DC Barrel</td></tr>
+          <tr><td>Kycon 4-pin</td><td>Kycon 4-pin (locking DC power)</td></tr>
 
           <tr><td colSpan={2}><strong>Speaker</strong></td></tr>
           <tr><td>Banana</td><td>Speaker Wire</td></tr>
@@ -499,6 +507,13 @@ export default function DevicesAndPortsPage() {
       <p>
         Network config is entered in the device editor under each port's settings. This data feeds
         into the <a href="/pack-list">Network Report</a>.
+      </p>
+      <p>
+        <strong>USB-C Power Delivery.</strong> Ports with a USB-C connector get two per-port wattage
+        fields — how much the port <em>delivers</em> (a charger, dock, or laptop port) and how much it
+        <em>draws</em> (a bus-powered device). Unlike PoE, USB-C doesn't share one budget across ports,
+        so the rating lives on each port rather than the device. When a connection's source delivers
+        less than the connected device draws, the cable is flagged with an amber undersupply warning.
       </p>
     </>
   );

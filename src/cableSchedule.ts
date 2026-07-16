@@ -3,6 +3,7 @@ import type {
   ConnectionEdge,
   SignalType,
   DistanceSettings,
+  BundleMeta,
 } from "./types";
 import { SIGNAL_LABELS, CONNECTOR_LABELS, DEFAULT_DISTANCE_SETTINGS } from "./types";
 import { getCableType } from "./cableTypes";
@@ -48,6 +49,17 @@ export interface CableScheduleRow {
   sourceRoom: string;
   targetRoom: string;
   multicableLabel: string;
+  /** Bundle display name (custom label, else "Bundle N") — blank if not bundled. Each
+   *  bundled member stays its own row; bundling never collapses physical cable counts. */
+  bundle: string;
+  /** Conductor gauge in AWG, free text (#P2-015). */
+  gaugeAwg: string;
+  /** Alternate / contractor cable name (#P2-023). */
+  cableAlias: string;
+  /** "✓" when the cable is marked tested/certified, with optional date appended (#P2-031). */
+  tested: string;
+  /** Raw cable use: "patch" | "field" | "" (#P2-019). */
+  cableUse: string;
 }
 
 /** Sort key that keeps a trunk's legs adjacent without reordering within the trunk.
@@ -95,6 +107,7 @@ const SIGNAL_PREFIX: Record<SignalType, string> = {
   gpio: "GP",
   "contact-closure": "CC",
   rs422: "RS",
+  rs485: "RS5",
   serial: "SL",
   thunderbolt: "TB",
   composite: "CO",
@@ -142,6 +155,7 @@ const SIGNAL_PREFIX: Record<SignalType, string> = {
   pots: "PT",
   "blu-link": "BL",
   cresnet: "CN",
+  nlight: "NL",
   sensor: "SNS",
   custom: "X",
 };
@@ -151,7 +165,25 @@ export function computeCableSchedule(
   edges: ConnectionEdge[],
   namingScheme: "sequential" | "type-prefix" = "sequential",
   distanceContext?: CableScheduleDistanceContext,
+  bundles?: Record<string, BundleMeta>,
 ): CableScheduleRow[] {
+  // Bundle display names: a bundle is real only with >=2 members. Custom label wins,
+  // else a stable "Bundle N" numbered by first appearance in edge order. Members each
+  // keep their own row (the count is never collapsed) — this is just a grouping label.
+  const bundleMemberCounts = new Map<string, number>();
+  for (const e of edges) {
+    const bid = e.data?.bundleId;
+    if (bid) bundleMemberCounts.set(bid, (bundleMemberCounts.get(bid) ?? 0) + 1);
+  }
+  const bundleDisplay = new Map<string, string>();
+  let bundleSeq = 0;
+  for (const e of edges) {
+    const bid = e.data?.bundleId;
+    if (!bid || bundleDisplay.has(bid) || (bundleMemberCounts.get(bid) ?? 0) < 2) continue;
+    bundleSeq += 1;
+    bundleDisplay.set(bid, bundles?.[bid]?.label?.trim() || `Bundle ${bundleSeq}`);
+  }
+  const bundleOf = (e: ConnectionEdge): string => bundleDisplay.get(e.data?.bundleId ?? "") ?? "";
   // For stubbed connections (split into 2 stub-leg edges sharing a linkedConnectionId),
   // emit ONE row per logical cable using the source-side leg as canonical and following
   // through to the target-side leg to find the real target device. The target-side leg
@@ -221,7 +253,14 @@ export function computeCableSchedule(
         storedCableId: e.data?.cableId as string | undefined,
         storedCableLength: (e.data?.cableLength as string | undefined) ?? "",
         bundleId: e.data?.bundleId as string | undefined,
+        gaugeAwg: (e.data?.gaugeAwg as string | undefined) ?? "",
+        cableAlias: (e.data?.cableAlias as string | undefined) ?? "",
+        cableUse: (e.data?.cableUse as string | undefined) ?? "",
+        tested: e.data?.tested
+          ? (e.data?.testedDate ? `✓ ${e.data.testedDate as string}` : "✓")
+          : "",
         multicableLabel: (e.data?.multicableLabel as string) ?? "",
+        bundle: bundleOf(e),
         sourceDevice,
         sourcePort,
         sourceConnector,
@@ -237,18 +276,34 @@ export function computeCableSchedule(
       };
     });
 
-  // Preserve edge array order (creation order) for stable cable numbering
+  // Preserve edge array order (creation order) for stable cable numbering.
+  //
+  // Stored cable IDs are PERMANENT (users print labels / reference them in paperwork —
+  // see recomputeCableIds in store.ts, which persists generated IDs onto edge data).
+  // Generated numbers must therefore never collide with a stored ID, and must not
+  // recycle a deleted cable's number into a gap: each prefix continues from the highest
+  // number in use (max+1), whether that number came from generation or a user edit.
+  const usedNumbers = new Map<string, number>();
+  const noteUsed = (prefix: string, n: number) => {
+    if (n > (usedNumbers.get(prefix) ?? 0)) usedNumbers.set(prefix, n);
+  };
+  for (const c of connections) {
+    const m = c.storedCableId?.match(/^([A-Z]+)(\d+)$/);
+    if (m) noteUsed(m[1], Number(m[2]));
+  }
+  const nextId = (prefix: string): string => {
+    const n = (usedNumbers.get(prefix) ?? 0) + 1;
+    noteUsed(prefix, n);
+    return `${prefix}${String(n).padStart(3, "0")}`;
+  };
 
   if (namingScheme === "type-prefix") {
     // Per-type counters for type-prefix naming (e.g. S001, S002, E001)
-    const counters = new Map<string, number>();
     return connections.map((c) => {
       const prefix = SIGNAL_PREFIX[c.rawSignalType] ?? "X";
-      const count = (counters.get(prefix) ?? 0) + 1;
-      counters.set(prefix, count);
       return {
         edgeId: c.edgeId,
-        cableId: c.storedCableId || `${prefix}${String(count).padStart(3, "0")}`,
+        cableId: c.storedCableId || nextId(prefix),
         sourceDevice: c.sourceDevice,
         sourcePort: c.sourcePort,
         sourceConnector: c.sourceConnector,
@@ -265,13 +320,18 @@ export function computeCableSchedule(
         sourceRoom: c.sourceRoom,
         targetRoom: c.targetRoom,
         multicableLabel: c.multicableLabel,
+        bundle: c.bundle,
+        gaugeAwg: c.gaugeAwg,
+        cableAlias: c.cableAlias,
+        tested: c.tested,
+        cableUse: c.cableUse,
       };
     });
   }
 
-  return connections.map((c, i) => ({
+  return connections.map((c) => ({
     edgeId: c.edgeId,
-    cableId: c.storedCableId || `C${String(i + 1).padStart(3, "0")}`,
+    cableId: c.storedCableId || nextId("C"),
     sourceDevice: c.sourceDevice,
     sourcePort: c.sourcePort,
     sourceConnector: c.sourceConnector,
@@ -288,6 +348,11 @@ export function computeCableSchedule(
     sourceRoom: c.sourceRoom,
     targetRoom: c.targetRoom,
     multicableLabel: c.multicableLabel,
+    bundle: c.bundle,
+    gaugeAwg: c.gaugeAwg,
+    cableAlias: c.cableAlias,
+    tested: c.tested,
+    cableUse: c.cableUse,
   }));
 }
 
@@ -326,6 +391,7 @@ export function buildCableScheduleCsv(
     "Cable ID", "Source", "Src Port", "Src Conn",
     "Target", "Tgt Port", "Tgt Conn",
     "Cable Type", "Signal", "Length", "Est. Length",
+    "Gauge (AWG)", "Alias", "Tested", "Use",
     "Src Room", "Tgt Room", "Bundle", "Snake",
   ]));
   for (const r of rows) {
@@ -333,6 +399,8 @@ export function buildCableScheduleCsv(
       r.cableId, r.sourceDevice, r.sourcePort, r.sourceConnector,
       r.targetDevice, r.targetPort, r.targetConnector,
       r.cableType, r.signalType, r.cableLength, r.computedLength ?? "",
+      r.gaugeAwg, r.cableAlias, r.tested,
+      r.cableUse ? r.cableUse.charAt(0).toUpperCase() + r.cableUse.slice(1) : "",
       r.sourceRoom, r.targetRoom, r.bundleId ?? "", r.multicableLabel,
     ]));
   }
@@ -344,7 +412,9 @@ export function exportCableScheduleCsv(
   rows: CableScheduleRow[],
   schematicName: string,
 ): void {
-  const blob = new Blob([buildCableScheduleCsv(rows, schematicName)], { type: "text/csv" });
+  // The UTF-8 BOM goes on the download, not on buildCableScheduleCsv's return value: Excel
+  // needs it to read the file as UTF-8, but the tests assert that string cell-by-cell.
+  const blob = new Blob(["﻿" + buildCableScheduleCsv(rows, schematicName)], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -371,9 +441,14 @@ export function getCableScheduleTableData(
     signalType: r.signalType,
     cableLength: r.cableLength,
     computedLength: r.computedLength ?? "",
+    gaugeAwg: r.gaugeAwg,
+    cableAlias: r.cableAlias,
+    tested: r.tested,
+    cableUse: r.cableUse ? r.cableUse.charAt(0).toUpperCase() + r.cableUse.slice(1) : "",
     sourceRoom: r.sourceRoom,
     targetRoom: r.targetRoom,
     multicableLabel: r.multicableLabel,
+    bundle: r.bundle,
   }));
 
   // Sorting
@@ -400,6 +475,8 @@ export function getCableScheduleTableData(
     groupedRows = groupBy(sorted, (r) => r.cableType);
   } else if (groupByKey === "multicableLabel") {
     groupedRows = groupBy(sorted, (r) => r.multicableLabel || "Ungrouped");
+  } else if (groupByKey === "bundle") {
+    groupedRows = groupBy(sorted, (r) => r.bundle || "Unbundled");
   }
 
   return [

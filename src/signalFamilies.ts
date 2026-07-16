@@ -108,6 +108,7 @@ export const SIGNAL_FAMILY: Record<SignalType, SignalFamily> = {
   gpio: "control",
   "contact-closure": "control",
   rs422: "control",
+  rs485: "control",
   serial: "control",
   midi: "control",
   tally: "control",
@@ -119,6 +120,7 @@ export const SIGNAL_FAMILY: Record<SignalType, SignalFamily> = {
   "control-voltage": "control",
   pots: "control",
   cresnet: "control",
+  nlight: "control",
   sensor: "control",
   // Power (conventional colours preserved below)
   power: "power",

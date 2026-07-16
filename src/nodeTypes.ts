@@ -8,6 +8,7 @@ import WaypointNodeComponent from "./components/WaypointNode";
 import ObjectPlanNode from "./components/ObjectPlanNode";
 import ZoneNode from "./components/ZoneNode";
 import DimensionNodeComponent from "./components/DimensionNode";
+import BundleJunctionNodeComponent from "./components/BundleJunctionNode";
 import OffsetEdgeComponent from "./components/OffsetEdge";
 
 export const nodeTypes: NodeTypes = {
@@ -20,6 +21,7 @@ export const nodeTypes: NodeTypes = {
   object: ObjectPlanNode,
   zone: ZoneNode,
   dimension: DimensionNodeComponent,
+  "bundle-junction": BundleJunctionNodeComponent,
 };
 
 export const edgeTypes: EdgeTypes = {

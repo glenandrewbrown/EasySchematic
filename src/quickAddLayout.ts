@@ -14,6 +14,12 @@ export const MAX_BULK_COUNT = 100;
 /** Default columns before a bulk grid wraps to a new row. */
 export const DEFAULT_MAX_COLS = 5;
 
+/** Device body width in px — matches the width DeviceNode renders. */
+const DEVICE_BODY_W = 144;
+
+/** Device height with zero port rows — matches deviceHeight() in snapUtils. */
+const DEVICE_BASE_H = 48;
+
 export interface Footprint {
   w: number;
   h: number;
@@ -41,7 +47,9 @@ export function deviceFootprint(template: DeviceTemplate): Footprint {
   const outputs = ports.filter((p) => p.direction === "output").length;
   const bidir = ports.filter((p) => p.direction === "bidirectional").length;
   const portRows = Math.max(inputs, outputs) + bidir;
-  return { w: 180, h: 60 + portRows * 20 };
+  // Mirrors the real sizing math: DeviceNode's 144px body and deviceHeight() in snapUtils
+  // (48 + rows × GRID_SIZE). Drifting from those makes bulk-added devices overlap.
+  return { w: DEVICE_BODY_W, h: DEVICE_BASE_H + portRows * GRID_SIZE };
 }
 
 export interface GridOptions {

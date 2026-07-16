@@ -5,11 +5,12 @@ import { detailLevelHint, detailLevelLabel } from "../plainLanguage";
 import type { DetailLevel } from "../plainLanguage";
 import { formatLengthMode } from "../lengthFormat";
 import type { LengthUnitMode } from "../lengthFormat";
-import { DEFAULT_SCROLL_CONFIG, DEFAULT_METRES_PER_PIXEL } from "../types";
+import { DEFAULT_SCROLL_CONFIG, DEFAULT_METRES_PER_PIXEL, PROJECT_STATUS_LABELS } from "../types";
 import type {
   DeviceTemplate,
   LabelCaseMode,
   PanMode,
+  ProjectStatus,
   ScrollAction,
   ScrollConfig,
   StubLabelPageMode,
@@ -100,13 +101,14 @@ const ACTION_OPTIONS: ScrollAction[] = ["zoom", "pan-x", "pan-y"];
 
 const selectClass = "ui-input cursor-pointer w-[200px]";
 
-type SectionId = "appearance" | "units" | "inventory" | "advanced" | "account";
+type SectionId = "appearance" | "units" | "inventory" | "advanced" | "ai" | "account";
 
 const NAV_ITEMS: { id: SectionId; label: string }[] = [
   { id: "appearance", label: "Appearance" },
   { id: "units", label: "Units & defaults" },
   { id: "inventory", label: "Inventory" },
   { id: "advanced", label: "Advanced" },
+  { id: "ai", label: "AI (Beta)" },
   { id: "account", label: "Account" },
 ];
 
@@ -320,6 +322,13 @@ const CheckIcon = () => (
   </svg>
 );
 
+const MCP_STATUS_LABELS: Record<string, string> = {
+  off: "Off",
+  connecting: "Connecting…",
+  connected: "Connected",
+  error: "Not connected",
+};
+
 // ── Sections ─────────────────────────────────────────────────────────────────
 
 function AppearanceSection() {
@@ -527,6 +536,8 @@ function UnitsSection() {
   const setGridSettings = useSchematicStore((s) => s.setGridSettings);
   const currency = useSchematicStore((s) => s.currency);
   const setCurrency = useSchematicStore((s) => s.setCurrency);
+  const status = useSchematicStore((s) => s.status);
+  const setProjectStatus = useSchematicStore((s) => s.setProjectStatus);
 
   const unit = distanceSettings?.unit ?? "ft";
 
@@ -611,6 +622,29 @@ function UnitsSection() {
       </select>
       <p className="text-[10.5px] text-[var(--color-text-muted)] mt-2 w-[300px]">
         Symbol used for cost fields in reports. No conversion is applied.
+      </p>
+
+      {/* Project status — document metadata, saved with the file. */}
+      <FieldLabel>
+        <span className="mt-7 block">Project status</span>
+      </FieldLabel>
+      <select
+        className={selectClass}
+        value={status ?? ""}
+        onChange={(e) =>
+          setProjectStatus(e.target.value === "" ? undefined : (e.target.value as ProjectStatus))
+        }
+        style={{ width: 260 }}
+      >
+        <option value="">Active (default)</option>
+        {(Object.keys(PROJECT_STATUS_LABELS) as ProjectStatus[]).map((key) => (
+          <option key={key} value={key}>
+            {PROJECT_STATUS_LABELS[key]}
+          </option>
+        ))}
+      </select>
+      <p className="text-[10.5px] text-[var(--color-text-muted)] mt-2 w-[300px]">
+        Lifecycle status for this project. Stored in the file and shown in project metadata.
       </p>
     </>
   );
@@ -889,6 +923,88 @@ function AdvancedSection() {
   );
 }
 
+function AiSection() {
+  const mcpEnabled = useSchematicStore((s) => s.mcpBridgeEnabled);
+  const setMcpEnabled = useSchematicStore((s) => s.setMcpBridgeEnabled);
+  const mcpToken = useSchematicStore((s) => s.mcpBridgeToken);
+  const setMcpToken = useSchematicStore((s) => s.setMcpBridgeToken);
+  const mcpPort = useSchematicStore((s) => s.mcpBridgePort);
+  const setMcpPort = useSchematicStore((s) => s.setMcpBridgePort);
+  const mcpStatus = useSchematicStore((s) => s.mcpBridgeStatus);
+  const mcpStatusDetail = useSchematicStore((s) => s.mcpBridgeStatusDetail);
+
+  return (
+    <>
+      <SectionHeading
+        title="AI Assistant (MCP) — Beta"
+        subtitle="Let an AI assistant read and edit this drawing while you watch. Early Beta — only a core set of actions is supported."
+      />
+
+      <div className="flex flex-col gap-2.5 max-w-[520px]">
+        <ToggleRow
+          label="Let Claude read & edit this schematic"
+          hint="Connects this tab to the EasySchematic MCP server running on your computer, so an AI assistant (Claude) can add devices, set properties, and make connections live. Off by default; your drawing is only reachable while this is on."
+          checked={mcpEnabled}
+          onChange={setMcpEnabled}
+        />
+
+        <Card>
+          <div className="flex flex-col gap-0.5 min-w-0">
+            <span className="text-xs font-medium text-[var(--color-text-heading)]">Pairing token</span>
+            <span className="text-[10.5px] text-[var(--color-text-muted)]">
+              Copy the token the MCP server prints on startup and paste it here. This stops other
+              programs on your computer from reaching the bridge.
+            </span>
+          </div>
+          <input
+            type="password"
+            value={mcpToken}
+            onChange={(e) => setMcpToken(e.target.value)}
+            placeholder="Paste from the server"
+            className="ui-input ml-auto w-[180px] font-[var(--font-mono)]"
+          />
+        </Card>
+
+        <Card>
+          <div className="flex flex-col gap-0.5 min-w-0">
+            <span className="text-xs font-medium text-[var(--color-text-heading)]">Server port</span>
+          </div>
+          <input
+            type="number"
+            value={mcpPort}
+            onChange={(e) => setMcpPort(Number(e.target.value) || mcpPort)}
+            className="ui-input ml-auto w-[100px] font-[var(--font-mono)]"
+          />
+        </Card>
+
+        <Card>
+          <div className="flex flex-col gap-0.5 min-w-0">
+            <span className="text-xs font-medium text-[var(--color-text-heading)]">Status</span>
+            {mcpStatusDetail && (
+              <span className="text-[10.5px] text-[var(--color-text-muted)]">{mcpStatusDetail}</span>
+            )}
+          </div>
+          <span
+            className={`ml-auto text-xs font-medium ${
+              mcpStatus === "connected"
+                ? "text-[var(--color-success)]"
+                : mcpStatus === "error"
+                  ? "text-[var(--color-error)]"
+                  : "text-[var(--color-text-muted)]"
+            }`}
+          >
+            {MCP_STATUS_LABELS[mcpStatus] ?? mcpStatus}
+          </span>
+        </Card>
+      </div>
+
+      <p className="text-[10.5px] text-[var(--color-text-muted)] mt-3.5 max-w-[520px]">
+        Setup help is in the docs under “AI Assistant (MCP)”.
+      </p>
+    </>
+  );
+}
+
 function AccountSection() {
   return (
     <>
@@ -983,6 +1099,7 @@ export default function PreferencesDialog({ onClose }: { onClose: () => void }) 
             {section === "units" && <UnitsSection />}
             {section === "inventory" && <InventorySection onClose={onClose} />}
             {section === "advanced" && <AdvancedSection />}
+            {section === "ai" && <AiSection />}
             {section === "account" && <AccountSection />}
           </div>
         </div>

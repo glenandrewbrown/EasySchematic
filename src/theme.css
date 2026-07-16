@@ -73,6 +73,7 @@
   --color-gpio: #78716c;
   --color-contact-closure: #57534e;
   --color-rs422: #6d28d9;
+  --color-rs485: #9333ea;
   --color-serial: #525252;
   --color-thunderbolt: #6b7689;
   --color-composite: #ca8a04;
@@ -113,6 +114,7 @@
   --color-pots: #3f3f46;
   --color-blu-link: #0284c7;
   --color-cresnet: #a21caf;
+  --color-nlight: #ca8a04;
   --color-sensor: #71717a;
   --color-custom: #9c8cc4;
 }

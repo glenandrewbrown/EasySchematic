@@ -919,6 +919,9 @@ interface InRackDrag {
   color: string;
   /** Face the item was on when the drag started — preserved unless flipped in side view. */
   face: "front" | "rear";
+  /** Half-rack side of the dragged placement, preserved across the move so validation
+   *  checks the correct half and cross-rack drops don't lose the left/right designation. */
+  halfRackSide?: "left" | "right";
   /** Canvas-space cursor position */
   cx: number;
   cy: number;
@@ -1083,10 +1086,12 @@ function EditRackInlineDialog({
   onSave: (patch: Partial<RackData>) => void;
   onClose: () => void;
 }) {
+  const currency = useSchematicStore((s) => s.currency);
   const [label, setLabel] = useState(rack.label);
   const [rackType, setRackType] = useState(rack.rackType);
   const [heightU, setHeightU] = useState(rack.heightU);
   const [depthMm, setDepthMm] = useState(rack.depthMm);
+  const [unitCost, setUnitCost] = useState<number | undefined>(rack.unitCost);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -1095,6 +1100,7 @@ function EditRackInlineDialog({
       rackType,
       heightU: Math.max(2, Math.min(60, Math.round(heightU))),
       depthMm: Math.max(100, Math.min(2000, Math.round(depthMm))),
+      unitCost,
     });
   };
 
@@ -1151,6 +1157,19 @@ function EditRackInlineDialog({
             />
           </label>
         </div>
+        <label className="block mb-3">
+          <span className="text-neutral-600">Rack cost ({currency})</span>
+          <input
+            type="number"
+            className="mt-0.5 w-full border border-neutral-300 rounded px-2 py-1 outline-none focus:border-blue-400"
+            value={unitCost ?? ""}
+            min={0}
+            step={0.01}
+            placeholder="—"
+            onChange={(e) => setUnitCost(e.target.value ? Number(e.target.value) : undefined)}
+            onKeyDown={(e) => e.stopPropagation()}
+          />
+        </label>
         <div className="flex justify-end gap-2">
           <button type="button" className="px-3 py-1 rounded border border-neutral-300 hover:bg-neutral-50" onClick={onClose}>Cancel</button>
           <button type="submit" className="px-3 py-1 rounded bg-[var(--color-accent)] text-[var(--color-on-accent)] hover:bg-[var(--color-accent-hover)]">Save</button>
@@ -1535,6 +1554,7 @@ export default function RackRenderer({ page }: { page: RackElevationPage }) {
                 label: dd.label,
                 color: dd.headerColor ?? dd.color ?? "#4a90d9",
                 face: pl.face,
+                halfRackSide: pl.halfRackSide,
                 cx: c.x,
                 cy: c.y,
               });
@@ -1586,15 +1606,15 @@ export default function RackRenderer({ page }: { page: RackElevationPage }) {
       if (hit) {
         if (dragFace === "rear" && hit.rack.rackType === "open-2post") {
           const clampedU = Math.max(1, Math.min(hit.uPosition, hit.rack.heightU - inRackDrag.heightU + 1));
-          setDropTarget({ rackId: hit.rack.id, uPosition: clampedU, heightU: inRackDrag.heightU, valid: false, face: dragFace });
+          setDropTarget({ rackId: hit.rack.id, uPosition: clampedU, heightU: inRackDrag.heightU, halfRackSide: inRackDrag.halfRackSide, valid: false, face: dragFace });
         } else {
           const clampedU = Math.max(1, Math.min(hit.uPosition, hit.rack.heightU - inRackDrag.heightU + 1));
           const valid = isRackSlotAvailable(
-            page.id, hit.rack.id, clampedU, inRackDrag.heightU, dragFace, undefined,
+            page.id, hit.rack.id, clampedU, inRackDrag.heightU, dragFace, inRackDrag.halfRackSide,
             inRackDrag.kind === "device" ? inRackDrag.id : undefined,
             inRackDrag.kind === "accessory" ? inRackDrag.id : undefined,
           );
-          setDropTarget({ rackId: hit.rack.id, uPosition: clampedU, heightU: inRackDrag.heightU, valid, face: dragFace });
+          setDropTarget({ rackId: hit.rack.id, uPosition: clampedU, heightU: inRackDrag.heightU, halfRackSide: inRackDrag.halfRackSide, valid, face: dragFace });
         }
       } else {
         setDropTarget(null);
@@ -1654,6 +1674,7 @@ export default function RackRenderer({ page }: { page: RackElevationPage }) {
               deviceNodeId: inRackDrag.deviceNodeId!,
               uPosition: clampedU,
               face: inRackDrag.face,
+              ...(inRackDrag.halfRackSide ? { halfRackSide: inRackDrag.halfRackSide } : {}),
             });
           }
         } else {

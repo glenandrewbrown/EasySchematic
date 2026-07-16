@@ -21,6 +21,7 @@ export const SIGNAL_TO_CABLE: Record<SignalType, string> = {
   digilink: "DigiLink",
   aes: "AES",
   rs422: "DB9",
+  rs485: "Phoenix",
   serial: "DB9",
   hdmi: "HDMI",
   displayport: "DisplayPort",
@@ -73,6 +74,7 @@ export const SIGNAL_TO_CABLE: Record<SignalType, string> = {
   pots: "Phone (RJ11)",
   "blu-link": "BLU link",
   cresnet: "Cresnet",
+  nlight: "Ethernet",
   sensor: "Sensor",
   custom: "Other",
 };

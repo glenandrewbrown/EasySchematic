@@ -5,12 +5,28 @@ import {
   familyFor,
   buildDefaultSignalColors,
 } from "../signalFamilies";
+import { SIGNAL_LABELS } from "../types";
 import type { SignalType } from "../types";
 
 describe("signal families", () => {
   it("assigns every signal type to a family", () => {
     const colors = buildDefaultSignalColors();
     for (const type of Object.keys(SIGNAL_FAMILY) as SignalType[]) {
+      expect(colors[type], `${type} should have a colour`).toMatch(/^#[0-9a-f]{6}$/i);
+    }
+  });
+
+  it("leaves no signal type out of the family map", () => {
+    // Iterate the full SignalType union (SIGNAL_LABELS is a total Record over it) rather
+    // than SIGNAL_FAMILY's own keys — walking the map cannot detect a type MISSING from it,
+    // which is how a newly added signal silently ends up with no interpolated colour.
+    const missing = (Object.keys(SIGNAL_LABELS) as SignalType[]).filter((t) => !SIGNAL_FAMILY[t]);
+    expect(missing, `signal types with no family: ${missing.join(", ")}`).toEqual([]);
+  });
+
+  it("gives every signal type in the union a real colour", () => {
+    const colors = buildDefaultSignalColors();
+    for (const type of Object.keys(SIGNAL_LABELS) as SignalType[]) {
       expect(colors[type], `${type} should have a colour`).toMatch(/^#[0-9a-f]{6}$/i);
     }
   });
