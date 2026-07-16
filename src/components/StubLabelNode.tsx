@@ -256,14 +256,15 @@ function StubLabelNodeComponent({ id, data, selected }: NodeProps<StubLabelNodeT
           alignItems: "center",
           fontSize: 9,
           lineHeight: 1,
-          fontFamily: "'Inter', system-ui, sans-serif",
+          fontFamily: "var(--font-mono)",
           fontWeight: 500,
           whiteSpace: "nowrap",
           padding: "0 4px",
           borderRadius: 2,
           border: `1px solid ${selected ? "var(--color-accent)" : color}`,
-          backgroundColor: "white",
-          color: "#374151",
+          // Theme tokens, not a hardcoded white plate — this pill sits on the canvas.
+          backgroundColor: "var(--color-surface)",
+          color: "var(--color-text-heading)",
         }}
       >
         {text}

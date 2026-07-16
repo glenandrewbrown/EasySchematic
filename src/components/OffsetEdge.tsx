@@ -436,14 +436,17 @@ function OffsetEdgeComponent({
     return { ...last, dx: 1, dy: 0 };
   };
 
+  // On-canvas label chrome follows the theme tokens — these sit on the canvas, so a hardcoded
+  // white plate reads as a bright patch on the dark ground. A cable ID is an identifier, so it
+  // takes the mono face; the custom label is prose and takes the UI face.
   const cableIdLabelStyle: React.CSSProperties = {
     position: "absolute",
     pointerEvents: "none",
     fontSize: 9,
-    fontFamily: "Inter, system-ui, sans-serif",
+    fontFamily: "var(--font-mono)",
     fontWeight: 600,
-    color: "#374151",
-    background: "rgba(255,255,255,0.92)",
+    color: "var(--color-text-heading)",
+    background: "var(--color-surface)",
     padding: "0 3px",
     borderRadius: 2,
     whiteSpace: "nowrap",
@@ -454,14 +457,14 @@ function OffsetEdgeComponent({
     position: "absolute",
     pointerEvents: "none",
     fontSize: 10,
-    fontFamily: "Inter, system-ui, sans-serif",
+    fontFamily: "var(--font-ui)",
     fontWeight: 500,
-    color: "#374151",
-    background: "rgba(255,255,255,0.92)",
+    color: "var(--color-text-heading)",
+    background: "var(--color-surface)",
     padding: "1px 4px",
     borderRadius: 3,
     whiteSpace: "nowrap",
-    border: "1px solid #e5e7eb",
+    border: "1px solid var(--ui-border)",
   };
 
   // Estimate badge width from text length (for offset positioning)
@@ -707,9 +710,11 @@ function OffsetEdgeComponent({
     )
   ) : null;
 
-  // Wireless broadcast: TX pulse rings radiate from the source (transmitter) when live.
-  const showWirelessPulse =
-    isWireless && liveSignal && !PREFERS_REDUCED_MOTION && !!routeStr;
+  // Wireless broadcast: TX pulse rings radiate from the source (transmitter). NOT gated on
+  // liveSignal — a wireless link is always broadcasting, so the rings are identity chrome that
+  // marks the connection as wireless, not a "signal is flowing" state like the cable band below.
+  // Reduced motion still stops them.
+  const showWirelessPulse = isWireless && !PREFERS_REDUCED_MOTION && !!routeStr;
   const wirelessPulseLayer = showWirelessPulse ? (
     <g style={{ pointerEvents: "none" }}>
       <circle
