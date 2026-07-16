@@ -17,7 +17,7 @@ import { getPortAbsolutePositions } from "./snapUtils";
 import { mostCommonRoomScale, DEFAULT_METRES_PER_PIXEL } from "./layoutScale";
 import { DEFAULT_GRID_SETTINGS, type SchematicNode } from "./types";
 
-export const CURRENT_SCHEMA_VERSION = 44;
+export const CURRENT_SCHEMA_VERSION = 45;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Migration = (data: any) => any;
@@ -524,6 +524,14 @@ const migrations: Record<number, Migration> = {
     // depthM / heightM) are preserved; off-scale rooms visibly resize once on open.
     migrateToDocumentScale(data);
     data.version = 44;
+    return data;
+  },
+  44: (data) => {
+    // v44 → v45: virtual ports, intra-device internal links, connection bundles, and
+    // cable part-number/asset-tag tracking. Every new field is optional and absent means
+    // "off" (no virtual port, no internal routing, unbundled, untracked), so a v44 file is
+    // already a valid v45 file — nothing to transform.
+    data.version = 45;
     return data;
   },
 

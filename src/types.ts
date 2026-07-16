@@ -181,6 +181,10 @@ export interface Port {
   /** When true, port renders on the opposite side of the device (input on right, output on left) */
   flipped?: boolean;
   notes?: string;
+  /** Logical (non-physical) port — an internal bus or loopback with no socket on the chassis,
+   *  e.g. an interface's "Aux 1" or "Loopback". Carries signal but is never field-terminated,
+   *  so it is excluded from anything that counts real connectors. */
+  virtual?: boolean;
   /** PoE power draw in watts for this port (consumed when powered by switch) */
   poeDrawW?: number;
   /** Link speed for network ports */
@@ -258,6 +262,10 @@ export interface DeviceData {
   category?: string;
   showAllPorts?: boolean;
   hiddenPorts?: string[];
+  /** Intra-device signal routing between this device's own ports, e.g. "Input 1" → "Aux 1".
+   *  Endpoints are port *labels*, not port ids — the routing is authored against the labels
+   *  printed on the chassis, so it survives a template sync that re-issues port ids. */
+  internalLinks?: { from: string; to: string }[];
   dhcpServer?: DhcpServerConfig;
   isCableAccessory?: boolean;
   integratedWithCable?: boolean;
@@ -516,6 +524,10 @@ export interface ConnectionData {
    *  More than one id means physically chained cables (joined via couplers). */
   assignedCableIds?: string[];
   multicableLabel?: string;
+  /** Groups connections that physically run together as one multicore/snake trunk. Purely a
+   *  physical-routing grouping: every member stays its own Connection with its own colour and
+   *  its own schedule row — the trunk is a drawing treatment, never a merge. */
+  bundleId?: string;
   /** User-defined label displayed on the connection line (#5) */
   label?: string;
   /** Per-end label at the source side. Overrides `label` at the source endpoint. (#114) */
@@ -646,6 +658,11 @@ export interface OwnedCableItem {
   /** Exact length in the schematic's distance unit (DistanceSettings.unit) */
   length: number;
   quantity: number;
+  /** Manufacturer part number for re-ordering identical stock, e.g. "CBL-BNC-12G-10M". */
+  partNumber?: string;
+  /** Owner's asset/barcode tag. Only meaningful when quantity is 1 — a tag identifies one
+   *  physical cable, whereas a row with quantity > 1 is interchangeable stock. */
+  assetTag?: string;
 }
 
 /** A general owned-inventory line item — cables, adapters, peripherals, spares and other

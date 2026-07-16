@@ -148,6 +148,7 @@ const LIVE_SIGNAL_KEY = "easyschematic-live-signal";
 const LAYER_COLOR_MODE_KEY = "easyschematic-layer-color-mode";
 const DETAIL_LEVEL_KEY = "easyschematic-detail-level";
 const LENGTH_UNIT_MODE_KEY = "easyschematic-length-unit-mode";
+const BUNDLE_VIEW_KEY = "easyschematic-bundle-view";
 const CABLE_ID_LABEL_SCOPE_KEY = "easyschematic-cable-id-label-scope";
 const REDUCE_MOTION_KEY = "easyschematic-reduce-motion";
 const UI_SCALE_KEY = "easyschematic-ui-scale";
@@ -488,6 +489,11 @@ interface SchematicState {
    *  file. Paired with a text layer chip on the node header so colour is never the only cue. */
   layerColorMode: LayerColorMode;
   setLayerColorMode: (mode: LayerColorMode) => void;
+  /** Draw bundled runs (connections sharing a ConnectionData.bundleId) as one trunk —
+   *  session/UI pref, not persisted to file. A drawing treatment only: each member keeps its
+   *  own colour and its own schedule row whether the trunk is shown or not. */
+  bundleView: boolean;
+  setBundleView: (on: boolean) => void;
   /** Wording level for signal names, port detail and status words — session/UI pref.
    *  Plain hides jargon; it never hides data (colours, counts, lengths, IDs are identical). */
   detailLevel: DetailLevel;
@@ -835,6 +841,14 @@ interface SchematicState {
     reason: "signal-mismatch" | "connector-mismatch";
   } | null;
   dismissIncompatibleDialog: () => void;
+  /** Set (or, with `null`, clear) the multicore/snake bundle on the listed connections.
+   *  Bundling is presentation + grouping only: every member stays its own Connection with its
+   *  own colour, cable ID and schedule row — a 6-run snake is still six cables to pull. */
+  bundleConnections: (edgeIds: readonly string[], bundleId: string | null) => void;
+  /** Bundle the currently-selected connections into one trunk. No-op below two connections. */
+  bundleSelectedConnections: () => void;
+  /** Remove the selected connections from their bundle. */
+  unbundleSelectedConnections: () => void;
   forceIncompatibleConnection: () => void;
   insertAdapterBetween: (template: DeviceTemplate) => void;
 
@@ -1814,6 +1828,38 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
       get().pushRecentTemplate(item.template.id ?? item.template.deviceType);
     }
     get().saveToLocalStorage();
+  },
+
+  bundleConnections: (edgeIds, bundleId) => {
+    if (edgeIds.length === 0) return;
+    const state = get();
+    pushUndo({ nodes: state.nodes, edges: state.edges });
+    const targets = new Set(edgeIds);
+    set({
+      edges: state.edges.map((e) =>
+        targets.has(e.id) ? { ...e, data: { ...e.data!, bundleId: bundleId ?? undefined } } : e,
+      ),
+    });
+    get().saveToLocalStorage();
+  },
+
+  bundleSelectedConnections: () => {
+    const state = get();
+    const selected = state.edges.filter((e) => e.selected);
+    // One connection is not a multicore. Bundling a single run would draw a trunk around it and
+    // claim a snake that does not exist, so the action is a no-op below two.
+    if (selected.length < 2) return;
+    // Reuse a bundle already present in the selection, so adding runs to an existing snake
+    // extends it instead of splitting it in two.
+    const existing = selected.find((e) => e.data?.bundleId)?.data?.bundleId;
+    const id = existing ?? `bundle-${crypto.randomUUID().slice(0, 8)}`;
+    get().bundleConnections(selected.map((e) => e.id), id);
+  },
+
+  unbundleSelectedConnections: () => {
+    const selected = get().edges.filter((e) => e.selected && e.data?.bundleId);
+    if (selected.length === 0) return;
+    get().bundleConnections(selected.map((e) => e.id), null);
   },
 
   removeSelected: () => {
@@ -3575,6 +3621,11 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
   setLayerColorMode: (mode) => {
     if (typeof localStorage !== "undefined") localStorage.setItem(LAYER_COLOR_MODE_KEY, mode);
     set({ layerColorMode: mode });
+  },
+  bundleView: readBoolPref(BUNDLE_VIEW_KEY, true),
+  setBundleView: (on) => {
+    writePref(BUNDLE_VIEW_KEY, String(on));
+    set({ bundleView: on });
   },
   detailLevel: readEnumPref(DETAIL_LEVEL_KEY, ["plain", "technical"] as const, DEFAULT_DETAIL_LEVEL),
   setDetailLevel: (level) => {

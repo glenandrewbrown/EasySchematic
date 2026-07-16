@@ -1,10 +1,15 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { migrateSchematic, CURRENT_SCHEMA_VERSION } from "../migrations";
 import { DEFAULT_GRID_SETTINGS, DEFAULT_METRES_PER_PIXEL } from "../types";
 
 /** Minimal v43 file with the given room/device nodes. */
 function v43File(nodes: unknown[]): Record<string, unknown> {
   return { version: 43, name: "t", nodes, edges: [] };
+}
+
+/** Minimal v44 file, overlaid with the given fields. */
+function v44File(extra: Record<string, unknown> = {}): Record<string, unknown> {
+  return { version: 44, name: "t", nodes: [], edges: [], ...extra };
 }
 
 describe("v43 → v44 document-scale migration", () => {
@@ -75,5 +80,98 @@ describe("v43 → v44 document-scale migration", () => {
     const d1 = out.nodes.find((n: { id: string }) => n.id === "d1");
     expect(d1.position.x).toBe(40);
     expect(d1.position.y).toBe(20);
+  });
+});
+
+describe("v44 → v45 additive-fields migration", () => {
+  it("bumps the version and changes nothing else", () => {
+    const file = v44File({
+      nodes: [
+        {
+          id: "d1",
+          type: "device",
+          position: { x: 0, y: 0 },
+          data: { label: "Apollo", ports: [{ id: "p1", label: "Input 1" }] },
+        },
+      ],
+      edges: [{ id: "e1", source: "d1", target: "d2", data: { signalType: "analog-audio" } }],
+      ownedCables: [{ id: "c1", label: "XLR 10 m", length: 10, quantity: 4 }],
+    });
+    const before = structuredClone(file);
+
+    const out = migrateSchematic(file);
+
+    expect(out.version).toBe(CURRENT_SCHEMA_VERSION);
+    // Every v45 field is optional, so a v44 file is already valid — the version is the only edit.
+    expect(out).toEqual({ ...before, version: CURRENT_SCHEMA_VERSION });
+  });
+
+  it("round-trips a file already carrying the v45 fields", () => {
+    const file = v44File({
+      nodes: [
+        {
+          id: "d1",
+          type: "device",
+          position: { x: 0, y: 0 },
+          data: {
+            label: "Apollo",
+            ports: [
+              { id: "p1", label: "Input 1" },
+              { id: "p2", label: "Aux 1", virtual: true },
+            ],
+            internalLinks: [{ from: "Input 1", to: "Aux 1" }],
+          },
+        },
+      ],
+      edges: [
+        { id: "e1", source: "d1", target: "d2", data: { signalType: "analog-audio", bundleId: "snake1" } },
+      ],
+      ownedCables: [
+        { id: "c1", label: "XLR 10 m", length: 10, quantity: 1, partNumber: "CBL-XLR-10M", assetTag: "AV-0042" },
+      ],
+    });
+
+    const out = migrateSchematic(file);
+
+    expect(out.version).toBe(CURRENT_SCHEMA_VERSION);
+    const d1 = out.nodes.find((n: { id: string }) => n.id === "d1");
+    expect(d1.data.ports[1].virtual).toBe(true);
+    expect(d1.data.internalLinks).toEqual([{ from: "Input 1", to: "Aux 1" }]);
+    expect(out.edges[0].data.bundleId).toBe("snake1");
+    expect(out.ownedCables[0].partNumber).toBe("CBL-XLR-10M");
+    expect(out.ownedCables[0].assetTag).toBe("AV-0042");
+  });
+
+  it("leaves the new fields absent on a file that predates them", () => {
+    const out = migrateSchematic(
+      v44File({
+        nodes: [
+          {
+            id: "d1",
+            type: "device",
+            position: { x: 0, y: 0 },
+            data: { label: "Apollo", ports: [{ id: "p1", label: "Input 1" }] },
+          },
+        ],
+      }),
+    );
+
+    const d1 = out.nodes.find((n: { id: string }) => n.id === "d1");
+    expect(d1.data.ports[0].virtual).toBeUndefined();
+    expect(d1.data.internalLinks).toBeUndefined();
+  });
+});
+
+describe("migration registry", () => {
+  it("covers every version up to CURRENT_SCHEMA_VERSION", () => {
+    // migrateSchematic warns and skips when a step is missing, so a silent run from the
+    // oldest schema proves the registry has no holes below the constant.
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const out = migrateSchematic({ version: 1, name: "t", nodes: [], edges: [] });
+
+    expect(out.version).toBe(CURRENT_SCHEMA_VERSION);
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
   });
 });
