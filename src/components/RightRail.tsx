@@ -108,6 +108,8 @@ function TabButton({
 export default function RightRail() {
   const nodes = useSchematicStore((s) => s.nodes);
   const edges = useSchematicStore((s) => s.edges);
+  const layerColorMode = useSchematicStore((s) => s.layerColorMode);
+  const setLayerColorMode = useSchematicStore((s) => s.setLayerColorMode);
   const dismissedIssueIds = useSchematicStore((s) => s.dismissedIssueIds);
   const dismissIssue = useSchematicStore((s) => s.dismissIssue);
   const undismissIssue = useSchematicStore((s) => s.undismissIssue);
@@ -310,11 +312,12 @@ export default function RightRail() {
 
       {/* Docked Layers (bottom, collapsible) */}
       <div className="shrink-0 border-t border-[var(--color-border)] flex flex-col">
+        <div className="flex items-center">
         <button
           type="button"
           onClick={toggleLayers}
           aria-expanded={layersOpen}
-          className="flex items-center gap-2 px-3 py-2 cursor-pointer text-left hover:bg-[var(--color-surface-2,transparent)] transition-colors"
+          className="flex-1 min-w-0 flex items-center gap-2 pl-3 pr-2 py-2 cursor-pointer text-left hover:bg-[var(--color-surface-2,transparent)] transition-colors"
         >
           <span className="text-[var(--color-text-muted)]">
             <LayersStackIcon />
@@ -327,6 +330,21 @@ export default function RightRail() {
             <ChevronRight className={`transition-transform ${layersOpen ? "rotate-90" : ""}`} />
           </span>
         </button>
+        {/* How a layer's colour paints its devices on the canvas. Sibling of the section
+             button, not nested — a button inside a button is invalid. */}
+        <button
+          onClick={() => setLayerColorMode(layerColorMode === "band" ? "tint" : "band")}
+          title={
+            layerColorMode === "band"
+              ? "Layer colour shows as a band on each device's top edge — click for header tint"
+              : "Layer colour tints each device's header — click for a top-edge band"
+          }
+          className="mr-2 shrink-0 px-1.5 py-0.5 rounded-[4px] border border-[var(--ui-border)] text-[8px] uppercase text-[var(--color-text-muted)] hover:text-[var(--color-text-heading)] hover:border-[var(--ui-border-strong)] cursor-pointer transition-colors"
+          style={{ ...MONO_STYLE, letterSpacing: "0.1em" }}
+        >
+          {layerColorMode}
+        </button>
+        </div>
         {layersOpen && (
           <>
             <div

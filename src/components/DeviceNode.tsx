@@ -1,7 +1,7 @@
 import { memo, useMemo, useCallback } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import type { DeviceNode as DeviceNodeType, Port, SchematicNode, ConnectionEdge } from "../types";
-import { SIGNAL_COLORS, SIGNAL_LABELS, portSide } from "../types";
+import { SIGNAL_COLORS, SIGNAL_LABELS, portSide, DEFAULT_LAYER_ID } from "../types";
 import { deviceClassColor } from "../deviceClassColor";
 import { useSchematicStore } from "../store";
 import { validateSchematic, type IssueSeverity } from "../validation";
@@ -111,6 +111,15 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
     [hiddenPinSignalTypesStr],
   );
 
+  // Layer colour on the node. Selectors return primitives (never a fresh object) so the node
+  // doesn't re-render on every store tick.
+  const layerColorMode = useSchematicStore((s) => s.layerColorMode);
+  const layerColor = useSchematicStore(
+    (s) => s.layers.find((l) => l.id === (data.layerId ?? DEFAULT_LAYER_ID))?.color,
+  );
+  const layerName = useSchematicStore(
+    (s) => s.layers.find((l) => l.id === (data.layerId ?? DEFAULT_LAYER_ID))?.name,
+  );
   const hideUnconnectedPorts = useSchematicStore((s) => s.hideUnconnectedPorts);
   const showPortCounts = useSchematicStore((s) => s.showPortCounts);
   const currency = useSchematicStore((s) => s.currency);
@@ -544,6 +553,14 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
           // the perimeter border + class icon — using data.headerColor here was what made
           // the card read as a washed-out grey/pale box.
           backgroundColor: "var(--color-surface-raised)",
+          // Layer "tint" mode washes the header in the layer colour, left-to-right. Kept at 20%
+          // and fading to transparent so the name stays legible; the layer chip below carries
+          // the text pairing. "band" mode instead draws the top bar on the node root.
+          ...(layerColor && layerColorMode === "tint"
+            ? {
+                backgroundImage: `linear-gradient(90deg, color-mix(in srgb, ${layerColor} 20%, transparent), transparent)`,
+              }
+            : null),
           paddingTop: pt,
           paddingBottom: pb,
         }}
@@ -566,15 +583,41 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
             )}
             {displayLabel(resolvedLabel.text)}
           </span>
-          {/* CATEGORY mono-caps sub-label — sits within the fixed labelZone height (no new row,
-               so the 20px header-band invariant holds). Hidden when the name wraps to 2 lines. */}
-          {categoryText && !resolvedLabel.wrap && (
-            <span
-              className="text-[8px] uppercase truncate max-w-full leading-none text-[var(--color-text-muted)]"
-              style={{ fontFamily: "var(--font-mono)", letterSpacing: "0.08em" }}
-              title={categoryText}
-            >
-              {displayLabel(categoryText)}
+          {/* CATEGORY mono-caps sub-label + layer chip — both sit within the fixed labelZone
+               height (no new row, so the 20px header-band invariant holds). Hidden when the
+               name wraps to 2 lines and reclaims the zone. The layer chip pairs the swatch with
+               the layer's NAME, so layer colour is never the only cue (a11y). */}
+          {(categoryText || layerChipName) && !resolvedLabel.wrap && (
+            <span className="flex items-center gap-1 max-w-full leading-none">
+              {categoryText && (
+                <span
+                  className="text-[8px] uppercase truncate text-[var(--color-text-muted)]"
+                  style={{ fontFamily: "var(--font-mono)", letterSpacing: "0.08em" }}
+                  title={categoryText}
+                >
+                  {displayLabel(categoryText)}
+                </span>
+              )}
+              {categoryText && layerChipName && (
+                <span className="text-[8px] text-[var(--color-text-muted)] opacity-50">·</span>
+              )}
+              {layerChipName && (
+                <span
+                  className="flex items-center gap-0.5 shrink-0 max-w-[64px]"
+                  title={`Layer: ${layerChipName}`}
+                >
+                  <span
+                    className="w-1.5 h-1.5 rounded-[2px] shrink-0"
+                    style={{ background: layerColor }}
+                  />
+                  <span
+                    className="text-[8px] uppercase truncate text-[var(--color-text-muted)]"
+                    style={{ fontFamily: "var(--font-mono)", letterSpacing: "0.08em" }}
+                  >
+                    {layerChipName}
+                  </span>
+                </span>
+              )}
             </span>
           )}
           {/* Status dot — absolutely positioned right so it never shifts the name or node width. */}
@@ -601,6 +644,9 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
 
   // CATEGORY mono-caps label — the device's class/type, shown under the name. Omitted when empty.
   const categoryText = (data.category || data.deviceType || "").trim();
+  // A layer only marks its devices once it has been given a colour — an uncoloured layer
+  // (including the default "Base") stays neutral: no band, no tint, no chip.
+  const layerChipName = layerColor ? (layerName?.trim() || null) : null;
 
   // Status-dot colour mirrors the validation engine: error wins, then warning, else clean.
   const statusColor =
@@ -635,6 +681,17 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
             : undefined,
       }}
     >
+      {/* Layer colour, "band" mode — a 3px bar across the node's top edge. Absolutely
+           positioned (like the status dot) so it overlays the header rather than adding a row:
+           the 20px header-band invariant is untouched. The header's layer chip carries the
+           text pairing. */}
+      {layerColor && layerColorMode === "band" && (
+        <div
+          className="absolute left-0 right-0 top-0 h-[3px] rounded-t-[6px] pointer-events-none z-10"
+          style={{ background: layerColor }}
+          title={`Layer: ${layerChipName}`}
+        />
+      )}
       {/* Header band — merged name strip + header aux rows. Height is always a 20-multiple
            (min 40) so the first port below stays on the pathfinding grid. */}
       {renderHeaderBand(headerAuxRows)}

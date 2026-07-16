@@ -91,6 +91,11 @@ function repairMojibake(obj: unknown): unknown {
 /** Dominant colour axis for connections (the "Colour by" switch). */
 export type ColorBy = "signal" | "layer" | "none";
 
+/** How a layer's colour paints its member devices on the canvas.
+ *  "band" = a 3px bar across the node's top edge; "tint" = a wash across the node header.
+ *  Either way the header also carries a text layer chip, so colour is never the only cue. */
+export type LayerColorMode = "band" | "tint";
+
 /** Row density for the left library drawer. */
 export type LibraryDensity = "comfortable" | "compact";
 
@@ -122,6 +127,7 @@ const CATEGORY_ORDER_KEY = "easyschematic-category-order";
 const CANVAS_VIEW_MODE_KEY = "easyschematic-canvas-view-mode";
 const NODE_COMPACT_KEY = "easyschematic-node-compact";
 const LIVE_SIGNAL_KEY = "easyschematic-live-signal";
+const LAYER_COLOR_MODE_KEY = "easyschematic-layer-color-mode";
 
 /** Read a persisted boolean UI pref. Guards SSR/test envs with no localStorage. */
 function readBoolPref(key: string, fallback: boolean): boolean {
@@ -442,6 +448,10 @@ interface SchematicState {
    *  "none" = neutral grey (signal recedes for a clean structural read). */
   colorBy: ColorBy;
   setColorBy: (axis: ColorBy) => void;
+  /** How a layer's colour renders on its member devices — session/UI pref, not persisted to
+   *  file. Paired with a text layer chip on the node header so colour is never the only cue. */
+  layerColorMode: LayerColorMode;
+  setLayerColorMode: (mode: LayerColorMode) => void;
   /** Show loudspeaker coverage wedges in plan view — session/UI pref, not persisted to file. */
   coverageVisible: boolean;
   setCoverageVisible: (visible: boolean) => void;
@@ -3490,6 +3500,14 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
 
   colorBy: "signal",
   setColorBy: (axis) => set({ colorBy: axis }),
+  layerColorMode:
+    typeof localStorage !== "undefined" && localStorage.getItem(LAYER_COLOR_MODE_KEY) === "tint"
+      ? "tint"
+      : "band",
+  setLayerColorMode: (mode) => {
+    if (typeof localStorage !== "undefined") localStorage.setItem(LAYER_COLOR_MODE_KEY, mode);
+    set({ layerColorMode: mode });
+  },
 
   coverageVisible: readInitialCoverageVisible(),
   setCoverageVisible: (visible) => {
