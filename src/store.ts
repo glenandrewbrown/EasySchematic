@@ -1,4 +1,6 @@
 import { create } from "zustand";
+import { DEFAULT_DETAIL_LEVEL, type DetailLevel } from "./plainLanguage";
+import type { LengthUnitMode } from "./lengthFormat";
 import {
   applyNodeChanges,
   applyEdgeChanges,
@@ -96,6 +98,22 @@ export type ColorBy = "signal" | "layer" | "none";
  *  Either way the header also carries a text layer chip, so colour is never the only cue. */
 export type LayerColorMode = "band" | "tint";
 
+/** Which connections show their on-canvas cable-ID label. */
+export type CableIdLabelScope = "selected" | "all";
+
+/** How much of a device is drawn. Ordered least → most detail; `nodeCompact` sets the
+ *  baseline and a per-device entry in `nodeView` overrides it. */
+export type NodeViewTier = "tile" | "compact" | "default" | "detailed";
+
+/** Interface scale steps offered in the top bar (fractions of the base UI size). */
+export const UI_SCALE_STEPS = [0.5, 0.75, 1, 1.25, 1.5] as const;
+
+/** Clamp an arbitrary number into the supported interface-scale range. */
+export function clampUiScale(scale: number): number {
+  if (!Number.isFinite(scale)) return 1;
+  return Math.min(1.5, Math.max(0.5, scale));
+}
+
 /** Row density for the left library drawer. */
 export type LibraryDensity = "comfortable" | "compact";
 
@@ -128,6 +146,24 @@ const CANVAS_VIEW_MODE_KEY = "easyschematic-canvas-view-mode";
 const NODE_COMPACT_KEY = "easyschematic-node-compact";
 const LIVE_SIGNAL_KEY = "easyschematic-live-signal";
 const LAYER_COLOR_MODE_KEY = "easyschematic-layer-color-mode";
+const DETAIL_LEVEL_KEY = "easyschematic-detail-level";
+const LENGTH_UNIT_MODE_KEY = "easyschematic-length-unit-mode";
+const CABLE_ID_LABEL_SCOPE_KEY = "easyschematic-cable-id-label-scope";
+const REDUCE_MOTION_KEY = "easyschematic-reduce-motion";
+const UI_SCALE_KEY = "easyschematic-ui-scale";
+const SHOW_ARTWORK_KEY = "easyschematic-show-artwork";
+
+/** Read a persisted string UI pref, falling back unless the stored value is a known option. */
+function readEnumPref<T extends string>(key: string, allowed: readonly T[], fallback: T): T {
+  if (typeof localStorage === "undefined") return fallback;
+  const stored = localStorage.getItem(key);
+  return allowed.includes(stored as T) ? (stored as T) : fallback;
+}
+
+/** Write a string UI pref. Guards SSR/test envs with no localStorage. */
+function writePref(key: string, value: string): void {
+  if (typeof localStorage !== "undefined") localStorage.setItem(key, value);
+}
 
 /** Read a persisted boolean UI pref. Guards SSR/test envs with no localStorage. */
 function readBoolPref(key: string, fallback: boolean): boolean {
@@ -452,6 +488,38 @@ interface SchematicState {
    *  file. Paired with a text layer chip on the node header so colour is never the only cue. */
   layerColorMode: LayerColorMode;
   setLayerColorMode: (mode: LayerColorMode) => void;
+  /** Wording level for signal names, port detail and status words — session/UI pref.
+   *  Plain hides jargon; it never hides data (colours, counts, lengths, IDs are identical). */
+  detailLevel: DetailLevel;
+  setDetailLevel: (level: DetailLevel) => void;
+  /** How lengths render everywhere (inspector, inventory, run labels, schedule, BOM).
+   *  A view pref, not document data — the same file reads metric to one designer and
+   *  imperial to the next. `DistanceSettings.unit` still owns the document's own maths. */
+  lengthUnitMode: LengthUnitMode;
+  setLengthUnitMode: (mode: LengthUnitMode) => void;
+  /** Which connections show their cable-ID label: only the selected one, or all of them. */
+  cableIdLabelScope: CableIdLabelScope;
+  setCableIdLabelScope: (scope: CableIdLabelScope) => void;
+  /** Pause all canvas motion from inside the app, on top of the OS `prefers-reduced-motion`.
+   *  Either source pausing is enough — the app setting can only ADD calm, never remove it. */
+  reduceMotion: boolean;
+  setReduceMotion: (on: boolean) => void;
+  /** Whole-interface scale (0.5–1.5). An accessibility/density control, independent of canvas
+   *  zoom: canvas zoom scales the drawing, this scales the chrome around it. */
+  uiScale: number;
+  setUiScale: (scale: number) => void;
+  /** Show each device's artwork/symbol glyph on the canvas — session/UI pref. */
+  showArtwork: boolean;
+  setShowArtwork: (on: boolean) => void;
+  /** Per-device colour override, keyed by node id. Falls back to the signal-derived class
+   *  colour when a device has no entry. Session/UI pref, not persisted to file. */
+  nodeColors: Record<string, string>;
+  /** Set (or, with `null`, clear) the colour override on every listed device at once. */
+  setNodeColor: (ids: readonly string[], color: string | null) => void;
+  /** Per-device detail tier, keyed by node id. Overrides the global `nodeCompact` baseline. */
+  nodeView: Record<string, NodeViewTier>;
+  /** Set (or, with `null`, reset to the baseline) the tier on every listed device at once. */
+  setNodeView: (ids: readonly string[], tier: NodeViewTier | null) => void;
   /** Show loudspeaker coverage wedges in plan view — session/UI pref, not persisted to file. */
   coverageVisible: boolean;
   setCoverageVisible: (visible: boolean) => void;
@@ -3507,6 +3575,59 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
   setLayerColorMode: (mode) => {
     if (typeof localStorage !== "undefined") localStorage.setItem(LAYER_COLOR_MODE_KEY, mode);
     set({ layerColorMode: mode });
+  },
+  detailLevel: readEnumPref(DETAIL_LEVEL_KEY, ["plain", "technical"] as const, DEFAULT_DETAIL_LEVEL),
+  setDetailLevel: (level) => {
+    writePref(DETAIL_LEVEL_KEY, level);
+    set({ detailLevel: level });
+  },
+  lengthUnitMode: readEnumPref(LENGTH_UNIT_MODE_KEY, ["m", "ft", "both"] as const, "m"),
+  setLengthUnitMode: (mode) => {
+    writePref(LENGTH_UNIT_MODE_KEY, mode);
+    set({ lengthUnitMode: mode });
+  },
+  cableIdLabelScope: readEnumPref(CABLE_ID_LABEL_SCOPE_KEY, ["selected", "all"] as const, "all"),
+  setCableIdLabelScope: (scope) => {
+    writePref(CABLE_ID_LABEL_SCOPE_KEY, scope);
+    set({ cableIdLabelScope: scope });
+  },
+  reduceMotion: readBoolPref(REDUCE_MOTION_KEY, false),
+  setReduceMotion: (on) => {
+    writePref(REDUCE_MOTION_KEY, String(on));
+    set({ reduceMotion: on });
+  },
+  uiScale: clampUiScale(
+    typeof localStorage !== "undefined" ? Number(localStorage.getItem(UI_SCALE_KEY) ?? 1) : 1,
+  ),
+  setUiScale: (scale) => {
+    const next = clampUiScale(scale);
+    writePref(UI_SCALE_KEY, String(next));
+    set({ uiScale: next });
+  },
+  showArtwork: readBoolPref(SHOW_ARTWORK_KEY, true),
+  setShowArtwork: (on) => {
+    writePref(SHOW_ARTWORK_KEY, String(on));
+    set({ showArtwork: on });
+  },
+  nodeColors: {},
+  setNodeColor: (ids, color) => {
+    if (ids.length === 0) return;
+    const next = { ...get().nodeColors };
+    for (const id of ids) {
+      if (color === null) delete next[id];
+      else next[id] = color;
+    }
+    set({ nodeColors: next });
+  },
+  nodeView: {},
+  setNodeView: (ids, tier) => {
+    if (ids.length === 0) return;
+    const next = { ...get().nodeView };
+    for (const id of ids) {
+      if (tier === null) delete next[id];
+      else next[id] = tier;
+    }
+    set({ nodeView: next });
   },
 
   coverageVisible: readInitialCoverageVisible(),
