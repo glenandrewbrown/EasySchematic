@@ -1,6 +1,10 @@
 import { useMemo, useState } from "react";
 import { useSchematicStore } from "../store";
 import { useTheme } from "../hooks/useTheme";
+import { detailLevelHint, detailLevelLabel } from "../plainLanguage";
+import type { DetailLevel } from "../plainLanguage";
+import { formatLengthMode } from "../lengthFormat";
+import type { LengthUnitMode } from "../lengthFormat";
 import { DEFAULT_SCROLL_CONFIG, DEFAULT_METRES_PER_PIXEL } from "../types";
 import type {
   DeviceTemplate,
@@ -17,21 +21,27 @@ const AUTOROUTE_PREF_KEY = "easyschematic-autoroute-pref";
  *  toggle can call removeOwnedGear with the exact key the store uses. */
 const ownedKey = (t: DeviceTemplate): string => t.id ?? t.deviceType;
 
-/** Whether the OS currently requests reduced motion. The app has no overridable
- *  reduced-motion store flag — animation guards read this media query directly — so the
- *  toggle reflects (read-only) the real system setting rather than inventing a pref. */
+/** Whether the OS requests reduced motion. The store's `reduceMotion` flag ADDS to this —
+ *  either source pausing is enough — so the OS asking wins over the app pref and the row
+ *  below renders forced-on rather than letting the switch contradict what the app is doing.
+ *  Read once, like the identical guard in OffsetEdge: the CSS media queries stay live either way. */
 const PREFERS_REDUCED_MOTION =
   typeof window !== "undefined" &&
   typeof window.matchMedia === "function" &&
   window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-/** Workspace accent swatches. The hex values ARE data (the real per-view accents),
- *  so they are rendered literally rather than via a token. */
-const WORKSPACE_ACCENTS: { label: string; hex: string }[] = [
-  { label: "Schematic", hex: "#3D8BFD" },
-  { label: "Plan", hex: "#1FB6A6" },
-  { label: "Schedule", hex: "#E0A345" },
-  { label: "Rack", hex: "#8B7CF0" },
+/** Sample length behind the unit-mode preview — a plausible room-to-room run. */
+const LENGTH_SAMPLE_M = 18;
+
+/** Workspace accent swatches. Each row scopes itself with `data-workspace` and paints from
+ *  `var(--color-accent)`, so the swatch IS the accent theme.css defines for that persona and
+ *  follows the light/dark theme. The previous hand-copied hexes had drifted an entire design
+ *  system out of date while claiming to be "the real per-view accents". */
+const WORKSPACE_ACCENTS: { label: string; workspace: string }[] = [
+  { label: "Schematic", workspace: "schematic" },
+  { label: "Plan", workspace: "plan" },
+  { label: "Schedule", workspace: "schedule" },
+  { label: "Rack", workspace: "rack" },
 ];
 
 /** Default drawing-scale presets, expressed as the document px↔metre ratio
@@ -42,6 +52,42 @@ const SCALE_PRESETS: { label: string; metresPerPixel: number }[] = [
   { label: "1 m = 100 px (default)", metresPerPixel: DEFAULT_METRES_PER_PIXEL },
   { label: "1 m = 50 px", metresPerPixel: 0.02 },
   { label: "1 m = 20 px (coarse)", metresPerPixel: 0.05 },
+];
+
+/** Icons for the detail-level choices. Paired with the text label, never standing in for it. */
+const PlainIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="shrink-0">
+    <path d="M4 7h16M4 12h11M4 17h7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+  </svg>
+);
+
+const TechnicalIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="shrink-0">
+    <path
+      d="M8 6l-5 6 5 6M16 6l5 6-5 6"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
+const DETAIL_OPTIONS: { v: DetailLevel; label: string; icon: React.ReactNode }[] = [
+  { v: "plain", label: detailLevelLabel("plain"), icon: <PlainIcon /> },
+  { v: "technical", label: detailLevelLabel("technical"), icon: <TechnicalIcon /> },
+];
+
+const LENGTH_UNIT_OPTIONS: { v: LengthUnitMode; label: string }[] = [
+  { v: "m", label: "Metric (m)" },
+  { v: "ft", label: "Imperial (ft)" },
+  { v: "both", label: "Both" },
+];
+
+/** The document's own unit (DistanceSettings.unit) — no "both": it is a value, not a rendering. */
+const DISTANCE_UNIT_OPTIONS: { v: "m" | "ft"; label: string }[] = [
+  { v: "m", label: "Metric (m)" },
+  { v: "ft", label: "Imperial (ft)" },
 ];
 
 const ACTION_LABELS: Record<ScrollAction, string> = {
@@ -119,6 +165,46 @@ function ToggleSwitch({
         style={{ left: checked ? "19px" : "2.5px" }}
       />
     </button>
+  );
+}
+
+/** Segmented picker for a small closed set of choices, shown under a FieldLabel. */
+function Segmented<T extends string>({
+  options,
+  value,
+  onChange,
+  width,
+}: {
+  options: { v: T; label: string; icon?: React.ReactNode }[];
+  value: T;
+  onChange: (v: T) => void;
+  width: number;
+}) {
+  return (
+    <div
+      className="flex gap-0.5 p-[3px] bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg"
+      style={{ width }}
+    >
+      {options.map((o) => {
+        const active = value === o.v;
+        return (
+          <button
+            key={o.v}
+            type="button"
+            aria-pressed={active}
+            onClick={() => onChange(o.v)}
+            className={`flex-1 flex items-center justify-center gap-1.5 h-[30px] rounded-md text-xs font-medium cursor-pointer transition-colors ${
+              active
+                ? "bg-[var(--color-surface-hover)] text-[var(--color-text-heading)]"
+                : "bg-transparent text-[var(--color-text-muted)]"
+            }`}
+          >
+            {o.icon}
+            {o.label}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -239,6 +325,10 @@ const CheckIcon = () => (
 function AppearanceSection() {
   const { isDark, toggle } = useTheme();
 
+  const detailLevel = useSchematicStore((s) => s.detailLevel);
+  const setDetailLevel = useSchematicStore((s) => s.setDetailLevel);
+  const reduceMotion = useSchematicStore((s) => s.reduceMotion);
+  const setReduceMotion = useSchematicStore((s) => s.setReduceMotion);
   const labelCase = useSchematicStore((s) => s.labelCase);
   const setLabelCase = useSchematicStore((s) => s.setLabelCase);
   const useShortNames = useSchematicStore((s) => s.useShortNames);
@@ -258,7 +348,21 @@ function AppearanceSection() {
 
   return (
     <>
-      <SectionHeading title="Appearance" subtitle="Theme, per-workspace accent colors, and label display." />
+      <SectionHeading
+        title="Appearance"
+        subtitle="How much detail the app spells out, plus theme, per-workspace accent colors, and label display."
+      />
+
+      {/* Detail level — first because it re-words the whole app, not just this section. */}
+      <FieldLabel>Detail level</FieldLabel>
+      <Segmented options={DETAIL_OPTIONS} value={detailLevel} onChange={setDetailLevel} width={340} />
+      <p className="text-[11.5px] text-[var(--color-text)] mt-2.5 w-[400px]">
+        {detailLevelHint(detailLevel)}.
+      </p>
+      <p className="text-[10.5px] text-[var(--color-text-muted)] mt-1 mb-6 w-[400px]">
+        Applies everywhere — device and port labels, signal names, and validation messages. Wording
+        only: lengths, counts, IDs, colours, and results are the same either way.
+      </p>
 
       {/* Theme */}
       <FieldLabel>Theme</FieldLabel>
@@ -313,27 +417,42 @@ function AppearanceSection() {
         {WORKSPACE_ACCENTS.map((a) => (
           <div
             key={a.label}
+            data-workspace={a.workspace}
             className="flex items-center gap-3 px-3.5 py-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md"
           >
-            <span className="w-[18px] h-[18px] rounded-[5px] shrink-0" style={{ background: a.hex }} />
+            <span
+              className="w-[18px] h-[18px] rounded-[5px] shrink-0"
+              style={{ background: "var(--color-accent)" }}
+            />
             <span className="text-[12.5px] font-medium text-[var(--color-text-heading)]">{a.label}</span>
-            <span className="ml-auto text-[10px] text-[var(--color-text-muted)] font-[var(--font-mono)]">{a.hex}</span>
           </div>
         ))}
       </div>
 
-      {/* Reduced motion — reflects OS setting (read-only; no overridable app flag). */}
+      {/* Reduced motion — the app flag ADDS to the OS setting, so the system asking wins and
+          the switch is pinned on (and locked) rather than offering an override it can't honour. */}
       <Card>
         <div className="flex flex-col gap-0.5">
-          <span className="text-xs font-medium text-[var(--color-text-heading)]">Reduced motion</span>
+          <span className="text-xs font-medium text-[var(--color-text-heading)]">
+            Reduced motion
+            {PREFERS_REDUCED_MOTION && (
+              <span className="ml-2 text-[9px] font-[var(--font-mono)] uppercase tracking-[0.13em] text-[var(--color-text-muted)]">
+                Set by your system
+              </span>
+            )}
+          </span>
           <span className="text-[10.5px] text-[var(--color-text-muted)]">
             {PREFERS_REDUCED_MOTION
-              ? "Following your system setting — signal-flow animation and transitions are paused."
-              : "Follows your system setting. Enable “Reduce motion” in your OS to pause signal-flow animation and transitions."}
+              ? "Your system asks for reduced motion, so signal-flow animation and transitions stay paused. Turn “Reduce motion” off in your OS to control this here."
+              : "Pause signal-flow animation and transitions. Adds to your system setting — it can only add calm, never remove it."}
           </span>
         </div>
         <div className="ml-auto pl-3">
-          <ToggleSwitch checked={PREFERS_REDUCED_MOTION} disabled />
+          <ToggleSwitch
+            checked={PREFERS_REDUCED_MOTION || reduceMotion}
+            onChange={() => setReduceMotion(!reduceMotion)}
+            disabled={PREFERS_REDUCED_MOTION}
+          />
         </div>
       </Card>
 
@@ -400,6 +519,8 @@ function AppearanceSection() {
 }
 
 function UnitsSection() {
+  const lengthUnitMode = useSchematicStore((s) => s.lengthUnitMode);
+  const setLengthUnitMode = useSchematicStore((s) => s.setLengthUnitMode);
   const distanceSettings = useSchematicStore((s) => s.distanceSettings);
   const setDistanceSettings = useSchematicStore((s) => s.setDistanceSettings);
   const gridSettings = useSchematicStore((s) => s.gridSettings);
@@ -413,30 +534,36 @@ function UnitsSection() {
     <>
       <SectionHeading title="Units & defaults" subtitle="Measurement system and new-project defaults." />
 
-      {/* Length units → distanceSettings.unit */}
+      {/* Length units → lengthUnitMode (how lengths READ; no maths involved) */}
       <FieldLabel>Length units</FieldLabel>
-      <div className="flex gap-0.5 p-[3px] bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg w-[260px] mb-[18px]">
-        {([
-          { v: "m", label: "Metric (m)" },
-          { v: "ft", label: "Imperial (ft)" },
-        ] as const).map((o) => {
-          const active = unit === o.v;
-          return (
-            <button
-              key={o.v}
-              type="button"
-              onClick={() => setDistanceSettings({ unit: o.v })}
-              className={`flex-1 h-[30px] rounded-md text-xs font-medium cursor-pointer transition-colors ${
-                active
-                  ? "bg-[var(--color-surface-hover)] text-[var(--color-text-heading)]"
-                  : "bg-transparent text-[var(--color-text-muted)]"
-              }`}
-            >
-              {o.label}
-            </button>
-          );
-        })}
-      </div>
+      <Segmented
+        options={LENGTH_UNIT_OPTIONS}
+        value={lengthUnitMode}
+        onChange={setLengthUnitMode}
+        width={300}
+      />
+      <p className="text-[10.5px] text-[var(--color-text-muted)] mt-2 w-[300px]">
+        How lengths read in the Inspector, cable schedule, BOM, and on-canvas labels. Display only —
+        it converts nothing and changes no saved value.
+      </p>
+      <p className="text-[10.5px] text-[var(--color-text-muted)] mt-1.5 mb-[18px]">
+        <span className="font-[var(--font-mono)] text-[var(--color-text)]">
+          {formatLengthMode(LENGTH_SAMPLE_M, lengthUnitMode)}
+        </span>
+      </p>
+
+      {/* Project distance unit → distanceSettings.unit (document data: saved with the file) */}
+      <FieldLabel>Project distance unit</FieldLabel>
+      <Segmented
+        options={DISTANCE_UNIT_OPTIONS}
+        value={unit}
+        onChange={(v) => setDistanceSettings({ unit: v })}
+        width={260}
+      />
+      <p className="text-[10.5px] text-[var(--color-text-muted)] mt-2 mb-[18px] w-[300px]">
+        The unit room-to-room distances and cable slack are entered in. Saved with the project, and
+        used for the estimated-length maths behind the cable schedule.
+      </p>
 
       {/* Default drawing scale → gridSettings.metresPerPixel */}
       <FieldLabel>Default drawing scale</FieldLabel>

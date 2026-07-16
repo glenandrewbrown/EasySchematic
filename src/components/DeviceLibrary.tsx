@@ -1424,7 +1424,7 @@ export default function DeviceLibrary() {
                 onMouseDown={(e) => { e.preventDefault(); toggleCategory(c); }}
                 className={`px-2 py-0.5 rounded-full text-[10px] transition-colors ${
                   selectedCategories.has(c)
-                    ? "bg-[var(--color-accent)] text-white"
+                    ? "bg-[var(--color-accent)] text-[var(--color-on-accent)]"
                     : "bg-[var(--color-surface-raised)] text-[var(--color-text)] hover:bg-[var(--color-surface-hover)]"
                 }`}
               >
@@ -1441,7 +1441,7 @@ export default function DeviceLibrary() {
                 onMouseDown={(e) => { e.preventDefault(); toggleBrand(m); }}
                 className={`px-2 py-0.5 rounded-full text-[10px] transition-colors ${
                   selectedBrands.has(m)
-                    ? "bg-[var(--color-accent)] text-white"
+                    ? "bg-[var(--color-accent)] text-[var(--color-on-accent)]"
                     : "bg-[var(--color-surface-raised)] text-[var(--color-text)] hover:bg-[var(--color-surface-hover)]"
                 }`}
               >
@@ -1458,7 +1458,7 @@ export default function DeviceLibrary() {
                 onMouseDown={(e) => { e.preventDefault(); toggleSignalType(st); }}
                 className={`px-2 py-0.5 rounded-full text-[10px] transition-colors ${
                   selectedSignalTypes.has(st)
-                    ? "bg-[var(--color-accent)] text-white"
+                    ? "bg-[var(--color-accent)] text-[var(--color-on-accent)]"
                     : "bg-[var(--color-surface-raised)] text-[var(--color-text)] hover:bg-[var(--color-surface-hover)]"
                 }`}
               >

@@ -122,7 +122,7 @@ export default function GuidedSetupPanel() {
                       isDone
                         ? "bg-green-500 text-white"
                         : isActive
-                          ? "bg-[var(--color-accent)] text-white"
+                          ? "bg-[var(--color-accent)] text-[var(--color-on-accent)]"
                           : "bg-[var(--ui-border)] text-[var(--color-text-muted)]"
                     }`}
                   >

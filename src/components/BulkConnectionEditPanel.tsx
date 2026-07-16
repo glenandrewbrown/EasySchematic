@@ -183,7 +183,7 @@ export default function BulkConnectionEditPanel({ onClose }: Props) {
           <button
             onClick={applyLabels}
             disabled={!srcLabelInput.trim() && !midLabelInput.trim() && !tgtLabelInput.trim()}
-            className="flex-1 px-2 py-0.5 text-[10px] bg-[var(--color-accent)] text-white rounded hover:bg-[var(--color-accent-hover)] disabled:opacity-40 cursor-pointer"
+            className="flex-1 px-2 py-0.5 text-[10px] bg-[var(--color-accent)] text-[var(--color-on-accent)] rounded hover:bg-[var(--color-accent-hover)] disabled:opacity-40 cursor-pointer"
           >
             Apply
           </button>

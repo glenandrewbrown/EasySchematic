@@ -139,7 +139,7 @@ function PrintViewBar() {
         <button
           className={`px-2 py-0.5 rounded border text-xs cursor-pointer ${
             printOrientation === "landscape"
-              ? "bg-[var(--color-accent)] text-white border-[var(--color-accent)]"
+              ? "bg-[var(--color-accent)] text-[var(--color-on-accent)] border-[var(--color-accent)]"
               : "bg-white text-[var(--color-text)] border-[var(--ui-border)] hover:bg-[var(--color-surface-hover)]"
           }`}
           onClick={() => setPrintOrientation("landscape")}
@@ -149,7 +149,7 @@ function PrintViewBar() {
         <button
           className={`px-2 py-0.5 rounded border text-xs cursor-pointer ${
             printOrientation === "portrait"
-              ? "bg-[var(--color-accent)] text-white border-[var(--color-accent)]"
+              ? "bg-[var(--color-accent)] text-[var(--color-on-accent)] border-[var(--color-accent)]"
               : "bg-white text-[var(--color-text)] border-[var(--ui-border)] hover:bg-[var(--color-surface-hover)]"
           }`}
           onClick={() => setPrintOrientation("portrait")}
@@ -214,7 +214,7 @@ function PrintViewBar() {
           <button
             className={`px-2 py-0.5 rounded-l border text-xs cursor-pointer ${
               colorKeyEnabled
-                ? "bg-[var(--color-accent)] text-white border-[var(--color-accent)]"
+                ? "bg-[var(--color-accent)] text-[var(--color-on-accent)] border-[var(--color-accent)]"
                 : "bg-[var(--color-surface-raised)] text-[var(--color-text)] border-[var(--ui-border)] hover:bg-[var(--color-surface-hover)]"
             }`}
             onClick={() => setColorKeyEnabled(!colorKeyEnabled)}
@@ -225,7 +225,7 @@ function PrintViewBar() {
           <button
             className={`px-1 py-0.5 rounded-r border-t border-b border-r text-xs cursor-pointer ${
               colorKeyEnabled
-                ? "bg-[var(--color-accent)] text-white border-[var(--color-accent)] hover:opacity-90"
+                ? "bg-[var(--color-accent)] text-[var(--color-on-accent)] border-[var(--color-accent)] hover:opacity-90"
                 : "bg-[var(--color-surface-raised)] text-[var(--color-text)] border-[var(--ui-border)] hover:bg-[var(--color-surface-hover)]"
             }`}
             onClick={() => setCkPopoverOpen(!ckPopoverOpen)}
@@ -248,7 +248,7 @@ function PrintViewBar() {
                   key={c}
                   className={`px-2 py-0.5 text-[10px] rounded border cursor-pointer ${
                     colorKeyCorner === c
-                      ? "bg-[var(--color-accent)] text-white border-[var(--color-accent)]"
+                      ? "bg-[var(--color-accent)] text-[var(--color-on-accent)] border-[var(--color-accent)]"
                       : "bg-white text-[var(--color-text)] border-[var(--ui-border)] hover:bg-[var(--color-surface-hover)]"
                   }`}
                   onClick={() => setColorKeyCorner(c)}
@@ -266,7 +266,7 @@ function PrintViewBar() {
                   key={n}
                   className={`w-7 py-0.5 text-[10px] rounded border cursor-pointer ${
                     colorKeyColumns === n
-                      ? "bg-[var(--color-accent)] text-white border-[var(--color-accent)]"
+                      ? "bg-[var(--color-accent)] text-[var(--color-on-accent)] border-[var(--color-accent)]"
                       : "bg-white text-[var(--color-text)] border-[var(--ui-border)] hover:bg-[var(--color-surface-hover)]"
                   }`}
                   onClick={() => setColorKeyColumns(n)}

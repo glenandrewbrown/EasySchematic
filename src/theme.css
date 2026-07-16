@@ -24,6 +24,9 @@
   --color-accent: #1664c8;            /* azure — intent (per-workspace overrides below) */
   --color-accent-hover: #1155ac;
   --color-accent-soft: rgba(22, 100, 200, 0.10);
+  /* Ink ON an accent fill. Light accents are deep, so white clears AA (5.7:1); the dark
+     theme's accents are luminous and MUST flip to near-black — see the .dark override. */
+  --color-on-accent: #ffffff;
   --color-success: #188a64;
   --color-warning: #8a5e12;
   --color-error: #d6453a;             /* Carbon coral — the attention accent */
@@ -129,6 +132,11 @@
   --color-accent: #6fb8ff;          /* azure — per-workspace overrides below */
   --color-accent-hover: #8cc6ff;
   --color-accent-soft: rgba(111, 184, 255, 0.16);
+  /* Near-black ink on accent fills — the design's "on-accent" colour. Every dark persona
+     accent is luminous (azure #6fb8ff, teal #35c8b2, amber #e6b354, violet #b49cf6), so
+     white text on them lands at 1.9–2.3:1 and fails AA outright; this ink clears 8:1 on
+     all four. Do not "fix" this back to white. */
+  --color-on-accent: #04101f;
   --color-success: #54d6a6;
   --color-warning: #eac06a;
   --color-error: #ff8a7e;           /* Carbon coral — the attention accent */
@@ -148,12 +156,18 @@
       The source design carries a single azure accent because it only ever models one
       view; the persona accents are kept, but each hue is pulled into the slate register
       so it sits on the cool ground. Schematic IS the base azure. ── */
-:root[data-workspace="schematic"] { --color-accent: #1664c8; --color-accent-hover: #1155ac; --color-accent-soft: rgba(22, 100, 200, 0.10); }
-:root[data-workspace="plan"]      { --color-accent: #0d7a6a; --color-accent-hover: #0a6659; --color-accent-soft: rgba(13, 122, 106, 0.12); }
-:root[data-workspace="schedule"]  { --color-accent: #915f10; --color-accent-hover: #7a5009; --color-accent-soft: rgba(145, 95, 16, 0.12); }
-:root[data-workspace="rack"]      { --color-accent: #5b3fc4; --color-accent-hover: #4c34a6; --color-accent-soft: rgba(91, 63, 196, 0.12); }
+/* Scoped by ATTRIBUTE, not `:root[…]`, so any subtree can adopt a persona's accent — that is
+   what lets a swatch or preview render the real accent instead of hand-copying its hex, which
+   is how the Settings swatches silently drifted a whole design system out of date. The root
+   <html> still matches, so the app-wide behaviour is unchanged.
+   Each dark rule matches BOTH the root itself and any descendant, so a scoped subtree inside
+   dark mode gets the dark accent rather than falling back to the light one. */
+[data-workspace="schematic"] { --color-accent: #1664c8; --color-accent-hover: #1155ac; --color-accent-soft: rgba(22, 100, 200, 0.10); }
+[data-workspace="plan"]      { --color-accent: #0d7a6a; --color-accent-hover: #0a6659; --color-accent-soft: rgba(13, 122, 106, 0.12); }
+[data-workspace="schedule"]  { --color-accent: #915f10; --color-accent-hover: #7a5009; --color-accent-soft: rgba(145, 95, 16, 0.12); }
+[data-workspace="rack"]      { --color-accent: #5b3fc4; --color-accent-hover: #4c34a6; --color-accent-soft: rgba(91, 63, 196, 0.12); }
 
-.dark[data-workspace="schematic"] { --color-accent: #6fb8ff; --color-accent-hover: #8cc6ff; --color-accent-soft: rgba(111, 184, 255, 0.16); }
-.dark[data-workspace="plan"]      { --color-accent: #35c8b2; --color-accent-hover: #4fd4c0; --color-accent-soft: rgba(53, 200, 178, 0.16); }
-.dark[data-workspace="schedule"]  { --color-accent: #e6b354; --color-accent-hover: #eec06d; --color-accent-soft: rgba(230, 179, 84, 0.16); }
-.dark[data-workspace="rack"]      { --color-accent: #b49cf6; --color-accent-hover: #c4aff8; --color-accent-soft: rgba(180, 156, 246, 0.16); }
+.dark[data-workspace="schematic"], .dark [data-workspace="schematic"] { --color-accent: #6fb8ff; --color-accent-hover: #8cc6ff; --color-accent-soft: rgba(111, 184, 255, 0.16); }
+.dark[data-workspace="plan"],      .dark [data-workspace="plan"]      { --color-accent: #35c8b2; --color-accent-hover: #4fd4c0; --color-accent-soft: rgba(53, 200, 178, 0.16); }
+.dark[data-workspace="schedule"],  .dark [data-workspace="schedule"]  { --color-accent: #e6b354; --color-accent-hover: #eec06d; --color-accent-soft: rgba(230, 179, 84, 0.16); }
+.dark[data-workspace="rack"],      .dark [data-workspace="rack"]      { --color-accent: #b49cf6; --color-accent-hover: #c4aff8; --color-accent-soft: rgba(180, 156, 246, 0.16); }

@@ -528,7 +528,7 @@ function RoomNodeComponent({ id, data, selected, width, height }: NodeProps<Room
               Drag corners · click □ to add · 2×click to remove
             </span>
             <button
-              className="nodrag text-[10px] font-semibold px-2 py-1 rounded-md bg-[var(--color-accent)] text-white cursor-pointer"
+              className="nodrag text-[10px] font-semibold px-2 py-1 rounded-md bg-[var(--color-accent)] text-[var(--color-on-accent)] cursor-pointer"
               onClick={(e) => { e.stopPropagation(); setEditingRoomShape(null); }}
             >
               Done

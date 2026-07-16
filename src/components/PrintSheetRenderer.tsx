@@ -6,6 +6,7 @@ import { PX_PER_MM } from "../rackUtils";
 import { computeRackStats, formatStatsLine } from "../rackStats";
 import { computeCellRects, normalizeSizes, getFieldValue } from "../titleBlockLayout";
 import { computeDragSnap, computeResizeSnap, type SheetGuide, type Rect } from "../printSheetSnap";
+import { DEFAULT_SIGNAL_COLORS } from "../signalColors";
 import RackFaceSVG from "./RackFaceSVG";
 
 const IN_TO_MM = 25.4;
@@ -21,13 +22,44 @@ const SHEET_PAPER = "#fdfdfb";
 const SHEET_INK = "#1a2233";
 const SHEET_FRAME = "#44506a";
 
-// Signal legend on the white sheet uses print-darkened colours (~15% darker than
-// the on-screen palette) for paper contrast, matching the comp.
-const PRINT_LEGEND: { label: string; color: string }[] = [
-  { label: "AES3", color: "#7b5fd0" },
-  { label: "Analog", color: "#b08838" },
-  { label: "USB", color: "#c44d8f" },
-];
+// Signal legend on the white sheet uses print-darkened colours (~15% darker than the
+// on-screen palette) for paper contrast. DERIVED from the real signal palette rather than
+// hand-copied: these had silently drifted (Analog was still darkened from the retired tan
+// #cba36a long after the palette moved to gold), and a legend that disagrees with the
+// drawing it labels is worse than no legend.
+const PRINT_DARKEN = 0.15;
+
+/** Darken a `#rrggbb` toward black by `amount` (0–1). */
+function printDarken(hex: string, amount: number): string {
+  const s = hex.replace("#", "");
+  const ch = (i: number) =>
+    Math.round(parseInt(s.slice(i, i + 2), 16) * (1 - amount))
+      .toString(16)
+      .padStart(2, "0");
+  return `#${ch(0)}${ch(2)}${ch(4)}`;
+}
+
+const LEGEND_TYPES = [
+  ["AES3", "aes"],
+  ["Analog", "analog-audio"],
+  ["USB", "usb"],
+] as const;
+
+let printLegendCache: { label: string; color: string }[] | null = null;
+
+/**
+ * Resolved on first use, NOT at module scope: signalColors.ts builds DEFAULT_SIGNAL_COLORS
+ * during its own module init, and this file reaches it through store.ts — reading it at
+ * module scope lands in that import cycle's temporal dead zone and throws
+ * "DEFAULT_SIGNAL_COLORS is not defined" at runtime, which neither tsc nor the tests see.
+ */
+function printLegend(): { label: string; color: string }[] {
+  printLegendCache ??= LEGEND_TYPES.map(([label, type]) => ({
+    label,
+    color: printDarken(DEFAULT_SIGNAL_COLORS[type], PRINT_DARKEN),
+  }));
+  return printLegendCache;
+}
 
 /** Natural aspect ratio of a rack face SVG (matches RackFaceSVG viewBox). width/height. */
 function getNaturalAspect(rack: RackData, face: "front" | "rear" | "side"): number {
@@ -699,7 +731,7 @@ export default function PrintSheetRenderer({ page }: Props) {
           >
             <div style={{ fontSize: 7, fontWeight: 700, marginBottom: 4, letterSpacing: "0.06em" }}>SIGNAL LEGEND</div>
             <div className="flex flex-col" style={{ gap: 3 }}>
-              {PRINT_LEGEND.map((item) => (
+              {printLegend().map((item) => (
                 <span key={item.label} className="flex items-center" style={{ gap: 5, fontSize: 7 }}>
                   <span style={{ width: 10, height: 2, background: item.color }} />
                   {item.label}
@@ -769,7 +801,7 @@ export default function PrintSheetRenderer({ page }: Props) {
                   )}
                   {isOnlySelected && (
                     <button
-                      className="absolute bottom-0 left-0 w-5 h-5 bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-white flex items-center justify-center rounded-tr text-[11px] leading-none"
+                      className="absolute bottom-0 left-0 w-5 h-5 bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-[var(--color-on-accent)] flex items-center justify-center rounded-tr text-[11px] leading-none"
                       style={{ zIndex: 11, paddingTop: 1 }}
                       title="Reset size to natural rack aspect (shortcut: R)"
                       onMouseDown={(e) => e.stopPropagation()}

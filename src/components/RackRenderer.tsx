@@ -890,7 +890,7 @@ function SideViewRack({
 function ViewToggle({ viewMode, onChangeView }: { viewMode: ViewMode; onChangeView: (mode: ViewMode) => void }) {
   const btn = (mode: ViewMode, label: string) => (
     <button
-      className={`px-2.5 py-1 text-xs font-medium transition-colors ${viewMode === mode ? "bg-[var(--color-accent)] text-white" : "bg-white text-neutral-600 hover:bg-neutral-50"}`}
+      className={`px-2.5 py-1 text-xs font-medium transition-colors ${viewMode === mode ? "bg-[var(--color-accent)] text-[var(--color-on-accent)]" : "bg-white text-neutral-600 hover:bg-neutral-50"}`}
       onClick={() => onChangeView(mode)}
     >{label}</button>
   );
@@ -1048,7 +1048,7 @@ function AccessoryMenu({
       </label>
       <div className="flex gap-1 px-3 py-1.5 border-t border-neutral-100">
         <button
-          className="flex-1 px-2 py-1 rounded bg-[var(--color-accent)] text-white hover:bg-[var(--color-accent-hover)]"
+          className="flex-1 px-2 py-1 rounded bg-[var(--color-accent)] text-[var(--color-on-accent)] hover:bg-[var(--color-accent-hover)]"
           onClick={() => {
             const labelChanged = label.trim() !== (menu.accessory.label ?? "");
             const heightChanged = heightU !== menu.accessory.heightU;
@@ -1153,7 +1153,7 @@ function EditRackInlineDialog({
         </div>
         <div className="flex justify-end gap-2">
           <button type="button" className="px-3 py-1 rounded border border-neutral-300 hover:bg-neutral-50" onClick={onClose}>Cancel</button>
-          <button type="submit" className="px-3 py-1 rounded bg-[var(--color-accent)] text-white hover:bg-[var(--color-accent-hover)]">Save</button>
+          <button type="submit" className="px-3 py-1 rounded bg-[var(--color-accent)] text-[var(--color-on-accent)] hover:bg-[var(--color-accent-hover)]">Save</button>
         </div>
       </form>
     </div>

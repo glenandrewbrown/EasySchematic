@@ -451,13 +451,13 @@ function AddRackDialog({ pageId, rackCount, onClose }: { pageId: string; rackCou
           <h3 className="font-semibold text-sm">Add Rack</h3>
           <div className="flex rounded overflow-hidden border border-[var(--ui-border-strong)]">
             <button
-              className={`px-2 py-0.5 ${mode === "presets" ? "bg-[var(--color-accent)] text-white" : "bg-[var(--color-surface-raised)] text-[var(--color-text)]"}`}
+              className={`px-2 py-0.5 ${mode === "presets" ? "bg-[var(--color-accent)] text-[var(--color-on-accent)]" : "bg-[var(--color-surface-raised)] text-[var(--color-text)]"}`}
               onClick={() => setMode("presets")}
             >
               Presets
             </button>
             <button
-              className={`px-2 py-0.5 ${mode === "custom" ? "bg-[var(--color-accent)] text-white" : "bg-[var(--color-surface-raised)] text-[var(--color-text)]"}`}
+              className={`px-2 py-0.5 ${mode === "custom" ? "bg-[var(--color-accent)] text-[var(--color-on-accent)]" : "bg-[var(--color-surface-raised)] text-[var(--color-text)]"}`}
               onClick={() => setMode("custom")}
             >
               Custom

@@ -337,7 +337,7 @@ function ReportsDialog({ initialTab, onClose }: ReportsDialogProps) {
             {hasPdfExport && (
               <button
                 onClick={handlePdfExport}
-                className="flex items-center gap-1.5 h-[30px] px-[13px] rounded-lg bg-[var(--color-accent)] text-white border-none cursor-pointer text-[11.5px] font-semibold transition-colors hover:brightness-110"
+                className="flex items-center gap-1.5 h-[30px] px-[13px] rounded-lg bg-[var(--color-accent)] text-[var(--color-on-accent)] border-none cursor-pointer text-[11.5px] font-semibold transition-colors hover:brightness-110"
               >
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
                   <path d="M12 16V4M8 8l4-4 4 4M5 16v3a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3" />

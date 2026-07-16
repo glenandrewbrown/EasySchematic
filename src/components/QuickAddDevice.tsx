@@ -483,7 +483,7 @@ export default function QuickAddDevice({
                     onMouseDown={(e) => { e.preventDefault(); toggleCategory(c); }}
                     className={`px-1.5 py-0.5 rounded text-[10px] transition-colors ${
                       selectedCategories.has(c)
-                        ? "bg-[var(--color-accent)] text-white"
+                        ? "bg-[var(--color-accent)] text-[var(--color-on-accent)]"
                         : "bg-[var(--color-surface)] text-[var(--color-text)] hover:bg-[var(--color-surface-hover)]"
                     }`}
                   >
@@ -500,7 +500,7 @@ export default function QuickAddDevice({
                     onMouseDown={(e) => { e.preventDefault(); toggleBrand(m); }}
                     className={`px-1.5 py-0.5 rounded text-[10px] transition-colors ${
                       selectedBrands.has(m)
-                        ? "bg-[var(--color-accent)] text-white"
+                        ? "bg-[var(--color-accent)] text-[var(--color-on-accent)]"
                         : "bg-[var(--color-surface)] text-[var(--color-text)] hover:bg-[var(--color-surface-hover)]"
                     }`}
                   >

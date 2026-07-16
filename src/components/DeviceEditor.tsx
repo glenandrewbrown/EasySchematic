@@ -2704,7 +2704,7 @@ function BulkAddForm({
         />
         <button
           onClick={handleSubmit}
-          className="px-2 py-1 text-xs rounded bg-[var(--color-accent)] text-white hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer"
+          className="px-2 py-1 text-xs rounded bg-[var(--color-accent)] text-[var(--color-on-accent)] hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer"
         >
           Add
         </button>
