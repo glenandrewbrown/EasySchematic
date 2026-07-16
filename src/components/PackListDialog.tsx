@@ -52,12 +52,15 @@ function PackListDialog({ onClose }: PackListDialogProps) {
         onClick={onClose}
       >
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="pack-list-dialog-title"
           className="ui-dialog bg-[var(--color-surface-raised)] w-[700px]"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
           <div className="px-4 py-3 border-b border-[var(--ui-border)] flex items-center gap-3">
-            <h2 className="text-sm font-semibold text-[var(--color-text-heading)]">
+            <h2 id="pack-list-dialog-title" className="text-sm font-semibold text-[var(--color-text-heading)]">
               Pack List
             </h2>
             <div className="flex-1" />

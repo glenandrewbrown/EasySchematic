@@ -139,13 +139,16 @@ export default function ImportDevicesDialog({ open, onClose }: Props) {
       onClick={close}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="import-devices-dialog-title"
         className="ui-dialog w-[820px] max-w-[95vw] max-h-[92vh]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="px-4 py-3 border-b border-[var(--ui-border)]">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-[var(--color-text-heading)]">
+            <h2 id="import-devices-dialog-title" className="text-sm font-semibold text-[var(--color-text-heading)]">
               Import Devices
             </h2>
             <button onClick={close} className="ui-btn ui-btn-ghost">✕</button>

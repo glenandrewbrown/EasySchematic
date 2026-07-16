@@ -1,9 +1,10 @@
 import { memo, useMemo, useCallback } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
-import type { DeviceNode as DeviceNodeType, Port, SchematicNode, ConnectionEdge } from "../types";
-import { SIGNAL_COLORS, SIGNAL_LABELS, portSide, DEFAULT_LAYER_ID } from "../types";
+import type { DeviceNode as DeviceNodeType, Port, SchematicNode, ConnectionEdge, SignalType } from "../types";
+import { SIGNAL_COLORS, SIGNAL_LABELS, CONNECTOR_LABELS, portSide, DEFAULT_LAYER_ID } from "../types";
 import { deviceClassColor } from "../deviceClassColor";
-import { useSchematicStore } from "../store";
+import { useSchematicStore, type NodeViewTier } from "../store";
+import { signalLabel as signalTypeLabel, portLabel } from "../plainLanguage";
 import { validateSchematic, type IssueSeverity } from "../validation";
 import {
   resolveAuxiliaryLine,
@@ -125,6 +126,24 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
   const currency = useSchematicStore((s) => s.currency);
   const nodeCompact = useSchematicStore((s) => s.nodeCompact);
   const liveSignal = useSchematicStore((s) => s.liveSignal);
+  const reduceMotion = useSchematicStore((s) => s.reduceMotion);
+  const detailLevel = useSchematicStore((s) => s.detailLevel);
+  // Per-device overrides written by the Inspector. Both selectors return a primitive (or
+  // undefined), so a device only re-renders when ITS OWN entry changes.
+  const nodeColorOverride = useSchematicStore((s) => s.nodeColors[id]);
+  const nodeViewOverride = useSchematicStore((s) => s.nodeView[id]);
+
+  // Density tier: the per-device override wins, else the schematic-wide `nodeCompact` baseline.
+  const tier: NodeViewTier = nodeViewOverride ?? (nodeCompact ? "compact" : "default");
+  // "tile" is drawn as an OVERLAY, never as its own layout: the underlying tree still renders at
+  // the density baseline (hidden via visibility, which keeps its layout box) so the node's height,
+  // its handle bounds and therefore every wire anchor are identical tiled or not. Nothing about the
+  // tile may be allowed to change the box — React Flow measures handles off the live DOM rects.
+  const isTile = tier === "tile";
+  const baselineTier: NodeViewTier = isTile ? (nodeCompact ? "compact" : "default") : tier;
+  const isCompact = baselineTier === "compact";
+  // The footer stats block is the "detailed" tier's only addition over "default".
+  const showFooterStats = baselineTier === "detailed";
   // Real validation-engine severity for this device's status dot. Computed once per
   // (nodes, edges, dismissedIssueIds) change via a module-level memo; selector returns a
   // primitive so this subscription only re-renders when THIS node's severity changes.
@@ -336,16 +355,29 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
     [passthroughPorts],
   );
 
+  /** Port row text. Plain language shows the Port's own name; technical detail appends the
+   *  jargon suffix the design shows ("Mic 1 · XLR"). Passthrough Ports carry their connector
+   *  per face, so the rear face stands in for the row. */
+  const portRowLabel = (port: Port) => {
+    const connector = port.connectorType ?? port.rearConnectorType;
+    return portLabel(
+      displayLabel(port.label),
+      connector ? CONNECTOR_LABELS[connector] : undefined,
+      detailLevel,
+    );
+  };
+
   /** Square signal swatch shown beside a port label.
    *  Filled = connected; hollow 1.5px ring = open. Colour encodes the signal type.
    *  When `liveSignal` is on, connected swatches pulse-glow in their signal colour (via the
-   *  scoped `.device-node-swatch--glow` keyframes; reduced-motion users get no animation).
+   *  scoped `.device-node-swatch--glow` keyframes; the CSS also honours prefers-reduced-motion,
+   *  which the `reduceMotion` preference overrides for users who can't set it at the OS level).
    *  Purely presentational — the @xyflow Handle remains the connection affordance. */
   const renderSwatch = (color: string, connected: boolean) => (
     <span
       aria-hidden
       className={`w-[7px] h-[7px] rounded-[2px] flex-none${
-        connected && liveSignal ? " device-node-swatch--glow" : ""
+        connected && liveSignal && !reduceMotion ? " device-node-swatch--glow" : ""
       }`}
       style={
         connected
@@ -380,9 +412,9 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
         <span
           className="text-[10px] leading-5 truncate"
           style={{ color: "var(--color-text)" }}
-          title={`${displayLabel(port.label)} (${SIGNAL_LABELS[port.signalType]})`}
+          title={`${portRowLabel(port)} (${signalTypeLabel(port.signalType, detailLevel)})`}
         >
-          {displayLabel(port.label)}
+          {portRowLabel(port)}
         </span>
         {!isLeft && renderSwatch(SIGNAL_COLORS[port.signalType], connectedHandles.has(h.handleId))}
         {!isLeft && (
@@ -413,7 +445,11 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
       ? (signalByHandle.get(rearId) ?? signalByHandle.get(frontId) ?? port.signalType)
       : port.signalType;
     const signalColor = SIGNAL_COLORS[resolvedSignal as keyof typeof SIGNAL_COLORS] ?? SIGNAL_COLORS.custom;
-    const signalLabel = SIGNAL_LABELS[resolvedSignal as keyof typeof SIGNAL_LABELS] ?? resolvedSignal;
+    // A port that inherits its signal can resolve to a type the label maps don't know (custom
+    // edges); fall back to the raw type rather than rendering "undefined".
+    const resolvedSignalLabel = SIGNAL_LABELS[resolvedSignal as SignalType]
+      ? signalTypeLabel(resolvedSignal as SignalType, detailLevel)
+      : resolvedSignal;
     return (
       <div
         key={port.id}
@@ -432,9 +468,9 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
         <span
           className="text-[10px] leading-5 truncate px-3 flex-1 text-center"
           style={{ color: signalColor }}
-          title={`${displayLabel(port.label)} (${signalLabel}) — passthrough`}
+          title={`${portRowLabel(port)} (${resolvedSignalLabel}) — passthrough`}
         >
-          ⇔ {displayLabel(port.label)}
+          ⇔ {portRowLabel(port)}
         </span>
         {/* Front handle — right edge, source (same reasoning as rear) */}
         <Handle
@@ -640,7 +676,22 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
   // + outgoing cables. (Legacy per-device headerColor is stale pre-signalFamilies noise, ignored
   // here.) Drives the class icon tint AND the full-perimeter border (replaces the old left
   // edge-stripe). Selection stays a SEPARATE accent halo; the class colour is never overwritten.
-  const classColor = deviceClassColor(data.ports);
+  // A per-device `nodeColors` entry (the Inspector's block-colour swatch) replaces the derived hue
+  // wholesale, so every class-coloured surface on the node follows the override together.
+  const classColor = nodeColorOverride ?? deviceClassColor(data.ports);
+
+  // Near-imperceptible class wash over the body. At 7% the device still reads as its class at
+  // low zoom without the card turning into a coloured panel — the header band keeps the neutral
+  // instrument face, and the layer-tint feature owns the header background.
+  const bodyWash = `color-mix(in srgb, ${classColor} 7%, var(--color-surface))`;
+
+  // Tile tier: short code + I/O only. Both the fill and the text mix TOWARD --color-surface rather
+  // than a literal white/black, so one formula stays legible in either theme — the mix tracks the
+  // surface's lightness, which is what --color-text-heading is already sized against.
+  const tileFill =
+    `linear-gradient(155deg, color-mix(in srgb, ${classColor} 45%, var(--color-surface)),` +
+    ` color-mix(in srgb, ${classColor} 70%, var(--color-surface)))`;
+  const tileCode = (resolvedLabel.text.replace(/[^A-Za-z0-9]/g, "").slice(0, 3) || "DEV").toUpperCase();
 
   // CATEGORY mono-caps label — the device's class/type, shown under the name. Omitted when empty.
   const categoryText = (data.category || data.deviceType || "").trim();
@@ -668,7 +719,7 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
       className="relative rounded-[7px] border"
       style={{
         width: 180,
-        backgroundColor: "var(--color-surface)",
+        backgroundColor: bodyWash,
         // v3 "Currents": the device-class hue is the node's full-perimeter border (replaces the
         // old 2.5px left edge-stripe). Width stays 1px to keep the 20px port-grid invariant exact.
         // Overlap flags error red; selection adds a SEPARATE accent halo (box-shadow) so the
@@ -681,6 +732,10 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
             : undefined,
       }}
     >
+      {/* Layout wrapper. `visibility: hidden` (never `display: none`) keeps every layout box —
+           and so every handle's DOM rect — exactly where it sits untiled, while taking the
+           hidden tree out of hit-testing and the accessibility tree. */}
+      <div style={{ visibility: isTile ? "hidden" : undefined }}>
       {/* Layer colour, "band" mode — a 3px bar across the node's top edge. Absolutely
            positioned (like the status dot) so it overlays the header rather than adding a row:
            the 20px header-band invariant is untouched. The header's layer chip carries the
@@ -716,7 +771,7 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
            start. The port-row body and footer collapse, but ALL @xyflow Handles still render
            (positioned at the node's left/right edges with opacity 0) so connected edges keep
            valid handle bounds and never break. */}
-      {nodeCompact && (
+      {isCompact && (
         <>
           {/* Same handle ids/types as the canonical (isHiddenAdapter) path, kept at
                default measurable size but invisible (opacity 0) and pinned to the node's
@@ -775,7 +830,7 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
            + 8px (pt) + 10px (half row) ≡ 0 mod 20.
            The header's `border-b` adds 1px between the band and the port column,
            which the `pt` value (8 not 9) compensates for. */}
-      {!nodeCompact && (
+      {!isCompact && (
       <div className="pt-[8px] pb-[9px]">
       {/* Input/Output Ports — two independent columns */}
       {(leftPorts.length > 0 || rightPorts.length > 0) && (
@@ -834,9 +889,9 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
                         <span
                           className="text-[10px] leading-5 truncate"
                           style={{ color: "var(--color-text)" }}
-                          title={`${displayLabel(left.label)} (${SIGNAL_LABELS[left.signalType]})`}
+                          title={`${portRowLabel(left)} (${signalTypeLabel(left.signalType, detailLevel)})`}
                         >
-                          {displayLabel(left.label)}
+                          {portRowLabel(left)}
                         </span>
                       </>
                     )}
@@ -847,9 +902,9 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
                         <span
                           className="text-[10px] leading-5 truncate"
                           style={{ color: "var(--color-text)" }}
-                          title={`${displayLabel(right.label)} (${SIGNAL_LABELS[right.signalType]})`}
+                          title={`${portRowLabel(right)} (${signalTypeLabel(right.signalType, detailLevel)})`}
                         >
-                          {displayLabel(right.label)}
+                          {portRowLabel(right)}
                         </span>
                         {renderSwatch(SIGNAL_COLORS[right.signalType], connectedHandles.has(rh.handleId))}
                         <Handle
@@ -951,9 +1006,9 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
                 <span
                   className="text-[10px] leading-5 truncate"
                   style={{ color: SIGNAL_COLORS[port.signalType] }}
-                  title={`${displayLabel(port.label)} (${SIGNAL_LABELS[port.signalType]}) — bidirectional`}
+                  title={`${portRowLabel(port)} (${signalTypeLabel(port.signalType, detailLevel)}) — bidirectional`}
                 >
-                  ↔ {displayLabel(port.label)}
+                  ↔ {portRowLabel(port)}
                 </span>
                 <Handle
                   type="source"
@@ -973,11 +1028,10 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
           })}
         </div>
       )}
-      {/* Instrument footer — always-present mono row: used/total I/O · power W · template ID.
-           Mirrors the design mockup §4. Template ID is faint and right-aligned. Height is a
-           single 20px row so the device bottom stays on the pathfinding grid. Rendered only
-           when there's at least one stat to show. */}
-      {(ioSummary.total > 0 || data.powerDrawW || data.templateId) && (
+      {/* Instrument footer — mono row: used/total I/O · power W · template ID. Mirrors the design
+           mockup §4. Template ID is faint and right-aligned. This block is what the "detailed"
+           tier adds over "default"; it sits below the ports, so its height never moves them. */}
+      {showFooterStats && (ioSummary.total > 0 || data.powerDrawW || data.templateId) && (
         <div className="flex items-center gap-1.5 px-3 h-5 border-t border-[var(--ui-border)]">
           {ioSummary.total > 0 && (
             <span
@@ -1010,6 +1064,35 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
       )}
       {renderFooterAuxBlock(footerAuxRows)}
       </div>
+      )}
+      </div>
+
+      {/* Tile tier — a solid class-colour block covering the (still-laid-out) node. The code, the
+           Device name and the connected/total count are all text, so the class colour is never
+           the only thing carrying meaning. Ports aren't reachable while tiled: the handles below
+           stay mounted for wire anchoring, but this block owns the pointer. */}
+      {isTile && (
+        <div
+          className="absolute inset-0 rounded-[6px] px-1.5 flex flex-col items-center justify-center overflow-hidden"
+          style={{ backgroundImage: tileFill }}
+          title={`${displayLabel(resolvedLabel.text)} — ${ioSummary.connected} of ${ioSummary.total} I/O connected`}
+        >
+          <span
+            className="text-[16px] font-extrabold leading-none text-[var(--color-text-heading)]"
+            style={{ letterSpacing: "0.03em" }}
+          >
+            {tileCode}
+          </span>
+          <span className="mt-1 max-w-full text-[9px] font-semibold leading-tight truncate text-[var(--color-text-heading)]">
+            {displayLabel(resolvedLabel.text)}
+          </span>
+          <span
+            className="mt-0.5 text-[9px] font-semibold leading-none text-[var(--color-text)]"
+            style={{ fontFamily: "var(--font-mono)" }}
+          >
+            {ioSummary.connected}/{ioSummary.total} I/O
+          </span>
+        </div>
       )}
     </div>
   );

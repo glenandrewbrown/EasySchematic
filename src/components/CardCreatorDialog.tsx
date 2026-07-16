@@ -187,12 +187,15 @@ export default function CardCreatorDialog({
       onClick={close}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="card-creator-dialog-title"
         className="ui-dialog w-[520px] max-w-[92vw]"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => e.stopPropagation()}
       >
         <div className="px-4 pt-3 pb-2 border-b border-[var(--ui-border)]">
-          <div className="text-sm font-semibold text-[var(--color-text-heading)]">Create Custom Card</div>
+          <div id="card-creator-dialog-title" className="text-sm font-semibold text-[var(--color-text-heading)]">Create Custom Card</div>
           <div className="text-[10px] text-[var(--color-text-muted)]">
             This card will be saved to your custom templates and installed in the slot.
           </div>

@@ -59,6 +59,9 @@ export default function LoginDialog({ open, onClose }: Props) {
   return (
     <div className="ui-dialog-backdrop z-[9999]" onClick={handleClose}>
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="login-dialog-title"
         className="ui-dialog w-[760px] max-w-[94vw]"
         onClick={(e) => e.stopPropagation()}
       >
@@ -134,7 +137,8 @@ export default function LoginDialog({ open, onClose }: Props) {
             <div className="w-full max-w-[300px] mx-auto">
               {sent ? (
                 <div className="text-center">
-                  <div className="text-xl font-semibold" style={{ color: "var(--color-text-heading)" }}>
+                  {/* Shares its id with the "Sign in" heading — only one branch is ever mounted. */}
+                  <div id="login-dialog-title" className="text-xl font-semibold" style={{ color: "var(--color-text-heading)" }}>
                     Check your email
                   </div>
                   <p className="text-xs mt-2" style={{ color: "var(--color-text-muted)" }}>
@@ -159,7 +163,7 @@ export default function LoginDialog({ open, onClose }: Props) {
                 </div>
               ) : (
                 <>
-                  <div className="text-xl font-semibold" style={{ color: "var(--color-text-heading)" }}>
+                  <div id="login-dialog-title" className="text-xl font-semibold" style={{ color: "var(--color-text-heading)" }}>
                     Sign in
                   </div>
                   <div className="text-xs mt-1.5 mb-6" style={{ color: "var(--color-text-muted)" }}>

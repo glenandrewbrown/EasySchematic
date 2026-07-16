@@ -5,8 +5,16 @@ import {
   type EdgeProps,
 } from "@xyflow/react";
 import { useSchematicStore } from "../store";
-import { LINE_STYLE_DASHARRAY, type ConnectionEdge, type LineStyle, type Port } from "../types";
+import {
+  DEFAULT_DISTANCE_SETTINGS,
+  LINE_STYLE_DASHARRAY,
+  type ConnectionEdge,
+  type LineStyle,
+  type Port,
+} from "../types";
 import { resolvePort } from "../packList";
+import { computeCableLength, getRoomDistance } from "../roomDistance";
+import { FEET_PER_METER, formatLengthMode } from "../lengthFormat";
 import "../liveSignal.css";
 
 // Whether the user has asked the OS to reduce motion. Read once at module load —
@@ -15,6 +23,16 @@ const PREFERS_REDUCED_MOTION =
   typeof window !== "undefined" &&
   typeof window.matchMedia === "function" &&
   window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// Contrast under-stroke drawn beneath every wired signal core, so dark signal hues lift off the
+// canvas and crossings de-clutter. It has to invert with the theme (light casing on the dark
+// ground, dark casing on light paper), and this file has no theme read — --color-text-heading is
+// the token that already flips in exactly that direction, so the casing rides it instead of a
+// JS-side hex pair.
+const WIRE_CASING = "color-mix(in srgb, var(--color-text-heading) 24%, transparent)";
+
+/** How much wider the casing is than the core it sits under. */
+const CASING_EXTRA = 2.4;
 
 /** Which way signal flows at ONE end of a connection, from that port's direction:
  *  "out" = signal leaves here · "in" = signal arrives here · "bi" = bidirectional or ambiguous
@@ -40,6 +58,9 @@ function OffsetEdgeComponent({
   const debugEdges = useSchematicStore((s) => s.debugEdges);
   const debugShowLabels = useSchematicStore((s) => s.debugShowLabels);
   const liveSignal = useSchematicStore((s) => s.liveSignal);
+  const reduceMotion = useSchematicStore((s) => s.reduceMotion);
+  const lengthUnitMode = useSchematicStore((s) => s.lengthUnitMode);
+  const cableIdLabelScope = useSchematicStore((s) => s.cableIdLabelScope);
 
   // Hover state for showing visual reconnect indicators in HTML layer
   const [isHovered, setIsHovered] = useState(false);
@@ -169,6 +190,26 @@ function OffsetEdgeComponent({
   const globalCableIdMidOffset = useSchematicStore((s) => s.cableIdMidOffset);
   const globalCableIdLabelMode = useSchematicStore((s) => s.cableIdLabelMode);
   const cableId = useSchematicStore((s) => s.cableIdMap[id] ?? "");
+
+  // Estimated run for this connection, in metres. Same source as the inspector's run reading and
+  // the cable schedule's "Est. Length": the source→target room distance plus the document's slack
+  // settings. Derived here per edge rather than via computeCableSchedule, which walks the whole
+  // graph — one schedule build per edge component would be quadratic on a large canvas.
+  // Undefined whenever the rooms carry no distance (or the ends share a room): the label then
+  // shows the cable ID alone rather than inventing a number.
+  const runMeters = useSchematicStore((s): number | undefined => {
+    const edge = s.edges.find((e) => e.id === id);
+    if (!edge) return undefined;
+    const srcParent = s.nodes.find((n) => n.id === edge.source)?.parentId;
+    const tgtParent = s.nodes.find((n) => n.id === edge.target)?.parentId;
+    const dist = getRoomDistance(srcParent, tgtParent, { roomDistances: s.roomDistances }, s.nodes);
+    if (dist === undefined) return undefined;
+    const settings = s.distanceSettings ?? DEFAULT_DISTANCE_SETTINGS;
+    const value = computeCableLength(dist, settings);
+    // Room distances are stored in the document's display unit; lengthFormat speaks metres.
+    return settings.unit === "ft" ? value / FEET_PER_METER : value;
+  });
+
   const hideCableId = useSchematicStore((s) => {
     const edge = s.edges.find((e) => e.id === id);
     return edge?.data?.hideCableId === true || edge?.data?.hideLabel === true;
@@ -228,6 +269,10 @@ function OffsetEdgeComponent({
   });
 
   const isManual = manualWpStr.length > 0;
+
+  // Motion is off if EITHER source says so: the OS-level preference, or the in-app toggle for
+  // users whose OS setting doesn't match how they want to read this canvas.
+  const motionOff = PREFERS_REDUCED_MOTION || reduceMotion;
 
   let edgePath: string;
   let lx: number;
@@ -295,6 +340,15 @@ function OffsetEdgeComponent({
       ? `drop-shadow(0 0 var(--cur-glow-blur, 4px) color-mix(in srgb, ${signalColor} 55%, transparent))`
       : undefined;
 
+  // Width of a wired signal core — shared by the static strand, its casing, and the live band so
+  // the three stay registered on top of each other.
+  const coreW = selected ? 2.6 : 1.8;
+
+  // The dash pattern the wired core actually renders with. A connector mismatch is a fault, so its
+  // warning dashes outrank the cosmetic line-style preference. Undefined = solid.
+  const coreDash =
+    connectorMismatch && !allowIncompatible ? "6 3" : LINE_STYLE_DASHARRAY[lineStyle];
+
   const edgeStyle = routeStr
     ? {
         ...style,
@@ -302,18 +356,37 @@ function OffsetEdgeComponent({
           ? { stroke: "#9ca3af", strokeWidth: selected ? 2 : 1 }
           : isWireless
             ? { strokeWidth: selected ? 2.2 : 1.7 }
-            : { strokeWidth: selected ? 2.6 : 1.8 }),
+            : { strokeWidth: coreW }),
         ...(isWireless
           ? { strokeDasharray: "2 6", strokeLinecap: "round" as const, opacity: 0.85 }
-          : connectorMismatch && !allowIncompatible
-            ? { strokeDasharray: "6 3" }
-            : LINE_STYLE_DASHARRAY[lineStyle]
-              ? { strokeDasharray: LINE_STYLE_DASHARRAY[lineStyle] }
-              : {}),
+          : coreDash
+            ? { strokeDasharray: coreDash }
+            : {}),
         ...(hasGradient ? { stroke: `url(#${gradientId})` } : {}),
         ...(strandGlow ? { filter: strandGlow } : {}),
       }
     : { ...style, strokeWidth: 0, opacity: 0 };
+
+  // Casing under-stroke — wired cores only. A wireless arc is a broadcast, not a cable, and a
+  // direct-attach plug-in already reads as flat grey chrome, so neither is cased (matching the
+  // strand glow's exclusions). The casing carries the core's dash pattern rather than running
+  // solid beneath it: a dashed line is a data cue (fault / line style), and a solid casing would
+  // fill the gaps back in and erase it.
+  const casingLayer =
+    routeStr && !isWireless && !directAttach ? (
+      <path
+        d={edgePath}
+        fill="none"
+        style={{
+          stroke: WIRE_CASING,
+          strokeWidth: coreW + CASING_EXTRA,
+          strokeLinecap: "round",
+          strokeLinejoin: "round",
+          ...(coreDash ? { strokeDasharray: coreDash } : {}),
+          pointerEvents: "none",
+        }}
+      />
+    ) : null;
 
   // Show label at both source and target ends so it's visible even if the path goes behind a device
   const debugLabel = (debugEdges && debugShowLabels) ? (
@@ -451,6 +524,11 @@ function OffsetEdgeComponent({
     borderRadius: 2,
     whiteSpace: "nowrap",
     border: `1px solid ${signalColor}`,
+    // Column so the run length can stack under the ID; harmless when the ID is the only line.
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    lineHeight: 1,
   };
 
   const customLabelStyle: React.CSSProperties = {
@@ -474,7 +552,7 @@ function OffsetEdgeComponent({
   // Build a positioned endpoint label that follows the cable path
   const makeEndpointLabel = (
     fromSource: boolean, offset: number,
-    text: string, labelStyle: React.CSSProperties, key: string,
+    text: React.ReactNode, labelStyle: React.CSSProperties, key: string,
     // Fallbacks when no routed path is available
     fallbackX: number, fallbackY: number, fallbackDx: number, fallbackDy: number,
   ) => {
@@ -528,17 +606,39 @@ function OffsetEdgeComponent({
     }
   }
 
-  // Determine which labels to show
-  const showCableId = showCableIdLabels && !hideCableId && labelText && routeStr;
+  // Determine which labels to show. "selected" scope narrows the labels to the connection the
+  // user is actually working on — a full canvas of run labels is unreadable when only one run
+  // is in question.
+  const inLabelScope = cableIdLabelScope === "all" || !!selected;
+  const showCableId = showCableIdLabels && inLabelScope && !hideCableId && labelText && routeStr;
   const showAnyCustom = !!showCustomLabels && !!routeStr;
+
+  // Second line of the run label: the estimated run, in the user's unit mode. Omitted entirely
+  // when this connection has no estimate — a run label with no run beats a placeholder that
+  // reads like a measured value.
+  const runLengthText = runMeters !== undefined ? formatLengthMode(runMeters, lengthUnitMode) : "";
+  const cableIdContent: React.ReactNode = runLengthText ? (
+    <>
+      <span>{labelText}</span>
+      <span style={{ color: "var(--color-text-muted)", marginTop: 1 }}>{runLengthText}</span>
+    </>
+  ) : (
+    labelText
+  );
 
   // Each custom label slot is visible iff its text is non-empty (#114 rework).
   const showSrcLabel = showAnyCustom && !!edgeSourceLabel;
   const showMidLabel = showAnyCustom && !!edgeLabel;
   const showTgtLabel = showAnyCustom && !!edgeTargetLabel;
 
-  // Calculate custom label endpoint offset (past cable ID badge when cable ID is also at the same endpoint)
-  const cableIdBadgeWidth = labelText ? estimateBadgeWidth(labelText, 9, 3) : 0;
+  // Calculate custom label endpoint offset (past cable ID badge when cable ID is also at the same
+  // endpoint). The badge is as wide as its widest line, which the run length can outgrow.
+  const cableIdBadgeWidth = labelText
+    ? Math.max(
+        estimateBadgeWidth(labelText, 9, 3),
+        runLengthText ? estimateBadgeWidth(runLengthText, 9, 3) : 0,
+      )
+    : 0;
   const customEndpointOffset = (showCableId && cableIdLabelMode === "endpoint")
     ? cableIdGap + cableIdBadgeWidth + 3 // base gap + badge + 3px padding
     : CUSTOM_LABEL_GAP;
@@ -551,9 +651,9 @@ function OffsetEdgeComponent({
   const cableIdLabels = showCableId ? (
     cableIdLabelMode === "endpoint" ? (
       <>
-        {!sourceIsStub && makeEndpointLabel(true, cableIdGap, labelText, cableIdLabelStyle, "cid-src",
+        {!sourceIsStub && makeEndpointLabel(true, cableIdGap, cableIdContent, cableIdLabelStyle, "cid-src",
           sourceX, sourceY, srcDx, srcDy)}
-        {!targetIsStub && makeEndpointLabel(false, cableIdGap, labelText, cableIdLabelStyle, "cid-tgt",
+        {!targetIsStub && makeEndpointLabel(false, cableIdGap, cableIdContent, cableIdLabelStyle, "cid-tgt",
           tgtLabelX, tgtLabelY, -tgtDx, -tgtDy)}
       </>
     ) : (
@@ -564,7 +664,7 @@ function OffsetEdgeComponent({
           transform: `translate(-50%, -50%) translate(${cidMidPt.x}px, ${cidMidPt.y}px)`,
         }}
       >
-        {labelText}
+        {cableIdContent}
       </div>
     )
   ) : null;
@@ -621,12 +721,65 @@ function OffsetEdgeComponent({
     </>
   ) : null;
 
+  // Wireless link badge — identity chrome at the middle of the broadcast arc, so an over-air link
+  // names itself instead of relying on the reader decoding a dashed curve. The glyph and the mono
+  // label carry the same fact, and the label repeats it in words: colour is never the only cue.
+  // Not gated on showCableIdLabels — a wireless link carries no cable ID, so hiding run labels
+  // would otherwise leave it unlabelled. Sits at the Bézier's t=0.5 point (0.25·A + 0.5·ctrl +
+  // 0.25·B), matching the arc drawn in wirelessArcPath.
+  const wirelessBadge = isWireless && routeStr ? (
+    <div
+      key="wl-badge"
+      style={{
+        position: "absolute",
+        pointerEvents: "none",
+        transform: `translate(-50%, -50%) translate(${(sourceX + targetX) / 2}px, ${
+          0.25 * sourceY + 0.5 * (Math.min(sourceY, targetY) - 26) + 0.25 * targetY
+        }px)`,
+        display: "flex",
+        alignItems: "center",
+        gap: 4,
+        padding: "1px 5px",
+        borderRadius: 4,
+        background: "var(--color-surface)",
+        border: `1px solid ${signalColor}`,
+        whiteSpace: "nowrap",
+      }}
+    >
+      <svg
+        width="9"
+        height="9"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke={signalColor}
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        aria-hidden="true"
+      >
+        <path d="M5 13a10 10 0 0 1 14 0M8 16a5 5 0 0 1 8 0" />
+        <circle cx="12" cy="19.5" r="1" fill={signalColor} />
+      </svg>
+      <span
+        style={{
+          fontSize: 8.5,
+          fontFamily: "var(--font-mono)",
+          fontWeight: 700,
+          color: "var(--color-text-heading)",
+          letterSpacing: "0.02em",
+        }}
+      >
+        RF · wireless
+      </span>
+    </div>
+  ) : null;
+
   // All labels + reconnect visuals rendered via EdgeLabelRenderer (HTML layer above all SVG edges)
-  const hasPortalContent = customLabels || cableIdLabels || reconnectVisuals;
+  const hasPortalContent = customLabels || cableIdLabels || reconnectVisuals || wirelessBadge;
   const edgeLabelsPortal = hasPortalContent ? (
     <EdgeLabelRenderer>
       {cableIdLabels}
       {customLabels}
+      {wirelessBadge}
       {reconnectVisuals}
     </EdgeLabelRenderer>
   ) : null;
@@ -646,8 +799,10 @@ function OffsetEdgeComponent({
   // sweeps toward the target. The selected edge shimmers faster (1.7s "live") than idle (3s).
   // Gated by the liveSignal store flag (default OFF); skipped under reduced motion, for wireless,
   // and for direct-attach. Touches no routing geometry, marker, hit area, or default appearance.
+  // Also skipped on a dashed core: the band is a solid sweep, so riding it over a dash pattern
+  // puts two competing rhythms on one strand and neither reads.
   const showLiveBand =
-    liveSignal && !PREFERS_REDUCED_MOTION && !!routeStr && !isWireless && !directAttach;
+    liveSignal && !motionOff && !!routeStr && !isWireless && !directAttach && !coreDash;
   const bandId = `cur-band-${id}`;
   const bandDx = targetX - sourceX;
   const bandDy = targetY - sourceY;
@@ -691,7 +846,7 @@ function OffsetEdgeComponent({
           d={edgePath}
           fill="none"
           stroke={`url(#${gid})`}
-          strokeWidth={selected ? 2.6 : 1.8}
+          strokeWidth={coreW}
           strokeLinecap="round"
         />
       </g>
@@ -714,7 +869,7 @@ function OffsetEdgeComponent({
   // liveSignal — a wireless link is always broadcasting, so the rings are identity chrome that
   // marks the connection as wireless, not a "signal is flowing" state like the cable band below.
   // Reduced motion still stops them.
-  const showWirelessPulse = isWireless && !PREFERS_REDUCED_MOTION && !!routeStr;
+  const showWirelessPulse = isWireless && !motionOff && !!routeStr;
   const wirelessPulseLayer = showWirelessPulse ? (
     <g style={{ pointerEvents: "none" }}>
       <circle
@@ -746,6 +901,7 @@ function OffsetEdgeComponent({
   return (
     <>
       {gradientDef}
+      {casingLayer}
       <BaseEdge
         id={id}
         path={renderPath}

@@ -72,9 +72,15 @@ export default function WhatsNewDialog({ open, onClose }: WhatsNewDialogProps) {
 
   return (
     <div className="ui-dialog-backdrop" data-print-hide onClick={onClose}>
-      <div className="ui-dialog w-[560px] max-w-[94vw]" onClick={(e) => e.stopPropagation()}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="whats-new-dialog-title"
+        className="ui-dialog w-[560px] max-w-[94vw]"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="px-4 py-3 border-b border-[var(--ui-border)] flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-[var(--color-text-heading)]">
+          <h2 id="whats-new-dialog-title" className="text-sm font-semibold text-[var(--color-text-heading)]">
             What&apos;s New in EasySchematic
           </h2>
           <button className="ui-btn ui-btn-ghost px-2 py-1" onClick={onClose} title="Close">

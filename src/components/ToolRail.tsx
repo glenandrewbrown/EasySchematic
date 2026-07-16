@@ -81,7 +81,7 @@ export default function ToolRail({ onQuickAdd, floating = false }: ToolRailProps
             onClick={onQuickAdd}
             title="Quick add — devices, bulk, paste a list (double-click canvas)"
             className={`group relative flex flex-col items-center justify-center gap-0.5 rounded-lg cursor-pointer
-              bg-[var(--color-accent)] text-white shadow-sm
+              bg-[var(--color-accent)] text-[var(--color-on-accent)] shadow-sm
               hover:brightness-110 active:scale-[0.94] transition-[transform,filter] duration-100 ${
               floating ? "w-9 h-9" : "h-12"
             }`}

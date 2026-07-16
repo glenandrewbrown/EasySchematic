@@ -36,9 +36,14 @@ export default function RoomDistancesDialog({ onClose }: RoomDistancesDialogProp
       className="ui-dialog-backdrop"
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="ui-dialog w-[520px] max-h-[80vh]">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="room-distances-dialog-title"
+        className="ui-dialog w-[520px] max-h-[80vh]"
+      >
         <div className="px-4 py-3 border-b border-[var(--ui-border)] flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-[var(--color-text-heading)]">Room Distances</h2>
+          <h2 id="room-distances-dialog-title" className="text-sm font-semibold text-[var(--color-text-heading)]">Room Distances</h2>
           <button
             onClick={onClose}
             className="ui-btn ui-btn-ghost text-lg leading-none"

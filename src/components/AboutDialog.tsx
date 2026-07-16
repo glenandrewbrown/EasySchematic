@@ -52,12 +52,15 @@ export default function AboutDialog({ onClose }: { onClose: () => void }) {
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="about-dialog-title"
         className="ui-dialog w-[420px]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--ui-border)]">
-          <span className="text-sm font-semibold text-[var(--color-text-heading)]">
+          <span id="about-dialog-title" className="text-sm font-semibold text-[var(--color-text-heading)]">
             About EasySchematic
           </span>
           <button

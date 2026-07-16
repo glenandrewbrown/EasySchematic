@@ -130,13 +130,16 @@ export default function SchematicBrowser({ onClose }: { onClose: () => void }) {
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="schematic-browser-title"
         className="ui-dialog w-[560px] max-w-[90vw] max-h-[80vh]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="px-4 py-3 border-b border-[var(--ui-border)] flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2">
-            <h2 className="text-sm font-semibold text-[var(--color-text-heading)]">
+            <h2 id="schematic-browser-title" className="text-sm font-semibold text-[var(--color-text-heading)]">
               My Schematics
             </h2>
             {!loading && (

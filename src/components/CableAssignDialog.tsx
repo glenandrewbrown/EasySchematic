@@ -97,9 +97,15 @@ export default function CableAssignDialog() {
 
   return (
     <div className="ui-dialog-backdrop" data-print-hide onClick={close}>
-      <div className="ui-dialog w-[440px] max-w-[92vw]" onClick={(e) => e.stopPropagation()}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="cable-assign-dialog-title"
+        className="ui-dialog w-[440px] max-w-[92vw]"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="px-4 py-3 border-b border-[var(--ui-border)] flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-[var(--color-text-heading)]">
+          <h2 id="cable-assign-dialog-title" className="text-sm font-semibold text-[var(--color-text-heading)]">
             Assign Cables{edge.data?.cableId ? ` — ${edge.data.cableId}` : ""}
           </h2>
           <button className="ui-btn ui-btn-ghost px-2 py-1" onClick={close} title="Close">✕</button>

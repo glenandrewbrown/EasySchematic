@@ -68,12 +68,15 @@ export default function SvgAssetImportDialog({ onPicked, onClose }: SvgAssetImpo
   return (
     <div className="ui-dialog-backdrop" onClick={onClose}>
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="svg-asset-import-dialog-title"
         className="ui-dialog w-[460px] max-h-[85vh]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="px-4 py-3 border-b border-[var(--ui-border)] flex items-center justify-between shrink-0">
-          <h2 className="text-sm font-semibold text-[var(--color-text-heading)]">
+          <h2 id="svg-asset-import-dialog-title" className="text-sm font-semibold text-[var(--color-text-heading)]">
             Custom SVG graphic
           </h2>
           <button onClick={onClose} className="ui-btn ui-btn-ghost text-lg leading-none">

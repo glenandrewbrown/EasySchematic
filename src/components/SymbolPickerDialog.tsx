@@ -39,10 +39,16 @@ export default function SymbolPickerDialog({ title = "Symbol library", onPick, o
 
   return (
     <div className="ui-dialog-backdrop" onClick={onClose}>
-      <div className="ui-dialog w-[600px] max-h-[86vh]" onClick={(e) => e.stopPropagation()}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="symbol-picker-dialog-title"
+        className="ui-dialog w-[600px] max-h-[86vh]"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="px-4 py-3 border-b border-[var(--ui-border)] flex items-center justify-between shrink-0">
-          <h2 className="text-sm font-semibold text-[var(--color-text-heading)]">{title}</h2>
+          <h2 id="symbol-picker-dialog-title" className="text-sm font-semibold text-[var(--color-text-heading)]">{title}</h2>
           <button onClick={onClose} className="ui-btn ui-btn-ghost text-lg leading-none" aria-label="Close">
             &times;
           </button>

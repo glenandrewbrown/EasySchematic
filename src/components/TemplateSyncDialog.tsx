@@ -59,11 +59,14 @@ export default function TemplateSyncDialog({
       onClick={onCancel}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="template-sync-dialog-title"
         className="ui-dialog w-[480px] max-h-[80vh]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--ui-border)]">
-          <span className="text-sm font-semibold text-[var(--color-text-heading)]">
+          <span id="template-sync-dialog-title" className="text-sm font-semibold text-[var(--color-text-heading)]">
             Update from template — v{device.templateVersion} → v{template.version}
           </span>
           <button

@@ -181,12 +181,15 @@ export default function TitleBlockDialog({ onClose }: TitleBlockDialogProps) {
       onClick={handleCancel}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="title-block-dialog-title"
         className="ui-dialog w-[620px] max-h-[85vh]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="px-4 py-3 border-b border-[var(--ui-border)] flex items-center justify-between shrink-0">
-          <h2 className="text-sm font-semibold text-[var(--color-text-heading)]">
+          <h2 id="title-block-dialog-title" className="text-sm font-semibold text-[var(--color-text-heading)]">
             Title Block Editor
           </h2>
           <button
@@ -1307,7 +1310,7 @@ function CellPropertiesPanel({
         </label>
 
         <button
-          className={`px-1.5 py-0.5 text-[10px] rounded border cursor-pointer ${cell.fontWeight === "bold" ? "bg-[var(--color-accent)] text-white border-[var(--color-accent)]" : "bg-[var(--color-surface-raised)] text-[var(--color-text-muted)] border-[var(--ui-border)]"}`}
+          className={`px-1.5 py-0.5 text-[10px] rounded border cursor-pointer ${cell.fontWeight === "bold" ? "bg-[var(--color-accent)] text-[var(--color-on-accent)] border-[var(--color-accent)]" : "bg-[var(--color-surface-raised)] text-[var(--color-text-muted)] border-[var(--ui-border)]"}`}
           onClick={() => updateCell(cell.id, { fontWeight: cell.fontWeight === "bold" ? "normal" : "bold" })}
         >
           B
@@ -1320,7 +1323,7 @@ function CellPropertiesPanel({
           {(["left", "center", "right"] as const).map((a) => (
             <button
               key={a}
-              className={`px-1.5 py-0.5 text-[10px] rounded border cursor-pointer ${cell.align === a ? "bg-[var(--color-accent)] text-white border-[var(--color-accent)]" : "bg-[var(--color-surface-raised)] text-[var(--color-text-muted)] border-[var(--ui-border)]"}`}
+              className={`px-1.5 py-0.5 text-[10px] rounded border cursor-pointer ${cell.align === a ? "bg-[var(--color-accent)] text-[var(--color-on-accent)] border-[var(--color-accent)]" : "bg-[var(--color-surface-raised)] text-[var(--color-text-muted)] border-[var(--ui-border)]"}`}
               onClick={() => updateCell(cell.id, { align: a })}
             >
               {a === "left" ? "L" : a === "center" ? "C" : "R"}

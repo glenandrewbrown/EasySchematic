@@ -297,7 +297,7 @@ export default function ViewOptionsPanel({ mobile, onClose }: { mobile?: boolean
                 onClick={() => setColorBy(axis)}
                 className={`px-2 py-0.5 text-[11px] capitalize cursor-pointer transition-colors ${
                   colorBy === axis
-                    ? "bg-[var(--color-accent)] text-white"
+                    ? "bg-[var(--color-accent)] text-[var(--color-on-accent)]"
                     : "bg-[var(--color-surface)] text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
                 }`}
               >

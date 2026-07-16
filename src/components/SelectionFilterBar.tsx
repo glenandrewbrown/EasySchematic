@@ -127,7 +127,7 @@ export default function SelectionFilterBar() {
             title="Edit properties of selected connections"
             className={`px-2 py-0.5 text-[11px] rounded border transition-colors cursor-pointer ${
               panelOpen
-                ? "bg-[var(--color-accent)] text-white border-[var(--color-accent)]"
+                ? "bg-[var(--color-accent)] text-[var(--color-on-accent)] border-[var(--color-accent)]"
                 : "text-[var(--color-accent)] border-[var(--color-accent)] bg-[var(--color-accent-soft)] hover:bg-[var(--color-accent-soft)]"
             }`}
             onClick={() => setPanelOpen((v) => !v)}

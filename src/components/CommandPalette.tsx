@@ -1,17 +1,21 @@
 /**
- * CommandPalette — ⌘K overlay for EasySchematic.
+ * CommandPalette — ⌘K overlay for EasySchematic. The menu button promises that
+ * every command lives here, so entries route to real store setters only; the
+ * palette owns no behaviour of its own.
  *
  * Self-contained: manages its own open/close state and keyboard listeners.
  * Mount once (no props required); the lead wires it in App.tsx.
  *
- * Store actions wired:
- *   "Insert device…"           → setActiveTool("device")   [opens device drawer]
- *   "Auto-route all"           → toggleAutoRoute()          [toggles auto-routing]
- *   "Validate schematic"       → writes localStorage key + dispatches StorageEvent
- *                                so RightRail opens the "validate" tab
- *   "Export / Reports…"        → setCanvasViewMode("schedule") [closest: Schedule has Cable BOM tab]
- *   "Go to device"             → mutates nodes.selected in the store (immutable map)
- *   "Switch workspace"         → setCanvasViewMode(mode)
+ * Toggle rows are labelled with the action they perform ("Hide line jumps"),
+ * never with a state colour — the label is the only cue and states the outcome.
+ *
+ * Two non-obvious wirings:
+ *   "Validate schematic"  → writes the RightRail tab key + dispatches a StorageEvent
+ *                           so RightRail opens its "validate" tab in this same window
+ *   "Export / Reports…"   → the Schedule workspace, which hosts the Cable BOM tab
+ *
+ * Shortcut chips appear only for keys App.tsx actually binds (the TOOL_DEFS
+ * single-key tools) — an unbacked chip is a promise the app cannot keep.
  */
 
 import {
@@ -19,11 +23,16 @@ import {
   useEffect,
   useRef,
   useState,
+  type ComponentType,
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
+import { useReactFlow } from "@xyflow/react";
 import { useSchematicStore } from "../store";
 import type { DeviceNode } from "../types";
 import { deviceClassColor } from "../deviceClassColor";
+import { useTheme } from "../hooks/useTheme";
+import { detailLevelLabel, type DetailLevel } from "../plainLanguage";
+import type { LengthUnitMode } from "../lengthFormat";
 
 // ─── Right-rail validation tab key (matches RightRail.tsx STORAGE_KEY) ───────
 const RIGHT_RAIL_TAB_KEY = "easyschematic-rightrail-tab";
@@ -124,6 +133,194 @@ function IconRack() {
   );
 }
 
+function IconSelect() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M5 3l6.5 17 2.4-6.9 6.9-2.4L5 3z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function IconConnect() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M9.5 14.5l5-5M8 12l-2 2a3.5 3.5 0 0 0 5 5l2-2M16 12l2-2a3.5 3.5 0 0 0-5-5l-2 2"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function IconTheme() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor" />
+    </svg>
+  );
+}
+
+function IconZoomIn() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" strokeWidth="1.5" />
+      <path
+        d="M10.5 8v5M8 10.5h5M20 20l-4.7-4.7"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function IconZoomOut() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M8 10.5h5M20 20l-4.7-4.7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function IconCableId() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M3 10.5V5a2 2 0 0 1 2-2h5.5L21 13.5 13.5 21 3 10.5z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+      <circle cx="7.5" cy="7.5" r="1.4" fill="currentColor" />
+    </svg>
+  );
+}
+
+function IconLineJumps() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M2 15h5a3.5 3.5 0 0 0 7 0h8"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+      <path d="M10.5 4v16" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function IconLiveSignal() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M2 12h4l3-7 5 14 3-7h5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function IconCompact() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M4 4h16M4 20h16M8 9l4-3 4 3M8 15l4 3 4-3"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function IconArtwork() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="8.5" cy="9.5" r="1.6" stroke="currentColor" strokeWidth="1.3" />
+      <path d="M4 17l5-4.5 4 3.5 3-2.5 4 3.5" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function IconDetail() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M4 6h16M4 11h16M4 16h10"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function IconRuler() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <rect
+        x="1.5"
+        y="8"
+        width="21"
+        height="8"
+        rx="1.5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      />
+      <path d="M6.5 8v3M11 8v4M15.5 8v3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/**
+ * Command id → row glyph. Ids absent from the map render no glyph; the dynamic
+ * "Go to device" rows carry a signal-colour swatch instead.
+ */
+const ICON: Record<string, ComponentType> = {
+  "tool-select": IconSelect,
+  "tool-connect": IconConnect,
+  "insert-device": IconInsert,
+  "ws-schematic": IconSchematic,
+  "ws-layout": IconLayout,
+  "ws-schedule": IconSchedule,
+  "ws-rack": IconRack,
+  "view-theme": IconTheme,
+  "view-zoom-in": IconZoomIn,
+  "view-zoom-out": IconZoomOut,
+  "view-cable-ids": IconCableId,
+  "view-line-jumps": IconLineJumps,
+  "view-auto-route": IconAutoRoute,
+  "view-live-signal": IconLiveSignal,
+  "view-compact": IconCompact,
+  "view-artwork": IconArtwork,
+  "view-detail": IconDetail,
+  "view-length-unit": IconRuler,
+  "doc-validate": IconValidate,
+  "doc-export": IconExport,
+};
+
+/** Cycle order for the length-unit command; each label names the destination. */
+const LENGTH_UNIT_CYCLE: Record<LengthUnitMode, { next: LengthUnitMode; label: string }> = {
+  m: { next: "ft", label: "Show cable lengths in feet" },
+  ft: { next: "both", label: "Show cable lengths in metres & feet" },
+  both: { next: "m", label: "Show cable lengths in metres" },
+};
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function CommandPalette() {
@@ -136,11 +333,31 @@ export default function CommandPalette() {
   // Store selectors
   const nodes = useSchematicStore((s) => s.nodes);
   const setActiveTool = useSchematicStore((s) => s.setActiveTool);
+  const autoRoute = useSchematicStore((s) => s.autoRoute);
   const toggleAutoRoute = useSchematicStore((s) => s.toggleAutoRoute);
   const setCanvasViewMode = useSchematicStore((s) => s.setCanvasViewMode);
   const pages = useSchematicStore((s) => s.pages);
   const setActivePage = useSchematicStore((s) => s.setActivePage);
   const addRackPage = useSchematicStore((s) => s.addRackPage);
+  const showCableIdLabels = useSchematicStore((s) => s.showCableIdLabels);
+  const setShowCableIdLabels = useSchematicStore((s) => s.setShowCableIdLabels);
+  const showLineJumps = useSchematicStore((s) => s.showLineJumps);
+  const setShowLineJumps = useSchematicStore((s) => s.setShowLineJumps);
+  const liveSignal = useSchematicStore((s) => s.liveSignal);
+  const setLiveSignal = useSchematicStore((s) => s.setLiveSignal);
+  const nodeCompact = useSchematicStore((s) => s.nodeCompact);
+  const setNodeCompact = useSchematicStore((s) => s.setNodeCompact);
+  const showArtwork = useSchematicStore((s) => s.showArtwork);
+  const setShowArtwork = useSchematicStore((s) => s.setShowArtwork);
+  const detailLevel = useSchematicStore((s) => s.detailLevel);
+  const setDetailLevel = useSchematicStore((s) => s.setDetailLevel);
+  const lengthUnitMode = useSchematicStore((s) => s.lengthUnitMode);
+  const setLengthUnitMode = useSchematicStore((s) => s.setLengthUnitMode);
+
+  // Zoom lives on the canvas instance (App mounts the palette inside
+  // ReactFlowProvider), and the theme class is owned by the useTheme hook.
+  const { zoomIn, zoomOut } = useReactFlow();
+  const { isDark, toggle: toggleTheme } = useTheme();
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -180,39 +397,31 @@ export default function CommandPalette() {
 
   const deviceNodes = nodes.filter((n): n is DeviceNode => n.type === "device");
 
-  const actionItems: PaletteItem[] = [
+  const toolItems: PaletteItem[] = [
+    {
+      id: "tool-select",
+      label: "Select tool",
+      shortcut: "V",
+      onSelect: () => {
+        setActiveTool("select");
+        close();
+      },
+    },
+    {
+      id: "tool-connect",
+      label: "Connect tool — join two ports",
+      shortcut: "C",
+      onSelect: () => {
+        setActiveTool("connect");
+        close();
+      },
+    },
     {
       id: "insert-device",
       label: "Insert device…",
       shortcut: "D",
       onSelect: () => {
         setActiveTool("device");
-        close();
-      },
-    },
-    {
-      id: "auto-route",
-      label: "Auto-route all connections",
-      shortcut: "⇧R",
-      onSelect: () => {
-        toggleAutoRoute();
-        close();
-      },
-    },
-    {
-      id: "validate",
-      label: "Validate schematic",
-      onSelect: () => {
-        openValidateTab();
-        close();
-      },
-    },
-    {
-      id: "export",
-      label: "Export / Reports…",
-      // Opens Schedule view which contains Cable BOM | Inventory | Logistics tabs
-      onSelect: () => {
-        setCanvasViewMode("schedule");
         close();
       },
     },
@@ -233,7 +442,6 @@ export default function CommandPalette() {
     {
       id: "ws-schematic",
       label: "Schematic",
-      shortcut: "⇧1",
       onSelect: () => {
         setCanvasViewMode("schematic");
         close();
@@ -269,10 +477,126 @@ export default function CommandPalette() {
     },
   ];
 
+  const nextDetailLevel: DetailLevel = detailLevel === "plain" ? "technical" : "plain";
+  const lengthUnitStep = LENGTH_UNIT_CYCLE[lengthUnitMode];
+
+  const viewItems: PaletteItem[] = [
+    {
+      id: "view-theme",
+      label: isDark ? "Switch to light theme" : "Switch to dark theme",
+      onSelect: () => {
+        toggleTheme();
+        close();
+      },
+    },
+    {
+      id: "view-zoom-in",
+      label: "Zoom in",
+      onSelect: () => {
+        zoomIn();
+        close();
+      },
+    },
+    {
+      id: "view-zoom-out",
+      label: "Zoom out",
+      onSelect: () => {
+        zoomOut();
+        close();
+      },
+    },
+    {
+      id: "view-cable-ids",
+      label: showCableIdLabels ? "Hide cable ID labels" : "Show cable ID labels",
+      onSelect: () => {
+        setShowCableIdLabels(!showCableIdLabels);
+        close();
+      },
+    },
+    {
+      id: "view-line-jumps",
+      label: showLineJumps ? "Hide line jumps" : "Show line jumps",
+      onSelect: () => {
+        setShowLineJumps(!showLineJumps);
+        close();
+      },
+    },
+    {
+      id: "view-auto-route",
+      label: autoRoute ? "Turn auto-route off" : "Turn auto-route on",
+      onSelect: () => {
+        toggleAutoRoute();
+        close();
+      },
+    },
+    {
+      id: "view-live-signal",
+      label: liveSignal ? "Stop live signal animation" : "Animate live signal",
+      onSelect: () => {
+        setLiveSignal(!liveSignal);
+        close();
+      },
+    },
+    {
+      id: "view-compact",
+      label: nodeCompact ? "Show devices at full size" : "Show devices compact",
+      onSelect: () => {
+        setNodeCompact(!nodeCompact);
+        close();
+      },
+    },
+    {
+      id: "view-artwork",
+      label: showArtwork ? "Hide device artwork" : "Show device artwork",
+      onSelect: () => {
+        setShowArtwork(!showArtwork);
+        close();
+      },
+    },
+    {
+      id: "view-detail",
+      label: `Switch to ${detailLevelLabel(nextDetailLevel)}`,
+      onSelect: () => {
+        setDetailLevel(nextDetailLevel);
+        close();
+      },
+    },
+    {
+      id: "view-length-unit",
+      label: lengthUnitStep.label,
+      onSelect: () => {
+        setLengthUnitMode(lengthUnitStep.next);
+        close();
+      },
+    },
+  ];
+
+  const docItems: PaletteItem[] = [
+    {
+      id: "doc-validate",
+      label: "Validate schematic",
+      onSelect: () => {
+        openValidateTab();
+        close();
+      },
+    },
+    {
+      id: "doc-export",
+      label: "Export / Reports…",
+      // Opens Schedule view which contains Cable BOM | Inventory | Logistics tabs
+      onSelect: () => {
+        setCanvasViewMode("schedule");
+        close();
+      },
+    },
+  ];
+
   const groups: PaletteGroup[] = [
-    { heading: "Actions", items: actionItems },
+    { heading: "Tools", items: toolItems },
     { heading: "Go to device", items: goToItems },
     { heading: "Switch workspace", items: workspaceItems },
+    { heading: "View", items: viewItems },
+    { heading: "Document", items: docItems },
   ];
 
   // ── Filtered flat list ─────────────────────────────────────────────────────
@@ -414,7 +738,7 @@ export default function CommandPalette() {
         aria-label="Command palette"
         onClick={(e) => e.stopPropagation()}
         style={{
-          width: 560,
+          width: 474,
           maxWidth: "92vw",
           background: "var(--color-surface)",
           border: "1px solid var(--ui-border-strong)",
@@ -553,7 +877,9 @@ export default function CommandPalette() {
               {group.items.map((item) => {
                 const idx = runningIndex++;
                 const isHighlighted = idx === highlightIndex;
-                const isActionGroup = group.heading === "Actions";
+                // Device names read as data; every other row is a command.
+                const isDeviceGroup = group.heading === "Go to device";
+                const Glyph = ICON[item.id];
 
                 return (
                   <div
@@ -591,7 +917,7 @@ export default function CommandPalette() {
                           flexShrink: 0,
                         }}
                       />
-                    ) : (
+                    ) : Glyph ? (
                       <span
                         aria-hidden
                         style={{
@@ -603,25 +929,16 @@ export default function CommandPalette() {
                           alignItems: "center",
                         }}
                       >
-                        {item.id === "insert-device" && <IconInsert />}
-                        {item.id === "auto-route" && <IconAutoRoute />}
-                        {item.id === "validate" && <IconValidate />}
-                        {item.id === "export" && <IconExport />}
-                        {item.id === "ws-schematic" && <IconSchematic />}
-                        {item.id === "ws-layout" && <IconLayout />}
-                        {item.id === "ws-schedule" && <IconSchedule />}
-                        {item.id === "ws-rack" && <IconRack />}
+                        <Glyph />
                       </span>
-                    )}
+                    ) : null}
 
                     {/* Label */}
                     <span
                       style={{
                         flex: 1,
                         fontSize: 12.5,
-                        color: isHighlighted
-                          ? "var(--color-text-heading)"
-                          : isActionGroup
+                        color: isHighlighted || !isDeviceGroup
                           ? "var(--color-text-heading)"
                           : "var(--color-text)",
                         overflow: "hidden",

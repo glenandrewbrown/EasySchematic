@@ -522,6 +522,9 @@ export default function FacePlateEditor({ deviceData, onSave, onClose }: FacePla
   return (
     <div className="ui-dialog-backdrop" onClick={onClose} onWheel={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="face-plate-editor-title"
         className="ui-dialog bg-[var(--color-surface-raised)] text-xs"
         style={{ width: "90vw", height: "90vh", maxWidth: 1400 }}
         onClick={(e) => e.stopPropagation()}
@@ -547,7 +550,7 @@ export default function FacePlateEditor({ deviceData, onSave, onClose }: FacePla
         {/* Header */}
         <div className="px-4 py-3 border-b border-[var(--ui-border)] flex items-center justify-between shrink-0">
           <div>
-            <h3 className="font-semibold text-sm">Face-Plate Layout</h3>
+            <h3 id="face-plate-editor-title" className="font-semibold text-sm">Face-Plate Layout</h3>
             <span className="text-[var(--color-text-muted)]">{deviceData.label} — {heightU}U</span>
           </div>
           <div className="flex items-center gap-2">

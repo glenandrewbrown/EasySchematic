@@ -1,6 +1,13 @@
-import { useMemo, useState } from "react";
-import { useSchematicStore } from "../store";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useReactFlow } from "@xyflow/react";
+import { useSchematicStore, UI_SCALE_STEPS } from "../store";
+import { severityWord, healthyWord } from "../plainLanguage";
 import { validateSchematic, countIssues } from "../validation";
+import { exportImage } from "../exportUtils";
+import { exportDxf } from "../dxfExport";
+import { exportPdf } from "../pdfExport";
+import { computeCableSchedule, exportCableScheduleCsv } from "../cableSchedule";
+import { getPaperSize } from "../printConfig";
 import { useTheme } from "../hooks/useTheme";
 import MenuBar from "./MenuBar";
 import UserMenuButton from "./UserMenuButton";
@@ -17,7 +24,43 @@ import UserMenuButton from "./UserMenuButton";
 
 const fire = (name: string) => window.dispatchEvent(new CustomEvent(name));
 
+/**
+ * Close an anchored popover on Escape or a click outside its anchor — the same
+ * pattern UserMenuButton uses. `mousedown` (not `click`) so the popover is gone
+ * before the outside target reacts to the press.
+ */
+function useDismissOnOutside(open: boolean, close: () => void) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) close();
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") close();
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open, close]);
+  return ref;
+}
+
 type Persona = "schematic" | "plan" | "schedule" | "rack";
+
+type ExportFormat = "png" | "svg" | "pdf" | "dxf" | "csv";
+
+/** One-click formats, in the design's order. Each maps to an existing exporter. */
+const EXPORT_FORMATS: { key: ExportFormat; label: string; meta: string; icon: string }[] = [
+  { key: "png", label: "PNG image", meta: "Raster snapshot of this view", icon: "M3 5h18v14H3zM8.5 10.5l3 3 2.5-2.5 4 4" },
+  { key: "svg", label: "SVG vector", meta: "Scalable drawing", icon: "M4 4h16v16H4zM4 14l5-5 4 4 3-3 4 4" },
+  { key: "pdf", label: "PDF print sheet", meta: "Titled sheet at the print scale", icon: "M6 2h9l5 5v15H6zM15 2v5h5" },
+  { key: "dxf", label: "DXF (CAD)", meta: "Drawing for AutoCAD", icon: "M4 20L20 4M4 4h6v6M14 14h6v6" },
+  { key: "csv", label: "CSV schedule", meta: "Cable schedule data", icon: "M4 4h16v16H4zM4 9h16M9 9v11" },
+];
 
 const PERSONAS: { key: Persona; label: string; icon: React.ReactNode }[] = [
   {
@@ -75,8 +118,65 @@ export default function EditorTopBar() {
   const addRackPage = useSchematicStore((s) => s.addRackPage);
   const nodes = useSchematicStore((s) => s.nodes);
   const edges = useSchematicStore((s) => s.edges);
+  const detailLevel = useSchematicStore((s) => s.detailLevel);
+  const uiScale = useSchematicStore((s) => s.uiScale);
+  const setUiScale = useSchematicStore((s) => s.setUiScale);
+  const reduceMotion = useSchematicStore((s) => s.reduceMotion);
+  const rfInstance = useReactFlow();
 
   const issues = useMemo(() => countIssues(validateSchematic(nodes, edges)), [nodes, edges]);
+
+  // ── Health pill wording ───────────────────────────────────────────────────
+  // The dot's meaning is always spelled out: the count line states the tally and
+  // the tag chip carries the plain/technical severity word.
+  const { errors, warnings } = issues;
+  const healthTone =
+    errors > 0 ? "var(--color-error)" : warnings > 0 ? "var(--color-warning)" : "var(--color-success)";
+  const healthLabel =
+    errors > 0
+      ? `${errors} ${errors === 1 ? "error" : "errors"}${warnings > 0 ? ` · ${warnings} ${warnings === 1 ? "warning" : "warnings"}` : ""}`
+      : warnings > 0
+        ? `${warnings} ${warnings === 1 ? "warning" : "warnings"}`
+        : healthyWord(detailLevel);
+  const healthTag =
+    errors > 0
+      ? severityWord("error", detailLevel)
+      : warnings > 0
+        ? severityWord("warning", detailLevel)
+        : healthyWord(detailLevel);
+
+  // ── Popovers ──────────────────────────────────────────────────────────────
+  const [scaleOpen, setScaleOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
+  const closeScale = useCallback(() => setScaleOpen(false), []);
+  const closeExport = useCallback(() => setExportOpen(false), []);
+  const scaleRef = useDismissOnOutside(scaleOpen, closeScale);
+  const exportRef = useDismissOnOutside(exportOpen, closeExport);
+
+  // The .chrome-menu entry animation is CSS-gated on prefers-reduced-motion; the
+  // in-app preference has to be applied here as well.
+  const popMotion = reduceMotion ? { animation: "none" } : undefined;
+
+  const runExport = (format: ExportFormat) => {
+    setExportOpen(false);
+    const s = useSchematicStore.getState();
+    if (format === "png") {
+      void exportImage(rfInstance, { format: "png", pixelRatio: 4 });
+    } else if (format === "svg") {
+      void exportImage(rfInstance, { format: "svg" });
+    } else if (format === "pdf") {
+      const paper = getPaperSize(s.printPaperId, s.printCustomWidthIn, s.printCustomHeightIn);
+      void exportPdf(rfInstance, paper, s.printOrientation, s.printScale, s.titleBlock, s.titleBlockLayout);
+    } else if (format === "dxf") {
+      exportDxf(rfInstance);
+    } else {
+      const rows = computeCableSchedule(nodes, edges, s.cableNamingScheme, {
+        roomDistances: s.roomDistances,
+        distanceSettings: s.distanceSettings,
+      });
+      exportCableScheduleCsv(rows, s.schematicName);
+    }
+  };
 
   const isSchematicPage = !activePage || activePage === "schematic";
   const activePgType = useMemo(() => {
@@ -231,6 +331,119 @@ export default function EditorTopBar() {
 
         {/* Right cluster */}
         <div className="ml-auto flex items-center gap-2">
+          {/* Health pill — status over a "Validation" caption, plus a severity tag */}
+          <button
+            onClick={() => fire("easyschematic:show-validate")}
+            title="Document health — click to view validation issues"
+            className="flex items-center gap-2 h-8 pl-2.5 pr-2 rounded-md border transition-colors cursor-pointer"
+            style={{
+              background:
+                errors > 0 ? "color-mix(in srgb, var(--color-error) 10%, transparent)" : "var(--color-bg)",
+              borderColor: errors > 0 || warnings > 0 ? healthTone : "var(--ui-border)",
+            }}
+          >
+            <span className="w-2 h-2 rounded-full shrink-0" style={{ background: healthTone }} />
+            <span className="flex flex-col items-start leading-none">
+              <span className="text-[11.5px] font-semibold text-[var(--color-text-heading)] whitespace-nowrap">
+                {healthLabel}
+              </span>
+              <span
+                className="hidden lg:block mt-0.5 text-[var(--color-text-muted)] uppercase"
+                style={{ fontFamily: "var(--font-mono)", fontSize: "8.5px", letterSpacing: "0.12em" }}
+              >
+                Validation
+              </span>
+            </span>
+            {/* Square tag dot vs the round status dot — severity is never colour-only */}
+            <span
+              className="hidden xl:flex items-center gap-1 h-5 px-1.5 rounded-[5px]"
+              style={{ background: `color-mix(in srgb, ${healthTone} 16%, transparent)` }}
+            >
+              <span className="w-1.5 h-1.5 rounded-[2px]" style={{ background: healthTone }} />
+              <span
+                className="uppercase font-bold whitespace-nowrap"
+                style={{ fontFamily: "var(--font-mono)", fontSize: "8.5px", letterSpacing: "0.12em", color: healthTone }}
+              >
+                {healthTag}
+              </span>
+            </span>
+          </button>
+
+          {/* Interface scale */}
+          <div ref={scaleRef} className="relative">
+            <button
+              onClick={() => setScaleOpen((o) => !o)}
+              title="Interface scale"
+              aria-haspopup="menu"
+              aria-expanded={scaleOpen}
+              className="flex items-center gap-1.5 h-7 px-2 rounded-md border border-[var(--ui-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text-heading)] hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 600 }}>
+                {Math.round(uiScale * 100)}%
+              </span>
+            </button>
+            {scaleOpen && (
+              <div
+                className="chrome-menu absolute right-0 top-9 z-50 w-[122px] flex flex-col gap-0.5"
+                style={{ transformOrigin: "top right", ...popMotion }}
+                role="menu"
+                aria-label="Interface scale"
+              >
+                <span
+                  aria-hidden="true"
+                  className="px-1.5 pt-1 pb-0.5 text-[var(--color-text-muted)] uppercase"
+                  style={{ fontFamily: "var(--font-mono)", fontSize: "8.5px", letterSpacing: "0.12em" }}
+                >
+                  Interface scale
+                </span>
+                {UI_SCALE_STEPS.map((step) => {
+                  const active = Math.abs(step - uiScale) < 0.001;
+                  return (
+                    <button
+                      key={step}
+                      role="menuitemradio"
+                      aria-checked={active}
+                      onClick={() => {
+                        setUiScale(step);
+                        setScaleOpen(false);
+                      }}
+                      className="flex items-center justify-between h-7 px-2 rounded-md hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer"
+                      style={{
+                        background: active ? "var(--color-accent-soft)" : "transparent",
+                        color: active ? "var(--color-accent)" : "var(--color-text)",
+                        fontFamily: "var(--font-mono)",
+                        fontSize: "11px",
+                        fontWeight: 600,
+                      }}
+                    >
+                      {Math.round(step * 100)}%
+                      {active && (
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                          <path
+                            d="M5 12l4 4L19 7"
+                            stroke="currentColor"
+                            strokeWidth="2.2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           <button onClick={toggle} title={isDark ? "Switch to light mode" : "Switch to dark mode"} className={iconBtn}>
             {isDark ? (
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
@@ -244,37 +457,85 @@ export default function EditorTopBar() {
             )}
           </button>
 
-          <button
-            onClick={() => fire("easyschematic:show-validate")}
-            title="Validation issues"
-            className="flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-[var(--ui-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text-heading)] hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer"
-            style={{ fontSize: "11.5px" }}
-          >
-            <span
-              className="w-1.5 h-1.5 rounded-full"
-              style={{
-                background:
-                  issues.errors > 0
-                    ? "var(--color-error)"
-                    : issues.total > 0
-                      ? "var(--color-warning)"
-                      : "var(--color-success)",
-              }}
-            />
-            <span style={{ fontFamily: "var(--font-mono)" }}>{issues.total}</span>
-            <span>issues</span>
-          </button>
-
-          <button
-            onClick={() => fire("easyschematic:open-reports")}
-            className="flex items-center gap-1.5 h-7 px-3 rounded-md text-white font-medium transition-colors hover:brightness-110 active:brightness-95 cursor-pointer"
-            style={{ background: "var(--color-accent)", fontSize: "11.5px" }}
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
-              <path d="M12 16V4M8 8l4-4 4 4M5 16v3a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            Export
-          </button>
+          {/* Export — one-click formats, with Reports… for the full dialog */}
+          <div ref={exportRef} className="relative">
+            <button
+              onClick={() => setExportOpen((o) => !o)}
+              aria-haspopup="menu"
+              aria-expanded={exportOpen}
+              className="ui-btn ui-btn-primary h-7 !px-3"
+              style={{ fontSize: "11.5px" }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M12 16V4M8 8l4-4 4 4M5 16v3a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              Export
+            </button>
+            {exportOpen && (
+              <div
+                className="chrome-menu absolute right-0 top-9 z-50 w-[226px]"
+                style={{ transformOrigin: "top right", ...popMotion }}
+                role="menu"
+                aria-label="Export document"
+              >
+                <span
+                  aria-hidden="true"
+                  className="block px-2 pt-1.5 pb-1.5 text-[var(--color-text-muted)] uppercase"
+                  style={{ fontFamily: "var(--font-mono)", fontSize: "8.5px", letterSpacing: "0.12em" }}
+                >
+                  Export document
+                </span>
+                {EXPORT_FORMATS.map((f) => (
+                  <button
+                    key={f.key}
+                    role="menuitem"
+                    onClick={() => runExport(f.key)}
+                    className="flex items-center gap-2.5 w-full h-9 px-2 rounded-lg text-left hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer"
+                  >
+                    <span className="flex items-center justify-center w-[26px] h-[26px] rounded-[7px] bg-[var(--color-bg)] border border-[var(--ui-border)] text-[var(--color-accent)] shrink-0">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                        <path d={f.icon} stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </span>
+                    <span className="flex flex-col min-w-0 flex-1">
+                      <span className="text-[11.5px] font-semibold text-[var(--color-text-heading)]">{f.label}</span>
+                      <span className="text-[9px] text-[var(--color-text-muted)]">{f.meta}</span>
+                    </span>
+                  </button>
+                ))}
+                <button
+                  role="menuitem"
+                  onClick={() => {
+                    setExportOpen(false);
+                    fire("easyschematic:open-reports");
+                  }}
+                  className="flex items-center gap-2.5 w-full h-9 px-2 mt-1 pt-1 border-t border-[var(--ui-border)] rounded-lg text-left hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer"
+                >
+                  <span className="flex items-center justify-center w-[26px] h-[26px] rounded-[7px] bg-[var(--color-bg)] border border-[var(--ui-border)] text-[var(--color-accent)] shrink-0">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                      <path
+                        d="M4 5h16M4 12h16M4 19h10"
+                        stroke="currentColor"
+                        strokeWidth="1.7"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </span>
+                  <span className="flex flex-col min-w-0 flex-1">
+                    <span className="text-[11.5px] font-semibold text-[var(--color-text-heading)]">Reports…</span>
+                    <span className="text-[9px] text-[var(--color-text-muted)]">Power, thermal, network &amp; schedules</span>
+                  </span>
+                </button>
+              </div>
+            )}
+          </div>
 
           <UserMenuButton />
         </div>

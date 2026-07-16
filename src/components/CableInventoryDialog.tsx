@@ -39,9 +39,15 @@ export default function CableInventoryDialog() {
 
   return (
     <div className="ui-dialog-backdrop" data-print-hide onClick={() => setShow(false)}>
-      <div className="ui-dialog w-[480px] max-w-[92vw]" onClick={(e) => e.stopPropagation()}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="cable-inventory-dialog-title"
+        className="ui-dialog w-[480px] max-w-[92vw]"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="px-4 py-3 border-b border-[var(--ui-border)] flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-[var(--color-text-heading)]">
+          <h2 id="cable-inventory-dialog-title" className="text-sm font-semibold text-[var(--color-text-heading)]">
             Cable Inventory
           </h2>
           <button
