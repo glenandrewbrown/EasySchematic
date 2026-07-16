@@ -180,7 +180,7 @@ export default function CablesPanel({ rows, warnings }: CablesPanelProps) {
           onClick={() =>
             window.dispatchEvent(new CustomEvent("easyschematic:open-cable-bom"))
           }
-          className="ui-btn-commit w-full flex items-center justify-center gap-1.5 h-7 px-3 rounded-md text-[11px] font-semibold transition-colors cursor-pointer"
+          className="ui-btn-primary w-full flex items-center justify-center gap-1.5 h-7 px-3 rounded-md text-[11px] font-semibold transition-colors cursor-pointer"
         >
           Export pull-sheet
         </button>

@@ -3,33 +3,34 @@ import { useEffect } from "react";
 /* ── Landing palette ───────────────────────────────────────────────────────
    The landing page renders OUTSIDE the app's `.dark` class context (main.tsx
    mounts it standalone), so CSS theme tokens would resolve to their light
-   values. To guarantee the navy "engineering instrument" look regardless of
-   the visitor's OS theme, the marketing surface uses the comp's literal navy
-   hexes. These mirror the `.dark` token values in theme.css. The deepest bg
-   (#050d1c) has no token by design — it is the marketing-only canvas colour.   */
+   values. To guarantee the dark "Slate × Carbon" look regardless of the
+   visitor's OS theme, the marketing surface uses literal slate hexes. These
+   mirror the `.dark` token values in theme.css. Only bgDeep has no token by
+   design — it sits below --color-bg as the marketing-only canvas colour.      */
 const C = {
-  bgDeep: "#1c1a3a", // page canvas (deep marketing bg — v3 Currents)
-  surface: "#26234c", // surface (Currents)
-  card: "#363266", // card (Currents)
-  panel: "#363266", // hero-mock / brand panel (nearest role: card)
-  border: "#4d4889", // border (Currents)
-  borderSoft: "#4d4889", // hairline dividers (nearest role: border)
-  borderStrong: "#6b66a6", // strong border (Currents)
-  text: "#cdcaeb", // body text (Currents)
-  textHeading: "#f2f1fb", // heading (Currents)
-  textMuted: "#9b97cc", // muted (Currents)
-  textBright: "#f2f1fb", // hero H1 (nearest role: heading)
-  accent: "#a99bf2", // marketing accent (lavender — Currents)
-  accentInk: "#241f4a", // text on accent buttons (Currents)
-  accentSoft: "rgba(169,155,242,0.1)",
+  bgDeep: "#141b25", // page canvas (deep marketing bg — below --color-bg)
+  surface: "#1a212d", // --color-bg
+  card: "#3a4659", // --color-surface
+  panel: "#3a4659", // hero-mock / brand panel (nearest role: surface)
+  border: "#52617a", // --ui-border
+  borderSoft: "#52617a", // hairline dividers (nearest role: --ui-border)
+  borderStrong: "#76859a", // --ui-border-strong
+  text: "#e8edf4", // --color-text
+  textHeading: "#f9fbfd", // --color-text-heading
+  textMuted: "#b6c0cd", // --color-text-muted
+  textBright: "#f9fbfd", // hero H1 (nearest role: heading)
+  accent: "#6fb8ff", // marketing accent (azure — Slate)
+  accentInk: "#04101f", // text on accent buttons (the design's "on-accent" ink)
+  accentSoft: "rgba(111,184,255,0.1)",
 } as const;
 
-/* Workspace-accent hexes for the feature-strip line icons (data, not theme). */
+/* Workspace-accent hexes for the feature-strip line icons (data, not theme).
+   Mirrors the .dark[data-workspace=…] accents in theme.css. */
 const FEATURE_ACCENTS = {
-  schematic: "#a99bf2",
-  plan: "#34d0b8",
-  schedule: "#e6c06a",
-  rack: "#c79bf5",
+  schematic: "#6fb8ff",
+  plan: "#35c8b2",
+  schedule: "#e6b354",
+  rack: "#b49cf6",
 } as const;
 
 /* Preserved enter-app path: opt out of the landing page, then load the editor.
@@ -190,7 +191,7 @@ function HeroCanvasMock() {
           top: 60,
           width: 110,
           border: `1px solid ${C.accent}`,
-          boxShadow: "0 0 0 3px rgba(169,155,242,.14)",
+          boxShadow: "0 0 0 3px rgba(111,184,255,.14)",
         }}
       >
         <div
@@ -371,7 +372,7 @@ export default function LandingPage() {
               padding: "56px 40px",
               alignItems: "center",
               background:
-                "radial-gradient(120% 90% at 80% 10%, rgba(169,155,242,.09), transparent 55%)",
+                "radial-gradient(120% 90% at 80% 10%, rgba(111,184,255,.09), transparent 55%)",
             }}
           >
             <div>
@@ -385,7 +386,7 @@ export default function LandingPage() {
                   background: C.accentSoft,
                   border: `1px solid ${C.borderStrong}`,
                   fontSize: 11,
-                  color: "#cdcaeb",
+                  color: C.text,
                   marginBottom: 20,
                 }}
               >

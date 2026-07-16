@@ -576,7 +576,7 @@ function ReportPreviewDialog({
 
             <button
               onClick={handleExportPdf}
-              className="ui-btn ui-btn-commit mt-auto"
+              className="ui-btn ui-btn-primary mt-auto"
             >
               Export PDF
             </button>

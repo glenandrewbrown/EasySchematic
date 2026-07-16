@@ -228,7 +228,7 @@ export default function ViewOptionsPanel({ mobile, onClose }: { mobile?: boolean
             checked={liveSignal}
             onChange={(e) => setLiveSignal(e.target.checked)}
             className="w-3 h-3 cursor-pointer"
-            style={{ accentColor: "var(--color-commit)" }}
+            style={{ accentColor: "var(--color-accent)" }}
           />
           <span className="text-xs text-[var(--color-text)]">Live signal</span>
         </label>

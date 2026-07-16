@@ -42,8 +42,8 @@ export const SIGNAL_FAMILY_LABELS: Record<SignalFamily, string> = {
 
 /** One representative hue per family (legends, "colour by family"). */
 export const SIGNAL_FAMILY_COLORS: Record<SignalFamily, string> = {
-  audio: "#0d9488", // teal
-  speaker: "#7c3aed", // violet
+  audio: "#cfa920", // gold (the analog-audio anchor — the family's dominant type)
+  speaker: "#9f1239", // crimson (matches its only member, speaker-level)
   video: "#2563eb", // blue
   network: "#16a34a", // green
   control: "#d97706", // amber
@@ -146,34 +146,45 @@ const POWER_COLORS: Record<string, string> = {
 };
 
 /**
- * Fixed brand-spec signal colours (HANDOFF §2): these 8 named types are *data* — they
- * render their exact hex everywhere and identically in both themes, overriding the
- * family-ramp / POWER_COLORS result. The remaining ~60 types keep the family taxonomy.
+ * Fixed brand-spec signal colours (Slate × Carbon design system): these 11 named types are
+ * *data* — they render their exact hex everywhere and identically in both themes, overriding
+ * the family-ramp / POWER_COLORS result. The remaining ~58 types keep the family taxonomy.
  * Power-l1/l2/l3/neutral/ground are NOT overridden — they keep their electrical colours.
+ *
+ * Slate × Carbon retunes five of these away from the older palette: analog-audio to gold,
+ * ethernet to teal, thunderbolt and power to slate greys, and custom to a muted violet.
+ * thunderbolt and power are deliberately desaturated so the loud hues stay meaningful —
+ * a canvas is mostly analog-audio, and its greys read as infrastructure.
  */
 export const HANDOFF_SIGNAL_COLORS: Partial<Record<SignalType, string>> = {
   aes: "#a98bf0",
-  "analog-audio": "#cba36a",
+  "analog-audio": "#cfa920",
   dante: "#ec8a3e",
   usb: "#e06aa6",
   sdi: "#6db0f0",
   hdmi: "#ef7a72",
-  ethernet: "#3fc3d6",
-  power: "#d6a445",
+  ethernet: "#19b6a6",
+  power: "#7a8290",
+  thunderbolt: "#6b7689",
+  custom: "#9c8cc4",
+  "speaker-level": "#9f1239",
 };
 
 /**
- * Brand-anchor sequences per family (HANDOFF §2). Every family that owns one or more of
- * the fixed signal colours gets its remaining subtypes *interpolated between those anchors*,
- * so the whole family reads as one coherent gradient pinned to the brief's hues: the named
- * anchors keep their exact hex (applied last in {@link buildDefaultSignalColors}) and the
- * other members fill the gradient's interior. Families with no HANDOFF anchor
- * (speaker / control / rf / other) fall back to their {@link FAMILY_SHADES} ramp; power keeps
- * its conventional electrical colours.
+ * Brand-anchor sequences per family. Every family that owns one or more of the fixed signal
+ * colours gets its remaining subtypes *interpolated between those anchors*, so the whole
+ * family reads as one coherent gradient pinned to the brief's hues: the named anchors keep
+ * their exact hex (applied last in {@link buildDefaultSignalColors}) and the other members
+ * fill the gradient's interior. Families with no fixed anchor (control / rf) fall back to
+ * their {@link FAMILY_SHADES} ramp; power keeps its conventional electrical colours.
+ *
+ * Only gradient-defining anchors belong here. thunderbolt (#6b7689) and custom (#9c8cc4) are
+ * fixed but deliberately sit OFF their family's gradient, so they are not stops — they are
+ * applied last and simply override.
  */
 const FAMILY_ANCHORS: Partial<Record<SignalFamily, readonly string[]>> = {
-  audio: ["#a98bf0", "#cba36a", "#ec8a3e"], // AES violet → analog tan → Dante orange
-  network: ["#3fc3d6", "#e06aa6"], // Ethernet cyan → USB pink
+  audio: ["#a98bf0", "#cfa920", "#ec8a3e"], // AES violet → analog gold → Dante orange
+  network: ["#19b6a6", "#e06aa6"], // Ethernet teal → USB pink
   video: ["#6db0f0", "#ef7a72"], // SDI blue → HDMI coral
 };
 
@@ -195,7 +206,7 @@ function lerpHex(a: string, b: string, t: number): string {
  *  Anchored families (audio / video / network) interpolate {@link FAMILY_ANCHORS} instead. */
 const FAMILY_SHADES: Record<SignalFamily, readonly string[]> = {
   audio: ["#0d9488", "#0f766e", "#14b8a6", "#0e7490", "#06b6d4", "#155e63", "#2dd4bf", "#0891b2"],
-  speaker: ["#7c3aed"],
+  speaker: ["#9f1239"],
   video: ["#2563eb", "#1d4ed8", "#3b82f6", "#1e40af", "#0ea5e9", "#0369a1", "#60a5fa", "#1e3a8a"],
   network: ["#16a34a", "#15803d", "#22c55e", "#166534"],
   control: ["#d97706", "#b45309", "#f59e0b", "#ca8a04", "#ea580c", "#92400e", "#fbbf24"],
@@ -209,13 +220,15 @@ export function familyFor(type: SignalType): SignalFamily {
 }
 
 /**
- * Build the default per-type colour map from the brand-spec palette (HANDOFF §2):
+ * Build the default per-type colour map from the Slate × Carbon palette:
  *  - Power phase/neutral/ground keep their conventional electrical colours.
- *  - Families with HANDOFF anchors (audio / video / network) interpolate: the named anchor
- *    types render their exact hex, and every other member fills the *interior* of that
- *    family's anchor gradient — so the whole family reads as one coherent gradient pinned
- *    to the brief's hues (e.g. audio spans AES violet → analog tan → Dante orange).
- *  - Families without an anchor (speaker / control / rf / other) take their FAMILY_SHADES ramp.
+ *  - Families with anchors (audio / video / network) interpolate: the named anchor types
+ *    render their exact hex, and every other member fills the *interior* of that family's
+ *    anchor gradient — so the whole family reads as one coherent gradient pinned to the
+ *    brief's hues (e.g. audio spans AES violet → analog gold → Dante orange).
+ *  - Families without anchors (speaker / control / rf / other) take their FAMILY_SHADES ramp.
+ *  - The 11 fixed colours are applied LAST and win outright, including the few that sit off
+ *    their family's gradient by design (thunderbolt, custom).
  * Subtypes within a family stay visually related; the label disambiguates the exact subtype.
  */
 export function buildDefaultSignalColors(): Record<SignalType, string> {
@@ -254,8 +267,8 @@ export function buildDefaultSignalColors(): Record<SignalType, string> {
       });
     });
   }
-  // Apply the fixed brand-spec colours LAST so the 8 named anchor types (and the base power
-  // colour) render their exact hex (HANDOFF §2 — these are data, not styling).
+  // Apply the fixed brand-spec colours LAST so the 11 named types (and the base power
+  // colour) render their exact hex — these are data, not styling.
   for (const [type, color] of Object.entries(HANDOFF_SIGNAL_COLORS)) {
     out[type as SignalType] = color;
   }

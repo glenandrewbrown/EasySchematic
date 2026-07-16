@@ -36,32 +36,45 @@ describe("signal families", () => {
     expect(colors["power-ground"]).toBe("#00aa00"); // green
   });
 
-  it("applies the fixed brand-spec colours for the 8 named signal types (HANDOFF §2)", () => {
+  it("applies the fixed brand-spec colours for the 11 named signal types (Slate × Carbon)", () => {
     const colors = buildDefaultSignalColors();
-    // These 8 are data, not family-ramp output — they override the taxonomy.
+    // These 11 are data, not family-ramp output — they override the taxonomy.
     expect(colors.aes).toBe("#a98bf0");
-    expect(colors["analog-audio"]).toBe("#cba36a");
+    expect(colors["analog-audio"]).toBe("#cfa920"); // gold
     expect(colors.dante).toBe("#ec8a3e");
     expect(colors.usb).toBe("#e06aa6");
     expect(colors.sdi).toBe("#6db0f0");
     expect(colors.hdmi).toBe("#ef7a72");
-    expect(colors.ethernet).toBe("#3fc3d6");
+    expect(colors.ethernet).toBe("#19b6a6"); // teal
+    expect(colors["speaker-level"]).toBe("#9f1239"); // crimson
     // power overrides POWER_COLORS for the base type…
-    expect(colors.power).toBe("#d6a445");
+    expect(colors.power).toBe("#7a8290"); // slate grey
     // …but the phase/neutral/ground electrical colours are untouched.
     expect(colors["power-l1"]).toBe("#1a1a1a");
     expect(colors["power-ground"]).toBe("#00aa00");
   });
 
+  it("honours fixed colours that sit off their family's gradient", () => {
+    const colors = buildDefaultSignalColors();
+    // thunderbolt is a network type, but Slate × Carbon pins it to a slate grey that is
+    // nowhere on the ethernet-teal → USB-pink ramp. Fixed colours are applied last, so it
+    // must survive rather than being interpolated back onto the gradient.
+    expect(familyFor("thunderbolt")).toBe("network");
+    expect(colors.thunderbolt).toBe("#6b7689");
+    // custom (other) is likewise pinned off its family's slate shade ramp.
+    expect(familyFor("custom")).toBe("other");
+    expect(colors.custom).toBe("#9c8cc4");
+  });
+
   it("interpolates non-overridden types across their family's brand anchors", () => {
     const colors = buildDefaultSignalColors();
     const hex = /^#[0-9a-f]{6}$/i;
-    // madi (audio, no fixed override) is now an interior blend of the audio anchors
-    // (AES violet → analog tan → Dante orange), not the old teal family-ramp base.
+    // madi (audio, no fixed override) is an interior blend of the audio anchors
+    // (AES violet → analog gold → Dante orange), not the old teal family-ramp base.
     expect(colors.madi).toMatch(hex);
     expect(colors.madi).not.toBe("#0d9488"); // no longer the teal family-ramp base
     expect(colors.madi).not.toBe("#a98bf0"); // a blend, not snapped onto an anchor
-    expect(colors.madi).not.toBe("#cba36a");
+    expect(colors.madi).not.toBe("#cfa920");
     expect(colors.madi).not.toBe("#ec8a3e");
     // ndi (video, no override) blends across SDI blue → HDMI coral, not the old blue base.
     expect(colors.ndi).toMatch(hex);
@@ -74,7 +87,13 @@ describe("signal families", () => {
 
   it("exposes one representative hue per family", () => {
     expect(SIGNAL_FAMILY_COLORS.video).toBe("#2563eb");
-    expect(SIGNAL_FAMILY_COLORS.audio).toBe("#0d9488");
+    expect(SIGNAL_FAMILY_COLORS.audio).toBe("#cfa920"); // the analog-audio anchor
     expect(SIGNAL_FAMILY_COLORS.power).toBe("#dc2626");
+  });
+
+  it("keeps a family's representative hue consistent with its sole member", () => {
+    // speaker has exactly one member, so the legend hue and the rendered cable must agree.
+    const colors = buildDefaultSignalColors();
+    expect(SIGNAL_FAMILY_COLORS.speaker).toBe(colors["speaker-level"]);
   });
 });

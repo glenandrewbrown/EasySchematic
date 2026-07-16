@@ -340,7 +340,7 @@ function HeaderBar({ onExportCsv, onExportPdf, disabled }: HeaderBarProps) {
         </button>
         <button
           type="button"
-          className="ui-btn ui-btn-commit"
+          className="ui-btn ui-btn-primary"
           onClick={onExportPdf}
           disabled={disabled}
           style={disabled ? { opacity: 0.5 } : undefined}
