@@ -145,6 +145,13 @@ export function computeCableSchedule(
 
   const connections = edges
     .filter((e) => e.data?.signalType && !e.data?.directAttach)
+    // A wireless link is a broadcast, not a cable — it gets no schedule row and no estimated
+    // length. Mirrors the same exclusion packList.ts applies to the BOM, so the two agree.
+    .filter((e) => {
+      const srcPort = resolvePort(nodes.find((n) => n.id === e.source), e.sourceHandle);
+      const tgtPort = resolvePort(nodes.find((n) => n.id === e.target), e.targetHandle);
+      return srcPort?.connectorType !== "wireless" && tgtPort?.connectorType !== "wireless";
+    })
     // For linked pairs, only process the source-side leg (the one whose source is a real device).
     .filter((e) => !e.data?.linkedConnectionId || isSourceLeg(e))
     .map((e) => {
