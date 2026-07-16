@@ -14,6 +14,7 @@ import type { IssueKind, IssueSeverity, ValidationIssue } from "../validation";
 
 const KIND_LABEL: Record<IssueKind, string> = {
   "port-incompatible": "Signal mismatch",
+  "connector-mismatch": "Connector mismatch",
   "missing-power": "No power",
   "unassigned-room": "No room",
   "duplicate-ip": "Duplicate IP",

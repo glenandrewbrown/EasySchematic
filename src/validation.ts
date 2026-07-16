@@ -6,7 +6,7 @@ import type {
   Port,
   SignalType,
 } from "./types";
-import { SIGNAL_LABELS } from "./types";
+import { SIGNAL_LABELS, CONNECTOR_LABELS } from "./types";
 import { isSpeaker } from "./speakerSpec";
 
 /**
@@ -19,6 +19,7 @@ export type IssueSeverity = "error" | "warning";
 
 export type IssueKind =
   | "port-incompatible"
+  | "connector-mismatch"
   | "missing-power"
   | "unassigned-room"
   | "duplicate-ip";
@@ -109,7 +110,6 @@ export function findIncompatibleConnections(
   const byId = deviceMap(nodes);
   const issues: ValidationIssue[] = [];
   for (const e of edges) {
-    if (e.data?.allowIncompatible) continue;
     const src = byId.get(e.source);
     const tgt = byId.get(e.target);
     if (!src || !tgt) continue;
@@ -118,11 +118,54 @@ export function findIncompatibleConnections(
     if (!sp || !tp) continue;
     if (sp.inheritsSignal || tp.inheritsSignal) continue;
     if (signalsCompatible(sp.signalType, tp.signalType)) continue;
+    // An override acknowledges the mismatch; it does not make it go away. Overridden runs stay
+    // listed as warnings marked "override active" so the document still tells the truth about
+    // itself — a silently dropped issue is indistinguishable from a correct connection.
+    const overridden = e.data?.allowIncompatible === true;
     issues.push({
       id: `port-incompatible:${e.id}`,
       kind: "port-incompatible",
-      severity: "error",
-      message: `Connection joins mismatched signals: ${deviceLabel(src.data)} (${SIGNAL_LABELS[sp.signalType]}) → ${deviceLabel(tgt.data)} (${SIGNAL_LABELS[tp.signalType]}).`,
+      severity: overridden ? "warning" : "error",
+      message: `Connection joins mismatched signals: ${deviceLabel(src.data)} (${SIGNAL_LABELS[sp.signalType]}) → ${deviceLabel(tgt.data)} (${SIGNAL_LABELS[tp.signalType]})${overridden ? " (override active)" : ""}.`,
+      nodeIds: [src.id, tgt.id],
+      edgeId: e.id,
+    });
+  }
+  return issues;
+}
+
+/**
+ * Connections the user forced together across incompatible CONNECTORS ("Connect anyway"),
+ * i.e. `connectorMismatch` was recorded on the edge. Only explicitly-flagged runs are
+ * reported — the connector tables are not re-derived here, so an existing document never
+ * sprouts warnings it did not already carry.
+ *
+ * Signal-level mismatches are reported by {@link findIncompatibleConnections} instead, so a
+ * run whose signals also disagree is skipped here rather than reported twice.
+ */
+export function findConnectorMismatches(
+  nodes: readonly SchematicNode[],
+  edges: readonly ConnectionEdge[],
+): ValidationIssue[] {
+  const byId = deviceMap(nodes);
+  const issues: ValidationIssue[] = [];
+  for (const e of edges) {
+    if (!e.data?.connectorMismatch) continue;
+    const src = byId.get(e.source);
+    const tgt = byId.get(e.target);
+    if (!src || !tgt) continue;
+    const sp = resolvePort(src.data, e.sourceHandle);
+    const tp = resolvePort(tgt.data, e.targetHandle);
+    if (!sp || !tp) continue;
+    // Already covered as a signal mismatch — don't double-report the same run.
+    if (!sp.inheritsSignal && !tp.inheritsSignal && !signalsCompatible(sp.signalType, tp.signalType)) continue;
+    const a = sp.connectorType ? CONNECTOR_LABELS[sp.connectorType] : "—";
+    const b = tp.connectorType ? CONNECTOR_LABELS[tp.connectorType] : "—";
+    issues.push({
+      id: `connector-mismatch:${e.id}`,
+      kind: "connector-mismatch",
+      severity: "warning",
+      message: `Connector mismatch — ${a} ↔ ${b}: ${deviceLabel(src.data)} → ${deviceLabel(tgt.data)} (override active).`,
       nodeIds: [src.id, tgt.id],
       edgeId: e.id,
     });
@@ -206,6 +249,7 @@ export function validateSchematic(
 ): ValidationIssue[] {
   return [
     ...findIncompatibleConnections(nodes, edges),
+    ...findConnectorMismatches(nodes, edges),
     ...findMissingPower(nodes, edges),
     ...findUnassignedSpeakers(nodes),
     ...findDuplicateIps(nodes),

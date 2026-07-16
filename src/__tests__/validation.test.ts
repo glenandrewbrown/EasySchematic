@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   validateSchematic,
   findIncompatibleConnections,
+  findConnectorMismatches,
   findMissingPower,
   findUnassignedSpeakers,
   findDuplicateIps,
@@ -81,11 +82,39 @@ describe("findIncompatibleConnections", () => {
     expect(findIncompatibleConnections([a, b], [edge("e1", "A", "B", "pa", "pb")])).toHaveLength(0);
   });
 
-  it("respects the allowIncompatible override on the connection", () => {
+  it("downgrades an allowIncompatible override to a warning instead of hiding it", () => {
+    // An override acknowledges a mismatch; it does not make the mismatch untrue. The run stays
+    // listed (marked "override active") so a dropped issue can't be mistaken for a clean run.
     const a = dev("A", [port("pa", "hdmi", "output")]);
     const b = dev("B", [port("pb", "sdi", "input")]);
     const e = edge("e1", "A", "B", "pa", "pb", { allowIncompatible: true });
-    expect(findIncompatibleConnections([a, b], [e])).toHaveLength(0);
+
+    const issues = findIncompatibleConnections([a, b], [e]);
+
+    expect(issues).toHaveLength(1);
+    expect(issues[0].severity).toBe("warning");
+    expect(issues[0].message).toContain("override active");
+  });
+
+  it("reports an un-overridden mismatch as an error", () => {
+    const a = dev("A", [port("pa", "hdmi", "output")]);
+    const b = dev("B", [port("pb", "sdi", "input")]);
+    const issues = findIncompatibleConnections([a, b], [edge("e1", "A", "B", "pa", "pb")]);
+
+    expect(issues).toHaveLength(1);
+    expect(issues[0].severity).toBe("error");
+    expect(issues[0].message).not.toContain("override active");
+  });
+
+  it("does not report a connector mismatch twice as a signal mismatch", () => {
+    // Signals disagree AND connectors were overridden: the signal rule owns this run, so the
+    // connector rule stays quiet rather than listing the same connection in two places.
+    const a = dev("A", [port("pa", "hdmi", "output", { connectorType: "hdmi" })]);
+    const b = dev("B", [port("pb", "sdi", "input", { connectorType: "bnc" })]);
+    const e = edge("e1", "A", "B", "pa", "pb", { allowIncompatible: true, connectorMismatch: true });
+
+    expect(findIncompatibleConnections([a, b], [e])).toHaveLength(1);
+    expect(findConnectorMismatches([a, b], [e])).toHaveLength(0);
   });
 
   it("ignores passthrough ports that inherit their signal", () => {
@@ -109,6 +138,31 @@ describe("findIncompatibleConnections", () => {
 });
 
 // ── missing power ───────────────────────────────────────────────────
+describe("findConnectorMismatches", () => {
+  it("reports a run the user forced across incompatible connectors", () => {
+    const a = dev("A", [port("pa", "analog-audio", "output", { connectorType: "xlr-3" })]);
+    const b = dev("B", [port("pb", "analog-audio", "input", { connectorType: "trs-quarter" })]);
+    const e = edge("e1", "A", "B", "pa", "pb", { connectorMismatch: true });
+
+    const issues = findConnectorMismatches([a, b], [e]);
+
+    expect(issues).toHaveLength(1);
+    expect(issues[0].severity).toBe("warning");
+    expect(issues[0].kind).toBe("connector-mismatch");
+    expect(issues[0].message).toContain("override active");
+    expect(issues[0].edgeId).toBe("e1");
+  });
+
+  it("stays silent on a run that was never flagged", () => {
+    // The rule reads the recorded flag; it never re-derives mismatches from the connector
+    // tables, so opening an existing document cannot sprout warnings it did not already carry.
+    const a = dev("A", [port("pa", "analog-audio", "output", { connectorType: "xlr-3" })]);
+    const b = dev("B", [port("pb", "analog-audio", "input", { connectorType: "trs-quarter" })]);
+
+    expect(findConnectorMismatches([a, b], [edge("e1", "A", "B", "pa", "pb")])).toHaveLength(0);
+  });
+});
+
 describe("findMissingPower", () => {
   it("flags a device whose power inlet is unconnected", () => {
     const d = dev("AMP", [port("pwr", "power", "input", { connectorType: "iec" })]);
