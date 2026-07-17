@@ -555,6 +555,184 @@
     "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
   },
   {
+    "id": "control-processor",
+    "name": "Control Processor",
+    "category": "compute",
+    "subcategory": "control-processor",
+    "tags": [
+      "control processor",
+      "compute",
+      "processor",
+      "computer",
+      "chip",
+      "hardware",
+      "technology",
+      "electronic"
+    ],
+    "file": "compute/control-processor.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "desktop",
+    "name": "Desktop",
+    "category": "compute",
+    "subcategory": "desktop",
+    "tags": [
+      "desktop",
+      "compute",
+      "monitor",
+      "computer",
+      "imac",
+      "device",
+      "hardware"
+    ],
+    "file": "compute/desktop.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "keyboard",
+    "name": "Keyboard",
+    "category": "compute",
+    "subcategory": "keyboard",
+    "tags": [
+      "keyboard",
+      "compute",
+      "computer",
+      "laptop",
+      "device",
+      "type",
+      "hardware"
+    ],
+    "file": "compute/keyboard.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "kvm-switch",
+    "name": "KVM Switch",
+    "category": "compute",
+    "subcategory": "kvm",
+    "tags": [
+      "kvm",
+      "compute"
+    ],
+    "file": "compute/kvm-switch.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+  },
+  {
+    "id": "laptop",
+    "name": "Laptop",
+    "category": "compute",
+    "subcategory": "laptop",
+    "tags": [
+      "laptop",
+      "compute",
+      "workstation",
+      "mac",
+      "notebook",
+      "portable",
+      "screen",
+      "computer"
+    ],
+    "file": "compute/laptop.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "phone",
+    "name": "Phone",
+    "category": "compute",
+    "subcategory": "phone",
+    "tags": [
+      "phone",
+      "compute",
+      "iphone",
+      "smartphone",
+      "cellphone",
+      "device",
+      "mobile"
+    ],
+    "file": "compute/phone.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "rack-server",
+    "name": "Rack Server",
+    "category": "compute",
+    "subcategory": "rack-server",
+    "tags": [
+      "rack server",
+      "compute",
+      "storage",
+      "hosting",
+      "www",
+      "server",
+      "hardware",
+      "technology"
+    ],
+    "file": "compute/rack-server.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "sbc-board",
+    "name": "SBC Board",
+    "category": "compute",
+    "subcategory": "sbc-board",
+    "tags": [
+      "sbc board",
+      "compute"
+    ],
+    "file": "compute/sbc-board.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+  },
+  {
+    "id": "tablet",
+    "name": "Tablet",
+    "category": "compute",
+    "subcategory": "tablet",
+    "tags": [
+      "tablet",
+      "compute",
+      "ipad",
+      "mobile",
+      "touchscreen",
+      "portable",
+      "device"
+    ],
+    "file": "compute/tablet.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "touch-panel",
+    "name": "Touch Panel",
+    "category": "compute",
+    "subcategory": "touch-panel",
+    "tags": [
+      "touch panel",
+      "compute"
+    ],
+    "file": "compute/touch-panel.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+  },
+  {
     "id": "banquet-table",
     "name": "Banquet Table",
     "category": "furniture",
@@ -1629,6 +1807,170 @@
     "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
   },
   {
+    "id": "blinder",
+    "name": "Blinder",
+    "category": "lighting",
+    "subcategory": "blinder",
+    "tags": [
+      "blinder",
+      "lighting"
+    ],
+    "file": "lighting/blinder.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+  },
+  {
+    "id": "dimmer",
+    "name": "Dimmer",
+    "category": "lighting",
+    "subcategory": "dimmer",
+    "tags": [
+      "dimmer",
+      "lighting"
+    ],
+    "file": "lighting/dimmer.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+  },
+  {
+    "id": "fresnel",
+    "name": "Fresnel",
+    "category": "lighting",
+    "subcategory": "fresnel",
+    "tags": [
+      "fresnel",
+      "lighting"
+    ],
+    "file": "lighting/fresnel.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+  },
+  {
+    "id": "hazer",
+    "name": "Hazer",
+    "category": "lighting",
+    "subcategory": "hazer",
+    "tags": [
+      "hazer",
+      "lighting",
+      "weather",
+      "breeze",
+      "tornado",
+      "typhoon",
+      "cyclone",
+      "hurricane"
+    ],
+    "file": "lighting/hazer.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "lighting-console",
+    "name": "Lighting Console",
+    "category": "lighting",
+    "subcategory": "lighting-console",
+    "tags": [
+      "lighting console",
+      "lighting",
+      "equalizer",
+      "sliders",
+      "controls",
+      "settings",
+      "filter",
+      "adjustments"
+    ],
+    "file": "lighting/lighting-console.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "moving-head",
+    "name": "Moving Head",
+    "category": "lighting",
+    "subcategory": "moving-head",
+    "tags": [
+      "moving head",
+      "lighting"
+    ],
+    "file": "lighting/moving-head.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+  },
+  {
+    "id": "par-can",
+    "name": "Par Can",
+    "category": "lighting",
+    "subcategory": "par-can",
+    "tags": [
+      "par can",
+      "lighting"
+    ],
+    "file": "lighting/par-can.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+  },
+  {
+    "id": "strobe",
+    "name": "Strobe",
+    "category": "lighting",
+    "subcategory": "strobe",
+    "tags": [
+      "strobe",
+      "lighting",
+      "energy",
+      "power",
+      "electricity",
+      "storm",
+      "lightning",
+      "flash"
+    ],
+    "file": "lighting/strobe.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "wash-light",
+    "name": "Wash Light",
+    "category": "lighting",
+    "subcategory": "wash-light",
+    "tags": [
+      "wash light",
+      "lighting"
+    ],
+    "file": "lighting/wash-light.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+  },
+  {
+    "id": "worklight",
+    "name": "Worklight",
+    "category": "lighting",
+    "subcategory": "worklight",
+    "tags": [
+      "worklight",
+      "lighting",
+      "energy",
+      "power",
+      "electricity",
+      "creativity",
+      "light",
+      "idea"
+    ],
+    "file": "lighting/worklight.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
     "id": "wifi",
     "name": "Wifi",
     "category": "network",
@@ -2106,5 +2448,326 @@
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
     "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "battery",
+    "name": "Battery",
+    "category": "power",
+    "subcategory": "battery",
+    "tags": [
+      "battery",
+      "power",
+      "energy",
+      "electricity",
+      "charge",
+      "hardware"
+    ],
+    "file": "power/battery.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "battery-bank",
+    "name": "Battery Bank",
+    "category": "power",
+    "subcategory": "battery-bank",
+    "tags": [
+      "battery bank",
+      "power"
+    ],
+    "file": "power/battery-bank.svg",
+    "source": "https://github.com/FortAwesome/Font-Awesome",
+    "license": "CC-BY-4.0",
+    "attribution": "Font Awesome Free 6 (fontawesome.com) \u2014 Icons: CC BY 4.0 License, \u00a9 Fonticons, Inc."
+  },
+  {
+    "id": "outlet",
+    "name": "Outlet",
+    "category": "power",
+    "subcategory": "outlet",
+    "tags": [
+      "outlet",
+      "power"
+    ],
+    "file": "power/outlet.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+  },
+  {
+    "id": "pdu",
+    "name": "PDU",
+    "category": "power",
+    "subcategory": "pdu",
+    "tags": [
+      "pdu",
+      "power"
+    ],
+    "file": "power/pdu.svg",
+    "source": "https://github.com/FortAwesome/Font-Awesome",
+    "license": "CC-BY-4.0",
+    "attribution": "Font Awesome Free 6 (fontawesome.com) \u2014 Icons: CC BY 4.0 License, \u00a9 Fonticons, Inc."
+  },
+  {
+    "id": "power-conditioner",
+    "name": "Power Conditioner",
+    "category": "power",
+    "subcategory": "power-conditioner",
+    "tags": [
+      "power conditioner",
+      "power"
+    ],
+    "file": "power/power-conditioner.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+  },
+  {
+    "id": "power-distro",
+    "name": "Power Distro",
+    "category": "power",
+    "subcategory": "power-distro",
+    "tags": [
+      "power distro",
+      "power"
+    ],
+    "file": "power/power-distro.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+  },
+  {
+    "id": "power-inlet",
+    "name": "Power Inlet",
+    "category": "power",
+    "subcategory": "power-inlet",
+    "tags": [
+      "power inlet",
+      "power"
+    ],
+    "file": "power/power-inlet.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+  },
+  {
+    "id": "ups",
+    "name": "UPS",
+    "category": "power",
+    "subcategory": "ups",
+    "tags": [
+      "ups",
+      "power"
+    ],
+    "file": "power/ups.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+  },
+  {
+    "id": "camcorder",
+    "name": "Camcorder",
+    "category": "video",
+    "subcategory": "camcorder",
+    "tags": [
+      "camcorder",
+      "video",
+      "film",
+      "shoot",
+      "recording",
+      "taping",
+      "camera"
+    ],
+    "file": "video/camcorder.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "camera-fixed",
+    "name": "Camera Fixed",
+    "category": "video",
+    "subcategory": "camera-fixed",
+    "tags": [
+      "camera fixed",
+      "video",
+      "photo",
+      "aperture",
+      "camera",
+      "content",
+      "entertainment"
+    ],
+    "file": "video/camera-fixed.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "camera-ptz",
+    "name": "Camera PTZ",
+    "category": "video",
+    "subcategory": "camera-ptz",
+    "tags": [
+      "camera ptz",
+      "video",
+      "closed",
+      "circuit",
+      "television",
+      "surveillance",
+      "signal"
+    ],
+    "file": "video/camera-ptz.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "capture-device",
+    "name": "Capture Device",
+    "category": "video",
+    "subcategory": "capture-device",
+    "tags": [
+      "capture device",
+      "video"
+    ],
+    "file": "video/capture-device.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+  },
+  {
+    "id": "display",
+    "name": "Display",
+    "category": "video",
+    "subcategory": "display",
+    "tags": [
+      "display",
+      "video",
+      "screen",
+      "movie",
+      "film",
+      "watch",
+      "audio"
+    ],
+    "file": "video/display.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "led-wall",
+    "name": "LED Wall",
+    "category": "video",
+    "subcategory": "led-wall",
+    "tags": [
+      "led wall",
+      "video",
+      "table",
+      "side",
+      "line",
+      "border",
+      "all",
+      "creative"
+    ],
+    "file": "video/led-wall.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "media-server",
+    "name": "Media Server",
+    "category": "video",
+    "subcategory": "media-server",
+    "tags": [
+      "media server",
+      "video"
+    ],
+    "file": "video/media-server.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+  },
+  {
+    "id": "playback-deck",
+    "name": "Playback Deck",
+    "category": "video",
+    "subcategory": "playback-deck",
+    "tags": [
+      "playback deck",
+      "video",
+      "film",
+      "cinema",
+      "movie",
+      "content",
+      "entertainment"
+    ],
+    "file": "video/playback-deck.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "projector",
+    "name": "Projector",
+    "category": "video",
+    "subcategory": "projector",
+    "tags": [
+      "projector",
+      "video",
+      "display",
+      "presentation",
+      "screen",
+      "show",
+      "project",
+      "beam"
+    ],
+    "file": "video/projector.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+  },
+  {
+    "id": "scaler",
+    "name": "Scaler",
+    "category": "video",
+    "subcategory": "scaler",
+    "tags": [
+      "scaler",
+      "video"
+    ],
+    "file": "video/scaler.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+  },
+  {
+    "id": "streaming-encoder",
+    "name": "Streaming Encoder",
+    "category": "video",
+    "subcategory": "streaming-encoder",
+    "tags": [
+      "streaming encoder",
+      "video"
+    ],
+    "file": "video/streaming-encoder.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+  },
+  {
+    "id": "video-switcher",
+    "name": "Video Switcher",
+    "category": "video",
+    "subcategory": "video-switcher",
+    "tags": [
+      "video switcher",
+      "video"
+    ],
+    "file": "video/video-switcher.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
   }
 ]

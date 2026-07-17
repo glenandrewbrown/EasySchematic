@@ -25,20 +25,30 @@ from sources import (  # noqa: E402
     AUDIO,
     NETWORK,
     FURNITURE,
+    VIDEO,
+    LIGHTING,
+    COMPUTE,
+    POWER,
 )
 
 LIB_ROOT = Path(__file__).resolve().parent.parent
 CATEGORIES = {
     "generic": GENERIC,
     "audio": AUDIO,
+    "video": VIDEO,
+    "lighting": LIGHTING,
     "network": NETWORK,
+    "compute": COMPUTE,
+    "power": POWER,
     "furniture": FURNITURE,
 }
 
 # Build the human label from an id ("round-table" -> "Round Table").
 SPECIAL_CASE = {"di": "DI", "dsp": "DSP", "dj": "DJ", "iem": "IEM",
                 "nas": "NAS", "nic": "NIC", "poe": "PoE", "rf": "RF",
-                "fa": "", "io": "I/O", "tv": "TV"}
+                "fa": "", "io": "I/O", "tv": "TV", "ptz": "PTZ",
+                "led": "LED", "pdu": "PDU", "ups": "UPS", "kvm": "KVM",
+                "hdmi": "HDMI", "sbc": "SBC"}
 
 
 def humanize(stem: str) -> str:

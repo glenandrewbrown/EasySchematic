@@ -14,7 +14,15 @@
 import { SYMBOL_LIBRARY } from "./symbolLibrary.generated";
 
 /** Top-level grouping for the symbol picker. */
-export type SymbolCategory = "generic" | "audio" | "network" | "furniture";
+export type SymbolCategory =
+  | "generic"
+  | "audio"
+  | "video"
+  | "lighting"
+  | "network"
+  | "compute"
+  | "power"
+  | "furniture";
 
 /** One bundled symbol: metadata + a full, sanitiser-safe `<svg>` string. */
 export interface SymbolLibraryEntry {
@@ -37,7 +45,11 @@ export { SYMBOL_LIBRARY };
 export const SYMBOL_CATEGORIES: readonly SymbolCategory[] = [
   "generic",
   "audio",
+  "video",
+  "lighting",
   "network",
+  "compute",
+  "power",
   "furniture",
 ];
 
@@ -45,7 +57,11 @@ export const SYMBOL_CATEGORIES: readonly SymbolCategory[] = [
 export const SYMBOL_CATEGORY_LABELS: Record<SymbolCategory, string> = {
   generic: "Shapes",
   audio: "Audio",
+  video: "Video",
+  lighting: "Lighting",
   network: "Network",
+  compute: "Compute",
+  power: "Power",
   furniture: "Furniture",
 };
 
@@ -74,7 +90,11 @@ export function symbolCountByCategory(): Record<SymbolCategory | "all", number> 
     all: SYMBOL_LIBRARY.length,
     generic: 0,
     audio: 0,
+    video: 0,
+    lighting: 0,
     network: 0,
+    compute: 0,
+    power: 0,
     furniture: 0,
   };
   for (const s of SYMBOL_LIBRARY) counts[s.category] += 1;
