@@ -237,8 +237,12 @@ export interface DeviceData {
   layerId?: string;
   /** Logical group membership (Photoshop-style group). Absent = ungrouped. */
   groupId?: string;
-  /** Display glyph shown before the device label on the canvas. */
+  /** DEPRECATED (v49): legacy emoji glyph. Migrated to artworkAssetId on load; no longer
+   *  rendered anywhere. Kept optional so pre-migration data still typechecks. */
   icon?: string;
+  /** Device artwork: a qualified symbol-library id ("category/id") or an uploaded
+   *  svgAssets key. Absent → the class-default symbol renders (see deviceArtwork.ts). */
+  artworkAssetId?: string;
   /** When set, this device is software running inside the named host device. */
   hostDeviceId?: string;
   label: string;
@@ -650,6 +654,9 @@ export interface DeviceTemplate {
   hostname?: string;
   ports: Port[];
   color?: string;
+  /** Device artwork: qualified symbol-library id ("category/id") or uploaded svgAssets key.
+   *  Copied onto DeviceData at placement; absent → class-default symbol. */
+  artworkAssetId?: string;
   searchTerms?: string[];
   manufacturer?: string;
   modelNumber?: string;

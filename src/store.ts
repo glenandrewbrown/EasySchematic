@@ -1499,6 +1499,7 @@ function createDeviceNode(
       ...(template.modelNumber ? { modelNumber: template.modelNumber } : {}),
       ...(template.referenceUrl ? { referenceUrl: template.referenceUrl } : {}),
       ...(template.category ? { category: template.category } : {}),
+      ...(template.artworkAssetId ? { artworkAssetId: template.artworkAssetId } : {}),
       ...(template.powerDrawW != null ? { powerDrawW: template.powerDrawW } : {}),
       ...(template.powerCapacityW != null ? { powerCapacityW: template.powerCapacityW } : {}),
       ...(template.voltage ? { voltage: template.voltage } : {}),

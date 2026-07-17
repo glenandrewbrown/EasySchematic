@@ -639,3 +639,11 @@ html, body, #root {
     display: none !important;
   }
 }
+
+/* Device artwork chip — the inner vector fills ~66% of the chip and inherits currentColor
+   (library symbols and sanitized uploads are viewBox-only, so they scale cleanly). */
+.artwork-chip svg {
+  width: 66%;
+  height: 66%;
+  display: block;
+}

@@ -27,6 +27,9 @@ import { CONNECTORS_WITH_GENDER_VARIATION, DEFAULT_CONNECTOR, NETWORK_SIGNAL_TYP
 import { getBundledTemplates, getTemplateById, getCardsByFamily, fetchTemplates, checkSession, createDraft, createHandoff } from "../templateApi";
 import { getTemplateDrift } from "../templateSync";
 import LoginDialog from "./LoginDialog";
+import SymbolPickerDialog from "./SymbolPickerDialog";
+import SvgAssetImportDialog from "./SvgAssetImportDialog";
+import ArtworkChip from "./ArtworkChip";
 import CardCreatorDialog from "./CardCreatorDialog";
 import TemplateSyncDialog from "./TemplateSyncDialog";
 import { isValidIpv4, isValidSubnetMask, isValidVlan, findDuplicateIps } from "../networkValidation";
@@ -193,7 +196,9 @@ export default function DeviceEditor() {
   const [templatesLoaded, setTemplatesLoaded] = useState(0);
   const [label, setLabel] = useState("");
   const [shortName, setShortName] = useState("");
-  const [icon, setIcon] = useState("");
+  const [artworkAssetId, setArtworkAssetId] = useState("");
+  const [showArtworkPicker, setShowArtworkPicker] = useState(false);
+  const [showArtworkUpload, setShowArtworkUpload] = useState(false);
   /** Tri-state per-instance toggle: undefined = inherit schematic default. */
   const [useShortName, setUseShortName] = useState<boolean | undefined>(undefined);
   const [wrapLabel, setWrapLabelState] = useState<boolean | undefined>(undefined);
@@ -295,7 +300,7 @@ export default function DeviceEditor() {
       : undefined;
     setLabel(node.data.label);
     setShortName(node.data.shortName ?? "");
-    setIcon(node.data.icon ?? "");
+    setArtworkAssetId(node.data.artworkAssetId ?? "");
     setUseShortName(node.data.useShortName);
     setWrapLabelState(node.data.wrapLabel);
     setHostname(node.data.hostname ?? "");
@@ -450,6 +455,7 @@ export default function DeviceEditor() {
       ...(shortName.trim() ? { shortName: shortName.trim() } : {}),
       ports: finalPorts,
       ...(color ? { color } : {}),
+      ...(artworkAssetId ? { artworkAssetId } : {}),
       ...(category.trim() ? { category: category.trim() } : {}),
       ...(manufacturer.trim() ? { manufacturer: manufacturer.trim() } : {}),
       ...(modelNumber.trim() ? { modelNumber: modelNumber.trim() } : {}),
@@ -546,7 +552,7 @@ export default function DeviceEditor() {
       ...(speakerSensitivityDb != null ? { speakerSensitivityDb } : {}),
       ...(speakerMaxPowerW != null ? { speakerMaxPowerW } : {}),
       ...(speakerCoverageAngleDeg != null ? { speakerCoverageAngleDeg } : {}),
-      ...(icon ? { icon } : {}),
+      ...(artworkAssetId ? { artworkAssetId } : {}),
       ...(color ? { color } : {}),
       ...(headerColor ? { headerColor } : {}),
       ...(existing?.model ? { model: existing.model } : {}),
@@ -619,7 +625,7 @@ export default function DeviceEditor() {
     }
     setCreatingNodeId(null); // commit the node — close won't undo it
     close();
-  }, [editingNodeId, ports, label, shortName, icon, useShortName, wrapLabel, hostname, deviceType, manufacturer, modelNumber, referenceUrl, category, serialNumber, note, isSpare, procurementSource, tags, color, headerColor, node, updateDevice, recordSuggestions, close, setCreatingNodeId, showAllPorts, hiddenPorts, dhcpServer, powerDrawW, powerCapacityW, voltage, thermalBtuh, poeBudgetW, poeDrawW, unitCost, heightMm, widthMm, depthMm, weightKg, isCableAccessory, integratedWithCable, isVenueProvided, adapterVisibility, speakerSensitivityDb, speakerMaxPowerW, speakerCoverageAngleDeg, auxiliaryData, searchTermsRaw, creatingNodeId, pendingQuickCreate, createAddToOwned, buildTemplate, addCustomTemplate, addOwnedGear, addDevices, reparentNode]);
+  }, [editingNodeId, ports, label, shortName, artworkAssetId, useShortName, wrapLabel, hostname, deviceType, manufacturer, modelNumber, referenceUrl, category, serialNumber, note, isSpare, procurementSource, tags, color, headerColor, node, updateDevice, recordSuggestions, close, setCreatingNodeId, showAllPorts, hiddenPorts, dhcpServer, powerDrawW, powerCapacityW, voltage, thermalBtuh, poeBudgetW, poeDrawW, unitCost, heightMm, widthMm, depthMm, weightKg, isCableAccessory, integratedWithCable, isVenueProvided, adapterVisibility, speakerSensitivityDb, speakerMaxPowerW, speakerCoverageAngleDeg, auxiliaryData, searchTermsRaw, creatingNodeId, pendingQuickCreate, createAddToOwned, buildTemplate, addCustomTemplate, addOwnedGear, addDevices, reparentNode]);
 
   // Ctrl+Enter anywhere in the editor → Apply & Close
   const onCtrlEnter = useCallback((e: React.KeyboardEvent) => {
@@ -653,6 +659,7 @@ export default function DeviceEditor() {
       ...(shortName.trim() ? { shortName: shortName.trim() } : {}),
       ports: finalPorts,
       ...(color ? { color } : {}),
+      ...(artworkAssetId ? { artworkAssetId } : {}),
       ...(category.trim() ? { category: category.trim() } : {}),
       ...(manufacturer.trim() ? { manufacturer: manufacturer.trim() } : {}),
       ...(modelNumber.trim() ? { modelNumber: modelNumber.trim() } : {}),
@@ -685,7 +692,7 @@ export default function DeviceEditor() {
       ...(() => { const t = searchTermsRaw.split(",").map((s) => s.trim()).filter(Boolean).slice(0, 20); return t.length > 0 ? { searchTerms: t } : {}; })(),
     });
     handleSave();
-  }, [node, ports, label, shortName, hostname, updateCustomTemplate, powerDrawW, powerCapacityW, voltage, thermalBtuh, poeBudgetW, poeDrawW, unitCost, heightMm, widthMm, depthMm, weightKg, isVenueProvided, deviceType, color, manufacturer, modelNumber, referenceUrl, category, auxiliaryData, searchTermsRaw, handleSave]);
+  }, [node, ports, label, shortName, hostname, updateCustomTemplate, powerDrawW, powerCapacityW, voltage, thermalBtuh, poeBudgetW, poeDrawW, unitCost, heightMm, widthMm, depthMm, weightKg, isVenueProvided, deviceType, color, artworkAssetId, manufacturer, modelNumber, referenceUrl, category, auxiliaryData, searchTermsRaw, handleSave]);
 
   const handleSubmitToCommunity = useCallback(async () => {
     const finalPorts: Port[] = ports
@@ -1142,7 +1149,11 @@ export default function DeviceEditor() {
                 className="flex items-center gap-2 pl-[13px] pr-[11px] py-[9px] border-b border-[var(--ui-border)] rounded-t-lg"
                 style={{ background: headerColor ?? "var(--color-surface-raised)" }}
               >
-                {icon && <span className="text-[12px] leading-none flex-none">{icon}</span>}
+                <ArtworkChip
+                  artworkAssetId={artworkAssetId || undefined}
+                  device={{ deviceType, category, ports }}
+                  size={18}
+                />
                 <span className="flex flex-col leading-[1.3] min-w-0">
                   <span className="text-[11.5px] font-semibold text-[var(--color-text-heading)] whitespace-nowrap overflow-hidden text-ellipsis">
                     {previewName}
@@ -1245,26 +1256,34 @@ export default function DeviceEditor() {
               </label>
             </div>
 
-            <Field label="Icon">
-              <div className="flex flex-wrap items-center gap-1">
-                {["🎥", "📹", "📷", "🎤", "🎙", "🔊", "🎛", "🎚", "🖥", "💻", "📺", "📡", "🌐", "🔀", "💡", "🔌", "⚡", "🗄", "☁️", "⚙️"].map((glyph) => (
+            <Field label="Artwork">
+              <div className="flex items-center gap-2">
+                <ArtworkChip
+                  artworkAssetId={artworkAssetId || undefined}
+                  device={{ deviceType, category, ports }}
+                  size={32}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowArtworkPicker(true)}
+                  className="ui-btn ui-btn-secondary text-[11px] h-[26px]"
+                >
+                  Choose artwork…
+                </button>
+                {artworkAssetId && (
                   <button
-                    key={glyph}
                     type="button"
-                    onClick={() => setIcon(icon === glyph ? "" : glyph)}
-                    className={`w-7 h-7 rounded-md text-sm flex items-center justify-center cursor-pointer transition-colors ${
-                      icon === glyph
-                        ? "bg-[var(--color-accent-soft)] ring-1 ring-[var(--color-accent)]"
-                        : "hover:bg-[var(--color-surface-hover)]"
-                    }`}
-                    title={icon === glyph ? "Click to remove icon" : "Use this icon"}
+                    onClick={() => setArtworkAssetId("")}
+                    className="text-[11px] text-[var(--color-text-muted)] hover:text-[var(--color-text)] cursor-pointer"
+                    title="Clear — the class-default symbol renders instead"
                   >
-                    {glyph}
+                    None
                   </button>
-                ))}
+                )}
               </div>
               <div className="text-[10px] text-[var(--color-text-muted)] mt-0.5">
-                Shown before the device name on the canvas.
+                Vector identity shown in the node header, library rows and Plan view.
+                {!artworkAssetId && " Using the class-default symbol."}
               </div>
             </Field>
 
@@ -2072,6 +2091,33 @@ export default function DeviceEditor() {
       </footer>
 
       <LoginDialog open={showLoginDialog} onClose={() => setShowLoginDialog(false)} />
+      {showArtworkPicker && (
+        <SymbolPickerDialog
+          title="Choose artwork"
+          onPick={(entry) => {
+            setArtworkAssetId(`${entry.category}/${entry.id}`);
+            setShowArtworkPicker(false);
+          }}
+          onClose={() => setShowArtworkPicker(false)}
+          onUpload={() => {
+            setShowArtworkPicker(false);
+            setShowArtworkUpload(true);
+          }}
+          onClear={artworkAssetId ? () => {
+            setArtworkAssetId("");
+            setShowArtworkPicker(false);
+          } : undefined}
+        />
+      )}
+      {showArtworkUpload && (
+        <SvgAssetImportDialog
+          onPicked={(assetId) => {
+            setArtworkAssetId(assetId);
+            setShowArtworkUpload(false);
+          }}
+          onClose={() => setShowArtworkUpload(false)}
+        />
+      )}
       {showFacePlateEditor && node && (
         <FacePlateEditor
           deviceData={node.data as DeviceData}

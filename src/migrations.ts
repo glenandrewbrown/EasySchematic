@@ -16,8 +16,9 @@ import { defaultStubPlacement } from "./stubPlacement";
 import { getPortAbsolutePositions } from "./snapUtils";
 import { mostCommonRoomScale, DEFAULT_METRES_PER_PIXEL } from "./layoutScale";
 import { DEFAULT_GRID_SETTINGS, type SchematicNode } from "./types";
+import { emojiToArtworkId } from "./deviceArtwork";
 
-export const CURRENT_SCHEMA_VERSION = 48;
+export const CURRENT_SCHEMA_VERSION = 49;
 
 /** Stub-label nodes paint at this z-index so connection lines render UNDER their
  *  white box (matches waypoint/junction z — above edge z, below the 10000 edge labels). */
@@ -547,6 +548,25 @@ const migrations: Record<number, Migration> = {
     // transform. (Bundle membership is upstream's data.bundleId + data.bundles, reconciled
     // at v39→v40; this fork's separate bundle grouping folded into that model.)
     data.version = 48;
+    return data;
+  },
+  48: (data) => {
+    // v48 → v49: device artwork replaces emoji icons (round-3 R3). Each legacy
+    // data.icon emoji maps to the nearest bundled symbol (emojiToArtworkId); unknown
+    // glyphs map to nothing and the class-default symbol renders instead. The icon
+    // field is dropped — emoji are banned from app chrome from v49 on.
+    if (Array.isArray(data.nodes)) {
+      for (const n of data.nodes) {
+        if (n?.type !== "device" || !n.data) continue;
+        const icon = typeof n.data.icon === "string" ? n.data.icon : "";
+        if (icon && !n.data.artworkAssetId) {
+          const mapped = emojiToArtworkId(icon);
+          if (mapped) n.data.artworkAssetId = mapped;
+        }
+        delete n.data.icon;
+      }
+    }
+    data.version = 49;
     return data;
   },
 
