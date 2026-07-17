@@ -203,6 +203,43 @@ function readInitialCoverageVisible(): boolean {
 
 const CREATE_ADD_TO_OWNED_KEY = "easyschematic-create-add-to-owned";
 
+/** Interface-font preference (board 5g) — persisted as JSON under the consolidated
+ *  "easyschematic.ui.v1" key. Swaps --font-ui only; --font-mono always stays Plex Mono. */
+export type UiFont = "jost" | "plex-sans" | "public-sans" | "system";
+const UI_PREFS_KEY = "easyschematic.ui.v1";
+const UI_FONTS: readonly UiFont[] = ["jost", "plex-sans", "public-sans", "system"];
+
+function readInitialUiFont(): UiFont {
+  if (typeof localStorage === "undefined") return "jost";
+  try {
+    const parsed = JSON.parse(localStorage.getItem(UI_PREFS_KEY) ?? "{}") as { font?: string };
+    return UI_FONTS.includes(parsed.font as UiFont) ? (parsed.font as UiFont) : "jost";
+  } catch {
+    return "jost";
+  }
+}
+
+/** Stamp the choice on <html>; theme.css maps data-ui-font → --font-ui. Jost = no attribute. */
+function applyUiFont(font: UiFont): void {
+  if (typeof document === "undefined") return;
+  if (font === "jost") document.documentElement.removeAttribute("data-ui-font");
+  else document.documentElement.setAttribute("data-ui-font", font);
+}
+
+function persistUiFont(font: UiFont): void {
+  if (typeof localStorage === "undefined") return;
+  let prefs: Record<string, unknown> = {};
+  try {
+    prefs = JSON.parse(localStorage.getItem(UI_PREFS_KEY) ?? "{}") as Record<string, unknown>;
+  } catch {
+    prefs = {};
+  }
+  localStorage.setItem(UI_PREFS_KEY, JSON.stringify({ ...prefs, font }));
+}
+
+const _initUiFont = readInitialUiFont();
+applyUiFont(_initUiFont);
+
 const DEVICE_DRAWER_PINNED_KEY = "easyschematic-device-drawer-pinned";
 
 /** Read the persisted device-library pin state. Pin-open is the DEFAULT — the drawer must
@@ -422,6 +459,9 @@ interface SchematicState {
   pendingQuickCreate: { qty: number; anchor: { x: number; y: number } | null; placeOnSave: boolean } | null;
   /** Creator footer "Also add to My Devices" — persisted UI pref, default ON. */
   createAddToOwned: boolean;
+  /** Interface font (board 5g) — swaps --font-ui only; persisted in easyschematic.ui.v1. */
+  uiFont: UiFont;
+  setUiFont: (font: UiFont) => void;
 
   // React Flow handlers
   onNodesChange: OnNodesChange<SchematicNode>;
@@ -1726,6 +1766,12 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
   libraryActiveTab: "devices",
   pendingQuickCreate: null,
   createAddToOwned: readBoolPref(CREATE_ADD_TO_OWNED_KEY, true),
+  uiFont: _initUiFont,
+  setUiFont: (font) => {
+    persistUiFont(font);
+    applyUiFont(font);
+    set({ uiFont: font });
+  },
   customTemplateGroups: _initCustomMeta.groups,
   customTemplateOrder: _initCustomMeta.order,
   customTemplateGroupAssignments: _initCustomMeta.groupAssignments,

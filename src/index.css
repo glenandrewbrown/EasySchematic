@@ -21,20 +21,11 @@
 .dark .text-gray-400 { color: var(--color-text-muted) !important; }
 .dark .text-gray-300 { color: var(--color-border) !important; }
 
-@font-face {
-  font-family: 'Inter';
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-  src: url('/fonts/Inter-Regular.ttf') format('truetype');
-}
-@font-face {
-  font-family: 'Inter';
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-  src: url('/fonts/Inter-Bold.ttf') format('truetype');
-}
+/* UI faces (board 5g): Jost default + IBM Plex Sans + Public Sans, all self-hosted
+   variable woff2. The interface font preference swaps --font-ui only (numerics, IDs
+   and .lab labels stay IBM Plex Mono in every option). NOTE: /fonts/Inter-*.ttf stay
+   on disk — the UI no longer declares Inter, but the PDF exporters (rackPdf/reportPdf)
+   embed those files into generated documents. */
 @font-face {
   /* Jost — geometric UI face for v3 "Currents". One variable file covers weights 300–800. */
   font-family: 'Jost';
@@ -42,6 +33,20 @@
   font-style: normal;
   font-display: swap;
   src: url('/fonts/Jost.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-weight: 100 700;
+  font-style: normal;
+  font-display: swap;
+  src: url('/fonts/IBMPlexSans.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Public Sans';
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  src: url('/fonts/PublicSans.woff2') format('woff2');
 }
 
 html, body, #root {

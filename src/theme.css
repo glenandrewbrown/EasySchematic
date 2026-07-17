@@ -34,6 +34,22 @@
   --font-mono: "IBM Plex Mono", "SF Mono", "JetBrains Mono", "Berkeley Mono", ui-monospace, "Cascadia Code", Menlo, monospace;
   /* UI face moves to Jost (geometric). Add @font-face / body font-family in index.css. */
   --font-ui: "Jost", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+}
+
+/* Interface-font preference (board 5g) — Preferences ▸ Appearance swaps --font-ui ONLY;
+   --font-mono keeps owning numerics/IDs in every option. The store stamps data-ui-font
+   on <html> from the persisted easyschematic.ui.v1 preference. */
+:root[data-ui-font="plex-sans"] {
+  --font-ui: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+}
+:root[data-ui-font="public-sans"] {
+  --font-ui: "Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+}
+:root[data-ui-font="system"] {
+  --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+}
+
+:root {
   --ui-border: #c9d1db;           /* hairline border (chrome) */
   --ui-border-strong: #9aa4b2;
   /* Slate-tinted elevation — shadows carry the surface hue, never flat black */
