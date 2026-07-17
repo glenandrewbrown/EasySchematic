@@ -20,6 +20,7 @@ import TagInput from "./ui/TagInput";
 import SymbolPickerDialog from "./SymbolPickerDialog";
 import SvgAssetImportDialog from "./SvgAssetImportDialog";
 import ArtworkChip from "./ArtworkChip";
+import ColorSwatchRow from "./ColorSwatchRow";
 import { getSymbolByQualifiedId, isSymbolArtworkId } from "../deviceArtwork";
 
 /**
@@ -167,25 +168,14 @@ function DeviceColorRow({ ids }: { ids: readonly string[] }) {
         <CountChip count={ids.length} />
       </div>
       <div className="flex items-center gap-1.5 flex-wrap">
-        {BLOCK_SWATCHES.map((s) => {
-          const on = !picked.mixed && picked.value === s.color;
-          return (
-            <button
-              key={s.name}
-              type="button"
-              onClick={() => setNodeColor(ids, s.color)}
-              title={`${s.name} — assign to ${ids.length === 1 ? "this device" : `all ${ids.length} selected devices`}`}
-              aria-label={s.name}
-              aria-pressed={on}
-              className={`w-5 h-5 rounded-[var(--ui-radius-sm)] cursor-pointer transition-transform hover:scale-110 ${
-                on
-                  ? "ring-2 ring-offset-1 ring-[var(--color-accent)] ring-offset-[var(--color-surface)]"
-                  : "border border-[var(--ui-border)]"
-              }`}
-              style={{ background: s.color }}
-            />
-          );
-        })}
+        {/* LAYPAL swatch row + ＋ custom chip → native colour picker (boards 1b/5c). */}
+        <ColorSwatchRow
+          colors={BLOCK_SWATCHES.map((s) => s.color)}
+          value={picked.mixed ? undefined : picked.value}
+          onPick={(hex) => setNodeColor(ids, hex)}
+          size={20}
+          ariaLabel="Device colour"
+        />
         <button
           type="button"
           onClick={() => setNodeColor(ids, null)}
