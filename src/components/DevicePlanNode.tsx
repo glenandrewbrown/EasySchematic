@@ -8,8 +8,8 @@ import { deviceFootprintPx, normalizeRotationDeg, aimAngleDeg } from "../planVie
 import { pxPerMeter } from "../layoutScale";
 import { coverageRadiusM, wedgeGeometry } from "../speakerCoverage";
 import { isSpeaker, resolveSpeakerSpec } from "../speakerSpec";
-import { symbolForDeviceType } from "../symbols";
 import { deviceClassColor } from "../deviceClassColor";
+import { resolveArtworkSvg } from "../deviceArtwork";
 
 /** Smallest rendered footprint side (px) so tiny to-scale devices stay clickable. */
 const MIN_FOOTPRINT_PX = 8;
@@ -45,9 +45,8 @@ function DevicePlanNodeComponent({ id, data, selected }: NodeProps<DeviceNodeTyp
   const setEditingNodeId = useSchematicStore((s) => s.setEditingNodeId);
   const useShortNames = useSchematicStore((s) => s.useShortNames);
   const wrapDeviceLabels = useSchematicStore((s) => s.wrapDeviceLabels);
-  const customSvg = useSchematicStore((s) =>
-    data.layoutSvgAssetId ? s.svgAssets[data.layoutSvgAssetId] : undefined,
-  );
+  const svgAssets = useSchematicStore((s) => s.svgAssets);
+  const customSvg = data.layoutSvgAssetId ? svgAssets[data.layoutSvgAssetId] : undefined;
   const displayLabel = useDisplayLabel();
   const coverageVisible = useSchematicStore((s) => s.coverageVisible);
   const setDeviceRotation = useSchematicStore((s) => s.setDeviceRotation);
@@ -92,8 +91,7 @@ function DevicePlanNodeComponent({ id, data, selected }: NodeProps<DeviceNodeTyp
   // Class colour: the CAD footprint's hairline border + glyph stroke. Shared deviceClassColor()
   // so the Plan footprint matches the device's schematic node / Insert chip / Inspector hero.
   const cat = deviceClassColor(data.ports);
-  const symbol = symbolForDeviceType(data.deviceType);
-  // The in-box CAD symbol/glyph only renders once the box is large enough to read.
+  // The in-box CAD artwork only renders once the box is large enough to read.
   const showSymbol = Math.min(boxW, boxH) >= SYMBOL_VISIBLE_PX;
 
   // Loudspeaker coverage wedge (plan view, "Coverage" toggle on). Nominal direct-field,
@@ -171,24 +169,23 @@ function DevicePlanNodeComponent({ id, data, selected }: NodeProps<DeviceNodeTyp
             // Sanitized at import by svgSanitizer (scripts/handlers/external refs stripped) — safe to inject.
             dangerouslySetInnerHTML={{ __html: customSvg }}
           />
-        ) : symbol && showSymbol ? (
-          <svg
-            viewBox="0 0 24 24"
-            width={Math.min(boxW, boxH) * 0.66}
-            height={Math.min(boxW, boxH) * 0.66}
-            fill="none"
-            stroke={cat}
-            strokeWidth={1.6}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            style={{ opacity: 0.9 }}
-            // Symbols are hardcoded, app-authored inner-SVG markup (no user input).
-            dangerouslySetInnerHTML={{ __html: symbol.svg }}
+        ) : showSymbol ? (
+          // Fallback identity: the device's resolved artwork (uploaded SVG or a bundled symbol —
+          // both trusted), tinted the class colour at reduced opacity, centred at 60% of the box.
+          <div
+            className="[&>svg]:w-full [&>svg]:h-full [&>svg]:max-w-full [&>svg]:max-h-full"
+            style={{
+              width: Math.min(boxW, boxH) * 0.6,
+              height: Math.min(boxW, boxH) * 0.6,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: cat,
+              opacity: 0.6,
+              pointerEvents: "none",
+            }}
+            dangerouslySetInnerHTML={{ __html: resolveArtworkSvg(data.artworkAssetId, svgAssets, data) }}
           />
-        ) : data.icon && showSymbol ? (
-          <span style={{ fontSize: Math.max(8, Math.min(boxW, boxH) * 0.6), color: cat, opacity: 0.9 }}>
-            {data.icon}
-          </span>
         ) : null}
       </div>
       {/* Device label, CAD-style below the footprint box (upright — not rotated with the box). */}
@@ -209,7 +206,6 @@ function DevicePlanNodeComponent({ id, data, selected }: NodeProps<DeviceNodeTyp
             zIndex: 1,
           }}
         >
-          {data.icon ? `${data.icon} ` : ""}
           {label}
         </span>
       )}

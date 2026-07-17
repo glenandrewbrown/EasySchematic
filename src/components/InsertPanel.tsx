@@ -12,7 +12,7 @@ import type { DeviceTemplate, DeviceData, SchematicNode } from "../types";
 import { useSchematicStore } from "../store";
 import { scoreTemplate } from "../templateSearch";
 import { inventoryKeyFromDeviceData, inventoryKeyFromTemplate } from "../inventoryKey";
-import { deviceClassColor } from "../deviceClassColor";
+import ArtworkChip from "./ArtworkChip";
 
 /**
  * Rebuilt "Insert" panel content matching the design overhaul mockup. Renders as a
@@ -55,12 +55,6 @@ function getTemplateKey(template: DeviceTemplate): string {
   return template.id ?? template.deviceType;
 }
 
-/** Representative signal-type colour of a template — drives the class-colour icon chip.
- *  Uses deviceClassColor(): the same source as the device node's class border, so chip = node. */
-function classColorFor(template: DeviceTemplate): string {
-  return deviceClassColor(template.ports);
-}
-
 /** Count of input/output ports, expressed as the mockup's "N I/O" meta. */
 function ioCount(template: DeviceTemplate): number {
   return template.ports.filter(
@@ -97,19 +91,6 @@ function GripIcon() {
       <circle cx="3" cy="13" r="1.3" />
       <circle cx="9" cy="13" r="1.3" />
     </svg>
-  );
-}
-
-/** Class-colour icon chip — a small filled square in the device's family colour. */
-function ClassChip({ color, dim }: { color: string; dim?: boolean }) {
-  return (
-    <span
-      className="shrink-0 w-[22px] h-[22px] rounded-md border border-[var(--ui-border)] bg-[var(--color-surface)] flex items-center justify-center"
-      style={{ opacity: dim ? 0.5 : 1 }}
-      aria-hidden
-    >
-      <span className="w-2.5 h-2.5 rounded-sm" style={{ background: color }} />
-    </span>
   );
 }
 
@@ -163,7 +144,7 @@ function OwnedRow({
       title="Drag to canvas, or use + to place"
     >
       <GripIcon />
-      <ClassChip color={classColorFor(template)} />
+      <ArtworkChip artworkAssetId={template.artworkAssetId} device={template} size={20} />
       <span className="flex flex-col min-w-0 leading-tight">
         <span className="text-[11.5px] font-medium text-[var(--color-text-heading)] truncate">
           {template.label}
@@ -209,7 +190,12 @@ function CatalogRow({
       }`}
       title={owned ? `Remove ${template.label} from My Devices` : `Add ${template.label} to My Devices`}
     >
-      <ClassChip color={owned ? classColorFor(template) : "var(--color-text-muted)"} dim={!owned} />
+      <ArtworkChip
+        artworkAssetId={template.artworkAssetId}
+        device={template}
+        size={20}
+        color={owned ? undefined : "var(--color-text-muted)"}
+      />
       <span className="flex flex-col min-w-0 leading-tight">
         <span
           className={`text-[11.5px] font-medium truncate ${

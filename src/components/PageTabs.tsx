@@ -7,6 +7,16 @@ interface ContextMenuState {
   y: number;
 }
 
+/** Inline document glyph for print-sheet pages (replaces the legacy page emoji). */
+function PrintIcon({ className }: { className?: string }) {
+  return (
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
+      <path d="M14 3v4a1 1 0 0 0 1 1h4" />
+      <path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2Z" />
+    </svg>
+  );
+}
+
 export default function PageTabs() {
   const pages = useSchematicStore((s) => s.pages);
   const activePage = useSchematicStore((s) => s.activePage);
@@ -136,7 +146,7 @@ export default function PageTabs() {
                   onClick={(e) => e.stopPropagation()}
                 />
               ) : (
-                <>{isPrint ? "📄 " : ""}{page.label}</>
+                <span className="inline-flex items-center gap-1">{isPrint && <PrintIcon />}{page.label}</span>
               )}
             </button>
           );
@@ -156,8 +166,9 @@ export default function PageTabs() {
           className="px-2 py-1 rounded-md text-violet-500/80 hover:text-violet-700 hover:bg-violet-500/10 dark:hover:text-violet-300 transition-colors cursor-pointer"
           onClick={() => addPrintSheetPage()}
           title="Add print sheet"
+          aria-label="Add print sheet"
         >
-          📄+
+          <span className="inline-flex items-center"><PrintIcon />+</span>
         </button>
       </div>
 
@@ -169,8 +180,8 @@ export default function PageTabs() {
           style={{ left: contextMenu.x, top: contextMenu.y }}
           onMouseDown={(e) => e.stopPropagation()}
         >
-          <div className="px-2.5 py-1 text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] truncate">
-            {isPrintSheet ? "📄 " : ""}{menuPage.label}
+          <div className="px-2.5 py-1 text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] truncate inline-flex items-center gap-1">
+            {isPrintSheet && <PrintIcon />}{menuPage.label}
           </div>
           <div className="h-px bg-[var(--ui-border)] my-1" />
           <button

@@ -168,7 +168,7 @@ export default function GuidedSetupPanel() {
           {done ? (
             <div className="flex items-center justify-between gap-2">
               <span className="text-[10px] text-green-600 font-medium">
-                All set — your venue is mapped! 🎉
+                All set — your venue is mapped!
               </span>
               <button
                 className="ui-btn ui-btn-primary px-2 py-0.5 text-[10px]"

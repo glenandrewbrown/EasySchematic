@@ -4,6 +4,7 @@ import { SIGNAL_LABELS } from "../types";
 import type { DeviceTemplate } from "../types";
 import { useSchematicStore, GRID_SIZE } from "../store";
 import { scoreTemplate } from "../templateSearch";
+import ArtworkChip from "./ArtworkChip";
 import {
   deviceFootprint,
   gridPositions,
@@ -30,6 +31,32 @@ const SPECIAL_ITEMS: { item: SpecialItem; label: string; subtitle: string; keywo
   { item: { kind: "room" }, label: "Room", subtitle: "Grouping container", keywords: ["room", "group", "area", "zone", "container"] },
   { item: { kind: "create" }, label: "Create New Device", subtitle: "Blank or copy from existing", keywords: ["create", "new", "custom", "blank", "device", "empty"] },
 ];
+
+/** Outline glyph for a special (non-device) row — inline SVG so no emoji renders as chrome. */
+function SpecialGlyph({ kind }: { kind: SpecialItem["kind"] }) {
+  const common = { width: 14, height: 14, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor" as const, "aria-hidden": true };
+  if (kind === "note") {
+    return (
+      <svg {...common} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
+        <path d="M14 3v4a1 1 0 0 0 1 1h4" />
+        <path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2Z" />
+        <path d="M9 13h6M9 17h4" />
+      </svg>
+    );
+  }
+  if (kind === "room") {
+    return (
+      <svg {...common} strokeWidth={1.6}>
+        <rect x="4" y="5" width="16" height="14" rx="1.5" />
+      </svg>
+    );
+  }
+  return (
+    <svg {...common} strokeWidth={1.8} strokeLinecap="round">
+      <path d="M12 5v14M5 12h14" />
+    </svg>
+  );
+}
 
 function scoreSpecial(keywords: string[], query: string): number {
   const words = query.toLowerCase().split(/\s+/).filter(Boolean);
@@ -615,8 +642,8 @@ export default function QuickAddDevice({
                           : "text-[var(--color-text)] hover:bg-[var(--color-surface-hover)]"
                     }`}
                   >
-                    <span className={`text-xs shrink-0 ${isCreateRow ? "text-[var(--color-accent)] font-semibold" : "text-[var(--color-text-muted)]"}`}>
-                      {result.item.kind === "note" ? "📝" : result.item.kind === "room" ? "▢" : "＋"}
+                    <span className={`shrink-0 ${isCreateRow ? "text-[var(--color-accent)]" : "text-[var(--color-text-muted)]"}`}>
+                      <SpecialGlyph kind={result.item.kind} />
                     </span>
                     <div className="flex flex-col gap-0 flex-1 min-w-0">
                       <span className="text-xs font-medium truncate">{result.label}</span>
@@ -644,6 +671,7 @@ export default function QuickAddDevice({
                       : "text-[var(--color-text)] hover:bg-[var(--color-surface-hover)]"
                   }`}
                 >
+                  <ArtworkChip artworkAssetId={template.artworkAssetId} device={template} size={20} />
                   {isFav && <span className="text-amber-400 text-xs shrink-0">★</span>}
                   <div className="flex flex-col gap-0 flex-1 min-w-0">
                     <span className="text-xs font-medium truncate">{template.label}</span>

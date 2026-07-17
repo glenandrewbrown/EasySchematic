@@ -1154,6 +1154,8 @@ export interface SchematicFile {
   /** Sanitized custom SVG graphics, keyed by UUID; referenced by
    *  DeviceData.layoutSvgAssetId / ObjectData.svgAssetId. */
   svgAssets?: Record<string, string>;
+  /** Per-document custom colours picked via the ＋ chip on colour swatch rows (newest first). */
+  recentCustomColors?: string[];
   /** Per-unit physical gear inventory (coexists with the ownedGear quantity view). */
   gearUnits?: GearUnit[];
   /** Document-level tag suggestion pool (unioned with per-device tags for the combobox). */

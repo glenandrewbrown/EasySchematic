@@ -18,6 +18,9 @@ import { signalLabel } from "../plainLanguage";
 import Combobox from "./ui/Combobox";
 import TagInput from "./ui/TagInput";
 import SymbolPickerDialog from "./SymbolPickerDialog";
+import SvgAssetImportDialog from "./SvgAssetImportDialog";
+import ArtworkChip from "./ArtworkChip";
+import { getSymbolByQualifiedId, isSymbolArtworkId } from "../deviceArtwork";
 
 /**
  * Figma-style contextual inspector: edits the currently-selected device or room
@@ -338,6 +341,8 @@ function DeviceBody({ node }: { node: SchematicNode }) {
   const [physicalOpen, setPhysicalOpen] = useState(false);
   const [powerOpen, setPowerOpen] = useState(false);
   const [networkOpen, setNetworkOpen] = useState(false);
+  const [artworkPickerOpen, setArtworkPickerOpen] = useState(false);
+  const [artworkUploadOpen, setArtworkUploadOpen] = useState(false);
 
   const patch = (p: Partial<DeviceData>) => updateDevice(node.id, { ...data, ...p });
   const numOrUndef = (s: string) => (s.trim() === "" ? undefined : Number(s));
@@ -358,8 +363,12 @@ function DeviceBody({ node }: { node: SchematicNode }) {
 
   // A colour override outranks the signal-derived class colour on every surface, this hero included.
   const accent = nodeColors[node.id] ?? deviceClassColor(data.ports);
-  const heroGlyph = data.icon || (data.deviceType || data.label || "·").trim().charAt(0).toUpperCase();
   const heroType = data.deviceType || data.category || "";
+  const artworkCaption = data.artworkAssetId
+    ? isSymbolArtworkId(data.artworkAssetId)
+      ? getSymbolByQualifiedId(data.artworkAssetId)?.name ?? "Symbol"
+      : "Uploaded SVG"
+    : "Class default";
 
   return (
     <div className="flex flex-col gap-3 px-3 py-3 overflow-y-auto">
@@ -368,16 +377,7 @@ function DeviceBody({ node }: { node: SchematicNode }) {
           className="absolute left-0 top-0 bottom-0 w-[3px] rounded-full"
           style={{ background: accent }}
         />
-        <div
-          className="flex items-center justify-center w-9 h-9 rounded-lg text-base shrink-0"
-          style={{
-            background: "var(--color-surface-hover)",
-            border: "1px solid var(--ui-border)",
-            color: accent,
-          }}
-        >
-          {heroGlyph}
-        </div>
+        <ArtworkChip artworkAssetId={data.artworkAssetId} device={data} size={36} color={accent} className="shrink-0" />
         <div className="flex flex-col min-w-0">
           <span className="text-sm font-semibold text-[var(--color-text-heading)] truncate">{data.label}</span>
           {heroType && <span className="text-[10.5px] text-[var(--color-text-muted)] truncate">{heroType}</span>}
@@ -413,18 +413,25 @@ function DeviceBody({ node }: { node: SchematicNode }) {
         />
         <Field label="Model" value={data.modelNumber} onCommit={(v) => patch({ modelNumber: v || undefined })} placeholder="8040b" />
       </div>
-      <div className="grid grid-cols-2 gap-2">
-        <ComboField
-          label="Type"
-          value={data.deviceType ?? ""}
-          suggestions={suggestions.deviceType}
-          placeholder="speaker"
-          onCommit={(v) => {
-            patch({ deviceType: v });
-            if (v) recordSuggestions({ deviceType: v });
-          }}
-        />
-        <Field label="Icon" value={data.icon} onCommit={(v) => patch({ icon: v || undefined })} placeholder="🔊" />
+      <ComboField
+        label="Type"
+        value={data.deviceType ?? ""}
+        suggestions={suggestions.deviceType}
+        placeholder="speaker"
+        onCommit={(v) => {
+          patch({ deviceType: v });
+          if (v) recordSuggestions({ deviceType: v });
+        }}
+      />
+      <div>
+        <span className="block text-[10px] uppercase text-[var(--color-text-muted)] mb-0.5" style={SECTION_LABEL_STYLE}>Artwork</span>
+        <div className="flex items-center gap-2">
+          <ArtworkChip artworkAssetId={data.artworkAssetId} device={data} size={24} />
+          <span className="text-[11px] text-[var(--color-text-muted)] truncate flex-1 min-w-0">{artworkCaption}</span>
+          <button type="button" className="ui-btn ui-btn-secondary px-1.5 py-0.5 text-[10px]" onClick={() => setArtworkPickerOpen(true)}>
+            Change…
+          </button>
+        </div>
       </div>
       <ComboField
         label="Category"
@@ -658,6 +665,34 @@ function DeviceBody({ node }: { node: SchematicNode }) {
       <button className="ui-btn ui-btn-secondary w-full text-xs" onClick={() => setEditingNodeId(node.id)}>
         Edit details…
       </button>
+
+      {artworkPickerOpen && (
+        <SymbolPickerDialog
+          title="Choose artwork"
+          onPick={(entry) => {
+            patch({ artworkAssetId: `${entry.category}/${entry.id}` });
+            setArtworkPickerOpen(false);
+          }}
+          onClose={() => setArtworkPickerOpen(false)}
+          onUpload={() => {
+            setArtworkPickerOpen(false);
+            setArtworkUploadOpen(true);
+          }}
+          onClear={data.artworkAssetId ? () => {
+            patch({ artworkAssetId: undefined });
+            setArtworkPickerOpen(false);
+          } : undefined}
+        />
+      )}
+      {artworkUploadOpen && (
+        <SvgAssetImportDialog
+          onPicked={(assetId) => {
+            patch({ artworkAssetId: assetId });
+            setArtworkUploadOpen(false);
+          }}
+          onClose={() => setArtworkUploadOpen(false)}
+        />
+      )}
     </div>
   );
 }

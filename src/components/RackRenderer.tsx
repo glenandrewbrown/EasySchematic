@@ -2017,7 +2017,7 @@ export default function RackRenderer({ page }: { page: RackElevationPage }) {
                       >
                         <rect x={RACK_WIDTH / 2 - 36} y={-36} width={72} height={13} rx={3} fill="var(--color-accent-soft)" stroke="var(--color-accent)" strokeWidth={0.75} />
                         <text x={RACK_WIDTH / 2} y={-29} textAnchor="middle" dominantBaseline="central" fontSize={8} fill="var(--color-accent)">
-                          🔗 {roomLabel}
+                          {roomLabel}
                         </text>
                       </g>
                       <foreignObject x={RACK_WIDTH - 88} y={-52} width={88} height={16}>

@@ -462,6 +462,10 @@ interface SchematicState {
   /** Interface font (board 5g) — swaps --font-ui only; persisted in easyschematic.ui.v1. */
   uiFont: UiFont;
   setUiFont: (font: UiFont) => void;
+  /** Per-DOCUMENT custom colours picked via the ＋ chip on colour swatch rows (boards 1b/5c).
+   *  Serialized in the schematic file; newest first, capped at 8. */
+  recentCustomColors: string[];
+  pushRecentCustomColor: (hex: string) => void;
 
   // React Flow handlers
   onNodesChange: OnNodesChange<SchematicNode>;
@@ -1762,6 +1766,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
   containers: [],
   showMiniMap: readInitialMiniMapVisible(),
   layers: [{ id: DEFAULT_LAYER_ID, name: "Base", visible: true, locked: false }],
+  recentCustomColors: [],
   showOwnedGearPane: false,
   libraryActiveTab: "devices",
   pendingQuickCreate: null,
@@ -1771,6 +1776,12 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
     persistUiFont(font);
     applyUiFont(font);
     set({ uiFont: font });
+  },
+  pushRecentCustomColor: (hex) => {
+    const norm = hex.toLowerCase();
+    const next = [norm, ...get().recentCustomColors.filter((c) => c.toLowerCase() !== norm)].slice(0, 8);
+    set({ recentCustomColors: next });
+    get().saveToLocalStorage();
   },
   customTemplateGroups: _initCustomMeta.groups,
   customTemplateOrder: _initCustomMeta.order,
@@ -5855,6 +5866,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
       ownedCables: state.ownedCables.length > 0 ? state.ownedCables : undefined,
       ownedInventory: state.ownedInventory.length > 0 ? state.ownedInventory : undefined,
       layers: state.layers,
+      recentCustomColors: state.recentCustomColors.length > 0 ? state.recentCustomColors : undefined,
       gearUnits: state.gearUnits.length > 0 ? state.gearUnits : undefined,
       svgAssets: Object.keys(state.svgAssets).length > 0 ? state.svgAssets : undefined,
       tagSuggestions: state.tagSuggestions.length > 0 ? state.tagSuggestions : undefined,
@@ -5962,6 +5974,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
         ownedCables: data.ownedCables ?? [],
         ownedInventory: data.ownedInventory ?? [],
         layers: data.layers ?? [{ id: DEFAULT_LAYER_ID, name: "Base", visible: true, locked: false }],
+        recentCustomColors: data.recentCustomColors ?? [],
         gearUnits: data.gearUnits ?? [],
         svgAssets: sanitizeSvgAssets(data.svgAssets),
         tagSuggestions: data.tagSuggestions ?? [],
@@ -6056,6 +6069,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
         ownedCables: data.ownedCables ?? [],
         ownedInventory: data.ownedInventory ?? [],
         layers: data.layers ?? [{ id: DEFAULT_LAYER_ID, name: "Base", visible: true, locked: false }],
+        recentCustomColors: data.recentCustomColors ?? [],
         gearUnits: data.gearUnits ?? [],
         svgAssets: sanitizeSvgAssets(data.svgAssets),
         tagSuggestions: data.tagSuggestions ?? [],
@@ -6147,6 +6161,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
       ownedCables: state.ownedCables.length > 0 ? state.ownedCables : undefined,
       ownedInventory: state.ownedInventory.length > 0 ? state.ownedInventory : undefined,
       layers: state.layers,
+      recentCustomColors: state.recentCustomColors.length > 0 ? state.recentCustomColors : undefined,
       gearUnits: state.gearUnits.length > 0 ? state.gearUnits : undefined,
       svgAssets: Object.keys(state.svgAssets).length > 0 ? state.svgAssets : undefined,
       tagSuggestions: state.tagSuggestions.length > 0 ? state.tagSuggestions : undefined,
@@ -6256,6 +6271,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
         ownedCables: data.ownedCables ?? [],
         ownedInventory: data.ownedInventory ?? [],
         layers: data.layers ?? [{ id: DEFAULT_LAYER_ID, name: "Base", visible: true, locked: false }],
+        recentCustomColors: data.recentCustomColors ?? [],
         gearUnits: data.gearUnits ?? [],
         svgAssets: sanitizeSvgAssets(data.svgAssets),
         tagSuggestions: data.tagSuggestions ?? [],

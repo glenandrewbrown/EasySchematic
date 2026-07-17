@@ -7,6 +7,7 @@ import { scoreTemplate } from "../templateSearch";
 import { inventoryKeyFromDeviceData, inventoryKeyFromTemplate } from "../inventoryKey";
 import DeviceCreatorPicker from "./DeviceCreatorPicker";
 import ImportDevicesDialog from "./ImportDevicesDialog";
+import ArtworkChip from "./ArtworkChip";
 
 const APP_VERSION = __APP_VERSION__;
 const BUILD_HASH = __BUILD_HASH__;
@@ -79,6 +80,7 @@ function TemplateItem({
       draggable
       onDragStart={(e) => onDragStart(e, template)}
     >
+      <ArtworkChip artworkAssetId={template.artworkAssetId} device={template} size={compact ? 16 : 20} />
       {(onToggleFavorite || onAddToOwned) && (
         <div className="shrink-0 flex flex-col items-center gap-1 self-start min-w-[1.25rem]">
           {onToggleFavorite && (
@@ -321,6 +323,7 @@ function DraggableTemplateItem({
       >
         {/* Drag handle */}
         <span className="text-[10px] text-[var(--color-text-muted)]/40 opacity-0 group-hover:opacity-100 cursor-grab select-none shrink-0 leading-none" title="Drag to reorder">⠿</span>
+        <ArtworkChip artworkAssetId={template.artworkAssetId} device={template} size={compact ? 16 : 20} />
         {(onToggleFavorite || onAddToOwned) && (
           <div className="shrink-0 flex flex-col items-center gap-1 self-start min-w-[1.25rem]">
             {onToggleFavorite && (
@@ -663,10 +666,13 @@ function CustomTemplatesSection({
         {customTemplates.length > 0 && (
           <button
             onClick={(e) => { e.stopPropagation(); setConfirmingClear(true); }}
-            className="opacity-0 group-hover/cat:opacity-100 text-[var(--color-text-muted)] hover:text-red-500 text-xs cursor-pointer px-0.5 transition-opacity"
+            className="opacity-0 group-hover/cat:opacity-100 text-[var(--color-text-muted)] hover:text-red-500 cursor-pointer px-0.5 transition-opacity"
             title="Delete all user templates"
+            aria-label="Delete all user templates"
           >
-            🗑
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M10 11v6M14 11v6" />
+            </svg>
           </button>
         )}
       </div>
@@ -991,6 +997,7 @@ function OwnedGearTab({ query }: { query: string }) {
               onDragStart={(e) => onDragStart(e, item.template)}
             >
               <div className="flex items-start gap-2">
+                <ArtworkChip artworkAssetId={item.template.artworkAssetId} device={item.template} size={20} />
                 <div className="flex-1 min-w-0">
                   <div className="text-xs font-medium text-[var(--color-text-heading)] truncate">
                     <HighlightedText text={item.template.label} query={query} />
