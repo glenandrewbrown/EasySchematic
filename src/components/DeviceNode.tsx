@@ -17,6 +17,7 @@ import {
 import type { AuxRow } from "../types";
 import { useDisplayLabel } from "../labelCaseUtils";
 import { resolveDeviceLabel } from "../displayName";
+import ArtworkChip from "./ArtworkChip";
 import "../deviceNodeMotion.css";
 
 /** Minimal store shape the per-node severity selector reads. Structurally a subset of
@@ -90,6 +91,15 @@ function usbcPowerSuffix(port: Port): string {
   return parts.length ? ` — USB-C PD: ${parts.join(", ")}` : "";
 }
 
+/** Middle-truncate: "Dante Network Redundant Out" → "Dante Netw…dant Out". Used only when the
+ *  node is at its width cap — the full name stays in the row tooltip. */
+function middleTruncate(s: string, maxChars: number): string {
+  if (s.length <= maxChars) return s;
+  const keep = Math.max(3, maxChars - 1);
+  const head = Math.ceil(keep * 0.6);
+  return `${s.slice(0, head)}…${s.slice(s.length - (keep - head))}`;
+}
+
 /** Build a list of ports interleaved with section headers where section changes. */
 function buildColumnItems(ports: Port[]): ColumnItem[] {
   const items: ColumnItem[] = [];
@@ -149,6 +159,8 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
   const nodeCompact = useSchematicStore((s) => s.nodeCompact);
   const liveSignal = useSchematicStore((s) => s.liveSignal);
   const reduceMotion = useSchematicStore((s) => s.reduceMotion);
+  // Connect tool armed → open connectors halo in their signal colour (board 2b).
+  const connectArmed = useSchematicStore((s) => s.activeTool === "connect");
   const detailLevel = useSchematicStore((s) => s.detailLevel);
   // Per-device overrides written by the Inspector. Both selectors return a primitive (or
   // undefined), so a device only re-renders when ITS OWN entry changes.
@@ -416,42 +428,85 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
     );
   };
 
-  /** Signal swatch shown beside a port label — three states, each mirroring the connector itself:
-   *  filled square = wired; hollow 1.5px square ring = an open PHYSICAL socket, i.e. an actionable
-   *  gap; hollow CIRCLE = a virtual port, which is logical — there is no socket to fill, so its
-   *  emptiness is not a gap at all. That is why the shape, not just the hue, changes. Colour
-   *  encodes the signal type except on virtual ports, where the violet stands in for "no socket".
-   *  The word "virtual" is in the row's tooltip, so shape and colour never carry it alone.
-   *  When `liveSignal` is on, connected swatches pulse-glow in their signal colour (via the
-   *  scoped `.device-node-swatch--glow` keyframes; the CSS also honours prefers-reduced-motion,
-   *  which the `reduceMotion` preference overrides for users who can't set it at the OS level).
-   *  Purely presentational — the @xyflow Handle remains the connection affordance. */
-  const renderSwatch = (color: string, connected: boolean, virtual?: boolean) => {
-    const swatchColor = virtual ? VIRTUAL_PORT_COLOR : color;
-    return (
-      <span
-        aria-hidden
-        // Two independent facts, two independent channels: SHAPE says whether the port is a
-        // physical socket (square) or a virtual bus (round); FILL says whether it is wired
-        // (solid) or open (ring). Shape must not depend on `connected` — virtual violet is
-        // literally --color-aes, so a *connected* virtual port drawn square would be
-        // pixel-identical to a connected AES port and colour would become the only cue.
-        className={`w-[7px] h-[7px] flex-none ${
-          virtual ? "rounded-full" : "rounded-[2px]"
-        }${connected && liveSignal && !reduceMotion ? " device-node-swatch--glow" : ""}`}
-        style={
-          connected
-            ? ({ background: swatchColor, "--swatch-glow": swatchColor } as React.CSSProperties)
-            : { background: "transparent", boxShadow: `inset 0 0 0 1.5px ${swatchColor}` }
-        }
-      />
-    );
-  };
-
-  /** Colour of a port's outer connector (the @xyflow Handle). Virtual ports drop their signal hue
+  /** Colour of a port's edge connector (the @xyflow Handle). Virtual ports drop their signal hue
    *  for the violet: the handle is a picture of a socket, and a virtual port has none. */
   const portHandleColor = (port: Port) =>
     port.virtual ? VIRTUAL_PORT_COLOR : SIGNAL_COLORS[port.signalType];
+
+  /** Single-glyph edge connector (boards 2a/2b): the 9px indicator ON the edge IS the Handle —
+   *  filled = wired, 1.5px hollow ring = open socket, violet = virtual (no socket), soft halo =
+   *  multi-connect. Hue is always the port's resolved signal colour. The indicator centre sits
+   *  exactly on the node edge (9px at −4.5px = the same centre the old 10px/−5px handle had),
+   *  so wire anchors do not move. The old inner square swatches and grey outer rings are gone —
+   *  this is the ONE connector glyph per port.
+   *  Glow (deviceNodeMotion.css) is anchored here now: wired connectors pulse while Live signal
+   *  is on; open connectors halo while the Connect tool is armed. Both reduced-motion gated. */
+  const connectorClass = (side: "left" | "right", connected: boolean) =>
+    `!w-[9px] !h-[9px] !border-0 ${side === "left" ? "!-left-[4.5px]" : "!-right-[4.5px]"}` +
+    (connected && liveSignal && !reduceMotion ? " device-node-swatch--glow" : "") +
+    (!connected && connectArmed && !reduceMotion ? " device-node-connector--armed" : "");
+  const connectorStyle = (
+    color: string,
+    connected: boolean,
+    opts?: { multi?: boolean; disabled?: boolean },
+  ): React.CSSProperties => {
+    const halo = opts?.multi
+      ? `, 0 0 0 2.5px color-mix(in srgb, ${color} 28%, transparent)`
+      : "";
+    return {
+      top: "50%",
+      ...(connected
+        ? { background: color, ...(halo ? { boxShadow: halo.slice(2) } : {}) }
+        : {
+            background: "var(--color-surface)",
+            boxShadow: `inset 0 0 0 1.5px ${color}${halo}`,
+          }),
+      "--swatch-glow": color,
+      ...(opts?.disabled ? { opacity: 0.4 } : {}),
+    } as React.CSSProperties;
+  };
+
+  // CATEGORY mono-caps label — the device's class/type, shown under the name. Omitted when empty.
+  const categoryText = (data.category || data.deviceType || "").trim();
+  // A layer only marks its devices once it has been given a colour — an uncoloured layer
+  // (including the default "Base") stays neutral: no band, no tint, no chip.
+  const layerChipName = layerColor ? (layerName?.trim() || null) : null;
+
+  // Content-fit width (board 2a §5): widen from the 144px floor toward the 330px cap so port
+  // labels stay legible BEFORE any truncation ("Network …" must not happen at default widths).
+  // Estimated from label lengths at the 10px row font (~5.2px/char, generous); the CSS truncate
+  // on each label stays as the backstop for estimate error. Snapped up to a 16px multiple so
+  // the node keeps clean routing-grid geometry; floor stays 144 (the historical fixed width)
+  // so existing docs' wire anchors don't shift on nodes that never needed more room.
+  const CHAR_W = 5.2;
+  const SIDE_CHROME = 12 /* edge padding */ + 10 /* connector + gap */;
+  const nodeWidth = useMemo(() => {
+    let need = 132;
+    const rows = Math.max(leftPorts.length, rightPorts.length);
+    for (let i = 0; i < rows; i++) {
+      const l = leftPorts[i] ? portRowLabel(leftPorts[i]).length * CHAR_W + SIDE_CHROME : 0;
+      const r = rightPorts[i] ? portRowLabel(rightPorts[i]).length * CHAR_W + SIDE_CHROME : 0;
+      need = Math.max(need, l + r + 8);
+    }
+    for (const p of [...bidirectional, ...passthroughPorts]) {
+      need = Math.max(need, portRowLabel(p).length * CHAR_W + 64);
+    }
+    if (categoryText || layerChipName) {
+      need = Math.max(need, (categoryText.length + (layerChipName?.length ?? 0)) * 4.6 + 56);
+    }
+    return Math.min(330, Math.max(144, Math.ceil(need / 16) * 16));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- portRowLabel is render-stable per detailLevel/displayLabel below
+  }, [leftPorts, rightPorts, bidirectional, passthroughPorts, categoryText, layerChipName, detailLevel, displayLabel]);
+
+  /** At the width cap, middle-truncate a row label to its half-row character budget — the CSS
+   *  end-ellipsis then never fires and the tooltip carries the full name (board 2a §5). */
+  const fitPortLabel = (label: string, fullRow = false) => {
+    if (nodeWidth < 330) return label;
+    const budget = fullRow
+      ? Math.floor((nodeWidth - 64) / CHAR_W)
+      : Math.floor((nodeWidth / 2 - SIDE_CHROME - 4) / CHAR_W);
+    return middleTruncate(label, budget);
+  };
 
   /** Port row tooltip: name, signal, a USB-C port's Power Delivery rating, and — on a virtual
    *  port — the fact that it is logical, in words. Matches the " — passthrough" /
@@ -493,7 +548,7 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
     return (
       <div
         key={port.id}
-        className={`flex items-center gap-1 ${isLeft ? "pl-3" : "pr-3 justify-end"} h-4 relative`}
+        className={`device-port-row flex items-center gap-1 ${isLeft ? "pl-3" : "pr-3 justify-end"} h-4 relative`}
         onContextMenu={(e) => openPortMenu(e, port)}
       >
         {isLeft && (
@@ -503,20 +558,18 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
             id={h.handleId}
             data-connected={connectedHandles.has(h.handleId) || undefined}
             data-multi-connect={port.multiConnect || undefined}
-            className="!w-2.5 !h-2.5 !border-2 !border-[var(--color-border)] !-left-[5px]"
-            style={{ background: portHandleColor(port), top: "50%" }}
+            className={connectorClass("left", connectedHandles.has(h.handleId))}
+            style={connectorStyle(portHandleColor(port), connectedHandles.has(h.handleId), { multi: port.multiConnect })}
           />
         )}
         {isLeft && renderInternalMark(port, "left")}
-        {isLeft && renderSwatch(SIGNAL_COLORS[port.signalType], connectedHandles.has(h.handleId), port.virtual)}
         <span
           className="text-[10px] leading-4 truncate"
           style={{ color: "var(--color-text)" }}
           title={portRowTitle(port)}
         >
-          {portRowLabel(port)}
+          {fitPortLabel(portRowLabel(port))}
         </span>
-        {!isLeft && renderSwatch(SIGNAL_COLORS[port.signalType], connectedHandles.has(h.handleId), port.virtual)}
         {!isLeft && renderInternalMark(port, "right")}
         {!isLeft && (
           <Handle
@@ -525,8 +578,8 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
             id={h.handleId}
             data-connected={connectedHandles.has(h.handleId) || undefined}
             data-multi-connect={port.multiConnect || undefined}
-            className="!w-2.5 !h-2.5 !border-2 !border-[var(--color-border)] !-right-[5px]"
-            style={{ background: portHandleColor(port), top: "50%" }}
+            className={connectorClass("right", connectedHandles.has(h.handleId))}
+            style={connectorStyle(portHandleColor(port), connectedHandles.has(h.handleId), { multi: port.multiConnect })}
           />
         )}
       </div>
@@ -554,7 +607,7 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
     return (
       <div
         key={port.id}
-        className="flex justify-between items-center relative h-4"
+        className="device-port-row flex justify-between items-center relative h-4"
         onContextMenu={(e) => openPortMenu(e, port)}
       >
         {/* Rear handle — left edge, source (ConnectionMode.Loose; isValidConnection enforces direction) */}
@@ -563,15 +616,15 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
           position={Position.Left}
           id={rearId}
           data-connected={rearConnected || undefined}
-          className="!w-2.5 !h-2.5 !border-2 !border-[var(--color-border)] !-left-[5px]"
-          style={{ background: signalColor, top: "50%" }}
+          className={connectorClass("left", rearConnected)}
+          style={connectorStyle(signalColor, rearConnected)}
         />
         <span
           className="text-[10px] leading-4 truncate px-3 flex-1 text-center"
           style={{ color: signalColor }}
           title={`${portRowLabel(port)} (${resolvedSignalLabel}) — passthrough`}
         >
-          ⇔ {portRowLabel(port)}
+          ⇔ {fitPortLabel(portRowLabel(port), true)}
         </span>
         {/* Front handle — right edge, source (same reasoning as rear) */}
         <Handle
@@ -579,8 +632,8 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
           position={Position.Right}
           id={frontId}
           data-connected={frontConnected || undefined}
-          className="!w-2.5 !h-2.5 !border-2 !border-[var(--color-border)] !-right-[5px]"
-          style={{ background: signalColor, top: "50%" }}
+          className={connectorClass("right", frontConnected)}
+          style={connectorStyle(signalColor, frontConnected)}
         />
       </div>
     );
@@ -686,10 +739,10 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
       <div
         className="px-3 border-b border-[var(--ui-border)] rounded-t-[7px] flex flex-col"
         style={{
-          // Header band stays the panel "instrument" face. The device-class colour lives in
-          // the perimeter border + class icon — using data.headerColor here was what made
-          // the card read as a washed-out grey/pale box.
-          backgroundColor: "var(--color-surface-raised)",
+          // Header band tint = CLASS colour at 14% over raised (board 2a §2). The old
+          // washed-out failure came from tinting with the block/header colour; the class
+          // hue at 14% matches the body's 7% wash and keeps the name legible.
+          backgroundColor: `color-mix(in srgb, ${classColor} 14%, var(--color-surface-raised))`,
           // Layer "tint" mode washes the header in the layer colour, left-to-right. Kept at 20%
           // and fading to transparent so the name stays legible; the layer chip below carries
           // the text pairing. "band" mode instead draws the top bar on the node root.
@@ -703,21 +756,29 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
         }}
       >
         <div
-          className="relative flex flex-col items-center justify-center overflow-hidden"
+          className="relative flex items-center gap-1.5"
           style={{ height: labelZone }}
         >
+          {/* Identity, LEFT-aligned (board 2a §3): artwork chip · name (+ meta beneath) ·
+              status dot right. The chip may extend into the band's vertical padding
+              (the row itself keeps the declared labelZone height, so headerBandHeight()
+              and every port anchor beneath are untouched). */}
+          <ArtworkChip
+            artworkAssetId={data.artworkAssetId}
+            device={data}
+            size={isCompact ? 16 : resolvedLabel.wrap ? 24 : 20}
+            color={classColor}
+          />
+          <span className="flex flex-col items-start justify-center min-w-0 flex-1">
           <span
             className={
               resolvedLabel.wrap
                 ? "text-[11.5px] font-semibold text-[var(--color-text-heading)] max-w-full"
                 : "text-[11.5px] font-semibold text-[var(--color-text-heading)] truncate leading-tight max-w-full"
             }
-            style={labelStyle}
+            style={labelStyle ? { ...labelStyle, textAlign: "left" } : undefined}
             title={displayLabel(resolvedLabel.text)}
           >
-            {data.icon && (
-              <span style={{ marginRight: 4, color: classColor }}>{data.icon}</span>
-            )}
             {displayLabel(resolvedLabel.text)}
           </span>
           {/* CATEGORY mono-caps sub-label + layer chip — both sit within the fixed labelZone
@@ -757,6 +818,7 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
               )}
             </span>
           )}
+          </span>
           {/* Status dot — absolutely positioned right so it never shifts the name or node width. */}
           <span
             className="absolute right-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full"
@@ -786,19 +848,22 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
   // instrument face, and the layer-tint feature owns the header background.
   const bodyWash = `color-mix(in srgb, ${classColor} 7%, var(--color-surface))`;
 
-  // Tile tier: short code + I/O only. Both the fill and the text mix TOWARD --color-surface rather
-  // than a literal white/black, so one formula stays legible in either theme — the mix tracks the
-  // surface's lightness, which is what --color-text-heading is already sized against.
-  const tileFill =
-    `linear-gradient(155deg, color-mix(in srgb, ${classColor} 45%, var(--color-surface)),` +
-    ` color-mix(in srgb, ${classColor} 70%, var(--color-surface)))`;
-  const tileCode = (resolvedLabel.text.replace(/[^A-Za-z0-9]/g, "").slice(0, 3) || "DEV").toUpperCase();
+  // Tile tier (board 2c): a light class-tinted card — artwork + name + "N IN · M OUT" — with ONE
+  // aggregate connector dot per side. The dot is signal-coloured when that side's ports share a
+  // signal, neutral slate when mixed (colour is never the only cue; the counts line says what's
+  // concatenated).
+  const tileFill = `color-mix(in srgb, ${classColor} 16%, var(--color-surface))`;
+  const TILE_MIXED = "#74819a";
+  const sideAggColor = (ports: Port[]): string => {
+    if (ports.length === 0) return TILE_MIXED;
+    const first = portHandleColor(ports[0]);
+    return ports.every((p) => portHandleColor(p) === first) ? first : TILE_MIXED;
+  };
+  const tileLeftColor = sideAggColor([...leftPorts, ...bidirectional, ...passthroughPorts]);
+  const tileRightColor = sideAggColor([...rightPorts, ...bidirectional, ...passthroughPorts]);
+  const dirIn = data.ports.filter((p) => p.direction === "input" || p.direction === "bidirectional").length;
+  const dirOut = data.ports.filter((p) => p.direction === "output" || p.direction === "bidirectional").length;
 
-  // CATEGORY mono-caps label — the device's class/type, shown under the name. Omitted when empty.
-  const categoryText = (data.category || data.deviceType || "").trim();
-  // A layer only marks its devices once it has been given a colour — an uncoloured layer
-  // (including the default "Base") stays neutral: no band, no tint, no chip.
-  const layerChipName = layerColor ? (layerName?.trim() || null) : null;
 
   // Status-dot colour mirrors the validation engine: error wins, then warning, else clean.
   const statusColor =
@@ -817,9 +882,9 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
   return (
     <div
       onDoubleClick={() => setEditingNodeId(id)}
-      className="relative rounded-[7px] border"
+      className={`relative rounded-[7px] border${isTile ? " device-node-tiled" : ""}`}
       style={{
-        width: 144,
+        width: nodeWidth,
         backgroundColor: bodyWash,
         // v3 "Currents": the device-class hue is the node's full-perimeter border (replaces the
         // old 2.5px left edge-stripe). Width stays 1px to keep the port-grid invariant exact.
@@ -843,7 +908,9 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
            text pairing. */}
       {layerColor && layerColorMode === "band" && (
         <div
-          className="absolute left-0 right-0 top-0 h-[3px] rounded-t-[6px] pointer-events-none z-10"
+          // Inset 1.5px inside the class border (radius = outer − border, board 2a §1) so the
+          // band never bleeds unevenly over the border corners.
+          className="absolute left-[1.5px] right-[1.5px] top-[1.5px] h-[3px] rounded-t-[5px] pointer-events-none z-10"
           style={{ background: layerColor }}
           title={`Layer: ${layerChipName}`}
         />
@@ -977,7 +1044,7 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
               const lh = left ? handleProps(left, "left") : null;
               const rh = right ? handleProps(right, "right") : null;
               return (
-                <div key={i} className="flex justify-between items-center relative h-4">
+                <div key={i} className="device-port-row flex justify-between items-center relative h-4">
                   <div className="flex items-center gap-1 pl-3 min-w-0 flex-1" onContextMenu={left ? (e) => openPortMenu(e, left) : undefined}>
                     {left && lh && (
                       <>
@@ -987,17 +1054,16 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
                           id={lh.handleId}
                           data-connected={connectedHandles.has(lh.handleId) || undefined}
                           data-multi-connect={left.multiConnect || undefined}
-                          className="!w-2.5 !h-2.5 !border-2 !border-[var(--color-border)] !-left-[5px]"
-                          style={{ background: portHandleColor(left), top: "50%" }}
+                          className={connectorClass("left", connectedHandles.has(lh.handleId))}
+                          style={connectorStyle(portHandleColor(left), connectedHandles.has(lh.handleId), { multi: left.multiConnect })}
                         />
                         {renderInternalMark(left, "left")}
-                        {renderSwatch(SIGNAL_COLORS[left.signalType], connectedHandles.has(lh.handleId), left.virtual)}
                         <span
                           className="text-[10px] leading-4 truncate"
                           style={{ color: "var(--color-text)" }}
                           title={portRowTitle(left)}
                         >
-                          {portRowLabel(left)}
+                          {fitPortLabel(portRowLabel(left))}
                         </span>
                       </>
                     )}
@@ -1010,9 +1076,8 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
                           style={{ color: "var(--color-text)" }}
                           title={portRowTitle(right)}
                         >
-                          {portRowLabel(right)}
+                          {fitPortLabel(portRowLabel(right))}
                         </span>
-                        {renderSwatch(SIGNAL_COLORS[right.signalType], connectedHandles.has(rh.handleId), right.virtual)}
                         {renderInternalMark(right, "right")}
                         <Handle
                           type={rh.handleType}
@@ -1020,8 +1085,8 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
                           id={rh.handleId}
                           data-connected={connectedHandles.has(rh.handleId) || undefined}
                           data-multi-connect={right.multiConnect || undefined}
-                          className="!w-2.5 !h-2.5 !border-2 !border-[var(--color-border)] !-right-[5px]"
-                          style={{ background: portHandleColor(right), top: "50%" }}
+                          className={connectorClass("right", connectedHandles.has(rh.handleId))}
+                          style={connectorStyle(portHandleColor(right), connectedHandles.has(rh.handleId), { multi: right.multiConnect })}
                         />
                       </>
                     )}
@@ -1102,19 +1167,15 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
             const outDisabled = inConnected;
 
             return (
-              <div key={port.id} className="flex justify-center items-center relative h-4">
+              <div key={port.id} className="device-port-row flex justify-center items-center relative h-4">
                 <Handle
                   type="source"
                   position={Position.Left}
                   id={inId}
                   data-connected={connectedHandles.has(inId) || undefined}
                   data-multi-connect={port.multiConnect || undefined}
-                  className="!w-2.5 !h-2.5 !border-2 !border-[var(--color-border)] !-left-[5px]"
-                  style={{
-                    background: inDisabled ? "#d1d5db" : portHandleColor(port),
-                    opacity: inDisabled ? 0.4 : 1,
-                    top: "50%",
-                  }}
+                  className={connectorClass("left", inConnected)}
+                  style={connectorStyle(portHandleColor(port), inConnected, { multi: port.multiConnect, disabled: inDisabled })}
                 />
                 {/* No internal-link mark here: a bidirectional row is centred with a connector on
                      each face, so there is no single side for the mark to mirror. Internal links
@@ -1125,7 +1186,7 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
                   style={{ color: portHandleColor(port) }}
                   title={portRowTitle(port) + " — bidirectional"}
                 >
-                  ↔ {portRowLabel(port)}
+                  ↔ {fitPortLabel(portRowLabel(port), true)}
                 </span>
                 <Handle
                   type="source"
@@ -1133,12 +1194,8 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
                   id={outId}
                   data-connected={connectedHandles.has(outId) || undefined}
                   data-multi-connect={port.multiConnect || undefined}
-                  className="!w-2.5 !h-2.5 !border-2 !border-[var(--color-border)] !-right-[5px]"
-                  style={{
-                    background: outDisabled ? "#d1d5db" : portHandleColor(port),
-                    opacity: outDisabled ? 0.4 : 1,
-                    top: "50%",
-                  }}
+                  className={connectorClass("right", outConnected)}
+                  style={connectorStyle(portHandleColor(port), outConnected, { multi: port.multiConnect, disabled: outDisabled })}
                 />
               </div>
             );
@@ -1154,9 +1211,9 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
             <span
               className="text-[8px] text-[var(--color-text)]"
               style={{ fontFamily: "var(--font-mono)" }}
-              title={`${ioSummary.connected} of ${ioSummary.total} I/O connected`}
+              title={`${dirIn} inputs · ${dirOut} outputs — ${ioSummary.connected} of ${ioSummary.total} I/O connected`}
             >
-              {ioSummary.connected}/{ioSummary.total} I/O
+              {dirIn} in · {dirOut} out
             </span>
           )}
           {data.powerDrawW ? (
@@ -1191,23 +1248,35 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
       {isTile && (
         <div
           className="absolute inset-0 rounded-[6px] px-1.5 flex flex-col items-center justify-center overflow-hidden"
-          style={{ backgroundImage: tileFill }}
+          style={{ background: tileFill }}
           title={`${displayLabel(resolvedLabel.text)} — ${ioSummary.connected} of ${ioSummary.total} I/O connected`}
         >
+          {/* Aggregate connector dots — the visible face of the converged handles beneath
+              (deviceNodeMotion.css collapses every per-port anchor onto these centres). */}
           <span
-            className="text-[16px] font-extrabold leading-none text-[var(--color-text-heading)]"
-            style={{ letterSpacing: "0.03em" }}
-          >
-            {tileCode}
-          </span>
+            aria-hidden
+            className="absolute left-[-4.5px] top-1/2 -translate-y-1/2 w-[9px] h-[9px] rounded-full"
+            style={{ background: tileLeftColor }}
+          />
+          <span
+            aria-hidden
+            className="absolute right-[-4.5px] top-1/2 -translate-y-1/2 w-[9px] h-[9px] rounded-full"
+            style={{ background: tileRightColor }}
+          />
+          <ArtworkChip
+            artworkAssetId={data.artworkAssetId}
+            device={data}
+            size={26}
+            color={classColor}
+          />
           <span className="mt-1 max-w-full text-[9px] font-semibold leading-tight truncate text-[var(--color-text-heading)]">
             {displayLabel(resolvedLabel.text)}
           </span>
           <span
-            className="mt-0.5 text-[9px] font-semibold leading-none text-[var(--color-text)]"
-            style={{ fontFamily: "var(--font-mono)" }}
+            className="mt-0.5 text-[8px] font-semibold uppercase leading-none text-[var(--color-text)]"
+            style={{ fontFamily: "var(--font-mono)", letterSpacing: "0.06em" }}
           >
-            {ioSummary.connected}/{ioSummary.total} I/O
+            {dirIn} in · {dirOut} out
           </span>
         </div>
       )}

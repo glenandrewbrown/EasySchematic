@@ -18,8 +18,39 @@
   animation: deviceNodeSwatchGlow 2s ease-in-out infinite;
 }
 
+/* Connect-tool armed: OPEN connectors halo in their own signal colour (board 2b).
+ * The keyframes must repeat the hollow ring's inset shadow — animating box-shadow
+ * replaces the whole list, and losing the inset ring would make the port read as
+ * wired while the halo pulses. */
+@keyframes deviceNodeConnectorArmed {
+  0%,
+  100% {
+    box-shadow: inset 0 0 0 1.5px var(--swatch-glow, transparent), 0 0 0 0 transparent;
+  }
+  50% {
+    box-shadow:
+      inset 0 0 0 1.5px var(--swatch-glow, transparent),
+      0 0 6px 2px color-mix(in srgb, var(--swatch-glow, transparent) 55%, transparent);
+  }
+}
+
+.device-node-connector--armed {
+  animation: deviceNodeConnectorArmed 1.6s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .device-node-swatch--glow {
+  .device-node-swatch--glow,
+  .device-node-connector--armed {
     animation: none;
   }
+}
+
+/* Tile tier (board 2c): every per-port handle converges on the node's vertical centre.
+ * Removing the row's positioning context makes each absolutely-positioned handle resolve
+ * against the node root instead, so left handles stack on ONE aggregate anchor at the left
+ * edge and right handles on one at the right. The edge router snapshots DOM handle bounds,
+ * so every cable lands on the aggregate dot with zero router changes — and untiling restores
+ * the row anchors from the same row math. */
+.device-node-tiled .device-port-row {
+  position: static !important;
 }
