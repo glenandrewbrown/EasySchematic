@@ -732,14 +732,6 @@ export default function MenuBar({ variant = "full" }: { variant?: "full" | "menu
       { type: "separator" },
       {
         type: "item",
-        label: "Landing Page",
-        onClick: () => {
-          localStorage.removeItem("easyschematic-skip-landing");
-          window.location.href = "/";
-        },
-      },
-      {
-        type: "item",
         label: "Guided Venue Setup...",
         onClick: () => useSchematicStore.getState().setGuidedSetupOpen(true),
       },
