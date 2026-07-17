@@ -482,7 +482,7 @@ function ScheduleTable({ runs, filtered, showBundle }: ScheduleTableProps) {
 
   return (
     <table
-      className="w-full text-[11.5px]"
+      className="schedule-table w-full text-[11.5px]"
       style={{ borderCollapse: "separate", borderSpacing: 0 }}
     >
       <thead>

@@ -652,3 +652,77 @@ html, body, #root {
   height: 66%;
   display: block;
 }
+
+/* ===== Adaptive layout (round-3 §R2) =====
+   Tiers are stamped on <html data-tier="desktop|tablet|phone"> by useLayoutTier;
+   `.touch-device` is stamped when the pointer is coarse. Nothing here HIDES a
+   feature — the rules only re-compose chrome and widen hit targets. */
+
+/* Tier B + C: cap every shared dialog at 92vw so nothing overflows a narrow viewport. */
+:root[data-tier="tablet"] .ui-dialog,
+:root[data-tier="phone"] .ui-dialog {
+  max-width: 92vw;
+}
+
+/* Tier C: dialogs grow to a near-full-screen sheet; the 3-column Device Editor body
+   stacks into a single scrolling column (board 1d). No horizontal scroll at any point. */
+:root[data-tier="phone"] .ui-dialog {
+  width: min(94vw, 680px);
+  max-width: 94vw;
+  max-height: 92vh;
+}
+:root[data-tier="phone"] .ui-dialog-backdrop {
+  padding: 0;
+}
+:root[data-tier="phone"] .device-editor-shell .de-body {
+  flex-direction: column;
+  overflow-y: auto;
+}
+:root[data-tier="phone"] .device-editor-shell .de-body > aside,
+:root[data-tier="phone"] .device-editor-shell .de-body > div {
+  width: 100% !important;
+  flex: none !important;
+  border-right: none !important;
+  border-bottom: 1px solid var(--ui-border);
+}
+
+/* The mobile inspector sheet hosts the full RightRail; strip its fixed width +
+   left border so it fills the sheet. */
+.mobile-sheet-railwrap > * {
+  width: 100% !important;
+  border-left: none !important;
+}
+
+/* Touch: widen port-handle hit targets to 44px via the pseudo-element ONLY, so the
+   handle element's own box (which React Flow measures for edge anchoring) and its
+   visual 9px glyph are both unchanged. */
+.touch-device .react-flow__handle::after {
+  width: 44px;
+  height: 44px;
+}
+
+/* Tier B/C Schedule: give the cable grid a min-width so it scrolls horizontally in
+   its overflow-auto container, and pin the first column while scrolling (board 1f). */
+:root[data-tier="tablet"] .schedule-table,
+:root[data-tier="phone"] .schedule-table {
+  min-width: 720px;
+}
+:root[data-tier="tablet"] .schedule-table th:first-child,
+:root[data-tier="tablet"] .schedule-table td:first-child,
+:root[data-tier="phone"] .schedule-table th:first-child,
+:root[data-tier="phone"] .schedule-table td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--color-surface);
+}
+
+/* Touch input hygiene — kill the 300ms tap delay + grey tap flash on controls. */
+.touch-device button,
+.touch-device a,
+.touch-device [role="button"],
+.touch-device .ui-btn,
+.touch-device .ui-input {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}

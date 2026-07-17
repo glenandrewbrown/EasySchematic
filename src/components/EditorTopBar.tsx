@@ -153,6 +153,11 @@ export default function EditorTopBar() {
   const scaleRef = useDismissOnOutside(scaleOpen, closeScale);
   const exportRef = useDismissOnOutside(exportOpen, closeExport);
 
+  // Phone (<768px) overflow menu — theme, export, help, account (board 1a).
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const closeMobileMenu = useCallback(() => setMobileMenuOpen(false), []);
+  const mobileMenuRef = useDismissOnOutside(mobileMenuOpen, closeMobileMenu);
+
   // The .chrome-menu entry animation is CSS-gated on prefers-reduced-motion; the
   // in-app preference has to be applied here as well.
   const popMotion = reduceMotion ? { animation: "none" } : undefined;
@@ -541,20 +546,90 @@ export default function EditorTopBar() {
         </div>
       </header>
 
-      {/* ── Mobile minimal bar (desktop-first app; full menus live on desktop) ── */}
+      {/* ── Phone bar (<768px, tier C / board 1a): logo · doc name + saved dot ·
+             ⌘K search · ⋯ overflow (theme, export, log in, help). 48px tall. ── */}
       <header className="flex md:hidden items-center h-12 px-3 gap-2 bg-[var(--color-surface)] border-b border-[var(--ui-border)]">
-        <img src="/favicon.svg" className="w-5 h-5" alt="" />
-        <span className="text-sm font-semibold text-[var(--color-text-heading)] flex-1 truncate">{schematicName}</span>
+        <img src="/favicon.svg" className="w-5 h-5 shrink-0" alt="" />
+        <span className="text-sm font-semibold text-[var(--color-text-heading)] min-w-0 flex-1 truncate">{schematicName}</span>
+        <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-success)] shrink-0" title="Saved" aria-label="Saved" />
         <button
           onClick={() => fire("easyschematic:open-command-palette")}
           aria-label="Search or run a command"
-          className="p-1.5 rounded-md text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)]"
+          className="w-9 h-9 flex items-center justify-center rounded-md text-[var(--color-text-muted)] active:bg-[var(--color-surface-hover)]"
+          style={{ touchAction: "manipulation" }}
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
             <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="1.6" />
             <path d="M21 21l-4-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
           </svg>
         </button>
+        <div ref={mobileMenuRef} className="relative">
+          <button
+            onClick={() => setMobileMenuOpen((o) => !o)}
+            aria-haspopup="menu"
+            aria-expanded={mobileMenuOpen}
+            aria-label="More"
+            className="w-9 h-9 flex items-center justify-center rounded-md text-[var(--color-text-muted)] active:bg-[var(--color-surface-hover)]"
+            style={{ touchAction: "manipulation" }}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <circle cx="5" cy="12" r="1.7" /><circle cx="12" cy="12" r="1.7" /><circle cx="19" cy="12" r="1.7" />
+            </svg>
+          </button>
+          {mobileMenuOpen && (
+            <div
+              className="chrome-menu absolute right-0 top-11 z-50 w-[214px] flex flex-col gap-0.5"
+              style={{ transformOrigin: "top right", ...popMotion }}
+              role="menu"
+              aria-label="More"
+            >
+              <button
+                role="menuitem"
+                onClick={() => { toggle(); }}
+                className="flex items-center gap-2.5 w-full h-11 px-2.5 rounded-lg text-left text-[13px] text-[var(--color-text)] active:bg-[var(--color-surface-hover)]"
+                style={{ touchAction: "manipulation" }}
+              >
+                {isDark ? (
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M20 14.5A8 8 0 0 1 9.5 4 7 7 0 1 0 20 14.5z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" /></svg>
+                ) : (
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="1.5" /><path d="M12 2v2M12 20v2M4 12H2M22 12h-2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+                )}
+                {isDark ? "Light mode" : "Dark mode"}
+              </button>
+              <button
+                role="menuitem"
+                onClick={() => { setMobileMenuOpen(false); runExport("pdf"); }}
+                className="flex items-center gap-2.5 w-full h-11 px-2.5 rounded-lg text-left text-[13px] text-[var(--color-text)] active:bg-[var(--color-surface-hover)]"
+                style={{ touchAction: "manipulation" }}
+              >
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 16V4M8 8l4-4 4 4M5 16v3a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                Export PDF
+              </button>
+              <button
+                role="menuitem"
+                onClick={() => { setMobileMenuOpen(false); fire("easyschematic:open-reports"); }}
+                className="flex items-center gap-2.5 w-full h-11 px-2.5 rounded-lg text-left text-[13px] text-[var(--color-text)] active:bg-[var(--color-surface-hover)]"
+                style={{ touchAction: "manipulation" }}
+              >
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M4 5h16M4 12h16M4 19h10" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                Reports &amp; exports…
+              </button>
+              <button
+                role="menuitem"
+                onClick={() => { setMobileMenuOpen(false); window.open("https://docs.easyschematic.live", "_blank", "noopener,noreferrer"); }}
+                className="flex items-center gap-2.5 w-full h-11 px-2.5 rounded-lg text-left text-[13px] text-[var(--color-text)] active:bg-[var(--color-surface-hover)]"
+                style={{ touchAction: "manipulation" }}
+              >
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5" /><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.8.4-1 .9-1 1.7M12 16.5v.01" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+                Help &amp; docs
+              </button>
+              <div className="my-0.5 h-px bg-[var(--ui-border)]" />
+              <div className="px-1 py-0.5">
+                <UserMenuButton />
+              </div>
+            </div>
+          )}
+        </div>
       </header>
     </div>
   );

@@ -49,7 +49,11 @@ import { resolveNodeVisibility } from "./layerVisibility";
 import { expandToGroupSiblings } from "./grouping";
 import IncompatibleConnectionDialog from "./components/IncompatibleConnectionDialog";
 import DeviceSwapDialog from "./components/DeviceSwapDialog";
-import MobileGate from "./components/MobileGate";
+import { useLayoutTier, isTouchDevice } from "./hooks/useLayoutTier";
+import MobileTabBar from "./components/mobile/MobileTabBar";
+import MobileFabCluster from "./components/mobile/MobileFabCluster";
+import MobileZoomPill from "./components/mobile/MobileZoomPill";
+import MobileInspectorSheet from "./components/MobileInspectorSheet";
 import ToastContainer from "./components/ToastContainer";
 import PendingSubmissionBanner from "./components/PendingSubmissionBanner";
 import BetaBanner from "./components/BetaBanner";
@@ -305,6 +309,49 @@ function SchematicCanvas() {
     return () => el.removeEventListener("contextmenu", handler, true);
   }, [screenToFlowPosition]);
 
+  // Long-press (500ms) on touch = context menu. Rather than re-implement per-target
+  // menu logic, synthesize a `contextmenu` event at the finger — React Flow's existing
+  // onNodeContextMenu / onEdgeContextMenu handlers + the locked-room capture listener
+  // above all fire from it, so nodes, edges, and the pane are all covered.
+  useEffect(() => {
+    const el = rfContainerRef.current;
+    if (!el) return;
+    let timer: number | null = null;
+    let startX = 0;
+    let startY = 0;
+    const clear = () => {
+      if (timer !== null) { window.clearTimeout(timer); timer = null; }
+    };
+    const onStart = (e: TouchEvent) => {
+      if (e.touches.length !== 1) { clear(); return; }
+      const t = e.touches[0];
+      startX = t.clientX;
+      startY = t.clientY;
+      clear();
+      timer = window.setTimeout(() => {
+        timer = null;
+        const target = document.elementFromPoint(startX, startY);
+        target?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: startX, clientY: startY }));
+      }, 500);
+    };
+    const onMove = (e: TouchEvent) => {
+      if (timer === null) return;
+      const t = e.touches[0];
+      if (t && (Math.abs(t.clientX - startX) > 10 || Math.abs(t.clientY - startY) > 10)) clear();
+    };
+    el.addEventListener("touchstart", onStart, { passive: true });
+    el.addEventListener("touchmove", onMove, { passive: true });
+    el.addEventListener("touchend", clear, { passive: true });
+    el.addEventListener("touchcancel", clear, { passive: true });
+    return () => {
+      clear();
+      el.removeEventListener("touchstart", onStart);
+      el.removeEventListener("touchmove", onMove);
+      el.removeEventListener("touchend", clear);
+      el.removeEventListener("touchcancel", clear);
+    };
+  }, []);
+
   // Space-held state for pan-on-drag (Vectorworks-style)
   const [spaceHeld, setSpaceHeld] = useState(false);
   // Shift-held state used in pan-first mode to temporarily enable box selection
@@ -383,6 +430,19 @@ function SchematicCanvas() {
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
+
+  // Touch input (phone OR any coarse-pointer device, incl. touch tablets): one-finger
+  // drag pans the canvas, single-finger drag on a node still moves it, and pinch zooms.
+  const touchInput = isMobile || isTouchDevice();
+  // Minimap defaults off on non-desktop tiers (board 1f); the View popover can still
+  // toggle it back on. One-shot so a later toggle isn't overridden.
+  const tier = useLayoutTier();
+  const minimapDefaultedRef = useRef(false);
+  useEffect(() => {
+    if (minimapDefaultedRef.current) return;
+    minimapDefaultedRef.current = true;
+    if (tier !== "desktop") useSchematicStore.getState().setShowMiniMap(false);
+  }, [tier]);
 
   // Track physical Ctrl key to distinguish real Ctrl+scroll from trackpad pinch
   const ctrlHeldRef = useRef(false);
@@ -489,6 +549,9 @@ function SchematicCanvas() {
   const isClickConnectMode = useRef(false);
   // React-state mirror of click-connect mode, purely to drive the on-canvas cancel hint.
   const [clickConnectActive, setClickConnectActive] = useState(false);
+  // The armed source (device + port names) once a first port is tapped/clicked —
+  // drives the "Connect ▸ {device} · {port}" chip (touch tap-tap + desktop Connect tool).
+  const [armedConnect, setArmedConnect] = useState<{ device: string; port: string } | null>(null);
   const [connectPreview, setConnectPreview] = useState<{
     fromX: number; fromY: number; toX: number; toY: number; fromSource: boolean;
     snapped: boolean; valid: boolean; adaptable: boolean;
@@ -909,6 +972,7 @@ function SchematicCanvas() {
     isClickConnectMode.current = false;
     setConnectPreview(null);
     setClickConnectActive(false);
+    setArmedConnect(null);
   }, []);
 
   // Keyboard shortcuts
@@ -1250,6 +1314,15 @@ function SchematicCanvas() {
       // eslint-disable-next-line react-hooks/immutability -- intentional mutable ref flag
       isClickConnectMode.current = true;
       setClickConnectActive(true);
+      // Resolve the armed device + port names for the on-canvas Connect chip.
+      const st = useSchematicStore.getState();
+      const node = st.nodes.find((n) => n.id === params.nodeId);
+      if (node?.type === "device") {
+        const data = node.data as DeviceData;
+        const portId = params.handleId?.replace(/-(in|out|rear|front)$/, "");
+        const port = data.ports.find((p) => p.id === portId);
+        setArmedConnect({ device: data.label || "Device", port: port?.label || "Port" });
+      }
       startPreviewTracking(event, params.nodeId, params.handleId, params.handleType);
     },
     [startPreviewTracking],
@@ -1778,9 +1851,10 @@ function SchematicCanvas() {
       edgeTypes={edgeTypes}
       onDragOver={onDragOver}
       onDrop={onDrop}
-      selectionOnDrag={isMobile ? false : activeTool === "pan" ? false : (panMode === "pan-first" ? shiftHeld : !spaceHeld)}
+      selectionOnDrag={touchInput ? false : activeTool === "pan" ? false : (panMode === "pan-first" ? shiftHeld : !spaceHeld)}
       selectionMode={selectionMode}
-      panOnDrag={isMobile ? [0] : activeTool === "pan" ? [0, 1] : (panMode === "pan-first" ? (shiftHeld ? [1] : [0, 1]) : (spaceHeld ? [0, 1] : [1]))}
+      panOnDrag={touchInput ? [0] : activeTool === "pan" ? [0, 1] : (panMode === "pan-first" ? (shiftHeld ? [1] : [0, 1]) : (spaceHeld ? [0, 1] : [1]))}
+      zoomOnPinch
       fitView
       minZoom={minZoom}
       elevateNodesOnSelect={false}
@@ -1854,15 +1928,15 @@ function SchematicCanvas() {
               if (report) {
                 navigator.clipboard.writeText(JSON.stringify(report, null, 2)).then(() => {
                   btn.textContent = "✓ Copied!";
-                  setTimeout(() => { btn.textContent = "📋 Copy Routing Report"; }, 1500);
+                  setTimeout(() => { btn.textContent = "Copy Routing Report"; }, 1500);
                 });
               } else {
                 btn.textContent = "⚠ No report yet";
-                setTimeout(() => { btn.textContent = "📋 Copy Routing Report"; }, 1500);
+                setTimeout(() => { btn.textContent = "Copy Routing Report"; }, 1500);
               }
             }}
           >
-            📋 Copy Routing Report
+            Copy Routing Report
           </button>
         </div>
       )}
@@ -1960,8 +2034,16 @@ function SchematicCanvas() {
         role="status"
       >
         <span className="w-[7px] h-[7px] rounded-full" style={{ background: "var(--color-accent)", animation: "pr 1.6s ease-in-out infinite" }} />
-        <span className="font-medium text-[var(--color-text-heading)]">Connect mode</span>
-        <span className="text-[var(--color-text-muted)]">Click a source port — compatible targets highlight</span>
+        {armedConnect ? (
+          <span className="font-medium text-[var(--color-text-heading)]">
+            Connect <span className="text-[var(--color-accent)]">▸</span> {armedConnect.device} · {armedConnect.port}
+          </span>
+        ) : (
+          <>
+            <span className="font-medium text-[var(--color-text-heading)]">Connect mode</span>
+            <span className="text-[var(--color-text-muted)]">Tap a source port — compatible targets highlight</span>
+          </>
+        )}
         <button
           type="button"
           onClick={() => clearClickConnect()}
@@ -2047,10 +2129,31 @@ export default function App() {
   const isSchematicActive = activePage === "schematic";
   const canvasViewMode = useSchematicStore((s) => s.canvasViewMode);
   const activeTool = useSchematicStore((s) => s.activeTool);
+  const setActiveTool = useSchematicStore((s) => s.setActiveTool);
   const deviceDrawerPinned = useSchematicStore((s) => s.deviceDrawerPinned);
+  const setDeviceDrawerPinned = useSchematicStore((s) => s.setDeviceDrawerPinned);
   const loadFromLocalStorage = useSchematicStore((s) => s.loadFromLocalStorage);
   const undo = useSchematicStore((s) => s.undo);
   const redo = useSchematicStore((s) => s.redo);
+
+  // Responsive tier (round-3 §R2). One hook drives all re-composition; nothing is
+  // feature-gated on it. The tier + touch flag are stamped on <html> so CSS can
+  // adapt dialogs, hit targets, and single-column forms (see index.css).
+  const tier = useLayoutTier();
+  useEffect(() => {
+    document.documentElement.dataset.tier = tier;
+    return () => { delete document.documentElement.dataset.tier; };
+  }, [tier]);
+  useEffect(() => {
+    document.documentElement.classList.toggle("touch-device", isTouchDevice());
+  }, []);
+  const isDesktop = tier === "desktop";
+  const isTablet = tier === "tablet";
+  const isPhone = tier === "phone";
+  // Tablet right rail starts minimised to a restore tab (board 1e); opens as an overlay.
+  const [tabletRailOpen, setTabletRailOpen] = useState(false);
+  // Phone: the FAB cluster + zoom pill step aside while the inspector sheet is up (board 1b).
+  const [phoneSheetOpen, setPhoneSheetOpen] = useState(false);
 
   useEffect(() => {
     const liveControl = startLiveControlClient();
@@ -2177,42 +2280,97 @@ export default function App() {
             <div className="absolute inset-0">
               <SchematicCanvas />
             </div>
-            {/* Floating overlay — pointer-events pass through to the canvas except on panels. */}
-            <div className="absolute inset-0 pointer-events-none z-20 hidden md:block" data-print-hide data-mobile-hide>
-              {/* Tool rail (floating pill, vertical-centre left) */}
-              <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-auto">
-                <ToolRail floating onQuickAdd={() => useSchematicStore.getState().requestQuickAdd()} />
-              </div>
-              {/* Insert panel (floating card) */}
-              {(activeTool === "device" || deviceDrawerPinned) && (
-                <div
-                  className="absolute left-[60px] top-3 bottom-[58px] w-[266px] pointer-events-auto rounded-[11px] overflow-hidden border border-[var(--ui-border)]"
-                  style={{ boxShadow: "var(--ui-shadow-menu)" }}
-                >
-                  <DeviceDrawer />
+            {/* Desktop + tablet floating overlay — pointer-events pass through to
+                the canvas except on panels. Phone gets its own chrome below. */}
+            {!isPhone && (
+              <div className="absolute inset-0 pointer-events-none z-20" data-print-hide>
+                {/* Tool rail (floating pill, vertical-centre left) */}
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-auto">
+                  <ToolRail floating onQuickAdd={() => useSchematicStore.getState().requestQuickAdd()} />
                 </div>
-              )}
-              {/* Object drawer (Layout view, floating card) */}
-              {canvasViewMode === "layout" && activeTool === "object" && (
-                <div
-                  className="absolute left-[60px] top-3 bottom-[58px] w-[266px] pointer-events-auto rounded-[11px] overflow-hidden border border-[var(--ui-border)]"
-                  style={{ boxShadow: "var(--ui-shadow-menu)" }}
-                >
-                  <ObjectDrawer />
-                </div>
-              )}
-              {/* Inspector + docked Layers (floating card, right) */}
-              <div
-                className="absolute right-3 top-3 bottom-[58px] w-72 pointer-events-auto rounded-[11px] overflow-hidden border border-[var(--ui-border)]"
-                style={{ boxShadow: "var(--ui-shadow-menu)" }}
-              >
-                <RightRail />
+                {/* Tablet: scrim behind the Insert / Object overlay drawer (board 1e). */}
+                {isTablet && (activeTool === "device" || activeTool === "object" || deviceDrawerPinned) && (
+                  <button
+                    type="button"
+                    aria-label="Close panel"
+                    className="absolute inset-0 pointer-events-auto bg-black/25"
+                    onClick={() => { setActiveTool("select"); setDeviceDrawerPinned(false); }}
+                  />
+                )}
+                {/* Insert panel (floating card) */}
+                {(activeTool === "device" || deviceDrawerPinned) && (
+                  <div
+                    className="absolute left-[60px] top-3 bottom-[58px] w-[266px] pointer-events-auto rounded-[11px] overflow-hidden border border-[var(--ui-border)]"
+                    style={{ boxShadow: "var(--ui-shadow-menu)" }}
+                  >
+                    <DeviceDrawer />
+                  </div>
+                )}
+                {/* Object drawer (Layout view, floating card) */}
+                {canvasViewMode === "layout" && activeTool === "object" && (
+                  <div
+                    className="absolute left-[60px] top-3 bottom-[58px] w-[266px] pointer-events-auto rounded-[11px] overflow-hidden border border-[var(--ui-border)]"
+                    style={{ boxShadow: "var(--ui-shadow-menu)" }}
+                  >
+                    <ObjectDrawer />
+                  </div>
+                )}
+                {/* Inspector + docked Layers. Desktop: docked open. Tablet: minimised
+                    to a vertical restore tab that opens the rail as a scrimmed overlay. */}
+                {isDesktop && (
+                  <div
+                    className="absolute right-3 top-3 bottom-[58px] w-72 pointer-events-auto rounded-[11px] overflow-hidden border border-[var(--ui-border)]"
+                    style={{ boxShadow: "var(--ui-shadow-menu)" }}
+                  >
+                    <RightRail />
+                  </div>
+                )}
+                {isTablet && !tabletRailOpen && (
+                  <button
+                    type="button"
+                    onClick={() => setTabletRailOpen(true)}
+                    aria-label="Open inspector"
+                    className="absolute right-0 top-16 pointer-events-auto flex items-center justify-center w-7 py-3 rounded-l-[9px] bg-[var(--color-surface)] border border-r-0 border-[var(--ui-border)] text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)] hover:text-[var(--color-text-heading)]"
+                    style={{ writingMode: "vertical-rl", boxShadow: "var(--ui-shadow-menu)" }}
+                  >
+                    Inspect
+                  </button>
+                )}
+                {isTablet && tabletRailOpen && (
+                  <>
+                    <button
+                      type="button"
+                      aria-label="Close inspector"
+                      className="absolute inset-0 pointer-events-auto bg-black/25"
+                      onClick={() => setTabletRailOpen(false)}
+                    />
+                    <div
+                      className="absolute right-3 top-3 bottom-[58px] w-72 pointer-events-auto rounded-[11px] overflow-hidden border border-[var(--ui-border)]"
+                      style={{ boxShadow: "var(--ui-shadow-menu)" }}
+                    >
+                      <RightRail />
+                    </div>
+                  </>
+                )}
+                {/* Floating bottom bar */}
+                <CanvasBottomBar />
+                {/* CAD scale bar (Layout view only) */}
+                {canvasViewMode === "layout" && <PlanScaleBar />}
               </div>
-              {/* Floating bottom bar */}
-              <CanvasBottomBar />
-              {/* CAD scale bar (Layout view only) */}
-              {canvasViewMode === "layout" && <PlanScaleBar />}
-            </div>
+            )}
+            {/* Phone chrome (tier C): FAB cluster, zoom/view pill, inspector sheet. */}
+            {isPhone && (
+              <>
+                {!phoneSheetOpen && (
+                  <>
+                    <MobileFabCluster onQuickAdd={() => useSchematicStore.getState().requestQuickAdd()} />
+                    <MobileZoomPill />
+                  </>
+                )}
+                {canvasViewMode === "layout" && <PlanScaleBar />}
+                <MobileInspectorSheet onVisibilityChange={setPhoneSheetOpen} />
+              </>
+            )}
           </div>
         )
       ) : activePgType === "print-sheet" ? (
@@ -2220,6 +2378,8 @@ export default function App() {
       ) : (
         <RackPage />
       )}
+      {/* Phone workspace navigation (tier C) — always at the bottom of the shell. */}
+      {isPhone && <MobileTabBar />}
       <CommandPalette />
       <DeviceEditor />
       <RoomEditor />
@@ -2231,7 +2391,6 @@ export default function App() {
       <PortContextMenu />
       <IncompatibleConnectionDialog />
       <DeviceSwapDialog />
-      <MobileGate />
       <ToastContainer />
     </div>
   );

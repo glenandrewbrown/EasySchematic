@@ -1066,7 +1066,7 @@ export default function DeviceEditor() {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex flex-col bg-[var(--color-bg)]"
+      className="device-editor-shell fixed inset-0 z-50 flex flex-col bg-[var(--color-bg)]"
       onKeyDownCapture={onCtrlEnter}
     >
       {/* ── Header (50px) ── */}
@@ -1125,7 +1125,7 @@ export default function DeviceEditor() {
       </header>
 
       {/* ── Body ── */}
-      <div className="flex-1 flex min-h-0">
+      <div className="de-body flex-1 flex min-h-0">
 
         {/* LEFT: live preview + identity + advanced sections */}
         <aside className="w-[330px] flex-none border-r border-[var(--ui-border)] bg-[var(--color-surface)] flex flex-col overflow-auto">
