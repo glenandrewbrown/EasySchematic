@@ -585,6 +585,16 @@ export default function EditorTopBar() {
             >
               <button
                 role="menuitem"
+                onClick={() => { setMobileMenuOpen(false); fire("easyschematic:open-menu"); }}
+                className="flex items-center gap-2.5 w-full h-11 px-2.5 rounded-lg text-left text-[13px] text-[var(--color-text)] active:bg-[var(--color-surface-hover)]"
+                style={{ touchAction: "manipulation" }}
+              >
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" /></svg>
+                Menu — File, Edit, View…
+              </button>
+              <div className="my-0.5 h-px bg-[var(--ui-border)]" />
+              <button
+                role="menuitem"
                 onClick={() => { toggle(); }}
                 className="flex items-center gap-2.5 w-full h-11 px-2.5 rounded-lg text-left text-[13px] text-[var(--color-text)] active:bg-[var(--color-surface-hover)]"
                 style={{ touchAction: "manipulation" }}
