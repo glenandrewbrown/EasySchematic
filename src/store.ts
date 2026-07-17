@@ -41,6 +41,7 @@ import type {
 import type { ReactFlowInstance } from "@xyflow/react";
 import type { SignalType, ScrollConfig, LineStyle, LabelCaseMode, DistanceSettings, PanMode, StubLabelPageMode, ProjectStatus, CanvasViewMode, GearUnit, FieldSuggestions, GridSettings, TransportContainer, TransportItem, TransportPhase, ObjectData, ZoneData } from "./types";
 import { addUnit, updateUnit, removeUnit, assignUnit, unassignUnit, clearAssignmentsForNode } from "./gearInventory";
+import { inventoryKeyFromTemplate, inventoryKeyFromDeviceData } from "./inventoryKey";
 import { setItemChecked as setContainerItemCheckedPure } from "./logistics";
 import type { FurnitureCatalogEntry } from "./furnitureCatalog";
 import { sanitizeSvg } from "./svgSanitizer";
@@ -199,6 +200,8 @@ function readInitialCoverageVisible(): boolean {
   if (typeof localStorage === "undefined") return false;
   return localStorage.getItem(COVERAGE_VISIBLE_KEY) === "1";
 }
+
+const CREATE_ADD_TO_OWNED_KEY = "easyschematic-create-add-to-owned";
 
 const DEVICE_DRAWER_PINNED_KEY = "easyschematic-device-drawer-pinned";
 
@@ -413,6 +416,12 @@ interface SchematicState {
   ownedInventory: OwnedInventoryItem[];
   showOwnedGearPane: boolean;
   libraryActiveTab: "devices" | "owned";
+  /** Context for a "+ Create "{query}"" creator session opened from search (quick-add or
+   *  paste list). Carries the requested quantity and the quick-add anchor; placeOnSave=false
+   *  means the creator only mints the template (paste-list rows place later via "Place all"). */
+  pendingQuickCreate: { qty: number; anchor: { x: number; y: number } | null; placeOnSave: boolean } | null;
+  /** Creator footer "Also add to My Devices" — persisted UI pref, default ON. */
+  createAddToOwned: boolean;
 
   // React Flow handlers
   onNodesChange: OnNodesChange<SchematicNode>;
@@ -516,6 +525,13 @@ interface SchematicState {
   removeOwnedGear: (templateKey: string) => void;
   setShowOwnedGearPane: (show: boolean) => void;
   setLibraryActiveTab: (tab: "devices" | "owned") => void;
+  setPendingQuickCreate: (ctx: { qty: number; anchor: { x: number; y: number } | null; placeOnSave: boolean } | null) => void;
+  setCreateAddToOwned: (on: boolean) => void;
+  /** Bulk-sync every distinct device on the canvas into the owned-gear list, deduped by
+   *  inventory key. Existing owned quantities are raised to at least the canvas count
+   *  (never lowered, never duplicated — re-running is idempotent). Returns how many
+   *  distinct devices were added or raised. */
+  syncProjectDevicesToOwned: () => number;
   /** Left-library row density — session/UI pref, persisted to localStorage. */
   libraryDensity: LibraryDensity;
   setLibraryDensity: (density: LibraryDensity) => void;
@@ -1707,6 +1723,8 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
   layers: [{ id: DEFAULT_LAYER_ID, name: "Base", visible: true, locked: false }],
   showOwnedGearPane: false,
   libraryActiveTab: "devices",
+  pendingQuickCreate: null,
+  createAddToOwned: readBoolPref(CREATE_ADD_TO_OWNED_KEY, true),
   customTemplateGroups: _initCustomMeta.groups,
   customTemplateOrder: _initCustomMeta.order,
   customTemplateGroupAssignments: _initCustomMeta.groupAssignments,
@@ -3789,6 +3807,69 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
   removeOwnedGear: (key) => {
     set({ ownedGear: get().ownedGear.filter((item) => templateKey(item.template) !== key) });
     get().saveToLocalStorage();
+  },
+
+  setPendingQuickCreate: (ctx) => set({ pendingQuickCreate: ctx }),
+
+  setCreateAddToOwned: (on) => {
+    writePref(CREATE_ADD_TO_OWNED_KEY, String(on));
+    set({ createAddToOwned: on });
+  },
+
+  syncProjectDevicesToOwned: () => {
+    const state = get();
+    // Count distinct placed devices by inventory key; keep one representative node
+    // per key to synthesize a template from when no owned entry exists yet.
+    const counts = new Map<string, { count: number; data: DeviceData }>();
+    for (const node of state.nodes) {
+      if (node.type !== "device") continue;
+      const data = node.data as DeviceData;
+      const key = inventoryKeyFromDeviceData(data);
+      const entry = counts.get(key);
+      if (entry) entry.count += 1;
+      else counts.set(key, { count: 1, data });
+    }
+    if (counts.size === 0) return 0;
+
+    const ownedByInventoryKey = new Map<string, OwnedGearItem>();
+    const ownedGear = state.ownedGear.map((item) => {
+      const copy = { ...item };
+      ownedByInventoryKey.set(inventoryKeyFromTemplate(copy.template), copy);
+      return copy;
+    });
+
+    let changed = 0;
+    for (const [key, { count, data }] of counts) {
+      const existing = ownedByInventoryKey.get(key);
+      if (existing) {
+        // Merge: owned quantity is raised to the canvas count, never lowered, so
+        // re-running the sync is idempotent and never duplicates.
+        if (existing.quantity < count) {
+          existing.quantity = count;
+          changed += 1;
+        }
+        continue;
+      }
+      // Synthesize a template from the placed device's spec (per-instance fields —
+      // layer, group, rotation, serials — deliberately not carried).
+      const template: DeviceTemplate = {
+        deviceType: data.deviceType || "custom",
+        label: data.model ?? data.baseLabel ?? data.label,
+        ports: data.ports.map((p) => ({ ...p })),
+        ...(data.manufacturer ? { manufacturer: data.manufacturer } : {}),
+        ...(data.modelNumber ? { modelNumber: data.modelNumber } : {}),
+        ...(data.category ? { category: data.category } : {}),
+        ...(data.color ? { color: data.color } : {}),
+        ...(data.templateId ? { id: data.templateId } : {}),
+      };
+      ownedGear.push({ template: structuredClone(template), quantity: count });
+      changed += 1;
+    }
+    if (changed > 0) {
+      set({ ownedGear, showOwnedGearPane: true });
+      get().saveToLocalStorage();
+    }
+    return changed;
   },
 
   addOwnedCable: (item) => {

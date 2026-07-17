@@ -18,9 +18,11 @@ import {
   type AuxRow,
   type DeviceData,
   type DeviceNode,
+  type DeviceTemplate,
   type DhcpServerConfig,
   type SlotDefinition,
 } from "../types";
+import { deviceFootprint, gridPositions } from "../quickAddLayout";
 import { CONNECTORS_WITH_GENDER_VARIATION, DEFAULT_CONNECTOR, NETWORK_SIGNAL_TYPES, VIDEO_SIGNAL_TYPES, resolvePortGender, shouldDefaultMultiConnect } from "../connectorTypes";
 import { getBundledTemplates, getTemplateById, getCardsByFamily, fetchTemplates, checkSession, createDraft, createHandoff } from "../templateApi";
 import { getTemplateDrift } from "../templateSync";
@@ -163,6 +165,14 @@ export default function DeviceEditor() {
   const tagSuggestions = useSchematicStore((s) => s.tagSuggestions);
   const fieldSuggestions = useSchematicStore((s) => s.fieldSuggestions);
   const recordSuggestions = useSchematicStore((s) => s.recordSuggestions);
+  const creatingNodeId = useSchematicStore((s) => s.creatingNodeId);
+  const pendingQuickCreate = useSchematicStore((s) => s.pendingQuickCreate);
+  const setPendingQuickCreate = useSchematicStore((s) => s.setPendingQuickCreate);
+  const createAddToOwned = useSchematicStore((s) => s.createAddToOwned);
+  const setCreateAddToOwned = useSchematicStore((s) => s.setCreateAddToOwned);
+  const addOwnedGear = useSchematicStore((s) => s.addOwnedGear);
+  const addDevices = useSchematicStore((s) => s.addDevices);
+  const reparentNode = useSchematicStore((s) => s.reparentNode);
 
   const node = nodes.find((n) => n.id === editingNodeId && n.type === "device") as DeviceNode | undefined;
 
@@ -404,6 +414,8 @@ export default function DeviceEditor() {
       undo();
       setCreatingNodeId(null);
     }
+    // Any quick-create context is spent once the creator closes (saved or cancelled).
+    setPendingQuickCreate(null);
     // Reset the port-sync session marker so REOPENING this device does a clean
     // replace from the store instead of merging stale `draft-` ports back in.
     // The mid-edit draft-carry (#180) only needs the marker WITHIN one session
@@ -412,10 +424,83 @@ export default function DeviceEditor() {
     // them duplicates ports on every Apply→reopen cycle.
     syncedPortsNodeRef.current = null;
     setEditingNodeId(null);
-  }, [undo, setCreatingNodeId, setEditingNodeId]);
+  }, [undo, setCreatingNodeId, setEditingNodeId, setPendingQuickCreate]);
+
+  // A template captures the device SPEC only. Per-placement/instance fields —
+  // rotationDeg, layerId, groupId, hostDeviceId, position — are intentionally NOT
+  // carried over (DeviceTemplate has no such fields; do not spread node.data here).
+  // Shared by "Save as template" and the create-from-search save path (which also
+  // registers the template in My Devices / places bulk copies).
+  const buildTemplate = useCallback((): DeviceTemplate => {
+    const finalPorts: Port[] = ports
+      .filter((p) => p.label.trim())
+      .map((p, i) => ({
+        ...p,
+        id: `tpl-${i}`,
+        label: p.label.trim(),
+      }));
+
+    const trimmedAux = trimTrailingEmpty(auxiliaryData);
+    const existing = node?.data;
+
+    return ({
+      id: `custom-${Date.now()}`,
+      deviceType: deviceType.trim() || "custom",
+      label: label.trim() || "Custom Device",
+      ...(shortName.trim() ? { shortName: shortName.trim() } : {}),
+      ports: finalPorts,
+      ...(color ? { color } : {}),
+      ...(category.trim() ? { category: category.trim() } : {}),
+      ...(manufacturer.trim() ? { manufacturer: manufacturer.trim() } : {}),
+      ...(modelNumber.trim() ? { modelNumber: modelNumber.trim() } : {}),
+      ...(referenceUrl.trim() ? { referenceUrl: referenceUrl.trim() } : {}),
+      ...(hostname.trim() ? { hostname: hostname.trim() } : {}),
+      ...(powerDrawW != null ? { powerDrawW } : {}),
+      ...(powerCapacityW != null ? { powerCapacityW } : {}),
+      ...(voltage ? { voltage } : {}),
+      ...(thermalBtuh != null ? { thermalBtuh } : {}),
+      ...(poeBudgetW != null ? { poeBudgetW } : {}),
+      ...(poeDrawW != null ? { poeDrawW } : {}),
+      ...(unitCost != null ? { unitCost } : {}),
+      ...(heightMm != null ? { heightMm } : {}),
+      ...(widthMm != null ? { widthMm } : {}),
+      ...(depthMm != null ? { depthMm } : {}),
+      ...(weightKg != null ? { weightKg } : {}),
+      ...(isVenueProvided ? { isVenueProvided: true } : {}),
+      // Convert InstalledSlot[] back to the blueprint SlotDefinition[] that DeviceTemplate
+      // expects — card selections are per-placement, not part of the template spec.
+      ...(existing?.slots && existing.slots.length > 0
+        ? {
+            slots: existing.slots.map((s) => ({
+              id: s.slotId,
+              label: s.label,
+              slotFamily: s.slotFamily ?? "",
+              ...(s.cardTemplateId ? { defaultCardId: s.cardTemplateId } : {}),
+            })),
+          }
+        : {}),
+      ...(existing?.slotFamily ? { slotFamily: existing.slotFamily as string } : {}),
+      ...(trimmedAux.some((r) => r.text.trim()) ? { auxiliaryData: trimmedAux } : {}),
+      ...(() => { const t = searchTermsRaw.split(",").map((s) => s.trim()).filter(Boolean).slice(0, 20); return t.length > 0 ? { searchTerms: t } : {}; })(),
+    });
+  }, [ports, label, shortName, hostname, node, powerDrawW, powerCapacityW, voltage, thermalBtuh, poeBudgetW, poeDrawW, unitCost, heightMm, widthMm, depthMm, weightKg, isVenueProvided, deviceType, color, manufacturer, modelNumber, referenceUrl, category, auxiliaryData, searchTermsRaw]);
 
   const handleSave = useCallback(() => {
     if (!editingNodeId) return;
+
+    const isCreating = creatingNodeId !== null && creatingNodeId === editingNodeId;
+
+    if (isCreating && pendingQuickCreate && !pendingQuickCreate.placeOnSave) {
+      // Paste-list "Create" chip: mint the template only. The provisional node is
+      // withdrawn via close()'s single-undo cancel path — the quick-add list (still
+      // mounted underneath) re-resolves the row against the new template, and its
+      // "Place all" does the placement.
+      const template = buildTemplate();
+      addCustomTemplate(template);
+      if (createAddToOwned) addOwnedGear(template, pendingQuickCreate.qty);
+      close();
+      return;
+    }
 
     // Build old→new ID map for draft ports. Unnamed ports are auto-named (not
     // dropped) so a row you added never silently vanishes on Apply.
@@ -509,9 +594,32 @@ export default function DeviceEditor() {
       ...(deviceType.trim() ? { deviceType: deviceType.trim() } : {}),
       ...(tags.length > 0 ? { tags } : {}),
     });
+    // Creator sessions: register the finished spec as a searchable template and (per the
+    // remembered "Also add to My Devices" checkbox) as owned gear, then place any extra
+    // copies a "N× create" from quick-add asked for.
+    if (isCreating && (pendingQuickCreate || createAddToOwned)) {
+      const template = buildTemplate();
+      addCustomTemplate(template);
+      if (createAddToOwned) addOwnedGear(template, pendingQuickCreate?.qty ?? 1);
+      const anchor = pendingQuickCreate?.anchor;
+      const qty = pendingQuickCreate?.qty ?? 1;
+      if (anchor && qty > 1) {
+        // First copy is the just-saved node at the anchor; lay the rest on the same grid.
+        const extraPositions = gridPositions(anchor, deviceFootprint(template), qty).slice(1);
+        addDevices(extraPositions.map((position) => ({ template, position })));
+        setTimeout(() => {
+          const state = useSchematicStore.getState();
+          const devices = state.nodes.filter((n) => n.type === "device");
+          const placed = devices.slice(-extraPositions.length);
+          placed.forEach((n2, i) => {
+            if (extraPositions[i]) reparentNode(n2.id, extraPositions[i], { skipUndo: true });
+          });
+        }, 0);
+      }
+    }
     setCreatingNodeId(null); // commit the node — close won't undo it
     close();
-  }, [editingNodeId, ports, label, shortName, icon, useShortName, wrapLabel, hostname, deviceType, manufacturer, modelNumber, referenceUrl, category, serialNumber, note, isSpare, procurementSource, tags, color, headerColor, node, updateDevice, recordSuggestions, close, setCreatingNodeId, showAllPorts, hiddenPorts, dhcpServer, powerDrawW, powerCapacityW, voltage, thermalBtuh, poeBudgetW, poeDrawW, unitCost, heightMm, widthMm, depthMm, weightKg, isCableAccessory, integratedWithCable, isVenueProvided, adapterVisibility, speakerSensitivityDb, speakerMaxPowerW, speakerCoverageAngleDeg, auxiliaryData, searchTermsRaw]);
+  }, [editingNodeId, ports, label, shortName, icon, useShortName, wrapLabel, hostname, deviceType, manufacturer, modelNumber, referenceUrl, category, serialNumber, note, isSpare, procurementSource, tags, color, headerColor, node, updateDevice, recordSuggestions, close, setCreatingNodeId, showAllPorts, hiddenPorts, dhcpServer, powerDrawW, powerCapacityW, voltage, thermalBtuh, poeBudgetW, poeDrawW, unitCost, heightMm, widthMm, depthMm, weightKg, isCableAccessory, integratedWithCable, isVenueProvided, adapterVisibility, speakerSensitivityDb, speakerMaxPowerW, speakerCoverageAngleDeg, auxiliaryData, searchTermsRaw, creatingNodeId, pendingQuickCreate, createAddToOwned, buildTemplate, addCustomTemplate, addOwnedGear, addDevices, reparentNode]);
 
   // Ctrl+Enter anywhere in the editor → Apply & Close
   const onCtrlEnter = useCallback((e: React.KeyboardEvent) => {
@@ -522,62 +630,10 @@ export default function DeviceEditor() {
     }
   }, [handleSave]);
 
+
   const handleSaveAsTemplate = useCallback(() => {
-    const finalPorts: Port[] = ports
-      .filter((p) => p.label.trim())
-      .map((p, i) => ({
-        ...p,
-        id: `tpl-${i}`,
-        label: p.label.trim(),
-      }));
-
-    const trimmedAux = trimTrailingEmpty(auxiliaryData);
-    const existing = node?.data;
-
-    // A template captures the device SPEC only. Per-placement/instance fields —
-    // rotationDeg, layerId, groupId, hostDeviceId, position — are intentionally NOT
-    // carried over (DeviceTemplate has no such fields; do not spread node.data here).
-    addCustomTemplate({
-      id: `custom-${Date.now()}`,
-      deviceType: deviceType.trim() || "custom",
-      label: label.trim() || "Custom Device",
-      ...(shortName.trim() ? { shortName: shortName.trim() } : {}),
-      ports: finalPorts,
-      ...(color ? { color } : {}),
-      ...(category.trim() ? { category: category.trim() } : {}),
-      ...(manufacturer.trim() ? { manufacturer: manufacturer.trim() } : {}),
-      ...(modelNumber.trim() ? { modelNumber: modelNumber.trim() } : {}),
-      ...(referenceUrl.trim() ? { referenceUrl: referenceUrl.trim() } : {}),
-      ...(hostname.trim() ? { hostname: hostname.trim() } : {}),
-      ...(powerDrawW != null ? { powerDrawW } : {}),
-      ...(powerCapacityW != null ? { powerCapacityW } : {}),
-      ...(voltage ? { voltage } : {}),
-      ...(thermalBtuh != null ? { thermalBtuh } : {}),
-      ...(poeBudgetW != null ? { poeBudgetW } : {}),
-      ...(poeDrawW != null ? { poeDrawW } : {}),
-      ...(unitCost != null ? { unitCost } : {}),
-      ...(heightMm != null ? { heightMm } : {}),
-      ...(widthMm != null ? { widthMm } : {}),
-      ...(depthMm != null ? { depthMm } : {}),
-      ...(weightKg != null ? { weightKg } : {}),
-      ...(isVenueProvided ? { isVenueProvided: true } : {}),
-      // Convert InstalledSlot[] back to the blueprint SlotDefinition[] that DeviceTemplate
-      // expects — card selections are per-placement, not part of the template spec.
-      ...(existing?.slots && existing.slots.length > 0
-        ? {
-            slots: existing.slots.map((s) => ({
-              id: s.slotId,
-              label: s.label,
-              slotFamily: s.slotFamily ?? "",
-              ...(s.cardTemplateId ? { defaultCardId: s.cardTemplateId } : {}),
-            })),
-          }
-        : {}),
-      ...(existing?.slotFamily ? { slotFamily: existing.slotFamily as string } : {}),
-      ...(trimmedAux.some((r) => r.text.trim()) ? { auxiliaryData: trimmedAux } : {}),
-      ...(() => { const t = searchTermsRaw.split(",").map((s) => s.trim()).filter(Boolean).slice(0, 20); return t.length > 0 ? { searchTerms: t } : {}; })(),
-    });
-  }, [ports, label, shortName, hostname, addCustomTemplate, node, powerDrawW, powerCapacityW, voltage, thermalBtuh, poeBudgetW, poeDrawW, unitCost, heightMm, widthMm, depthMm, weightKg, isVenueProvided, deviceType, color, manufacturer, modelNumber, referenceUrl, category, auxiliaryData, searchTermsRaw]);
+    addCustomTemplate(buildTemplate());
+  }, [addCustomTemplate, buildTemplate]);
 
   const handleUpdateUserTemplate = useCallback(() => {
     if (!node?.data.templateId) return;
@@ -1040,10 +1096,22 @@ export default function DeviceEditor() {
         )}
 
         <div className="ml-auto flex items-center gap-2.5">
-          <span className="flex items-center gap-1.5 text-[11px] text-[var(--color-text-muted)]">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#1aa179]" />
-            {templateId && customTemplates.some((t) => t.id === templateId) ? "User template" : "Editing device"}
-          </span>
+          {creatingNodeId !== null && creatingNodeId === editingNodeId ? (
+            <label className="flex items-center gap-1.5 text-[11px] text-[var(--color-text)] cursor-pointer select-none" title="Registers this device in the My Devices owned list on save (remembered)">
+              <input
+                type="checkbox"
+                checked={createAddToOwned}
+                onChange={(e) => setCreateAddToOwned(e.target.checked)}
+                className="accent-[var(--color-accent)]"
+              />
+              Also add to My Devices
+            </label>
+          ) : (
+            <span className="flex items-center gap-1.5 text-[11px] text-[var(--color-text-muted)]">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#1aa179]" />
+              {templateId && customTemplates.some((t) => t.id === templateId) ? "User template" : "Editing device"}
+            </span>
+          )}
           <button onClick={close} className="ui-btn ui-btn-secondary h-[30px] text-[11.5px]">Cancel</button>
           <button onClick={handleSave} className="ui-btn ui-btn-primary h-[30px] text-[11.5px]">Done</button>
         </div>

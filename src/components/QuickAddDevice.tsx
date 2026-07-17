@@ -18,7 +18,11 @@ import {
 
 const MAX_RESULTS = 12;
 
-type SpecialItem = { kind: "note" } | { kind: "room" } | { kind: "create" };
+type SpecialItem =
+  | { kind: "note" }
+  | { kind: "room" }
+  | { kind: "create" }
+  | { kind: "createFromQuery" };
 type ResultItem = { type: "device"; template: DeviceTemplate } | { type: "special"; item: SpecialItem; label: string; subtitle: string };
 
 const SPECIAL_ITEMS: { item: SpecialItem; label: string; subtitle: string; keywords: string[] }[] = [
@@ -85,6 +89,8 @@ export default function QuickAddDevice({
   const addDevices = useSchematicStore((s) => s.addDevices);
   const addNote = useSchematicStore((s) => s.addNote);
   const addRoom = useSchematicStore((s) => s.addRoom);
+  const createAndEditDevice = useSchematicStore((s) => s.createAndEditDevice);
+  const setPendingQuickCreate = useSchematicStore((s) => s.setPendingQuickCreate);
   const reparentNode = useSchematicStore((s) => s.reparentNode);
   const customTemplates = useSchematicStore((s) => s.customTemplates);
   const favoriteTemplates = useSchematicStore((s) => s.favoriteTemplates);
@@ -200,11 +206,24 @@ export default function QuickAddDevice({
       return [...specials, ...favs, ...rest].slice(0, MAX_RESULTS);
     }
 
-    return all
+    const scored = all
       .filter((r) => r.score > 0)
       .sort((a, b) => b.score - a.score)
       .map((r) => r.item)
       .slice(0, MAX_RESULTS);
+    if (scored.length === 0) {
+      // No match anywhere → the empty state is an actionable, keyboard-selectable
+      // "+ Create" row (sole result, so Enter activates it) instead of a dead end.
+      return [
+        {
+          type: "special" as const,
+          item: { kind: "createFromQuery" as const },
+          label: `Create "${query}"`,
+          subtitle: "New device template — opens the editor prefilled",
+        },
+      ];
+    }
+    return scored;
   }, [allTemplates, selectedCategories, selectedBrands, query, favoriteSet, hasFilter]);
 
   // Reset selection when results change
@@ -292,10 +311,15 @@ export default function QuickAddDevice({
         addRoom("Room", centered);
       } else if (item.kind === "create") {
         onOpenDeviceCreator?.();
+      } else if (item.kind === "createFromQuery") {
+        // Open the device creator prefilled with the query; the quantity stepper value
+        // and the quick-add anchor ride along so save places all copies there.
+        setPendingQuickCreate({ qty: effectiveCount, anchor: position, placeOnSave: true });
+        createAndEditDevice({ deviceType: "custom", label: query, ports: [] }, position);
       }
       onClose();
     },
-    [addNote, addRoom, position, onClose, onOpenDeviceCreator],
+    [addNote, addRoom, position, onClose, onOpenDeviceCreator, setPendingQuickCreate, createAndEditDevice, effectiveCount, query],
   );
 
   const selectResult = useCallback(
@@ -544,9 +568,24 @@ export default function QuickAddDevice({
                     <span className="text-emerald-500">✓</span> {row.template.label}
                   </span>
                 ) : (
-                  <span className="flex-1 min-w-0 truncate text-[var(--color-text-muted)]">
-                    <span className="text-amber-500">✗</span> {row.query || row.raw} <span className="opacity-60">(no match)</span>
-                  </span>
+                  <>
+                    <span className="flex-1 min-w-0 truncate text-[var(--color-text-muted)]">
+                      <span className="text-amber-500">✗</span> {row.query || row.raw} <span className="opacity-60">(no match)</span>
+                    </span>
+                    <button
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        // Template-only create: the creator opens over the (still-mounted)
+                        // list; on save the new template lands in customTemplates, so this
+                        // row re-resolves to a ✓ and "Place all" places it with the rest.
+                        setPendingQuickCreate({ qty: row.count, anchor: position, placeOnSave: false });
+                        createAndEditDevice({ deviceType: "custom", label: row.query || row.raw, ports: [] }, position);
+                      }}
+                      className="shrink-0 px-2 py-0.5 rounded text-[10px] font-medium bg-[var(--color-accent)] text-[var(--color-on-accent)] hover:opacity-90 transition-opacity"
+                    >
+                      Create
+                    </button>
+                  </>
                 )}
               </div>
             ))}
@@ -560,24 +599,32 @@ export default function QuickAddDevice({
             )}
             {results.map((result, i) => {
               if (result.type === "special") {
+                const isCreateRow = result.item.kind === "createFromQuery";
                 return (
                   <div
                     key={result.item.kind}
                     onMouseDown={() => selectResult(result, false)}
                     onMouseEnter={() => setSelectedIndex(i)}
                     className={`flex items-center gap-2 px-3 py-1.5 cursor-pointer transition-colors ${
-                      i === selectedIndex
-                        ? "bg-[var(--color-accent)]/15 text-[var(--color-text-heading)]"
-                        : "text-[var(--color-text)] hover:bg-[var(--color-surface-hover)]"
+                      isCreateRow
+                        ? i === selectedIndex
+                          ? "bg-[var(--color-accent)]/20 text-[var(--color-accent)]"
+                          : "text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10"
+                        : i === selectedIndex
+                          ? "bg-[var(--color-accent)]/15 text-[var(--color-text-heading)]"
+                          : "text-[var(--color-text)] hover:bg-[var(--color-surface-hover)]"
                     }`}
                   >
-                    <span className="text-[var(--color-text-muted)] text-xs shrink-0">
-                      {result.item.kind === "note" ? "📝" : result.item.kind === "room" ? "▢" : "⊞"}
+                    <span className={`text-xs shrink-0 ${isCreateRow ? "text-[var(--color-accent)] font-semibold" : "text-[var(--color-text-muted)]"}`}>
+                      {result.item.kind === "note" ? "📝" : result.item.kind === "room" ? "▢" : "＋"}
                     </span>
                     <div className="flex flex-col gap-0 flex-1 min-w-0">
                       <span className="text-xs font-medium truncate">{result.label}</span>
-                      <span className="text-[10px] text-[var(--color-text-muted)] truncate">{result.subtitle}</span>
+                      <span className={`text-[10px] truncate ${isCreateRow ? "text-[var(--color-accent)]/70" : "text-[var(--color-text-muted)]"}`}>{result.subtitle}</span>
                     </div>
+                    {isCreateRow && effectiveCount > 1 && (
+                      <span className="text-[10px] tabular-nums shrink-0">×{effectiveCount}</span>
+                    )}
                   </div>
                 );
               }

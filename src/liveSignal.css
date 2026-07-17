@@ -1,8 +1,28 @@
 /* "Currents" cable motion — additive, GPU-friendly accents on the static routed edge.
-   The wired "moving brightness band" itself is an inline SVG <animateTransform> in OffsetEdge
-   (gated in JS, so reduced-motion users never receive it). This file holds the theme-aware
-   strand-glow radius and the wireless broadcast keyframes. None of it changes edge geometry,
-   markers, or hit area. */
+   The wired "signal march" is a dash overlay riding the SAME routed path as the core strand
+   (rendered in OffsetEdge, gated in JS so reduced-motion users never receive it). This file
+   holds the march keyframes, the theme-aware strand-glow radius and the wireless broadcast
+   keyframes. None of it changes edge geometry, markers, or hit area. */
+
+/* Signal march: ~10px lit band per 72px period, in user units (world space — NOT tied to
+   vector-effect, so on-canvas speed is zoom-stable like the rest of the edge). A decreasing
+   stroke-dashoffset moves the dashes forward along the path direction (source→target); the
+   edge path is always emitted source→target, so OffsetEdge picks --reverse when the OUTPUT
+   port is the target end. Idle 3s, selected 1.7s per period. */
+@keyframes cur-dash-march {
+  from { stroke-dashoffset: 72; }
+  to   { stroke-dashoffset: 0; }
+}
+.cur-dash-march {
+  stroke-dasharray: 10 62;
+  animation: cur-dash-march 3s linear infinite;
+}
+.cur-dash-march--reverse {
+  animation-direction: reverse;
+}
+.cur-dash-march--live {
+  animation-duration: 1.7s;
+}
 
 /* Strand glow radius — luminous in the dark "indigo ground" theme, subtle on light paper.
    Consumed by OffsetEdge's drop-shadow filter: var(--cur-glow-blur). */
@@ -28,6 +48,10 @@
 /* Reduced motion: belt-and-braces alongside the JS guards that skip these layers entirely. */
 @media (prefers-reduced-motion: reduce) {
   .wireless-tx-pulse {
+    animation: none;
+    opacity: 0;
+  }
+  .cur-dash-march {
     animation: none;
     opacity: 0;
   }

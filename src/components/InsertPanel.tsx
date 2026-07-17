@@ -235,6 +235,9 @@ export default function InsertPanel({ onCollapse }: { onCollapse?: () => void })
   const nodes = useSchematicStore((s) => s.nodes);
   const addDevice = useSchematicStore((s) => s.addDevice);
   const addToast = useSchematicStore((s) => s.addToast);
+  const syncProjectDevicesToOwned = useSchematicStore((s) => s.syncProjectDevicesToOwned);
+  const createAndEditDevice = useSchematicStore((s) => s.createAndEditDevice);
+  const setPendingQuickCreate = useSchematicStore((s) => s.setPendingQuickCreate);
 
   const { screenToFlowPosition } = useReactFlow();
 
@@ -285,18 +288,22 @@ export default function InsertPanel({ onCollapse }: { onCollapse?: () => void })
       .map((r) => r.t);
   }, [catalogTemplates, query]);
 
+  /** Canvas position at the current viewport centre. */
+  const centerFlowPosition = useCallback(() => {
+    const pane = document.querySelector(".react-flow");
+    const rect = pane?.getBoundingClientRect();
+    const cx = rect ? rect.left + rect.width / 2 : window.innerWidth / 2;
+    const cy = rect ? rect.top + rect.height / 2 : window.innerHeight / 2;
+    return screenToFlowPosition({ x: cx, y: cy });
+  }, [screenToFlowPosition]);
+
   /** Place a device at the current viewport centre (the + button). */
   const placeOnCanvas = useCallback(
     (template: DeviceTemplate) => {
-      const pane = document.querySelector(".react-flow");
-      const rect = pane?.getBoundingClientRect();
-      const cx = rect ? rect.left + rect.width / 2 : window.innerWidth / 2;
-      const cy = rect ? rect.top + rect.height / 2 : window.innerHeight / 2;
-      const position = screenToFlowPosition({ x: cx, y: cy });
-      addDevice(template, position);
+      addDevice(template, centerFlowPosition());
       addToast(`Added ${template.label}`, "success");
     },
-    [screenToFlowPosition, addDevice, addToast],
+    [centerFlowPosition, addDevice, addToast],
   );
 
   const toggleOwned = useCallback(
@@ -385,12 +392,53 @@ export default function InsertPanel({ onCollapse }: { onCollapse?: () => void })
       {tab === "owned" ? (
         <div className="flex-1 overflow-y-auto px-2 pb-2">
           <ListHint>Drag to canvas · ⠿ reorder</ListHint>
+          {usedCounts.size > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                const changed = syncProjectDevicesToOwned();
+                addToast(
+                  changed > 0
+                    ? `Synced ${changed} device${changed === 1 ? "" : "s"} into My Devices`
+                    : "My Devices already covers every project device",
+                  "success",
+                );
+              }}
+              className="w-full mb-1 px-2 py-1.5 rounded-md text-[11px] font-medium text-[var(--color-accent)] border border-dashed border-[var(--color-accent)]/40 hover:bg-[var(--color-accent)]/10 transition-colors cursor-pointer"
+              title="Import every distinct device on the canvas into the owned list (quantities merge; re-running never duplicates)"
+            >
+              Add all project devices ({usedCounts.size})
+            </button>
+          )}
           {filteredOwned.length === 0 ? (
-            <div className="px-2 py-6 text-center text-[11px] text-[var(--color-text-muted)]">
-              {ownedGear.length === 0
-                ? "No owned devices yet. Open Catalog and toggle gear you own."
-                : `No owned device matches “${query}”.`}
-            </div>
+            query ? (
+              <div className="flex flex-col gap-0.5">
+                <div className="px-2 pt-4 pb-2 text-center text-[11px] text-[var(--color-text-muted)]">
+                  No owned device matches “{query}”.
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setTab("catalog")}
+                  className="w-full px-2 py-1.5 rounded-md text-[11px] text-left text-[var(--color-text)] hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer"
+                >
+                  Search catalog for “{query}”
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPendingQuickCreate({ qty: 1, anchor: null, placeOnSave: false });
+                    createAndEditDevice({ deviceType: "custom", label: query, ports: [] }, centerFlowPosition());
+                  }}
+                  className="w-full px-2 py-1.5 rounded-md text-[11px] text-left font-medium text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10 transition-colors cursor-pointer"
+                >
+                  ＋ Create “{query}”
+                </button>
+              </div>
+            ) : (
+              <div className="px-2 py-6 text-center text-[11px] text-[var(--color-text-muted)]">
+                No owned devices yet. Open Catalog and toggle gear you own.
+              </div>
+            )
           ) : (
             <div className="flex flex-col gap-0.5">
               {filteredOwned.map((item) => {
