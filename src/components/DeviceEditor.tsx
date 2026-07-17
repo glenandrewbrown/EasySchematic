@@ -489,7 +489,7 @@ export default function DeviceEditor() {
       ...(trimmedAux.some((r) => r.text.trim()) ? { auxiliaryData: trimmedAux } : {}),
       ...(() => { const t = searchTermsRaw.split(",").map((s) => s.trim()).filter(Boolean).slice(0, 20); return t.length > 0 ? { searchTerms: t } : {}; })(),
     });
-  }, [ports, label, shortName, hostname, node, powerDrawW, powerCapacityW, voltage, thermalBtuh, poeBudgetW, poeDrawW, unitCost, heightMm, widthMm, depthMm, weightKg, isVenueProvided, deviceType, color, manufacturer, modelNumber, referenceUrl, category, auxiliaryData, searchTermsRaw]);
+  }, [ports, label, shortName, hostname, node, powerDrawW, powerCapacityW, voltage, thermalBtuh, poeBudgetW, poeDrawW, unitCost, heightMm, widthMm, depthMm, weightKg, isVenueProvided, deviceType, color, artworkAssetId, manufacturer, modelNumber, referenceUrl, category, auxiliaryData, searchTermsRaw]);
 
   const handleSave = useCallback(() => {
     if (!editingNodeId) return;
