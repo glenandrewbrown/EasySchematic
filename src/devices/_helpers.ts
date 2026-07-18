@@ -1,4 +1,12 @@
-import type { ConnectorType, Gender, Port, SignalType } from "../types";
+import type {
+  ConnectorType,
+  DeviceChannel,
+  DeviceConnector,
+  Gender,
+  PatchPoint,
+  Port,
+  SignalType,
+} from "../types";
 import { DEFAULT_CONNECTOR } from "../connectorTypes";
 
 let portIdCounter = 0;
@@ -145,4 +153,50 @@ export function patchPanelPorts(
     for (const p of front) p.gender = opts.gender;
   }
   return [...rear, ...front];
+}
+
+/** Channel ⇄ connector + patchbay metadata for a normalling patchbay (R2-5).
+ *
+ * Builds `count` points; each point is one A/B strip: two channels (A = top
+ * circuit, direction "in"; B = bottom circuit, direction "out") and four
+ * connectors (rearA/rearB = permanent tie-lines, frontA/frontB = patch face).
+ * frontA and rearA both carry channel A (and frontB/rearB both carry channel B),
+ * so patching a front jack occupies its rear alternate — the shared-connector
+ * mutex. Meant to ride alongside the legacy `ports` (render/anchor layer) on the
+ * same template; the resolver in patchbayNormalling.ts consumes the mode + jack
+ * plug-state. */
+export function patchbayArtifacts(
+  count: number,
+  opts: {
+    signalType?: SignalType;
+    connectorType?: ConnectorType;
+    mode?: PatchPoint["mode"];
+  } = {},
+): { channels: DeviceChannel[]; connectors: DeviceConnector[]; patchbay: { points: PatchPoint[] } } {
+  const signalType = opts.signalType ?? "analog-audio";
+  const connectorType = opts.connectorType ?? "trs-quarter";
+  const mode = opts.mode ?? "half-normalled";
+
+  const channels: DeviceChannel[] = [];
+  const connectors: DeviceConnector[] = [];
+  const points: PatchPoint[] = [];
+
+  for (let i = 1; i <= count; i++) {
+    const pointId = `pt${i}`;
+    const chA = `${pointId}-a`;
+    const chB = `${pointId}-b`;
+    channels.push(
+      { id: chA, label: `${i}A`, signalType, direction: "in" },
+      { id: chB, label: `${i}B`, signalType, direction: "out" },
+    );
+    connectors.push(
+      { id: `${pointId}-rearA`, label: `${i} Rear A`, type: connectorType, role: "physical", carries: [chA], jackRole: "rearA", patchPointId: pointId },
+      { id: `${pointId}-rearB`, label: `${i} Rear B`, type: connectorType, role: "physical", carries: [chB], jackRole: "rearB", patchPointId: pointId },
+      { id: `${pointId}-frontA`, label: `${i} Front A`, type: connectorType, role: "physical", carries: [chA], jackRole: "frontA", patchPointId: pointId },
+      { id: `${pointId}-frontB`, label: `${i} Front B`, type: connectorType, role: "physical", carries: [chB], jackRole: "frontB", patchPointId: pointId },
+    );
+    points.push({ id: pointId, label: String(i), mode });
+  }
+
+  return { channels, connectors, patchbay: { points } };
 }

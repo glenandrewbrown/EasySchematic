@@ -203,11 +203,13 @@ html, body, #root {
 }
 
 .ui-btn-danger {
-  background: #dc2626;
-  color: #ffffff;
+  background: var(--color-error);
+  color: var(--color-on-error);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--color-error) 25%, transparent);
 }
 .ui-btn-danger:hover:not(:disabled) {
-  background: #b91c1c;
+  background: color-mix(in srgb, var(--color-error) 85%, #000000);
+  box-shadow: 0 4px 12px -3px color-mix(in srgb, var(--color-error) 45%, transparent);
 }
 
 /* ===== Motion primitives ===== */

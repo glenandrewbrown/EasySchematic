@@ -1,4 +1,4 @@
-import { port, camLokSet, patchPanelCircuits, wallPlatePorts } from "./_helpers";
+import { port, camLokSet, patchPanelCircuits, patchbayArtifacts, wallPlatePorts } from "./_helpers";
 import type { DeviceTemplate } from "../types";
 
 export const templates: DeviceTemplate[] = [
@@ -428,6 +428,24 @@ export const templates: DeviceTemplate[] = [
     searchTerms: ["patch bay", "patch panel", "96 point", "trs", "quarter inch", "audio", "tt", "bantam", "normalled"],
     powerDrawW: 0,
     ports: patchPanelCircuits("Port ", 96, { signalType: "analog-audio", rearConnectorType: "trs-quarter", frontConnectorType: "trs-quarter" }),
+  },
+  // Neutrik NYS-SPP-L1 — 24-point / 48-jack 1U TRS patchbay, half-normalled by
+  // default. Carries the R2-5 channel/connector/patchbay archetype (each point =
+  // an A/B strip with rearA/rearB tie-lines + frontA/frontB patch jacks) on top of
+  // the legacy passthrough circuits used for canvas render/anchoring.
+  {
+    id: "c0a80101-0290-4000-8000-000000000900",
+    deviceType: "patch-panel",
+    label: "Neutrik NYS-SPP-L1 Patchbay",
+    manufacturer: "Neutrik",
+    modelNumber: "NYS-SPP-L1",
+    searchTerms: ["neutrik", "nys-spp-l1", "patch bay", "patchbay", "24 point", "48 jack", "trs", "quarter inch", "audio", "normalled", "half-normal"],
+    powerDrawW: 0,
+    heightMm: 44,
+    widthMm: 483,
+    depthMm: 60,
+    ports: patchPanelCircuits("Port ", 24, { signalType: "analog-audio", rearConnectorType: "trs-quarter", frontConnectorType: "trs-quarter" }),
+    ...patchbayArtifacts(24, { signalType: "analog-audio", connectorType: "trs-quarter", mode: "half-normalled" }),
   },
   // Wall Plates
   {

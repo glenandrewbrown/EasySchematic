@@ -18,7 +18,7 @@ import { mostCommonRoomScale, DEFAULT_METRES_PER_PIXEL } from "./layoutScale";
 import { DEFAULT_GRID_SETTINGS, type SchematicNode } from "./types";
 import { emojiToArtworkId } from "./deviceArtwork";
 
-export const CURRENT_SCHEMA_VERSION = 50;
+export const CURRENT_SCHEMA_VERSION = 51;
 
 /** Stub-label nodes paint at this z-index so connection lines render UNDER their
  *  white box (matches waypoint/junction z — above edge z, below the 10000 edge labels). */
@@ -578,6 +578,17 @@ const migrations: Record<number, Migration> = {
     //     never serialized into the on-disk SchematicFile, so nothing to migrate.
     // A v49 file is therefore already a valid v50 file — this is a pure bump.
     data.version = 50;
+    return data;
+  },
+  50: (data) => {
+    // v50 → v51: channel ⇄ connector model + multi-channel cables + internal
+    // routing/buses + patchbay archetype (R2). Every new field is additive and
+    // optional: DeviceData.channels/connectors/patchbay, ConnectionData.
+    // sourceConnectorId/targetConnectorId/channelCount/internal. Existing single-
+    // channel gear keeps the legacy Port[] as its render/anchor unit unchanged;
+    // the channel layer is opt-in richer metadata, so no data transform is needed.
+    // A v50 file is already a valid v51 file — pure bump.
+    data.version = 51;
     return data;
   },
 

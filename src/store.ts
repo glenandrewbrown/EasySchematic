@@ -37,6 +37,9 @@ import type {
   CustomTemplateGroup,
   CustomTemplateMeta,
   BundleMeta,
+  DeviceChannel,
+  DeviceConnector,
+  NormallingMode,
 } from "./types";
 import type { ReactFlowInstance } from "@xyflow/react";
 import type { SignalType, ScrollConfig, LineStyle, LabelCaseMode, DistanceSettings, PanMode, StubLabelPageMode, ProjectStatus, CanvasViewMode, GearUnit, FieldSuggestions, GridSettings, TransportContainer, TransportItem, TransportPhase, ObjectData, ZoneData } from "./types";
@@ -1062,6 +1065,33 @@ interface SchematicState {
   /** Remove the intra-device internal link matching from/to (endpoints are port LABELS). */
   removeInternalLink: (deviceId: string, link: { from: string; to: string }) => void;
 
+  // ── Channel ⇄ connector model (R2-3/4/5) ──────────────────────────────────
+  // Logical channels + physical/bus connectors + patchbay points on DeviceData,
+  // and internal routes as same-device Connections. All immutable + undoable.
+  /** Append a logical channel (caller supplies a stable device-local id). Idempotent by id. */
+  addDeviceChannel: (deviceId: string, channel: DeviceChannel) => void;
+  /** Patch a channel's fields (id is immutable). No-op if the channel is absent. */
+  updateDeviceChannel: (deviceId: string, channelId: string, patch: Partial<Omit<DeviceChannel, "id">>) => void;
+  /** Remove a channel and drop it from every connector's `carries`. */
+  removeDeviceChannel: (deviceId: string, channelId: string) => void;
+  /** Append a connector — role "physical" (a jack) or "bus" (a virtual bus). Idempotent by id. */
+  addDeviceConnector: (deviceId: string, connector: DeviceConnector) => void;
+  /** Patch a connector's fields (id is immutable). No-op if absent. */
+  updateDeviceConnector: (deviceId: string, connectorId: string, patch: Partial<Omit<DeviceConnector, "id">>) => void;
+  /** Remove a connector. Does not delete the channels it carried (they may be on others). */
+  removeDeviceConnector: (deviceId: string, connectorId: string) => void;
+  /** Create an internal route (same-device Connection, internal:true) between two of the
+   *  device's own channels/buses (endpoint ids = channelId or bus connectorId). Idempotent. */
+  addInternalRoute: (deviceId: string, fromId: string, toId: string) => void;
+  /** Delete the internal route matching from/to on this device. */
+  removeInternalRoute: (deviceId: string, fromId: string, toId: string) => void;
+  /** Internal routes (same-device internal Connections) on a device, source→sink. */
+  listInternalRoutes: (deviceId: string) => ConnectionEdge[];
+  /** Virtual buses (connectors with role "bus") on a device. */
+  listDeviceBuses: (deviceId: string) => DeviceConnector[];
+  /** Set a patchbay point's normalling mode. No-op if the device has no such point. */
+  setPatchPointMode: (deviceId: string, pointId: string, mode: NormallingMode) => void;
+
   // Multi-document project tabs (session/live state — never serialized into SchematicFile)
   /** Open project tabs. The ACTIVE doc's live content is the main store; each entry's
    *  `snapshot` is authoritative only for INACTIVE docs (refreshed on switch-away). */
@@ -1656,6 +1686,17 @@ function createDeviceNode(
       ...(template.auxiliaryData?.length
         ? { auxiliaryData: template.auxiliaryData.map((r) => ({ ...r })) }
         : { auxiliaryData: [{ text: "{{deviceType}}", position: "header" as const }] }),
+      // Channel ⇄ connector model (R2): deep-copy so the placed instance owns its
+      // own channel/connector/patchbay records (ids stay stable — they're device-local).
+      ...(template.channels?.length
+        ? { channels: template.channels.map((c) => ({ ...c })) }
+        : {}),
+      ...(template.connectors?.length
+        ? { connectors: template.connectors.map((c) => ({ ...c, carries: [...c.carries] })) }
+        : {}),
+      ...(template.patchbay?.points.length
+        ? { patchbay: { points: template.patchbay.points.map((p) => ({ ...p })) } }
+        : {}),
     },
   };
 }
@@ -5155,6 +5196,241 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
         return {
           ...n,
           data: { ...n.data, internalLinks: links.length > 0 ? links : undefined },
+        } as DeviceNode;
+      }),
+    });
+    get().saveToLocalStorage();
+  },
+
+  // ── Channel ⇄ connector model (R2-3/4/5) ──────────────────────────────────
+  addDeviceChannel: (deviceId, channel) => {
+    const state = get();
+    const node = state.nodes.find((n) => n.id === deviceId && n.type === "device");
+    if (!node) return;
+    const existing = (node.data as DeviceData).channels ?? [];
+    if (existing.some((c) => c.id === channel.id)) return; // idempotent by id
+    pushUndo({ nodes: state.nodes, edges: state.edges });
+    set({
+      nodes: state.nodes.map((n) =>
+        n.id === deviceId && n.type === "device"
+          ? ({ ...n, data: { ...n.data, channels: [...existing, channel] } } as DeviceNode)
+          : n,
+      ),
+    });
+    get().saveToLocalStorage();
+  },
+
+  updateDeviceChannel: (deviceId, channelId, patch) => {
+    const state = get();
+    const node = state.nodes.find((n) => n.id === deviceId && n.type === "device");
+    if (!node) return;
+    const existing = (node.data as DeviceData).channels ?? [];
+    if (!existing.some((c) => c.id === channelId)) return;
+    pushUndo({ nodes: state.nodes, edges: state.edges });
+    set({
+      nodes: state.nodes.map((n) =>
+        n.id === deviceId && n.type === "device"
+          ? ({
+              ...n,
+              data: {
+                ...n.data,
+                channels: ((n.data as DeviceData).channels ?? []).map((c) =>
+                  c.id === channelId ? { ...c, ...patch, id: c.id } : c,
+                ),
+              },
+            } as DeviceNode)
+          : n,
+      ),
+    });
+    get().saveToLocalStorage();
+  },
+
+  removeDeviceChannel: (deviceId, channelId) => {
+    const state = get();
+    const node = state.nodes.find((n) => n.id === deviceId && n.type === "device");
+    if (!node) return;
+    const data = node.data as DeviceData;
+    if (!(data.channels ?? []).some((c) => c.id === channelId)) return;
+    pushUndo({ nodes: state.nodes, edges: state.edges });
+    set({
+      nodes: state.nodes.map((n) => {
+        if (n.id !== deviceId || n.type !== "device") return n;
+        const d = n.data as DeviceData;
+        const channels = (d.channels ?? []).filter((c) => c.id !== channelId);
+        // Drop the removed channel from every connector's carries.
+        const connectors = (d.connectors ?? []).map((conn) =>
+          conn.carries.includes(channelId)
+            ? { ...conn, carries: conn.carries.filter((id) => id !== channelId) }
+            : conn,
+        );
+        return {
+          ...n,
+          data: {
+            ...n.data,
+            channels: channels.length > 0 ? channels : undefined,
+            connectors: connectors.length > 0 ? connectors : d.connectors,
+          },
+        } as DeviceNode;
+      }),
+    });
+    get().saveToLocalStorage();
+  },
+
+  addDeviceConnector: (deviceId, connector) => {
+    const state = get();
+    const node = state.nodes.find((n) => n.id === deviceId && n.type === "device");
+    if (!node) return;
+    const existing = (node.data as DeviceData).connectors ?? [];
+    if (existing.some((c) => c.id === connector.id)) return; // idempotent by id
+    pushUndo({ nodes: state.nodes, edges: state.edges });
+    set({
+      nodes: state.nodes.map((n) =>
+        n.id === deviceId && n.type === "device"
+          ? ({ ...n, data: { ...n.data, connectors: [...existing, connector] } } as DeviceNode)
+          : n,
+      ),
+    });
+    get().saveToLocalStorage();
+  },
+
+  updateDeviceConnector: (deviceId, connectorId, patch) => {
+    const state = get();
+    const node = state.nodes.find((n) => n.id === deviceId && n.type === "device");
+    if (!node) return;
+    const existing = (node.data as DeviceData).connectors ?? [];
+    if (!existing.some((c) => c.id === connectorId)) return;
+    pushUndo({ nodes: state.nodes, edges: state.edges });
+    set({
+      nodes: state.nodes.map((n) =>
+        n.id === deviceId && n.type === "device"
+          ? ({
+              ...n,
+              data: {
+                ...n.data,
+                connectors: ((n.data as DeviceData).connectors ?? []).map((c) =>
+                  c.id === connectorId ? { ...c, ...patch, id: c.id } : c,
+                ),
+              },
+            } as DeviceNode)
+          : n,
+      ),
+    });
+    get().saveToLocalStorage();
+  },
+
+  removeDeviceConnector: (deviceId, connectorId) => {
+    const state = get();
+    const node = state.nodes.find((n) => n.id === deviceId && n.type === "device");
+    if (!node) return;
+    if (!((node.data as DeviceData).connectors ?? []).some((c) => c.id === connectorId)) return;
+    pushUndo({ nodes: state.nodes, edges: state.edges });
+    set({
+      nodes: state.nodes.map((n) => {
+        if (n.id !== deviceId || n.type !== "device") return n;
+        const connectors = ((n.data as DeviceData).connectors ?? []).filter((c) => c.id !== connectorId);
+        return {
+          ...n,
+          data: { ...n.data, connectors: connectors.length > 0 ? connectors : undefined },
+        } as DeviceNode;
+      }),
+    });
+    get().saveToLocalStorage();
+  },
+
+  addInternalRoute: (deviceId, fromId, toId) => {
+    const state = get();
+    const node = state.nodes.find((n) => n.id === deviceId && n.type === "device");
+    if (!node || fromId === toId) return;
+    // Idempotent: bail if an internal route already joins these two endpoints.
+    const already = state.edges.some(
+      (e) =>
+        e.data?.internal &&
+        e.source === deviceId &&
+        e.target === deviceId &&
+        e.sourceHandle === fromId &&
+        e.targetHandle === toId,
+    );
+    if (already) return;
+
+    const data = node.data as DeviceData;
+    const signalOfEndpoint = (endpointId: string): SignalType => {
+      const channel = (data.channels ?? []).find((c) => c.id === endpointId);
+      if (channel) return channel.signalType;
+      const bus = (data.connectors ?? []).find((c) => c.id === endpointId);
+      if (bus) {
+        const firstChannel = (data.channels ?? []).find((c) => bus.carries.includes(c.id));
+        if (firstChannel) return firstChannel.signalType;
+      }
+      return "custom";
+    };
+
+    pushUndo({ nodes: state.nodes, edges: state.edges });
+    const newEdgeData: ConnectionData = { signalType: signalOfEndpoint(fromId), internal: true };
+    const existingEdges = ensureUniqueEdgeIds(state.edges);
+    const newEdge: ConnectionEdge = {
+      id: nextEdgeId(existingEdges),
+      source: deviceId,
+      target: deviceId,
+      sourceHandle: fromId,
+      targetHandle: toId,
+      data: newEdgeData,
+      style: { stroke: resolveEdgeStroke(newEdgeData), strokeWidth: 2 },
+    };
+    set({
+      nodes: existingEdges === state.edges ? state.nodes : reconcileWaypointNodes(state.nodes, existingEdges),
+      edges: [...existingEdges, newEdge],
+    });
+    get().saveToLocalStorage();
+  },
+
+  removeInternalRoute: (deviceId, fromId, toId) => {
+    const state = get();
+    const match = (e: ConnectionEdge) =>
+      e.data?.internal &&
+      e.source === deviceId &&
+      e.target === deviceId &&
+      e.sourceHandle === fromId &&
+      e.targetHandle === toId;
+    if (!state.edges.some(match)) return;
+    pushUndo({ nodes: state.nodes, edges: state.edges });
+    set({ edges: state.edges.filter((e) => !match(e)) });
+    get().saveToLocalStorage();
+  },
+
+  listInternalRoutes: (deviceId) =>
+    get().edges.filter(
+      (e) => e.data?.internal && e.source === deviceId && e.target === deviceId,
+    ),
+
+  listDeviceBuses: (deviceId) => {
+    const node = get().nodes.find((n) => n.id === deviceId && n.type === "device");
+    if (!node) return [];
+    return ((node.data as DeviceData).connectors ?? []).filter((c) => c.role === "bus");
+  },
+
+  setPatchPointMode: (deviceId, pointId, mode) => {
+    const state = get();
+    const node = state.nodes.find((n) => n.id === deviceId && n.type === "device");
+    if (!node) return;
+    const points = (node.data as DeviceData).patchbay?.points ?? [];
+    const point = points.find((p) => p.id === pointId);
+    if (!point || point.mode === mode) return;
+    pushUndo({ nodes: state.nodes, edges: state.edges });
+    set({
+      nodes: state.nodes.map((n) => {
+        if (n.id !== deviceId || n.type !== "device") return n;
+        const d = n.data as DeviceData;
+        return {
+          ...n,
+          data: {
+            ...n.data,
+            patchbay: {
+              ...d.patchbay,
+              points: (d.patchbay?.points ?? []).map((p) =>
+                p.id === pointId ? { ...p, mode } : p,
+              ),
+            },
+          },
         } as DeviceNode;
       }),
     });

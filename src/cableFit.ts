@@ -113,6 +113,50 @@ export function metersToUnit(meters: number, unit: DistanceSettings["unit"]): nu
   return unit === "ft" ? meters * FEET_PER_METER : meters;
 }
 
+// ── Multi-channel cables (R2-3) ─────────────────────────────────────────────
+// A cable plugs into a connector on each end and therefore carries that
+// connector's whole channel set (DB25 → 8ch, AES XLR → 2ch, MADI → 64ch). When
+// the two ends expose different counts (e.g. an 8ch DB25 into a 2ch breakout),
+// the run only carries the smaller bundle and the surplus is a fit warning.
+
+export type ChannelFit = "match" | "mismatch" | "unknown";
+
+/**
+ * The effective channel count a cable carries end-to-end: the minimum of the two
+ * connectors' channel counts. Undefined when neither end is known. When only one
+ * end is known, that count is used (the other is assumed to match).
+ */
+export function bundleChannelCount(
+  sourceCount: number | undefined,
+  targetCount: number | undefined,
+): number | undefined {
+  if (sourceCount === undefined && targetCount === undefined) return undefined;
+  if (sourceCount === undefined) return targetCount;
+  if (targetCount === undefined) return sourceCount;
+  return Math.min(sourceCount, targetCount);
+}
+
+/**
+ * Fit verdict for a multi-channel run. "mismatch" when the two ends expose a
+ * different number of channels (some channels can't cross), "match" when equal,
+ * "unknown" when either end is unknown. Mirrors the fitStatus verdict pattern.
+ */
+export function channelFit(
+  sourceCount: number | undefined,
+  targetCount: number | undefined,
+): ChannelFit {
+  if (sourceCount === undefined || targetCount === undefined) return "unknown";
+  return sourceCount === targetCount ? "match" : "mismatch";
+}
+
+/**
+ * Cable-label / Cable-BOM channel suffix: `· 8ch` for a bundle, "" for a single-
+ * channel (or unknown) run. Spec §3: single-channel cables show no `·Nch` suffix.
+ */
+export function channelCountSuffix(count: number | undefined): string {
+  return count !== undefined && count > 1 ? ` · ${count}ch` : "";
+}
+
 /**
  * Manhattan distance in meters between two devices placed in the same room,
  * derived from the document-level Layout scale (metresPerPixel). Returns
