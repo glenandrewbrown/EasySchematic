@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo, type DragEvent } from "react";
 import { useSchematicStore } from "../store";
 import { isSpeaker } from "../speakerSpec";
-import { buildBulkSlots } from "../slotBulk";
+import { buildBulkSlots, buildBulkPorts } from "../slotBulk";
 import { autoNamePorts } from "../portNaming";
 import {
   SIGNAL_LABELS,
@@ -342,8 +342,14 @@ export default function DeviceEditor() {
   const [headerColor, setHeaderColor] = useState<string | undefined>(undefined);
   const [ports, setPorts] = useState<PortDraft[]>([]);
 
-  /** Which port is open in the RIGHT config panel. null = empty state. */
+  /** Which port is open in the RIGHT config panel (the "primary"). null = empty state. */
   const [selectedPortId, setSelectedPortId] = useState<string | null>(null);
+  /** Multi-selection for bulk edit. Always holds the primary once a row is clicked; ≥2 → bulk-edit bar.
+   *  May transiently contain ids that no longer exist (a removed/re-synced port) — every consumer
+   *  filters against the live port list, so stale ids are inert (no prune effect needed). */
+  const [selectedPortIds, setSelectedPortIds] = useState<Set<string>>(new Set());
+  /** Anchor row for shift-range selection (the last plain/⌘-clicked row). */
+  const [rangeAnchorId, setRangeAnchorId] = useState<string | null>(null);
 
   // Port visibility local state
   const [showAllPorts, setShowAllPorts] = useState(false);
@@ -520,7 +526,11 @@ export default function DeviceEditor() {
     // Opening a different device: the 3-column builder's config panel needs a Port selected.
     // Only on a fresh open — re-syncing the SAME device (a card install mid-edit) must not
     // yank the selection off the Port the user is configuring.
-    if (!sameNode) setSelectedPortId(synced.length > 0 ? synced[0].id : null);
+    if (!sameNode) {
+      setSelectedPortId(synced.length > 0 ? synced[0].id : null);
+      setSelectedPortIds(new Set());
+      setRangeAnchorId(null);
+    }
     setHiddenPorts(node.data.hiddenPorts ?? []);
   }, [editingNodeId, portSignature]);
   /* eslint-enable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
@@ -1064,28 +1074,116 @@ export default function DeviceEditor() {
       setSelectedPortId((sel) => (sel === id ? (next[0]?.id ?? null) : sel));
       return next;
     });
+    setSelectedPortIds((prev) => {
+      if (!prev.has(id)) return prev;
+      const nextSel = new Set(prev);
+      nextSel.delete(id);
+      return nextSel;
+    });
   };
 
   const updatePort = (id: string, updates: Partial<PortDraft>) => {
     setPorts((prev) => prev.map((p) => (p.id === id ? { ...p, ...updates } : p)));
   };
 
-  const bulkAddPorts = (direction: PortDirection, prefix: string, start: number, count: number, signalType: SignalType, section: string) => {
-    const newPorts: PortDraft[] = [];
-    const connectorType = DEFAULT_CONNECTOR[signalType];
-    const multiConnect = shouldDefaultMultiConnect(signalType, connectorType) || undefined;
-    for (let i = 0; i < count; i++) {
-      newPorts.push({
-        id: `draft-${Date.now()}-${Math.random().toString(36).slice(2, 6)}-${i}`,
-        label: `${prefix} ${start + i}`,
-        signalType,
-        direction,
-        section: section || undefined,
-        multiConnect,
+  /** Apply one edit to every port whose id is in `ids`, in a single logical setPorts pass.
+   *  `updates` may be a partial (same change to all) or a per-port function (e.g. direction
+   *  changes that depend on the port's current signal). */
+  const updatePorts = useCallback(
+    (ids: Set<string>, updates: Partial<PortDraft> | ((p: PortDraft) => Partial<PortDraft>)) => {
+      setPorts((prev) =>
+        prev.map((p) =>
+          ids.has(p.id) ? { ...p, ...(typeof updates === "function" ? updates(p) : updates) } : p,
+        ),
+      );
+    },
+    [],
+  );
+
+  /** Reduce the multi-selection back to just the primary (Esc / "Clear selection"). */
+  const clearMultiSelect = useCallback(() => {
+    setSelectedPortIds(selectedPortId ? new Set([selectedPortId]) : new Set());
+    setRangeAnchorId(selectedPortId ?? null);
+  }, [selectedPortId]);
+
+  /** Row-click selection: plain = select one, ⌘/Ctrl = toggle, Shift = range within the same
+   *  direction group (inputs/outputs/etc. are separate ranges). The clicked row becomes primary. */
+  const handleRowSelect = useCallback(
+    (id: string, mods: { meta: boolean; shift: boolean }, direction: PortDirection) => {
+      if (mods.shift && rangeAnchorId) {
+        const group = ports.filter((p) => p.direction === direction);
+        const ai = group.findIndex((p) => p.id === rangeAnchorId);
+        const bi = group.findIndex((p) => p.id === id);
+        if (ai !== -1 && bi !== -1) {
+          const [lo, hi] = ai <= bi ? [ai, bi] : [bi, ai];
+          setSelectedPortIds(new Set(group.slice(lo, hi + 1).map((p) => p.id)));
+          setSelectedPortId(id);
+          return;
+        }
+        // Anchor lives in another group — fall through to a plain select.
+      }
+      if (mods.meta) {
+        setSelectedPortIds((prev) => {
+          const next = new Set(prev);
+          if (next.has(id)) next.delete(id);
+          else next.add(id);
+          return next;
+        });
+        setSelectedPortId(id);
+        setRangeAnchorId(id);
+        return;
+      }
+      setSelectedPortIds(new Set([id]));
+      setSelectedPortId(id);
+      setRangeAnchorId(id);
+    },
+    [ports, rangeAnchorId],
+  );
+
+  /** Section header "select all": toggles every port in a direction group in/out of the selection. */
+  const toggleSelectAll = useCallback(
+    (direction: PortDirection) => {
+      const groupIds = ports.filter((p) => p.direction === direction).map((p) => p.id);
+      if (groupIds.length === 0) return;
+      setSelectedPortIds((prev) => {
+        const allSelected = groupIds.every((id) => prev.has(id));
+        const next = new Set(prev);
+        groupIds.forEach((id) => (allSelected ? next.delete(id) : next.add(id)));
+        return next;
       });
-    }
+      setRangeAnchorId(groupIds[groupIds.length - 1]);
+      setSelectedPortId((prev) => (prev && groupIds.includes(prev) ? prev : groupIds[0]));
+    },
+    [ports],
+  );
+
+  const bulkAddPorts = (
+    direction: PortDirection,
+    prefix: string,
+    start: number,
+    count: number,
+    signalType: SignalType,
+    section: string,
+    connectorType: ConnectorType,
+  ) => {
+    const conn = connectorType ?? DEFAULT_CONNECTOR[signalType];
+    const multiConnect = shouldDefaultMultiConnect(signalType, conn) || undefined;
+    const stamp = Date.now();
+    const newPorts: PortDraft[] = buildBulkPorts(prefix, start, count, signalType, conn, section).map(
+      (bp, i) => ({
+        id: `draft-${stamp}-${Math.random().toString(36).slice(2, 6)}-${i}`,
+        label: bp.label,
+        signalType: bp.signalType,
+        direction,
+        connectorType: bp.connectorType,
+        ...(bp.section ? { section: bp.section } : {}),
+        ...(multiConnect ? { multiConnect } : {}),
+      }),
+    );
+    if (newPorts.length === 0) return;
     setPorts((prev) => [...prev, ...newPorts]);
-    if (newPorts.length > 0) setSelectedPortId(newPorts[0].id);
+    setSelectedPortId(newPorts[0].id);
+    setSelectedPortIds(new Set([newPorts[0].id]));
   };
 
   // Drag-and-drop: move a port to a new position/section
@@ -1203,6 +1301,12 @@ export default function DeviceEditor() {
   const outCount = ports.filter((p) => p.direction === "output").length;
   const selectedPort = ports.find((p) => p.id === selectedPortId);
 
+  // Bulk-selection derived state. The set may carry stale ids (removed / re-synced ports); filter
+  // against the live list so the count and the bulk-vs-single decision stay honest.
+  const selectedPortsForBulk = ports.filter((p) => selectedPortIds.has(p.id));
+  const liveSelectedCount = selectedPortsForBulk.length;
+  const bulkMode = liveSelectedCount >= 2;
+
   // Internal-wiring endpoints are port LABELS — offer the distinct, non-empty labels
   // the editor is currently building (in list order). Cheap derived value; this sits
   // below the component's early returns, so it must not be a hook.
@@ -1241,6 +1345,14 @@ export default function DeviceEditor() {
     <div
       className="device-editor-shell fixed inset-0 z-50 flex flex-col bg-[var(--color-bg)]"
       onKeyDownCapture={onCtrlEnter}
+      onKeyDown={(e) => {
+        // Esc collapses a multi-selection back to the primary. Text inputs stopPropagation on
+        // keydown, so typing Esc in a field never reaches here.
+        if (e.key === "Escape" && liveSelectedCount > 1) {
+          e.preventDefault();
+          clearMultiSelect();
+        }
+      }}
     >
       {/* ── Header (50px) ── */}
       <header className="h-[50px] flex-none flex items-center gap-3 px-4 bg-[var(--color-surface)] border-b border-[var(--ui-border)]">
@@ -2140,8 +2252,10 @@ export default function DeviceEditor() {
               title={deviceType === "patch-panel" ? "Rear" : "Inputs"}
               direction="input"
               ports={inputs}
-              selectedPortId={selectedPortId}
-              onSelect={setSelectedPortId}
+              selectedPortIds={selectedPortIds}
+              primaryPortId={selectedPortId}
+              onRowSelect={handleRowSelect}
+              onToggleSelectAll={toggleSelectAll}
               onAdd={() => addPort("input")}
               onBulkAdd={bulkAddPorts}
               hiddenPorts={hiddenPorts}
@@ -2156,8 +2270,10 @@ export default function DeviceEditor() {
               title={deviceType === "patch-panel" ? "Front" : "Outputs"}
               direction="output"
               ports={outputs}
-              selectedPortId={selectedPortId}
-              onSelect={setSelectedPortId}
+              selectedPortIds={selectedPortIds}
+              primaryPortId={selectedPortId}
+              onRowSelect={handleRowSelect}
+              onToggleSelectAll={toggleSelectAll}
               onAdd={() => addPort("output")}
               onBulkAdd={bulkAddPorts}
               hiddenPorts={hiddenPorts}
@@ -2173,8 +2289,10 @@ export default function DeviceEditor() {
                 title="Bidirectional"
                 direction="bidirectional"
                 ports={bidir}
-                selectedPortId={selectedPortId}
-                onSelect={setSelectedPortId}
+                selectedPortIds={selectedPortIds}
+                primaryPortId={selectedPortId}
+                onRowSelect={handleRowSelect}
+                onToggleSelectAll={toggleSelectAll}
                 onAdd={() => addPort("bidirectional")}
                 onBulkAdd={bulkAddPorts}
                 hiddenPorts={hiddenPorts}
@@ -2191,8 +2309,10 @@ export default function DeviceEditor() {
                 title="Passthrough Circuits"
                 direction="passthrough"
                 ports={passthroughPorts}
-                selectedPortId={selectedPortId}
-                onSelect={setSelectedPortId}
+                selectedPortIds={selectedPortIds}
+                primaryPortId={selectedPortId}
+                onRowSelect={handleRowSelect}
+                onToggleSelectAll={toggleSelectAll}
                 onAdd={() => addPort("passthrough")}
                 onBulkAdd={bulkAddPorts}
                 hiddenPorts={hiddenPorts}
@@ -2218,7 +2338,14 @@ export default function DeviceEditor() {
 
         {/* RIGHT: selected-port config */}
         <div className="flex-1 min-w-0 bg-[var(--color-bg)] flex flex-col">
-          {selectedPort ? (
+          {bulkMode ? (
+            <PortBulkEditPanel
+              key={selectedPortsForBulk.map((p) => p.id).sort().join("|")}
+              ports={selectedPortsForBulk}
+              onApply={(u) => updatePorts(selectedPortIds, u)}
+              onClear={clearMultiSelect}
+            />
+          ) : selectedPort ? (
             <PortConfigPanel
               key={selectedPort.id}
               port={selectedPort}
@@ -2417,8 +2544,10 @@ function PortListGroup({
   title,
   direction,
   ports,
-  selectedPortId,
-  onSelect,
+  selectedPortIds,
+  primaryPortId,
+  onRowSelect,
+  onToggleSelectAll,
   onAdd,
   onBulkAdd,
   hiddenPorts,
@@ -2432,10 +2561,12 @@ function PortListGroup({
   title: string;
   direction: PortDirection;
   ports: PortDraft[];
-  selectedPortId: string | null;
-  onSelect: (id: string) => void;
+  selectedPortIds: Set<string>;
+  primaryPortId: string | null;
+  onRowSelect: (id: string, mods: { meta: boolean; shift: boolean }, direction: PortDirection) => void;
+  onToggleSelectAll: (direction: PortDirection) => void;
   onAdd: () => void;
-  onBulkAdd: (direction: PortDirection, prefix: string, start: number, count: number, signalType: SignalType, section: string) => void;
+  onBulkAdd: (direction: PortDirection, prefix: string, start: number, count: number, signalType: SignalType, section: string, connectorType: ConnectorType) => void;
   hiddenPorts: string[];
   setHiddenPorts: React.Dispatch<React.SetStateAction<string[]>>;
   draggedPortId: string | null;
@@ -2446,6 +2577,8 @@ function PortListGroup({
 }) {
   const sectionRef = useRef<HTMLDivElement>(null);
   const [showBulkAdd, setShowBulkAdd] = useState(false);
+  const allSelected = ports.length > 0 && ports.every((p) => selectedPortIds.has(p.id));
+  const someSelected = ports.some((p) => selectedPortIds.has(p.id));
 
   const handleSectionDragOver = (e: DragEvent) => {
     e.preventDefault();
@@ -2467,6 +2600,17 @@ function PortListGroup({
   return (
     <div ref={sectionRef} onDragOver={handleSectionDragOver} onDrop={handleSectionDrop} onDragLeave={handleSectionDragLeave}>
       <div className="flex items-center gap-2 px-1 mb-1">
+        {ports.length > 0 && (
+          <input
+            type="checkbox"
+            className="w-3 h-3 cursor-pointer accent-[var(--color-accent)]"
+            checked={allSelected}
+            ref={(el) => { if (el) el.indeterminate = someSelected && !allSelected; }}
+            onChange={() => onToggleSelectAll(direction)}
+            title={allSelected ? `Deselect all ${title.toLowerCase()}` : `Select all ${title.toLowerCase()}`}
+            aria-label={allSelected ? `Deselect all ${title.toLowerCase()}` : `Select all ${title.toLowerCase()}`}
+          />
+        )}
         <span className="text-[9px] uppercase tracking-[0.1em] text-[var(--color-text-muted)]">{title}</span>
         <span className="text-[9px] text-[var(--color-text-muted)]">{ports.length}</span>
         <div className="ml-auto flex items-center gap-2">
@@ -2499,10 +2643,10 @@ function PortListGroup({
             port={port}
             index={i}
             direction={direction}
-            selected={port.id === selectedPortId}
+            selected={selectedPortIds.has(port.id) || port.id === primaryPortId}
             hidden={hiddenPorts.includes(port.id)}
             isLast={i === ports.length - 1}
-            onSelect={() => onSelect(port.id)}
+            onSelect={(mods) => onRowSelect(port.id, mods, direction)}
             onToggleVisibility={() =>
               setHiddenPorts((prev) => (prev.includes(port.id) ? prev.filter((id) => id !== port.id) : [...prev, port.id]))
             }
@@ -2540,7 +2684,7 @@ function PortListRow({
   selected: boolean;
   hidden: boolean;
   isLast: boolean;
-  onSelect: () => void;
+  onSelect: (mods: { meta: boolean; shift: boolean }) => void;
   onToggleVisibility: () => void;
   draggedPortId: string | null;
   setDraggedPortId: (id: string | null) => void;
@@ -2583,7 +2727,7 @@ function PortListRow({
       {showBefore && <div className="h-0.5 bg-[var(--color-accent)] rounded-full my-0.5" />}
       <div
         ref={rowRef}
-        onClick={onSelect}
+        onClick={(e) => onSelect({ meta: e.metaKey || e.ctrlKey, shift: e.shiftKey })}
         onDragOver={handleDragOver}
         onDrop={handleDrop}
         className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg cursor-pointer border transition-colors ${
@@ -3114,25 +3258,200 @@ function Segmented({
   );
 }
 
+/** The value shared by every selected port for a field, or `mixed` when they differ. `undefined`
+ *  is a legitimate shared value (e.g. no section), so mixed-ness is tracked separately. */
+function commonFieldValue<T>(values: T[]): { mixed: boolean; value: T | undefined } {
+  if (values.length === 0) return { mixed: false, value: undefined };
+  const [first] = values;
+  const mixed = values.some((v) => v !== first);
+  return { mixed, value: mixed ? undefined : first };
+}
+
+/** Sentinel option value for a bulk select whose ports currently hold differing values. */
+const MIXED_VALUE = "__mixed__";
+
+/** RIGHT panel when ≥2 ports are selected: set Signal type, Connector, Section group, and Direction
+ *  across the whole selection at once. Reuses the same controls/visual language as PortConfigPanel.
+ *  A field where the selection differs shows a "— Mixed" state; setting it unifies the selection. */
+function PortBulkEditPanel({
+  ports,
+  onApply,
+  onClear,
+}: {
+  ports: PortDraft[];
+  onApply: (updates: Partial<PortDraft> | ((p: PortDraft) => Partial<PortDraft>)) => void;
+  onClear: () => void;
+}) {
+  const sig = commonFieldValue(ports.map((p) => p.signalType));
+  const conn = commonFieldValue(ports.map((p) => p.connectorType ?? DEFAULT_CONNECTOR[p.signalType]));
+  const dir = commonFieldValue(ports.map((p) => p.direction));
+  const sectionCommon = commonFieldValue(ports.map((p) => p.section ?? ""));
+  // Section is free text — seed once from the shared value (the panel is remounted via `key` when
+  // the selection changes) and apply on edit so an untouched field never overwrites the ports.
+  const [section, setSection] = useState(sectionCommon.value ?? "");
+
+  // Signal tiles: the shared signal first (when unified), then the common AV signals — matching
+  // PortConfigPanel's grid.
+  const signalTiles: SignalType[] = [
+    ...(sig.value ? [sig.value] : []),
+    ...COMMON_SIGNAL_CHOICES.filter((s) => s !== sig.value),
+  ];
+
+  // Choosing a signal also resets the connector to that signal's default — exactly as the
+  // single-port editor does — so a bulk signal change lands sensible connectors too.
+  const applySignal = (s: SignalType) => onApply({ signalType: s, connectorType: DEFAULT_CONNECTOR[s] });
+
+  return (
+    <div className="flex-1 overflow-auto px-6 py-5">
+      <div className="max-w-[560px] flex flex-col gap-5">
+        {/* Header */}
+        <div className="flex items-center gap-3">
+          <span
+            className="w-[34px] h-[34px] rounded-lg bg-[var(--color-surface)] border border-[var(--ui-border)] flex items-center justify-center flex-none text-[13px] font-semibold text-[var(--color-accent)]"
+            style={{ fontFamily: "var(--font-mono)" }}
+          >
+            {ports.length}
+          </span>
+          <div className="flex flex-col gap-0.5 min-w-0">
+            <span className="text-[16px] font-semibold text-[var(--color-text-heading)] tracking-[-0.01em]">Bulk edit</span>
+            <span className="text-[10px] text-[var(--color-text-muted)]" style={{ fontFamily: "var(--font-mono)" }}>
+              {ports.length} PORTS SELECTED
+            </span>
+          </div>
+          <button
+            onClick={onClear}
+            className="ml-auto flex items-center gap-1.5 h-[30px] px-2.5 bg-transparent border border-[var(--ui-border)] rounded-lg cursor-pointer text-[var(--color-text-muted)] text-[11px] font-medium hover:text-[var(--color-text)] transition-colors"
+            title="Clear the multi-selection (Esc)"
+          >
+            Clear selection
+          </button>
+        </div>
+
+        <p className="text-[11px] text-[var(--color-text-muted)] leading-[1.45] -mt-2">
+          Changes apply to all {ports.length} selected ports. A field showing{" "}
+          <span style={{ fontFamily: "var(--font-mono)" }}>—</span> differs across the selection; set it to unify.
+        </p>
+
+        {/* Signal type */}
+        <div className="flex flex-col gap-2.5">
+          <div className="flex items-center gap-2">
+            <span className="text-[9px] tracking-[0.13em] uppercase text-[var(--color-text-muted)]" style={{ fontFamily: "var(--font-mono)" }}>Signal type</span>
+            <select
+              className="ml-auto bg-[var(--color-surface)] border border-[var(--ui-border)] rounded px-1.5 py-0.5 text-[10px] text-[var(--color-text)] outline-none cursor-pointer"
+              value={sig.mixed ? MIXED_VALUE : sig.value}
+              onChange={(e) => { if (e.target.value !== MIXED_VALUE) applySignal(e.target.value as SignalType); }}
+              title="All signal types"
+            >
+              {sig.mixed && <option value={MIXED_VALUE} disabled>— Mixed</option>}
+              {ALL_SIGNAL_TYPES.map((t) => (
+                <option key={t} value={t}>{SIGNAL_LABELS[t]}</option>
+              ))}
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-[7px]">
+            {signalTiles.map((s) => {
+              const active = !sig.mixed && sig.value === s;
+              return (
+                <button
+                  key={s}
+                  onClick={() => applySignal(s)}
+                  className={`flex items-center gap-2.5 h-[38px] px-3 rounded-lg cursor-pointer text-xs font-medium text-left border transition-colors ${
+                    active
+                      ? "border-[var(--color-accent)] text-[var(--color-text-heading)]"
+                      : "border-[var(--ui-border)] text-[var(--color-text)] hover:bg-[var(--color-surface-hover)]"
+                  }`}
+                  style={active ? { background: "var(--color-accent-soft)" } : { background: "var(--color-surface)" }}
+                >
+                  <span className="w-[11px] h-[11px] rounded-[3px] flex-none" style={{ background: SIGNAL_COLORS[s] }} />
+                  <span className="truncate">{SIGNAL_LABELS[s]}</span>
+                  {active && (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="ml-auto flex-none">
+                      <path d="M5 12l5 5 9-11" stroke="var(--color-accent)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Connector + Section group */}
+        <div className="flex gap-3.5 flex-wrap">
+          <label className="flex-1 min-w-[200px] flex flex-col gap-1.5">
+            <span className="text-[9px] tracking-[0.13em] uppercase text-[var(--color-text-muted)]" style={{ fontFamily: "var(--font-mono)" }}>Connector</span>
+            <select
+              className="ui-input cursor-pointer"
+              value={conn.mixed ? MIXED_VALUE : conn.value}
+              onChange={(e) => { if (e.target.value !== MIXED_VALUE) onApply({ connectorType: e.target.value as ConnectorType }); }}
+            >
+              {conn.mixed && <option value={MIXED_VALUE} disabled>— Mixed</option>}
+              {CONNECTOR_GROUP_ENTRIES.map(([groupName, types]) => (
+                <optgroup key={groupName} label={groupName}>
+                  {types.map((c) => (
+                    <option key={c} value={c}>{CONNECTOR_LABELS[c]}</option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+          </label>
+          <label className="flex-1 min-w-[160px] flex flex-col gap-1.5">
+            <span className="text-[9px] tracking-[0.13em] uppercase text-[var(--color-text-muted)]" style={{ fontFamily: "var(--font-mono)" }}>Section group</span>
+            <input
+              className="ui-input text-xs"
+              value={section}
+              onChange={(e) => { const v = e.target.value; setSection(v); onApply({ section: v.trim() || undefined }); }}
+              placeholder={sectionCommon.mixed ? "— Mixed" : "e.g. Cameras"}
+              onKeyDown={(e) => e.stopPropagation()}
+            />
+          </label>
+        </div>
+
+        {/* Direction */}
+        <div className="flex flex-col gap-2">
+          <span className="text-[9px] tracking-[0.13em] uppercase text-[var(--color-text-muted)]" style={{ fontFamily: "var(--font-mono)" }}>Direction</span>
+          <Segmented
+            options={DIRECTION_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+            value={dir.mixed ? "" : (dir.value ?? "")}
+            onChange={(v) => {
+              const next = v as PortDirection;
+              // Mirror the single-port direction logic: passthrough inherits its signal; leaving
+              // passthrough restores a concrete connector default for each port.
+              if (next === "passthrough") onApply({ direction: next, signalType: "custom", inheritsSignal: true });
+              else onApply((p) => ({
+                direction: next,
+                ...(p.inheritsSignal ? { inheritsSignal: undefined, connectorType: DEFAULT_CONNECTOR[p.signalType] } : {}),
+              }));
+            }}
+          />
+          {dir.mixed && (
+            <span className="text-[10px] text-[var(--color-text-muted)]">Mixed directions — pick one to unify the selection.</span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function BulkAddForm({
   direction,
   onBulkAdd,
   onClose,
 }: {
   direction: PortDirection;
-  onBulkAdd: (direction: PortDirection, prefix: string, start: number, count: number, signalType: SignalType, section: string) => void;
+  onBulkAdd: (direction: PortDirection, prefix: string, start: number, count: number, signalType: SignalType, section: string, connectorType: ConnectorType) => void;
   onClose: () => void;
 }) {
   const [prefix, setPrefix] = useState("Input");
   const [start, setStart] = useState(1);
   const [end, setEnd] = useState(8);
   const [signalType, setSignalType] = useState<SignalType>("sdi");
+  const [connectorType, setConnectorType] = useState<ConnectorType>(DEFAULT_CONNECTOR.sdi);
   const [section, setSection] = useState("");
 
   const handleSubmit = () => {
     const count = end - start + 1;
     if (count < 1 || !prefix.trim()) return;
-    onBulkAdd(direction, prefix.trim(), start, count, signalType, section.trim());
+    onBulkAdd(direction, prefix.trim(), start, count, signalType, section.trim(), connectorType);
     onClose();
   };
 
@@ -3172,10 +3491,32 @@ function BulkAddForm({
         <select
           className="bg-[var(--color-surface)] text-[var(--color-text)] border border-[var(--color-border)] rounded px-1 py-1 text-xs outline-none focus:border-[var(--color-accent)] cursor-pointer"
           value={signalType}
-          onChange={(e) => setSignalType(e.target.value as SignalType)}
+          onChange={(e) => {
+            const s = e.target.value as SignalType;
+            setSignalType(s);
+            // Track the signal's default connector like the single-port editor does; the user can
+            // still override it below before adding.
+            setConnectorType(DEFAULT_CONNECTOR[s]);
+          }}
         >
           {ALL_SIGNAL_TYPES.map((t) => (
             <option key={t} value={t}>{SIGNAL_LABELS[t]}</option>
+          ))}
+        </select>
+      </div>
+      <div className="flex items-center gap-1.5">
+        <span className="text-[10px] text-[var(--color-text-muted)]">Connector:</span>
+        <select
+          className="flex-1 min-w-0 bg-[var(--color-surface)] text-[var(--color-text)] border border-[var(--color-border)] rounded px-1 py-1 text-xs outline-none focus:border-[var(--color-accent)] cursor-pointer"
+          value={connectorType}
+          onChange={(e) => setConnectorType(e.target.value as ConnectorType)}
+        >
+          {CONNECTOR_GROUP_ENTRIES.map(([groupName, types]) => (
+            <optgroup key={groupName} label={groupName}>
+              {types.map((c) => (
+                <option key={c} value={c}>{CONNECTOR_LABELS[c]}</option>
+              ))}
+            </optgroup>
           ))}
         </select>
       </div>
@@ -3203,6 +3544,7 @@ function BulkAddForm({
       </div>
       <div className="text-[10px] text-[var(--color-text-muted)]">
         Preview: {prefix} {start}, {prefix} {start + 1}, ... {prefix} {end}
+        <span className="text-[var(--color-text)]"> · {CONNECTOR_LABELS[connectorType]}</span>
       </div>
     </div>
   );
