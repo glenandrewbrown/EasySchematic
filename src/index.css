@@ -290,41 +290,11 @@ html, body, #root {
 .react-flow.tool-pan .react-flow__pane { cursor: grab; }
 .react-flow.tool-pan .react-flow__pane:active { cursor: grabbing; }
 
-/* On-canvas validation status: a corner dot on devices flagged by the validation engine
-   (same source as the top-bar warnings badge + Validate rail tab). */
-.react-flow__node.node-error::after,
-.react-flow__node.node-warning::after {
-  content: "";
-  position: absolute;
-  top: -5px;
-  right: -5px;
-  width: 10px;
-  height: 10px;
-  box-shadow: 0 0 0 2px var(--color-bg);
-  pointer-events: none;
-  z-index: 6;
-  animation: ui-fade-in 0.18s var(--ui-ease) both;
-}
-
-/* Severity reads by SHAPE first and colour second — round dot for warning, diamond
-   for error — so the two stay tellable apart without colour vision. The wording lives
-   on the Validate tab; the canvas marker stays glyph-free at this size. */
-.react-flow__node.node-warning::after {
-  border-radius: 9999px;
-  background: var(--color-warning);
-}
-/* Rotation is about the square's own centre, so the diamond still hangs off the
-   device's top-right corner. 9px (not 10) because the 45° diagonal spans ~12.7px —
-   that keeps its visual weight level with the warning dot. */
-.react-flow__node.node-error::after {
-  width: 9px;
-  height: 9px;
-  top: -4.5px;
-  right: -4.5px;
-  border-radius: 2px;
-  transform: rotate(45deg);
-  background: var(--color-error);
-}
+/* On-canvas validation status is carried by the in-header status dot inside DeviceNode
+   (the v7 spec), NOT a corner badge. The old node-error/node-warning ::after dot hung off
+   the top-right corner straddling the border (round-3 R5e; Glen: "remove the brown blob") —
+   removed so the node reads clean and status lives in one place. The severity classes are
+   still applied (harmless) in case a future non-corner treatment wants them. */
 
 /* ===== Device-node states (most-seen object — keep conservative) =====
    React Flow's default selected/hover box-shadow is scoped to its built-in node

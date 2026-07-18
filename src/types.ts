@@ -713,6 +713,10 @@ export interface SchematicLayer {
   /** Optional colour swatch for the layer (hex or CSS colour); used in the Layers panel
    *  and for optional on-canvas tinting of member nodes. */
   color?: string;
+  /** Parent layer id for nested layer groups (schema v50). Absent = root layer.
+   *  Effective visibility/lock cascades: a layer is hidden/locked when it OR any
+   *  ancestor is hidden/locked (see store `isLayerEffectivelyHidden` / `...Locked`). */
+  parentId?: string;
 }
 
 /** The implicit layer that unassigned content belongs to. */

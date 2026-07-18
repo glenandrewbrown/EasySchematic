@@ -55,6 +55,8 @@ export default function ViewOptionsPanel({ mobile, onClose }: { mobile?: boolean
   const signalColors = useSchematicStore((s) => s.signalColors);
   const showMiniMap = useSchematicStore((s) => s.showMiniMap);
   const setShowMiniMap = useSchematicStore((s) => s.setShowMiniMap);
+  const showWarnings = useSchematicStore((s) => s.showWarnings);
+  const setShowWarnings = useSchematicStore((s) => s.setShowWarnings);
   const gridSettings = useSchematicStore((s) => s.gridSettings);
   const setGridSettings = useSchematicStore((s) => s.setGridSettings);
   const canvasViewMode = useSchematicStore((s) => s.canvasViewMode);
@@ -372,6 +374,26 @@ export default function ViewOptionsPanel({ mobile, onClose }: { mobile?: boolean
         {/* Divider */}
         <div className="border-t border-[var(--color-border)] my-2" />
 
+        {/* Validation */}
+        <div className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mb-1">
+          Validation
+        </div>
+        <label className="flex items-center gap-2 px-1 py-0.5 rounded hover:bg-[var(--color-surface-hover)] cursor-pointer">
+          <input
+            type="checkbox"
+            checked={showWarnings}
+            onChange={(e) => setShowWarnings(e.target.checked)}
+            className="w-3 h-3 accent-[var(--color-accent)] cursor-pointer"
+          />
+          <span className="text-xs text-[var(--color-text)]">Show warnings</span>
+        </label>
+        <p className="text-[10px] text-[var(--color-text-muted)] px-1 pb-0.5 leading-snug">
+          Off by default. Errors always show; warnings (top bar, canvas dots, Issues) stay hidden until enabled.
+        </p>
+
+        {/* Divider */}
+        <div className="border-t border-[var(--color-border)] my-2" />
+
         <div className="flex items-center justify-between mb-1">
           <div className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">
             Signal Types
@@ -412,9 +434,9 @@ export default function ViewOptionsPanel({ mobile, onClose }: { mobile?: boolean
                 }
                 className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors cursor-pointer ${
                   g.allVisible
-                    ? "border-blue-500 bg-blue-500/15 text-[var(--color-text)]"
+                    ? "border-[var(--color-accent)] bg-[var(--color-accent-soft)] text-[var(--color-text)]"
                     : g.mixed
-                      ? "border-blue-500/40 border-dashed text-[var(--color-text-muted)]"
+                      ? "border-[var(--color-accent)]/40 border-dashed text-[var(--color-text-muted)]"
                       : "border-[var(--color-border)] text-[var(--color-text-muted)] opacity-60"
                 }`}
               >

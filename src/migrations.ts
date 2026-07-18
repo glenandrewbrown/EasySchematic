@@ -18,7 +18,7 @@ import { mostCommonRoomScale, DEFAULT_METRES_PER_PIXEL } from "./layoutScale";
 import { DEFAULT_GRID_SETTINGS, type SchematicNode } from "./types";
 import { emojiToArtworkId } from "./deviceArtwork";
 
-export const CURRENT_SCHEMA_VERSION = 49;
+export const CURRENT_SCHEMA_VERSION = 50;
 
 /** Stub-label nodes paint at this z-index so connection lines render UNDER their
  *  white box (matches waypoint/junction z — above edge z, below the 10000 edge labels). */
@@ -567,6 +567,17 @@ const migrations: Record<number, Migration> = {
       }
     }
     data.version = 49;
+    return data;
+  },
+  49: (data) => {
+    // v49 → v50: nested layer groups + multi-document tabs + adapter-create +
+    // device-details page. Every new field is additive/optional:
+    //   - SchematicLayer.parentId — absent means a root layer (no backfill; the
+    //     existing flat layers all become roots).
+    //   - Project tabs (documents / activeDocumentId) are session-only live state,
+    //     never serialized into the on-disk SchematicFile, so nothing to migrate.
+    // A v49 file is therefore already a valid v50 file — this is a pure bump.
+    data.version = 50;
     return data;
   },
 

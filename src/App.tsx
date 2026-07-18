@@ -5,6 +5,7 @@ import {
   MiniMap,
   Panel,
   BackgroundVariant,
+  PanOnScrollMode,
   ConnectionLineType,
   ConnectionMode,
   SelectionMode,
@@ -31,6 +32,7 @@ import ObjectDrawer from "./components/ObjectDrawer";
 import { toolForHotkey } from "./toolMode";
 import { validateSchematic, type IssueSeverity } from "./validation";
 import DeviceEditor from "./components/DeviceEditor";
+import DeviceDetailsPage from "./components/DeviceDetailsPage";
 import RightRail from "./components/RightRail";
 import ScheduleView from "./components/ScheduleView";
 import EditorTopBar from "./components/EditorTopBar";
@@ -41,6 +43,7 @@ import CableAssignDialog from "./components/CableAssignDialog";
 import CableInventoryDialog from "./components/CableInventoryDialog";
 import SvgAssetImportDialog from "./components/SvgAssetImportDialog";
 import CanvasRuler from "./components/CanvasRuler";
+import CanvasDotGrid from "./components/CanvasDotGrid";
 import { metresPerWorldUnit } from "./rulerScale";
 import GuidedSetupPanel from "./components/GuidedSetupPanel";
 import CoverageSplReadout from "./components/CoverageSplReadout";
@@ -70,10 +73,12 @@ import AnnotationEditor from "./components/AnnotationEditor";
 import QuickAddDevice from "./components/QuickAddDevice";
 import DeviceCreatorPicker from "./components/DeviceCreatorPicker";
 import PageTabs from "./components/PageTabs";
+import ProjectTabs from "./components/ProjectTabs";
 import RackPage from "./components/RackPage";
 import PrintSheetPage from "./components/PrintSheetPage";
 import { computeSnap, enforceMinSpacing, detectOverlap, speculativeReparent, type GuideLine } from "./snapUtils";
 import type { ConnectionEdge, DeviceData, DeviceTemplate, ObjectData, SchematicFile, SchematicNode, StubLabelData } from "./types";
+import { deviceClassColor } from "./deviceClassColor";
 import { findAdaptersForSignalBridge, findAdaptersForConnectorBridge, areConnectorsCompatible } from "./connectorTypes";
 import { DEVICE_TEMPLATES } from "./deviceLibrary";
 import { loadSharedSchematic, checkSession } from "./templateApi";
@@ -660,6 +665,7 @@ function SchematicCanvas() {
   const layers = useSchematicStore((s) => s.layers);
   const canvasViewMode = useSchematicStore((s) => s.canvasViewMode);
   const colorBy = useSchematicStore((s) => s.colorBy);
+  const showWarnings = useSchematicStore((s) => s.showWarnings);
   const showMiniMap = useSchematicStore((s) => s.showMiniMap);
   const setShowMiniMap = useSchematicStore((s) => s.setShowMiniMap);
   const gridSettings = useSchematicStore((s) => s.gridSettings);
@@ -772,15 +778,17 @@ function SchematicCanvas() {
 
   // Validation status per device → an on-canvas corner dot (engine-driven, presentation-only).
   // Same source as the top-bar badge + Validate tab; error severity wins over warning.
+  // Warnings are opt-in (View ▸ Show warnings); when off, warning-severity dots are suppressed.
   const validationByNode = useMemo(() => {
     const map = new Map<string, IssueSeverity>();
     for (const issue of validateSchematic(nodes, edges)) {
+      if (issue.severity === "warning" && !showWarnings) continue;
       for (const id of issue.nodeIds) {
         if (issue.severity === "error" || !map.has(id)) map.set(id, issue.severity);
       }
     }
     return map;
-  }, [nodes, edges]);
+  }, [nodes, edges, showWarnings]);
 
   const decoratedNodes = useMemo(() => {
     if (validationByNode.size === 0) return renderNodes;
@@ -1740,6 +1748,14 @@ function SchematicCanvas() {
       onClickConnectEnd={onClickConnectEnd}
       onPaneClick={onPaneClick}
       // Locked room context menu is handled by capture-phase listener on rfContainerRef
+      onPaneContextMenu={(event) => {
+        // Right-click on empty canvas opens the same Quick Add (device / room) menu as a
+        // double-click, at the cursor. RF only fires this when the target IS the pane, so
+        // right-clicking a device/edge still routes to onNodeContextMenu / onEdgeContextMenu.
+        event.preventDefault();
+        const pos = screenToFlowPosition({ x: event.clientX, y: event.clientY });
+        setQuickAddPos(pos);
+      }}
 
       onNodeClick={(event, node) => {
         // One-shot placement tools (room, note, zone, measure) and armed object
@@ -1863,7 +1879,10 @@ function SchematicCanvas() {
       selectionKeyCode={null}
       multiSelectionKeyCode={null}
       proOptions={{ hideAttribution: true }}
-      panOnScroll={false}
+      /* Trackpad-native canvas (Figma-style): two-finger scroll pans in any direction,
+         pinch zooms (zoomOnPinch), ⌘/ctrl-scroll zooms. Plain wheel no longer zooms. */
+      panOnScroll
+      panOnScrollMode={PanOnScrollMode.Free}
       zoomOnScroll={false}
       zoomOnDoubleClick={false}
       connectionMode={ConnectionMode.Loose}
@@ -1971,7 +1990,7 @@ function SchematicCanvas() {
             );
           })()
         ) : (
-          <Background variant={BackgroundVariant.Dots} gap={GRID_SIZE} size={1.4} color={isDark ? "#3b4a66" : "#c6cad2"} />
+          <CanvasDotGrid isDark={isDark} />
         )
       )}
       <AutoRouteConfirmDialog />
@@ -1989,9 +2008,30 @@ function SchematicCanvas() {
             position="bottom-left"
             pannable
             zoomable
-            /* Clear the 48px tool rail so the minimap never overlaps the left panels. */
-            style={{ left: 56, width: 200, height: 150 }}
-            nodeColor={(node) => node.type === "room" ? (isDark ? "#334155" : "#e5e7eb") : "#4f46e5"}
+            /* Theme-aware Slate × Carbon minimap: dark ground + translucent mask in dark mode
+               (was the React-Flow default white box), device dots in their class colour (was a
+               flat indigo), rooms a neutral slate. Clears the 48px tool rail via left:56. */
+            style={{
+              left: 56,
+              width: 200,
+              height: 150,
+              borderRadius: 9,
+              border: "1px solid var(--ui-border)",
+              boxShadow: "var(--ui-shadow-menu)",
+              overflow: "hidden",
+            }}
+            bgColor={isDark ? "#161d28" : "#dde2ea"}
+            maskColor={isDark ? "rgba(12,17,26,0.55)" : "rgba(210,217,228,0.62)"}
+            maskStrokeColor="var(--color-accent)"
+            nodeStrokeColor="transparent"
+            nodeBorderRadius={2}
+            nodeColor={(node) =>
+              node.type === "room"
+                ? (isDark ? "#3a4659" : "#c9d1db")
+                : node.type === "device"
+                  ? deviceClassColor((node.data as DeviceData)?.ports)
+                  : (isDark ? "#52617a" : "#9aa4b2")
+            }
           />
           {/* ✕ to dismiss the minimap; restore via View ▸ Minimap. Sits at the
               minimap's top-right corner, so it has to share the minimap's left:56 rail
@@ -2261,6 +2301,7 @@ export default function App() {
   return (
     <div className="fixed inset-0 flex flex-col overflow-hidden">
       <EditorTopBar />
+      <ProjectTabs />
       <UpdatePill />
       <LiveControlIndicator />
       <BetaBanner />
@@ -2300,7 +2341,7 @@ export default function App() {
                 {/* Insert panel (floating card) */}
                 {(activeTool === "device" || deviceDrawerPinned) && (
                   <div
-                    className="absolute left-[60px] top-3 bottom-[58px] w-[266px] pointer-events-auto rounded-[11px] overflow-hidden border border-[var(--ui-border)]"
+                    className="absolute left-[84px] top-3 bottom-[58px] w-[266px] pointer-events-auto rounded-[11px] overflow-hidden border border-[var(--ui-border)]"
                     style={{ boxShadow: "var(--ui-shadow-menu)" }}
                   >
                     <DeviceDrawer />
@@ -2309,7 +2350,7 @@ export default function App() {
                 {/* Object drawer (Layout view, floating card) */}
                 {canvasViewMode === "layout" && activeTool === "object" && (
                   <div
-                    className="absolute left-[60px] top-3 bottom-[58px] w-[266px] pointer-events-auto rounded-[11px] overflow-hidden border border-[var(--ui-border)]"
+                    className="absolute left-[84px] top-3 bottom-[58px] w-[266px] pointer-events-auto rounded-[11px] overflow-hidden border border-[var(--ui-border)]"
                     style={{ boxShadow: "var(--ui-shadow-menu)" }}
                   >
                     <ObjectDrawer />
@@ -2382,6 +2423,7 @@ export default function App() {
       {isPhone && <MobileTabBar />}
       <CommandPalette />
       <DeviceEditor />
+      <DeviceDetailsPage />
       <RoomEditor />
       <AnnotationEditor />
       <EdgeContextMenu />

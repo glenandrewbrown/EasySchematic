@@ -33,8 +33,8 @@ function locate(issue: ValidationIssue): void {
 
 /** Tailwind classes for the leading severity dot — matches on-canvas dots + top-bar badge. */
 const DOT_COLOR: Record<IssueSeverity, string> = {
-  error: "bg-[#ef4444]",
-  warning: "bg-[#f59e0b]",
+  error: "bg-[var(--color-error)]",
+  warning: "bg-[var(--color-warning)]",
 };
 
 /** A single issue row: severity dot + message + kind label (click-to-locate), and a
@@ -122,6 +122,10 @@ interface ValidationPanelProps {
 
 export default function ValidationPanel({ issues, dismissedIds, onDismiss, onUndismiss }: ValidationPanelProps) {
   const [showDismissed, setShowDismissed] = useState(false);
+  // Warnings are opt-in app-wide (View ▸ Show warnings). When off, the panel hides the
+  // warnings group and offers a one-click reveal so they remain discoverable here.
+  const showWarnings = useSchematicStore((s) => s.showWarnings);
+  const setShowWarnings = useSchematicStore((s) => s.setShowWarnings);
 
   const { active, dismissed, counts } = useMemo(() => {
     const active = issues.filter((i) => !dismissedIds.has(i.id));
@@ -131,6 +135,7 @@ export default function ValidationPanel({ issues, dismissedIds, onDismiss, onUnd
 
   const errorIssues = active.filter((i) => i.severity === "error");
   const warningIssues = active.filter((i) => i.severity === "warning");
+  const warningsHidden = !showWarnings && warningIssues.length > 0;
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -141,17 +146,27 @@ export default function ValidationPanel({ issues, dismissedIds, onDismiss, onUnd
           <>
             {counts.errors > 0 && (
               <span className="inline-flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-[#ef4444]" />
+                <span className="w-2 h-2 rounded-full bg-[var(--color-error)]" />
                 {counts.errors} error{counts.errors === 1 ? "" : "s"}
               </span>
             )}
-            {counts.warnings > 0 && (
+            {counts.warnings > 0 && showWarnings && (
               <span className="inline-flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-[#f59e0b]" />
+                <span className="w-2 h-2 rounded-full bg-[var(--color-warning)]" />
                 {counts.warnings} warning{counts.warnings === 1 ? "" : "s"}
               </span>
             )}
           </>
+        )}
+        {warningsHidden && (
+          <button
+            onClick={() => setShowWarnings(true)}
+            title="Warnings are hidden app-wide (View ▸ Show warnings). Click to reveal."
+            className="inline-flex items-center gap-1 text-[var(--color-text-muted)] hover:text-[var(--color-text)] cursor-pointer"
+          >
+            <span className="w-2 h-2 rounded-full bg-[var(--color-warning)] opacity-40" />
+            {counts.warnings} warning{counts.warnings === 1 ? "" : "s"} hidden · Show
+          </button>
         )}
         {dismissed.length > 0 && (
           <button
@@ -164,13 +179,25 @@ export default function ValidationPanel({ issues, dismissedIds, onDismiss, onUnd
       </div>
 
       <div className="flex-1 overflow-y-auto p-1.5 space-y-1.5">
-        {counts.total === 0 && dismissed.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center gap-2 px-4 text-center text-[var(--color-text-muted)]">
-            <svg viewBox="0 0 24 24" className="w-7 h-7 text-green-500" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-              <path d="M20 6 9 17l-5-5" />
-            </svg>
-            <span className="text-xs">No issues found.</span>
-          </div>
+        {errorIssues.length === 0 && (!showWarnings || warningIssues.length === 0) && dismissed.length === 0 ? (
+          warningsHidden ? (
+            <div className="h-full flex flex-col items-center justify-center gap-2 px-4 text-center text-[var(--color-text-muted)]">
+              <span className="text-xs">No errors.</span>
+              <button
+                onClick={() => setShowWarnings(true)}
+                className="text-[11px] text-[var(--color-text-muted)] hover:text-[var(--color-text)] underline decoration-dotted cursor-pointer"
+              >
+                {counts.warnings} warning{counts.warnings === 1 ? "" : "s"} hidden — show them
+              </button>
+            </div>
+          ) : (
+            <div className="h-full flex flex-col items-center justify-center gap-2 px-4 text-center text-[var(--color-text-muted)]">
+              <svg viewBox="0 0 24 24" className="w-7 h-7 text-[var(--color-success)]" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 6 9 17l-5-5" />
+              </svg>
+              <span className="text-xs">No issues found.</span>
+            </div>
+          )
         ) : (
           <>
             {counts.total === 0 && (
@@ -179,7 +206,9 @@ export default function ValidationPanel({ issues, dismissedIds, onDismiss, onUnd
               </div>
             )}
             <IssueGroup label="Errors" issues={errorIssues} dismissed={false} onToggleDismiss={onDismiss} />
-            <IssueGroup label="Warnings" issues={warningIssues} dismissed={false} onToggleDismiss={onDismiss} />
+            {showWarnings && (
+              <IssueGroup label="Warnings" issues={warningIssues} dismissed={false} onToggleDismiss={onDismiss} />
+            )}
             {showDismissed && (
               <IssueGroup label="Dismissed" issues={dismissed} dismissed={true} onToggleDismiss={onUndismiss} />
             )}

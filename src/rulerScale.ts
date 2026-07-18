@@ -8,12 +8,15 @@ export const RULER_T = 18;
 
 /**
  * Pick a "nice" canvas-unit step so labelled (major) ticks land roughly `target` px
- * apart on screen at the current zoom.
+ * apart on screen at the current zoom. The schematic grid is a GRID_SIZE (16px) dot
+ * lattice, so every step here is a multiple of 80 = 16×5 — that makes the MINOR ticks
+ * (step ÷ 5) land on exact 16-px grid multiples, so ruler ticks coincide with grid dots
+ * instead of drifting past them. (Keep in sync with GRID_SIZE if the grid pitch changes.)
  */
 export function rulerStep(zoom: number, target = 90): number {
   const raw = target / zoom;
-  const steps = [5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000];
-  return steps.find((s) => s >= raw) ?? 100000;
+  const steps = [80, 160, 400, 800, 1600, 4000, 8000, 16000, 40000, 80000];
+  return steps.find((s) => s >= raw) ?? 160000;
 }
 
 export interface RulerTick {

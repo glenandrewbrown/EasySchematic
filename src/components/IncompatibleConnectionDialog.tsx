@@ -11,6 +11,7 @@ export default function IncompatibleConnectionDialog() {
   const dismiss = useSchematicStore((s) => s.dismissIncompatibleDialog);
   const forceConnect = useSchematicStore((s) => s.forceIncompatibleConnection);
   const insertAdapter = useSchematicStore((s) => s.insertAdapterBetween);
+  const beginAdapterCreation = useSchematicStore((s) => s.beginAdapterCreation);
 
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
 
@@ -43,6 +44,15 @@ export default function IncompatibleConnectionDialog() {
   const handleInsert = () => {
     if (selectedIdx === null) return;
     insertAdapter(adapters[selectedIdx]);
+  };
+
+  const handleCreateAdapter = () => {
+    beginAdapterCreation({
+      connection: pending.connection,
+      sourcePort: pending.sourcePort,
+      targetPort: pending.targetPort,
+      reason: pending.reason,
+    });
   };
 
   return (
@@ -106,8 +116,22 @@ export default function IncompatibleConnectionDialog() {
               ))}
             </div>
           ) : (
-            <div className="text-xs text-[var(--color-text-muted)] italic px-1 py-3">
-              No matching adapters found in the device library
+            <div className="flex flex-col gap-2">
+              <div className="text-xs text-[var(--color-text-muted)] italic px-1 pt-1">
+                No matching adapters found in the device library
+              </div>
+              <button
+                autoFocus
+                onClick={handleCreateAdapter}
+                className="w-full text-left px-3 py-2 text-xs flex flex-col gap-0.5 cursor-pointer border border-dashed border-[var(--color-accent)] rounded text-[var(--color-accent)] hover:bg-[var(--color-accent-soft)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]"
+              >
+                <span className="font-medium">
+                  &#65291; Create adapter
+                </span>
+                <span className="text-[var(--color-accent)]/70">
+                  Define a custom {srcSignal} &rarr; {tgtSignal} adapter
+                </span>
+              </button>
             </div>
           )}
         </div>

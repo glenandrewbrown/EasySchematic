@@ -181,7 +181,13 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
   // Real validation-engine severity for this device's status dot. Computed once per
   // (nodes, edges, dismissedIssueIds) change via a module-level memo; selector returns a
   // primitive so this subscription only re-renders when THIS node's severity changes.
-  const nodeSeverity = useSchematicStore((s) => selectNodeSeverity(s, id));
+  // Warnings are opt-in app-wide (View ▸ Show warnings, default off); when off, warning-severity
+  // is suppressed so the on-node status dot stays clean — matching the top bar / Issues / canvas
+  // dots and killing the stray gold "Has warnings" blob when the rest of the app reads "No issues".
+  const nodeSeverity = useSchematicStore((s) => {
+    const sev = selectNodeSeverity(s, id);
+    return sev === "warning" && !s.showWarnings ? null : sev;
+  });
   const templateHiddenStr = useSchematicStore((s) => {
     if (!data.templateId) return "";
     const arr = s.templateHiddenSignals[data.templateId];
@@ -271,8 +277,19 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
   }, [data.internalLinks]);
 
   const headerAuxRows = useMemo(
-    () => rowsInSlot(data.auxiliaryData, "header"),
-    [data.auxiliaryData],
+    () => {
+      const rows = rowsInSlot(data.auxiliaryData, "header");
+      // Suppress a header aux row that merely restates the CATEGORY/type already shown as
+      // the mono-caps sub-label beneath the name (board 2a §3). Default templates seed a
+      // header line equal to the device type, so without this the class reads twice —
+      // e.g. "COMPUTER" over "Computer", or the mis-cased "TV" over "Tv". Presentation-only:
+      // the underlying auxiliaryData is untouched, so an explicit user line still shows.
+      const norm = (s: string) => s.trim().toLowerCase().replace(/[\s._-]+/g, "");
+      const cat = norm(data.category || data.deviceType || "");
+      if (!cat) return rows;
+      return rows.filter((r) => norm(resolveAuxiliaryLine(r.text, data)) !== cat);
+    },
+    [data],
   );
   const footerAuxRows = useMemo(
     () => rowsInSlot(data.auxiliaryData, "footer"),
@@ -433,16 +450,26 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
   const portHandleColor = (port: Port) =>
     port.virtual ? VIRTUAL_PORT_COLOR : SIGNAL_COLORS[port.signalType];
 
-  /** Single-glyph edge connector (boards 2a/2b): the 9px indicator ON the edge IS the Handle —
-   *  filled = wired, 1.5px hollow ring = open socket, violet = virtual (no socket), soft halo =
-   *  multi-connect. Hue is always the port's resolved signal colour. The indicator centre sits
-   *  exactly on the node edge (9px at −4.5px = the same centre the old 10px/−5px handle had),
-   *  so wire anchors do not move. The old inner square swatches and grey outer rings are gone —
-   *  this is the ONE connector glyph per port.
+  /** Single-glyph edge connector (boards 2a/2b, round-3 route-under-card redline): the 9px
+   *  indicator IS the Handle — filled = wired, 1.5px hollow ring = open socket, violet = virtual
+   *  (no socket), soft halo = multi-connect. Hue is always the port's resolved signal colour.
+   *  The indicator centre now sits INSIDE the card, 6px in from the border (9px at +1.5px), so
+   *  it reads as part of the device card rather than an overlay floating on the wire. Because
+   *  React Flow renders edges below nodes, the segment of cable between the old border-flush
+   *  position and this inset one is hidden under the card body — the wire visually terminates at
+   *  a connector that lives on the card face. The router snapshots DOM handle bounds, so wire
+   *  anchors move inward with the connector; that's expected. The old inner square swatches and
+   *  grey outer rings are gone — this is the ONE connector glyph per port.
    *  Glow (deviceNodeMotion.css) is anchored here now: wired connectors pulse while Live signal
    *  is on; open connectors halo while the Connect tool is armed. Both reduced-motion gated. */
+  // Connector = the approved "Slate × Carbon" v7 port pin: a 9px circle inset into the card face,
+  // ringed by a 2px signal-coloured BORDER, filled with the signal colour when wired and
+  // the surface colour when open, and carrying a permanent soft drop shadow so it lifts off the
+  // card. Virtual (socket-less) ports drop to violet at 55% opacity. The ring is the border (not
+  // an inset shadow) so box-shadow is free for the drop shadow, the multi-connect halo, the
+  // live-signal glow, and the connect-tool armed pulse (deviceNodeMotion.css keyframes).
   const connectorClass = (side: "left" | "right", connected: boolean) =>
-    `!w-[9px] !h-[9px] !border-0 ${side === "left" ? "!-left-[4.5px]" : "!-right-[4.5px]"}` +
+    `!w-[9px] !h-[9px] !border-2 ${side === "left" ? "!left-[1.5px]" : "!right-[1.5px]"}` +
     (connected && liveSignal && !reduceMotion ? " device-node-swatch--glow" : "") +
     (!connected && connectArmed && !reduceMotion ? " device-node-connector--armed" : "");
   const connectorStyle = (
@@ -455,12 +482,9 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
       : "";
     return {
       top: "50%",
-      ...(connected
-        ? { background: color, ...(halo ? { boxShadow: halo.slice(2) } : {}) }
-        : {
-            background: "var(--color-surface)",
-            boxShadow: `inset 0 0 0 1.5px ${color}${halo}`,
-          }),
+      background: connected ? color : "var(--color-surface)",
+      borderColor: color,
+      boxShadow: `var(--ui-shadow-raised)${halo}`,
       "--swatch-glow": color,
       ...(opts?.disabled ? { opacity: 0.4 } : {}),
     } as React.CSSProperties;
@@ -479,7 +503,10 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
   // the node keeps clean routing-grid geometry; floor stays 144 (the historical fixed width)
   // so existing docs' wire anchors don't shift on nodes that never needed more room.
   const CHAR_W = 5.2;
-  const SIDE_CHROME = 12 /* edge padding */ + 10 /* connector + gap */;
+  // Edge padding is 16px (pl-4/pr-4) now that the connector sits INSET into the card rather than
+  // flush on the border — the connector + internal-link pip both live inside that 16px zone, so
+  // no separate "connector + gap" allowance is needed on top of it (round-3 route-under-card).
+  const SIDE_CHROME = 16;
   const nodeWidth = useMemo(() => {
     let need = 132;
     const rows = Math.max(leftPorts.length, rightPorts.length);
@@ -517,11 +544,12 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
     }${usbcPowerSuffix(port)}`;
 
   /** Violet pip marking a port that is internally linked to another port on the SAME device. It
-   *  sits in the gap between the outer Handle and the signal swatch, mirroring the outer connector
-   *  on the inside — the design uses these instead of curves drawn across the block, which read as
-   *  messy the moment a device has more than one link. Absolutely positioned inside the (already
-   *  `relative`) port row, so it adds no height and the port grid is untouched. The tile tier
-   *  hides it for free: the whole port tree sits under that tier's `visibility: hidden` wrapper. */
+   *  sits in the gap between the (now card-inset) connector and the label text, mirroring the
+   *  connector on its inner side — the design uses these instead of curves drawn across the
+   *  block, which read as messy the moment a device has more than one link. Absolutely positioned
+   *  inside the (already `relative`) port row, so it adds no height and the port grid is
+   *  untouched. The tile tier hides it for free: the whole port tree sits under that tier's
+   *  `visibility: hidden` wrapper. */
   const renderInternalMark = (port: Port, side: "left" | "right") => {
     const partners = internalPartnersByLabel.get(port.label);
     if (!partners?.length) return null;
@@ -531,8 +559,8 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
         className="absolute w-[5px] h-[5px] rounded-full top-1/2 -translate-y-1/2"
         style={
           side === "left"
-            ? { background: VIRTUAL_PORT_COLOR, left: 6 }
-            : { background: VIRTUAL_PORT_COLOR, right: 6 }
+            ? { background: VIRTUAL_PORT_COLOR, left: 11 }
+            : { background: VIRTUAL_PORT_COLOR, right: 11 }
         }
         title={title}
         role="img"
@@ -548,7 +576,7 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
     return (
       <div
         key={port.id}
-        className={`device-port-row flex items-center gap-1 ${isLeft ? "pl-3" : "pr-3 justify-end"} h-4 relative`}
+        className={`device-port-row flex items-center gap-1 ${isLeft ? "pl-4" : "pr-4 justify-end"} h-4 relative`}
         onContextMenu={(e) => openPortMenu(e, port)}
       >
         {isLeft && (
@@ -620,11 +648,12 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
           style={connectorStyle(signalColor, rearConnected)}
         />
         <span
-          className="text-[10px] leading-4 truncate px-3 flex-1 text-center"
-          style={{ color: signalColor }}
+          className="text-[10px] leading-4 truncate px-4 flex-1 text-center"
+          style={{ color: "var(--color-text)" }}
           title={`${portRowLabel(port)} (${resolvedSignalLabel}) — passthrough`}
         >
-          ⇔ {fitPortLabel(portRowLabel(port), true)}
+          <span aria-hidden style={{ color: "var(--color-text-muted)" }}>⇔ </span>
+          {fitPortLabel(portRowLabel(port), true)}
         </span>
         {/* Front handle — right edge, source (same reasoning as rear) */}
         <Handle
@@ -1050,7 +1079,7 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
               const rh = right ? handleProps(right, "right") : null;
               return (
                 <div key={i} className="device-port-row flex justify-between items-center relative h-4">
-                  <div className="flex items-center gap-1 pl-3 min-w-0 flex-1" onContextMenu={left ? (e) => openPortMenu(e, left) : undefined}>
+                  <div className="flex items-center gap-1 pl-4 min-w-0 flex-1" onContextMenu={left ? (e) => openPortMenu(e, left) : undefined}>
                     {left && lh && (
                       <>
                         <Handle
@@ -1073,7 +1102,7 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
                       </>
                     )}
                   </div>
-                  <div className="flex items-center gap-1 pr-3 min-w-0 flex-1 justify-end" onContextMenu={right ? (e) => openPortMenu(e, right) : undefined}>
+                  <div className="flex items-center gap-1 pr-4 min-w-0 flex-1 justify-end" onContextMenu={right ? (e) => openPortMenu(e, right) : undefined}>
                     {right && rh && (
                       <>
                         <span
@@ -1188,10 +1217,11 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
                      them and where the geometry is unambiguous. */}
                 <span
                   className="text-[10px] leading-4 truncate"
-                  style={{ color: portHandleColor(port) }}
+                  style={{ color: "var(--color-text)" }}
                   title={portRowTitle(port) + " — bidirectional"}
                 >
-                  ↔ {fitPortLabel(portRowLabel(port), true)}
+                  <span aria-hidden style={{ color: "var(--color-text-muted)" }}>↔ </span>
+                  {fitPortLabel(portRowLabel(port), true)}
                 </span>
                 <Handle
                   type="source"
@@ -1260,12 +1290,12 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
               (deviceNodeMotion.css collapses every per-port anchor onto these centres). */}
           <span
             aria-hidden
-            className="absolute left-[-4.5px] top-1/2 -translate-y-1/2 w-[9px] h-[9px] rounded-full"
+            className="absolute left-[1.5px] top-1/2 -translate-y-1/2 w-[9px] h-[9px] rounded-full"
             style={{ background: tileLeftColor }}
           />
           <span
             aria-hidden
-            className="absolute right-[-4.5px] top-1/2 -translate-y-1/2 w-[9px] h-[9px] rounded-full"
+            className="absolute right-[1.5px] top-1/2 -translate-y-1/2 w-[9px] h-[9px] rounded-full"
             style={{ background: tileRightColor }}
           />
           <ArtworkChip

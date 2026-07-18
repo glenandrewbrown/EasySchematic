@@ -9,14 +9,11 @@ import { cableTypesForSignal } from "../cableRules";
 import { computeCableSchedule } from "../cableSchedule";
 import { connectionRun } from "../connectionRunLength";
 import { validateSchematic, countIssues } from "../validation";
-import { buildDeviceSuggestions } from "../deviceSuggestions";
 import { deviceClassColor } from "../deviceClassColor";
 import { SIGNAL_FAMILY_COLORS } from "../signalFamilies";
 import { chainLength } from "../cableFit";
 import { FEET_PER_METER, formatLengthMode, formatLengthParts, type LengthUnitMode } from "../lengthFormat";
 import { signalLabel } from "../plainLanguage";
-import Combobox from "./ui/Combobox";
-import TagInput from "./ui/TagInput";
 import SymbolPickerDialog from "./SymbolPickerDialog";
 import SvgAssetImportDialog from "./SvgAssetImportDialog";
 import ArtworkChip from "./ArtworkChip";
@@ -284,21 +281,50 @@ function Field({ label, value, onCommit, type = "text", placeholder, suffix, min
   );
 }
 
-interface ComboFieldProps {
-  label: string;
-  value: string;
-  onCommit: (v: string) => void;
-  suggestions: string[];
-  placeholder?: string;
+/**
+ * Collapsible accordion section — the redesigned Inspector's primary structure. Each section
+ * owns its open/closed state locally (remount-keyed by node id upstream, so a fresh selection
+ * resets to defaults). `right` renders a compact badge in the header, never an interactive control.
+ */
+function AccordionSection({
+  title,
+  defaultOpen = false,
+  right,
+  children,
+}: {
+  title: string;
+  defaultOpen?: boolean;
+  right?: ReactNode;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="border-b border-[var(--ui-border)] last:border-b-0">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="w-full flex items-center gap-2 py-2.5 text-[10px] uppercase text-[var(--color-text-muted)] font-semibold cursor-pointer hover:text-[var(--color-text)] transition-colors"
+        style={SECTION_LABEL_STYLE}
+      >
+        <span className="w-3 text-left shrink-0">{open ? "▾" : "▸"}</span>
+        <span className="flex-1 text-left">{title}</span>
+        {right}
+      </button>
+      {open && <div className="flex flex-col gap-3 pb-3.5">{children}</div>}
+    </div>
+  );
 }
 
-/** Muted-label wrapper around the compact Combobox, matching Field's layout. */
-function ComboField({ label, value, onCommit, suggestions, placeholder }: ComboFieldProps) {
+/** Small mono badge for an accordion header — e.g. connected / total ports. */
+function HeaderBadge({ children }: { children: ReactNode }) {
   return (
-    <label className="block">
-      <span className="block text-[10px] uppercase text-[var(--color-text-muted)] mb-0.5" style={SECTION_LABEL_STYLE}>{label}</span>
-      <Combobox value={value} onCommit={onCommit} suggestions={suggestions} placeholder={placeholder} compact />
-    </label>
+    <span
+      className="shrink-0 rounded px-1.5 py-0.5 text-[9px] font-semibold text-[var(--color-text-muted)] bg-[var(--color-bg)] border border-[var(--ui-border)]"
+      style={{ fontFamily: "var(--font-mono)" }}
+    >
+      {children}
+    </span>
   );
 }
 
@@ -309,28 +335,18 @@ function DeviceBody({ node }: { node: SchematicNode }) {
   const setDeviceRotation = useSchematicStore((s) => s.setDeviceRotation);
   const rotateDevice = useSchematicStore((s) => s.rotateDevice);
   const setEditingNodeId = useSchematicStore((s) => s.setEditingNodeId);
+  const openDeviceDetailsPage = useSchematicStore((s) => s.openDeviceDetailsPage);
   const setSvgImportTarget = useSchematicStore((s) => s.setSvgImportTarget);
   const allNodes = useSchematicStore((s) => s.nodes);
   const edges = useSchematicStore((s) => s.edges);
-  const tagSuggestions = useSchematicStore((s) => s.tagSuggestions);
-  const fieldSuggestions = useSchematicStore((s) => s.fieldSuggestions);
-  const recordSuggestions = useSchematicStore((s) => s.recordSuggestions);
   const detailLevel = useSchematicStore((s) => s.detailLevel);
   const nodeColors = useSchematicStore((s) => s.nodeColors);
   const portInfos = useMemo(() => describeDevicePorts(node.id, allNodes, edges), [node.id, allNodes, edges]);
-  const suggestions = useMemo(
-    () => buildDeviceSuggestions(allNodes, { tagSuggestions, fieldSuggestions }),
-    [allNodes, tagSuggestions, fieldSuggestions],
-  );
   const selectDevice = (id: string) =>
     useSchematicStore.setState((s) => ({
       nodes: s.nodes.map((n) => ({ ...n, selected: n.id === id })),
       edges: s.edges.map((e) => ({ ...e, selected: false })),
     }));
-  const [speakerOpen, setSpeakerOpen] = useState(false);
-  const [physicalOpen, setPhysicalOpen] = useState(false);
-  const [powerOpen, setPowerOpen] = useState(false);
-  const [networkOpen, setNetworkOpen] = useState(false);
   const [artworkPickerOpen, setArtworkPickerOpen] = useState(false);
   const [artworkUploadOpen, setArtworkUploadOpen] = useState(false);
 
@@ -360,6 +376,22 @@ function DeviceBody({ node }: { node: SchematicNode }) {
       : "Uploaded SVG"
     : "Class default";
 
+  const connectedPorts = portInfos.filter((info) => info.connected).length;
+
+  const hasPower =
+    data.powerDrawW != null ||
+    data.powerCapacityW != null ||
+    (data.voltage != null && data.voltage !== "") ||
+    data.poeDrawW != null ||
+    data.poeBudgetW != null;
+  const ipPorts = data.ports.filter((p) => p.networkConfig?.ip);
+  const hasHostname = data.hostname != null && data.hostname !== "";
+  const hasNetwork = hasHostname || ipPorts.length > 0;
+
+  const detailLabel = data.manufacturer && data.modelNumber
+    ? `${data.manufacturer} ${data.modelNumber}`
+    : data.modelNumber || data.manufacturer || "—";
+
   return (
     <div className="flex flex-col gap-3 px-3 py-3 overflow-y-auto">
       <div className="relative flex items-center gap-2.5 pl-3">
@@ -385,80 +417,78 @@ function DeviceBody({ node }: { node: SchematicNode }) {
           Clean
         </span>
       </div>
-      <div className="h-px bg-[var(--ui-border)]" />
 
-      <SectionTitle>Identity</SectionTitle>
-      <Field label="Label" value={data.label} onCommit={(v) => patch({ label: v, baseLabel: undefined })} placeholder="Device name" />
-      <Field label="Short name" value={data.shortName} onCommit={(v) => patch({ shortName: v || undefined })} placeholder="e.g. 8040b" />
-      <div className="grid grid-cols-2 gap-2">
-        <ComboField
-          label="Manufacturer"
-          value={data.manufacturer ?? ""}
-          suggestions={suggestions.manufacturer}
-          placeholder="Genelec"
-          onCommit={(v) => {
-            patch({ manufacturer: v || undefined });
-            if (v) recordSuggestions({ manufacturer: v });
-          }}
-        />
-        <Field label="Model" value={data.modelNumber} onCommit={(v) => patch({ modelNumber: v || undefined })} placeholder="8040b" />
-      </div>
-      <ComboField
-        label="Type"
-        value={data.deviceType ?? ""}
-        suggestions={suggestions.deviceType}
-        placeholder="speaker"
-        onCommit={(v) => {
-          patch({ deviceType: v });
-          if (v) recordSuggestions({ deviceType: v });
-        }}
-      />
-      <div>
-        <span className="block text-[10px] uppercase text-[var(--color-text-muted)] mb-0.5" style={SECTION_LABEL_STYLE}>Artwork</span>
-        <div className="flex items-center gap-2">
-          <ArtworkChip artworkAssetId={data.artworkAssetId} device={data} size={24} />
-          <span className="text-[11px] text-[var(--color-text-muted)] truncate flex-1 min-w-0">{artworkCaption}</span>
-          <button type="button" className="ui-btn ui-btn-secondary px-1.5 py-0.5 text-[10px]" onClick={() => setArtworkPickerOpen(true)}>
-            Change…
+      {/* Accordion sections — Connections leads, identity moves to the full-page Device details. */}
+      <div className="flex flex-col">
+        {/* 1. Connections — what's wired, in the port's signal colour. */}
+        <AccordionSection
+          title="Connections"
+          defaultOpen
+          right={<HeaderBadge>{connectedPorts}/{portInfos.length}</HeaderBadge>}
+        >
+          {portInfos.length === 0 ? (
+            <div className="text-[11px] text-[var(--color-text-muted)] px-1">No ports.</div>
+          ) : (
+            <div className="flex flex-col -mx-1">
+              {portInfos.map((info) => (
+                <button
+                  key={info.port.id}
+                  type="button"
+                  disabled={!info.connected}
+                  onClick={() => info.otherDeviceId && selectDevice(info.otherDeviceId)}
+                  title={`${signalLabel(info.port.signalType, detailLevel)} · ${info.connected ? `Connected to ${info.otherDeviceLabel}${info.otherPortLabel ? ` [${info.otherPortLabel}]` : ""} — click to select` : "Unconnected"}`}
+                  className="flex items-center gap-1.5 px-1.5 py-1 rounded text-left enabled:hover:bg-[var(--color-surface-hover)] enabled:cursor-pointer disabled:cursor-default transition-colors"
+                >
+                  {info.connected ? (
+                    <span className="w-2 h-2 rounded-[2px] shrink-0" style={{ background: SIGNAL_COLORS[info.port.signalType] }} />
+                  ) : (
+                    <span className="w-2 h-2 rounded-[2px] shrink-0" style={{ border: `1.5px solid ${SIGNAL_COLORS[info.port.signalType]}`, opacity: 0.55 }} />
+                  )}
+                  <span className="text-[11px] text-[var(--color-text)] truncate shrink-0 max-w-[7rem]">{info.port.label}</span>
+                  {(info.port.direction === "input" || info.port.direction === "output") && (
+                    <span className="text-[8.5px] uppercase text-[var(--color-text-muted)] shrink-0 opacity-70" style={{ fontFamily: "var(--font-mono)", letterSpacing: "0.08em" }}>{info.port.direction === "input" ? "IN" : "OUT"}</span>
+                  )}
+                  {/* Plain names are sentences, not codes — only the technical label wears the mono-code treatment. */}
+                  <span
+                    className={`text-[9px] text-[var(--color-text-muted)] truncate max-w-[8rem] ${detailLevel === "technical" ? "uppercase" : ""}`}
+                    style={detailLevel === "technical" ? { fontFamily: "var(--font-mono)", letterSpacing: "0.1em" } : undefined}
+                  >
+                    {signalLabel(info.port.signalType, detailLevel)}
+                  </span>
+                  <span className="flex-1 min-w-0" />
+                  <span className="text-[10px] text-[var(--color-text-muted)] truncate min-w-0 text-right">
+                    {info.connected ? `→ ${info.otherDeviceLabel}${info.otherPortLabel ? ` [${info.otherPortLabel}]` : ""}` : "—"}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+          <button className="ui-btn ui-btn-secondary w-full text-xs" onClick={() => setEditingNodeId(node.id)}>
+            Edit ports &amp; template…
           </button>
-        </div>
-      </div>
-      <ComboField
-        label="Category"
-        value={data.category ?? ""}
-        suggestions={suggestions.category}
-        placeholder="audio"
-        onCommit={(v) => {
-          patch({ category: v || undefined });
-          if (v) recordSuggestions({ category: v });
-        }}
-      />
-      <Field label="Serial No." value={data.serialNumber} onCommit={(v) => patch({ serialNumber: v || undefined })} placeholder="e.g. SN-00421" />
-      <label className="block">
-        <span className="block text-[10px] uppercase text-[var(--color-text-muted)] mb-0.5" style={SECTION_LABEL_STYLE}>Tags</span>
-        <TagInput
-          tags={data.tags ?? []}
-          suggestions={suggestions.tags}
-          placeholder="Add tag…"
-          onChange={(tags) => patch({ tags: tags.length > 0 ? tags : undefined })}
-          onBlur={() => {
-            const tags = data.tags ?? [];
-            if (tags.length > 0) recordSuggestions({ tags });
-          }}
-        />
-      </label>
+        </AccordionSection>
 
-      <div className="h-px bg-[var(--ui-border)]" />
-      <button
-        className="flex items-center justify-between text-[10px] uppercase text-[var(--color-text-muted)] font-semibold cursor-pointer"
-        style={SECTION_LABEL_STYLE}
-        onClick={() => setPhysicalOpen((o) => !o)}
-      >
-        <span>Physical &amp; placement</span>
-        <span>{physicalOpen ? "▾" : "▸"}</span>
-      </button>
-      {physicalOpen && (
-        <div className="flex flex-col gap-3">
+        {/* 2. Layer — group membership + colour. */}
+        <AccordionSection title="Layer">
+          <label className="block">
+            <span className="block text-[10px] uppercase text-[var(--color-text-muted)] mb-0.5" style={SECTION_LABEL_STYLE}>Layer group</span>
+            <select
+              className="ui-input w-full text-xs"
+              value={data.layerId ?? DEFAULT_LAYER_ID}
+              onChange={(e) => patch({ layerId: e.target.value === DEFAULT_LAYER_ID ? undefined : e.target.value })}
+            >
+              {layers.map((l) => (
+                <option key={l.id} value={l.id}>{l.name}</option>
+              ))}
+            </select>
+          </label>
+          <div className="text-[10px] text-[var(--color-text-muted)] leading-relaxed -mt-1.5">
+            Layers control visibility and locking together. Manage them in the Layers panel.
+          </div>
+        </AccordionSection>
+
+        {/* 3. Layout / studio — to-scale placement data for the Plan view. */}
+        <AccordionSection title="Layout & studio">
           <div className="grid grid-cols-3 gap-2">
             <Field label="W (mm)" value={data.widthMm} onCommit={(v) => patch({ widthMm: numOrUndef(v) })} type="number" min={1} />
             <Field label="D (mm)" value={data.depthMm} onCommit={(v) => patch({ depthMm: numOrUndef(v) })} type="number" min={1} />
@@ -480,18 +510,6 @@ function DeviceBody({ node }: { node: SchematicNode }) {
               <button className="ui-btn ui-btn-secondary px-2 py-1 text-[11px]" onClick={() => rotateDevice(node.id, 90)} title="Rotate 90° CW">↻</button>
             </div>
           </div>
-          <label className="block">
-            <span className="block text-[10px] uppercase text-[var(--color-text-muted)] mb-0.5" style={SECTION_LABEL_STYLE}>Layer</span>
-            <select
-              className="ui-input w-full text-xs"
-              value={data.layerId ?? DEFAULT_LAYER_ID}
-              onChange={(e) => patch({ layerId: e.target.value === DEFAULT_LAYER_ID ? undefined : e.target.value })}
-            >
-              {layers.map((l) => (
-                <option key={l.id} value={l.id}>{l.name}</option>
-              ))}
-            </select>
-          </label>
           <div>
             <span className="block text-[10px] uppercase text-[var(--color-text-muted)] mb-0.5" style={SECTION_LABEL_STYLE}>Custom graphic (Layout)</span>
             <div className="flex items-center gap-1.5">
@@ -504,102 +522,27 @@ function DeviceBody({ node }: { node: SchematicNode }) {
             </div>
             <ChooseSymbolButton nodeId={node.id} />
           </div>
-        </div>
-      )}
+        </AccordionSection>
 
-      <div className="h-px bg-[var(--ui-border)]" />
-      <SectionTitle>Ports &amp; connections</SectionTitle>
-      {portInfos.length === 0 ? (
-        <div className="text-[11px] text-[var(--color-text-muted)] px-1">No ports.</div>
-      ) : (
-        <div className="flex flex-col -mx-1">
-          {portInfos.map((info) => (
-            <button
-              key={info.port.id}
-              type="button"
-              disabled={!info.connected}
-              onClick={() => info.otherDeviceId && selectDevice(info.otherDeviceId)}
-              title={`${signalLabel(info.port.signalType, detailLevel)} · ${info.connected ? `Connected to ${info.otherDeviceLabel}${info.otherPortLabel ? ` [${info.otherPortLabel}]` : ""} — click to select` : "Unconnected"}`}
-              className="flex items-center gap-1.5 px-1.5 py-1 rounded text-left enabled:hover:bg-[var(--color-surface-hover)] enabled:cursor-pointer disabled:cursor-default transition-colors"
-            >
-              {info.connected ? (
-                <span className="w-2 h-2 rounded-[2px] shrink-0" style={{ background: SIGNAL_COLORS[info.port.signalType] }} />
-              ) : (
-                <span className="w-2 h-2 rounded-[2px] shrink-0" style={{ border: `1.5px solid ${SIGNAL_COLORS[info.port.signalType]}`, opacity: 0.55 }} />
-              )}
-              <span className="text-[11px] text-[var(--color-text)] truncate shrink-0 max-w-[7rem]">{info.port.label}</span>
-              {(info.port.direction === "input" || info.port.direction === "output") && (
-                <span className="text-[8.5px] uppercase text-[var(--color-text-muted)] shrink-0 opacity-70" style={{ fontFamily: "var(--font-mono)", letterSpacing: "0.08em" }}>{info.port.direction === "input" ? "IN" : "OUT"}</span>
-              )}
-              {/* Plain names are sentences, not codes — only the technical label wears the mono-code treatment. */}
-              <span
-                className={`text-[9px] text-[var(--color-text-muted)] truncate max-w-[8rem] ${detailLevel === "technical" ? "uppercase" : ""}`}
-                style={detailLevel === "technical" ? { fontFamily: "var(--font-mono)", letterSpacing: "0.1em" } : undefined}
-              >
-                {signalLabel(info.port.signalType, detailLevel)}
-              </span>
-              <span className="flex-1 min-w-0" />
-              <span className="text-[10px] text-[var(--color-text-muted)] truncate min-w-0 text-right">
-                {info.connected ? `→ ${info.otherDeviceLabel}${info.otherPortLabel ? ` [${info.otherPortLabel}]` : ""}` : "—"}
-              </span>
-            </button>
-          ))}
-        </div>
-      )}
-
-      <div className="h-px bg-[var(--ui-border)]" />
-      <DeviceColorRow ids={[node.id]} />
-      <div className="text-[10px] text-[var(--color-text-muted)] leading-relaxed -mt-1.5">
-        Shift-click devices on the canvas to colour several at once.
-      </div>
-
-      <div className="h-px bg-[var(--ui-border)]" />
-      <DeviceViewRow ids={[node.id]} />
-
-      {speaker && (
-        <>
-          <div className="h-px bg-[var(--ui-border)]" />
-          <button
-            className="flex items-center justify-between text-[10px] uppercase text-[var(--color-text-muted)] font-semibold cursor-pointer"
-            style={SECTION_LABEL_STYLE}
-            onClick={() => setSpeakerOpen((o) => !o)}
-          >
-            <span>Loudspeaker / coverage</span>
-            <span>{speakerOpen ? "▾" : "▸"}</span>
-          </button>
-          {speakerOpen && (
-            <div className="flex flex-col gap-2">
-              <div className="grid grid-cols-3 gap-2">
-                <Field label="Sens dB" value={data.speakerSensitivityDb} onCommit={(v) => patch({ speakerSensitivityDb: numOrUndef(v) })} type="number" step={0.1} />
-                <Field label="Power W" value={data.speakerMaxPowerW} onCommit={(v) => patch({ speakerMaxPowerW: numOrUndef(v) })} type="number" />
-                <Field label="Cover °" value={data.speakerCoverageAngleDeg} onCommit={(v) => patch({ speakerCoverageAngleDeg: numOrUndef(v) })} type="number" />
-              </div>
-              <div className="text-[10px] text-[var(--color-text-muted)] leading-relaxed">
-                {splDb != null
-                  ? `≈ ${splDb.toFixed(1)} dB on-axis at the listener plane (nominal).`
-                  : "Set sensitivity + power for an SPL estimate."}
-              </div>
+        {/* Loudspeaker coverage — only for speaker-class devices. */}
+        {speaker && (
+          <AccordionSection title="Loudspeaker & coverage">
+            <div className="grid grid-cols-3 gap-2">
+              <Field label="Sens dB" value={data.speakerSensitivityDb} onCommit={(v) => patch({ speakerSensitivityDb: numOrUndef(v) })} type="number" step={0.1} />
+              <Field label="Power W" value={data.speakerMaxPowerW} onCommit={(v) => patch({ speakerMaxPowerW: numOrUndef(v) })} type="number" />
+              <Field label="Cover °" value={data.speakerCoverageAngleDeg} onCommit={(v) => patch({ speakerCoverageAngleDeg: numOrUndef(v) })} type="number" />
             </div>
-          )}
-        </>
-      )}
+            <div className="text-[10px] text-[var(--color-text-muted)] leading-relaxed">
+              {splDb != null
+                ? `≈ ${splDb.toFixed(1)} dB on-axis at the listener plane (nominal).`
+                : "Set sensitivity + power for an SPL estimate."}
+            </div>
+          </AccordionSection>
+        )}
 
-      {(data.powerDrawW != null ||
-        data.powerCapacityW != null ||
-        (data.voltage != null && data.voltage !== "") ||
-        data.poeDrawW != null ||
-        data.poeBudgetW != null) && (
-        <>
-          <div className="h-px bg-[var(--ui-border)]" />
-          <button
-            className="flex items-center justify-between text-[10px] uppercase text-[var(--color-text-muted)] font-semibold cursor-pointer"
-            style={SECTION_LABEL_STYLE}
-            onClick={() => setPowerOpen((o) => !o)}
-          >
-            <span>Power</span>
-            <span>{powerOpen ? "▾" : "▸"}</span>
-          </button>
-          {powerOpen && (
+        {/* Power — read-only, only when the device carries power data. */}
+        {hasPower && (
+          <AccordionSection title="Power">
             <div className="flex flex-col gap-1">
               {data.powerDrawW != null && <ReadRow label="Draw" value={`${data.powerDrawW} W`} />}
               {data.powerCapacityW != null && <ReadRow label="Capacity" value={`${data.powerCapacityW} W`} />}
@@ -607,54 +550,70 @@ function DeviceBody({ node }: { node: SchematicNode }) {
               {data.poeDrawW != null && <ReadRow label="PoE draw" value={`${data.poeDrawW} W`} />}
               {data.poeBudgetW != null && <ReadRow label="PoE budget" value={`${data.poeBudgetW} W`} />}
             </div>
-          )}
-        </>
-      )}
+          </AccordionSection>
+        )}
 
-      {(() => {
-        const ipPorts = data.ports.filter((p) => p.networkConfig?.ip);
-        const hasHostname = data.hostname != null && data.hostname !== "";
-        if (!hasHostname && ipPorts.length === 0) return null;
-        return (
-          <>
-            <div className="h-px bg-[var(--ui-border)]" />
-            <button
-              className="flex items-center justify-between text-[10px] uppercase text-[var(--color-text-muted)] font-semibold cursor-pointer"
-              style={SECTION_LABEL_STYLE}
-              onClick={() => setNetworkOpen((o) => !o)}
-            >
-              <span>Network</span>
-              <span>{networkOpen ? "▾" : "▸"}</span>
-            </button>
-            {networkOpen && (
-              <div className="flex flex-col gap-1">
-                {hasHostname && <ReadRow label="Host" value={data.hostname} />}
-                {ipPorts.map((p) => {
-                  const net = p.networkConfig;
-                  const extras = [
-                    net?.subnetMask ? net.subnetMask : null,
-                    net?.vlan != null ? `VLAN ${net.vlan}` : null,
-                  ].filter(Boolean);
-                  return (
-                    <div key={p.id} className="flex items-baseline gap-2">
-                      <span className="text-[11px] text-[var(--color-text)] truncate shrink-0 max-w-[7rem]">{p.label}</span>
-                      <span className="text-[11px] text-[var(--color-text-muted)] truncate text-right flex-1 min-w-0" style={{ fontFamily: "var(--font-mono)" }}>
-                        {net?.ip}
-                        {extras.length > 0 ? ` · ${extras.join(" · ")}` : ""}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </>
-        );
-      })()}
+        {/* Network — read-only, only when hostname or IP config is present. */}
+        {hasNetwork && (
+          <AccordionSection title="Network">
+            <div className="flex flex-col gap-1">
+              {hasHostname && <ReadRow label="Host" value={data.hostname} />}
+              {ipPorts.map((p) => {
+                const net = p.networkConfig;
+                const extras = [
+                  net?.subnetMask ? net.subnetMask : null,
+                  net?.vlan != null ? `VLAN ${net.vlan}` : null,
+                ].filter(Boolean);
+                return (
+                  <div key={p.id} className="flex items-baseline gap-2">
+                    <span className="text-[11px] text-[var(--color-text)] truncate shrink-0 max-w-[7rem]">{p.label}</span>
+                    <span className="text-[11px] text-[var(--color-text-muted)] truncate text-right flex-1 min-w-0" style={{ fontFamily: "var(--font-mono)" }}>
+                      {net?.ip}
+                      {extras.length > 0 ? ` · ${extras.join(" · ")}` : ""}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </AccordionSection>
+        )}
 
-      <div className="h-px bg-[var(--ui-border)]" />
-      <button className="ui-btn ui-btn-secondary w-full text-xs" onClick={() => setEditingNodeId(node.id)}>
-        Edit details…
-      </button>
+        {/* 4. Appearance — artwork, colour, node view tier. */}
+        <AccordionSection title="Appearance">
+          <div>
+            <span className="block text-[10px] uppercase text-[var(--color-text-muted)] mb-0.5" style={SECTION_LABEL_STYLE}>Artwork</span>
+            <div className="flex items-center gap-2">
+              <ArtworkChip artworkAssetId={data.artworkAssetId} device={data} size={24} />
+              <span className="text-[11px] text-[var(--color-text-muted)] truncate flex-1 min-w-0">{artworkCaption}</span>
+              <button type="button" className="ui-btn ui-btn-secondary px-1.5 py-0.5 text-[10px]" onClick={() => setArtworkPickerOpen(true)}>
+                Change…
+              </button>
+            </div>
+          </div>
+          <DeviceColorRow ids={[node.id]} />
+          <div className="text-[10px] text-[var(--color-text-muted)] leading-relaxed -mt-1.5">
+            Shift-click devices on the canvas to colour several at once.
+          </div>
+          <DeviceViewRow ids={[node.id]} />
+        </AccordionSection>
+
+        {/* 5. Details — compact identity summary; full editing lives on the Device details page. */}
+        <AccordionSection title="Details" defaultOpen>
+          <div className="flex flex-col gap-1">
+            <ReadRow label="Name" value={data.label || "—"} />
+            <ReadRow label="Category" value={data.category || "—"} />
+            <ReadRow label="Make" value={detailLabel} />
+            {data.serialNumber && <ReadRow label="Serial" value={data.serialNumber} />}
+          </div>
+          <button
+            type="button"
+            className="ui-btn ui-btn-secondary w-full text-xs"
+            onClick={() => openDeviceDetailsPage(node.id)}
+          >
+            Edit details →
+          </button>
+        </AccordionSection>
+      </div>
 
       {artworkPickerOpen && (
         <SymbolPickerDialog
@@ -1046,7 +1005,10 @@ function DocumentOverview({ nodes, edges }: { nodes: SchematicNode[]; edges: Con
   const deviceCount = nodes.filter((n) => n.type === "device").length;
   const roomCount = nodes.filter((n) => n.type === "room").length;
   const connectionCount = edges.length;
-  const issues = useMemo(() => countIssues(validateSchematic(nodes, edges)), [nodes, edges]);
+  const showWarnings = useSchematicStore((s) => s.showWarnings);
+  // Warnings are opt-in (View ▸ Show warnings); when off, this summary reflects errors only.
+  const rawIssues = useMemo(() => countIssues(validateSchematic(nodes, edges)), [nodes, edges]);
+  const issues = showWarnings ? rawIssues : { ...rawIssues, warnings: 0, total: rawIssues.errors };
   const clean = issues.total === 0;
   const dotColor = issues.errors > 0 ? "var(--color-error)" : issues.warnings > 0 ? "var(--color-warning)" : "var(--color-success)";
 

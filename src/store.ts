@@ -258,6 +258,7 @@ function readInitialLibraryDensity(): LibraryDensity {
 }
 
 const MINIMAP_VISIBLE_KEY = "easyschematic-minimap-visible";
+const SHOW_WARNINGS_KEY = "easyschematic-show-warnings";
 const MCP_ENABLED_KEY = "easyschematic-mcp-enabled";
 const MCP_TOKEN_KEY = "easyschematic-mcp-token";
 const MCP_PORT_KEY = "easyschematic-mcp-port";
@@ -268,6 +269,14 @@ const MCP_PORT_KEY = "easyschematic-mcp-port";
 function readInitialMiniMapVisible(): boolean {
   if (typeof localStorage === "undefined") return true;
   return localStorage.getItem(MINIMAP_VISIBLE_KEY) !== "0";
+}
+
+/** Read the persisted "show validation warnings" pref. Default OFF — warnings are opt-in
+ *  so the chrome (top-bar pill, canvas dots, Issues badge) stays quiet until the user asks
+ *  to see them. Errors are never gated by this; only warning-severity issues are hidden. */
+function readInitialShowWarnings(): boolean {
+  if (typeof localStorage === "undefined") return false;
+  return localStorage.getItem(SHOW_WARNINGS_KEY) === "1";
 }
 
 /** MCP bridge (Beta) editor preferences — persisted to localStorage, not the
@@ -439,6 +448,15 @@ interface Clipboard {
   boundsHeight: number;
 }
 
+/** One open project tab. The active document's live content lives in the main store
+ *  fields; `snapshot` is authoritative only for INACTIVE documents (refreshed whenever
+ *  that document is switched away from). Session-only — never part of SchematicFile. */
+export interface ProjectDocument {
+  id: string;
+  name: string;
+  snapshot: SchematicFile;
+}
+
 interface SchematicState {
   nodes: SchematicNode[];
   edges: ConnectionEdge[];
@@ -447,6 +465,13 @@ interface SchematicState {
   loadSeq: number;
   editingNodeId: string | null;
   creatingNodeId: string | null;
+  /** When set, the full-screen Device Details page is open for this device node id.
+   *  UI-only flag (session state); the page component reads/edits the live device. */
+  deviceDetailsPageId: string | null;
+  /** Open the Device Details page for a device node. */
+  openDeviceDetailsPage: (id: string) => void;
+  /** Close the Device Details page. */
+  closeDeviceDetailsPage: () => void;
   customTemplates: DeviceTemplate[];
   ownedGear: OwnedGearItem[];
   ownedCables: OwnedCableItem[];
@@ -698,6 +723,11 @@ interface SchematicState {
   /** Minimap visibility (per-user; localStorage-backed; not in SchematicFile). */
   showMiniMap: boolean;
   setShowMiniMap: (visible: boolean) => void;
+  /** Show validation *warnings* across the app (top-bar pill, canvas dots, Issues badge,
+   *  validation panel). Per-user; localStorage-backed; default OFF (warnings are opt-in).
+   *  Errors are never gated by this — only warning-severity issues are hidden. */
+  showWarnings: boolean;
+  setShowWarnings: (visible: boolean) => void;
   /** Merge a patch into the grid settings (persists to file; not undoable). */
   setGridSettings: (patch: Partial<GridSettings>) => void;
   /** Dismiss / restore a validation issue by stable id (persists to file; not undoable). */
@@ -747,6 +777,13 @@ interface SchematicState {
   toggleLayerLocked: (id: string) => void;
   /** Set or clear a layer's colour swatch (persists; not undoable). */
   setLayerColor: (id: string, color: string | undefined) => void;
+  /** Nest a layer under a parent (or pass null to make it a root). Cycle-guarded:
+   *  a layer can never be parented to itself or any of its own descendants. */
+  setLayerParent: (layerId: string, parentId: string | null) => void;
+  /** True when the layer OR any ancestor is hidden (cascading effective visibility). */
+  isLayerEffectivelyHidden: (layerId: string) => boolean;
+  /** True when the layer OR any ancestor is locked (cascading effective lock). */
+  isLayerEffectivelyLocked: (layerId: string) => boolean;
   /** Move all currently-selected nodes and edges onto a layer. */
   assignSelectionToLayer: (layerId: string) => void;
   /** Group all selected nodes under a new shared groupId (needs 2+ selected). */
@@ -994,6 +1031,55 @@ interface SchematicState {
   unbundleSelectedConnections: () => void;
   forceIncompatibleConnection: () => void;
   insertAdapterBetween: (template: DeviceTemplate) => void;
+
+  // Adapter-create flow (IncompatibleConnectionDialog "+ Create adapter")
+  /** The incompatible connection an in-progress custom adapter is being built to bridge.
+   *  Non-null while the DeviceEditor is open in adapter-create mode. */
+  adapterCreationRequest: {
+    connection: Connection;
+    sourcePort: Port;
+    targetPort: Port;
+    reason: "signal-mismatch" | "connector-mismatch";
+  } | null;
+  /** Close the incompatible dialog and open the DeviceEditor prefilled as a two-port
+   *  adapter (input = source signal/connector, output = target signal/connector). On save
+   *  the editor calls `completeAdapterCreation`; on cancel it calls `cancelAdapterCreation`. */
+  beginAdapterCreation: (pending: {
+    connection: Connection;
+    sourcePort: Port;
+    targetPort: Port;
+    reason: "signal-mismatch" | "connector-mismatch";
+  }) => void;
+  /** Finish adapter-create: place the user-defined adapter template between the two ports
+   *  (reuses `insertAdapterBetween`) and clear the request. */
+  completeAdapterCreation: (template: DeviceTemplate) => void;
+  /** Abandon adapter-create without inserting anything. */
+  cancelAdapterCreation: () => void;
+
+  // Internal wiring (intra-device port routing, DeviceData.internalLinks)
+  /** Add an intra-device internal link (endpoints are port LABELS). Idempotent. */
+  addInternalLink: (deviceId: string, link: { from: string; to: string }) => void;
+  /** Remove the intra-device internal link matching from/to (endpoints are port LABELS). */
+  removeInternalLink: (deviceId: string, link: { from: string; to: string }) => void;
+
+  // Multi-document project tabs (session/live state — never serialized into SchematicFile)
+  /** Open project tabs. The ACTIVE doc's live content is the main store; each entry's
+   *  `snapshot` is authoritative only for INACTIVE docs (refreshed on switch-away). */
+  documents: ProjectDocument[];
+  /** Id of the currently-live document within `documents`. */
+  activeDocumentId: string;
+  /** Create a new blank document, snapshot the current one, and switch to the new tab. */
+  newDocument: (name?: string) => void;
+  /** Snapshot the live document into its tab, then hydrate the target document. No-op if
+   *  the target is already active or unknown. */
+  switchDocument: (id: string) => void;
+  /** Rename a document tab (updates the live schematic name too when it's the active doc). */
+  renameDocument: (id: string, name: string) => void;
+  /** Close a tab. Blocks closing the last document; switches to a neighbour if the active
+   *  document is closed. */
+  closeDocument: (id: string) => void;
+  /** Tab metadata for rendering the tab bar (active doc's name reflects live state). */
+  listDocuments: () => { id: string; name: string }[];
 
   // Adapter visibility (#adapter-overhaul)
   hideAdapters: boolean;
@@ -1746,6 +1832,66 @@ function saveCategoryOrder(order: string[] | null) {
 const _initCustomTemplates = loadCustomTemplates();
 const _initCustomMeta = loadCustomTemplateMeta(_initCustomTemplates);
 
+// ── Nested-layer pure helpers (schema v50) ───────────────────────────────────
+
+/** Walk a layer's ancestry via parentId. Returns true if any layer along the chain
+ *  (including the layer itself) satisfies `pred`. Guarded against parentId cycles. */
+function layerChainSatisfies(
+  layers: readonly SchematicLayer[],
+  layerId: string,
+  pred: (layer: SchematicLayer) => boolean,
+): boolean {
+  const byId = new Map(layers.map((l) => [l.id, l]));
+  const seen = new Set<string>();
+  let current = byId.get(layerId);
+  while (current && !seen.has(current.id)) {
+    if (pred(current)) return true;
+    seen.add(current.id);
+    current = current.parentId ? byId.get(current.parentId) : undefined;
+  }
+  return false;
+}
+
+/** True when the layer OR any ancestor is not visible. */
+export function isLayerEffectivelyHiddenIn(
+  layers: readonly SchematicLayer[],
+  layerId: string,
+): boolean {
+  return layerChainSatisfies(layers, layerId, (l) => !l.visible);
+}
+
+/** True when the layer OR any ancestor is locked. */
+export function isLayerEffectivelyLockedIn(
+  layers: readonly SchematicLayer[],
+  layerId: string,
+): boolean {
+  return layerChainSatisfies(layers, layerId, (l) => l.locked);
+}
+
+/** True when re-parenting `layerId` under `parentId` would create a cycle — i.e. the
+ *  proposed parent is the layer itself or one of its current descendants. */
+function wouldCreateLayerCycle(
+  layers: readonly SchematicLayer[],
+  layerId: string,
+  parentId: string,
+): boolean {
+  if (layerId === parentId) return true;
+  // Walk UP from the proposed parent; if we reach layerId, parentId is a descendant.
+  return layerChainSatisfies(layers, parentId, (l) => l.id === layerId);
+}
+
+/** A blank SchematicFile at the current schema version — the seed content for a new
+ *  project tab (all other fields fill in via importFromJSON's defaults). */
+function createBlankSchematicFile(name: string): SchematicFile {
+  return {
+    version: CURRENT_SCHEMA_VERSION,
+    name,
+    nodes: [],
+    edges: [],
+    layers: [{ id: DEFAULT_LAYER_ID, name: "Base", visible: true, locked: false }],
+  };
+}
+
 export const useSchematicStore = create<SchematicState>((set, get) => ({
   nodes: [],
   edges: [],
@@ -1753,6 +1899,10 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
   loadSeq: 0,
   editingNodeId: null,
   creatingNodeId: null,
+  deviceDetailsPageId: null,
+  adapterCreationRequest: null,
+  documents: [],
+  activeDocumentId: "",
   customTemplates: _initCustomTemplates,
   ownedGear: [],
   ownedCables: [],
@@ -1765,6 +1915,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
   gridSettings: DEFAULT_GRID_SETTINGS,
   containers: [],
   showMiniMap: readInitialMiniMapVisible(),
+  showWarnings: readInitialShowWarnings(),
   layers: [{ id: DEFAULT_LAYER_ID, name: "Base", visible: true, locked: false }],
   recentCustomColors: [],
   showOwnedGearPane: false,
@@ -3389,6 +3540,14 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
     set({ creatingNodeId: id });
   },
 
+  openDeviceDetailsPage: (id) => {
+    set({ deviceDetailsPageId: id });
+  },
+
+  closeDeviceDetailsPage: () => {
+    set({ deviceDetailsPageId: null });
+  },
+
   createAndEditDevice: (template, position) => {
     get().addDevice(template, position);
     const nodes = get().nodes;
@@ -3908,16 +4067,38 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
         }
         continue;
       }
-      // Synthesize a template from the placed device's spec (per-instance fields —
-      // layer, group, rotation, serials — deliberately not carried).
+      // Synthesize a template from the placed device's spec. The label goes in the inventory
+      // key's display-name slot (inventoryKeyFromTemplate), so it must agree with
+      // inventoryKeyFromDeviceData's `model ?? baseLabel ?? label` — that is what groups renamed
+      // instances back onto one owned row. Every spec field is carried so nothing is lost
+      // (power, thermal, PoE, dimensions, cost, artwork, aux rows, …); per-instance fields
+      // (layer, group, rotation, serials) are not.
       const template: DeviceTemplate = {
         deviceType: data.deviceType || "custom",
-        label: data.model ?? data.baseLabel ?? data.label,
+        label: (data.model ?? data.baseLabel ?? data.label ?? data.deviceType ?? "Device").trim() || "Device",
         ports: data.ports.map((p) => ({ ...p })),
+        ...(data.shortName ? { shortName: data.shortName } : {}),
+        ...(data.hostname ? { hostname: data.hostname } : {}),
         ...(data.manufacturer ? { manufacturer: data.manufacturer } : {}),
         ...(data.modelNumber ? { modelNumber: data.modelNumber } : {}),
         ...(data.category ? { category: data.category } : {}),
         ...(data.color ? { color: data.color } : {}),
+        ...(data.artworkAssetId ? { artworkAssetId: data.artworkAssetId } : {}),
+        ...(data.referenceUrl ? { referenceUrl: data.referenceUrl } : {}),
+        ...(data.searchTerms ? { searchTerms: [...data.searchTerms] } : {}),
+        ...(data.powerDrawW != null ? { powerDrawW: data.powerDrawW } : {}),
+        ...(data.powerCapacityW != null ? { powerCapacityW: data.powerCapacityW } : {}),
+        ...(data.voltage ? { voltage: data.voltage } : {}),
+        ...(data.thermalBtuh != null ? { thermalBtuh: data.thermalBtuh } : {}),
+        ...(data.isVenueProvided ? { isVenueProvided: data.isVenueProvided } : {}),
+        ...(data.poeBudgetW != null ? { poeBudgetW: data.poeBudgetW } : {}),
+        ...(data.poeDrawW != null ? { poeDrawW: data.poeDrawW } : {}),
+        ...(data.unitCost != null ? { unitCost: data.unitCost } : {}),
+        ...(data.heightMm != null ? { heightMm: data.heightMm } : {}),
+        ...(data.widthMm != null ? { widthMm: data.widthMm } : {}),
+        ...(data.depthMm != null ? { depthMm: data.depthMm } : {}),
+        ...(data.weightKg != null ? { weightKg: data.weightKg } : {}),
+        ...(data.auxiliaryData ? { auxiliaryData: structuredClone(data.auxiliaryData) } : {}),
         ...(data.templateId ? { id: data.templateId } : {}),
       };
       ownedGear.push({ template: structuredClone(template), quantity: count });
@@ -4100,6 +4281,10 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
   setShowMiniMap: (visible) => {
     if (typeof localStorage !== "undefined") localStorage.setItem(MINIMAP_VISIBLE_KEY, visible ? "1" : "0");
     set({ showMiniMap: visible });
+  },
+  setShowWarnings: (visible) => {
+    if (typeof localStorage !== "undefined") localStorage.setItem(SHOW_WARNINGS_KEY, visible ? "1" : "0");
+    set({ showWarnings: visible });
   },
   setGridSettings: (patch) => {
     set({ gridSettings: { ...get().gridSettings, ...patch } });
@@ -4402,6 +4587,25 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
     set({ layers: get().layers.map((l) => (l.id === id ? { ...l, color: color || undefined } : l)) });
     get().saveToLocalStorage();
   },
+
+  setLayerParent: (layerId, parentId) => {
+    if (layerId === DEFAULT_LAYER_ID) return; // the base layer is always a root
+    const layers = get().layers;
+    if (!layers.some((l) => l.id === layerId)) return;
+    // Normalize + validate the target parent.
+    const nextParent = parentId ?? undefined;
+    if (nextParent !== undefined) {
+      if (!layers.some((l) => l.id === nextParent)) return; // unknown parent
+      if (wouldCreateLayerCycle(layers, layerId, nextParent)) return; // self/descendant
+    }
+    set({
+      layers: layers.map((l) => (l.id === layerId ? { ...l, parentId: nextParent } : l)),
+    });
+    get().saveToLocalStorage();
+  },
+
+  isLayerEffectivelyHidden: (layerId) => isLayerEffectivelyHiddenIn(get().layers, layerId),
+  isLayerEffectivelyLocked: (layerId) => isLayerEffectivelyLockedIn(get().layers, layerId),
 
   // Per-item Layers/Groups view overrides — ephemeral (no persist, no undo).
   hiddenNodeIds: [],
@@ -4862,6 +5066,187 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
       pendingIncompatibleConnection: null,
     });
     get().saveToLocalStorage();
+  },
+
+  // ── Adapter-create flow ────────────────────────────────────────────────────
+  // The IncompatibleConnectionDialog's "+ Create adapter" opens the DeviceEditor
+  // prefilled as a two-port adapter. On Save the editor withdraws its provisional
+  // node (close()'s single-undo) and calls completeAdapterCreation(template), which
+  // delegates to insertAdapterBetween — so the real placed-and-wired adapter reuses
+  // the exact same insertion path as the auto-matched-adapter case.
+  beginAdapterCreation: (pending) => {
+    const state = get();
+    const src = state.nodes.find((n) => n.id === pending.connection.source);
+    const tgt = state.nodes.find((n) => n.id === pending.connection.target);
+    // Provisional placement only — insertAdapterBetween recomputes the true midpoint
+    // once the template is finalized, and the provisional node is withdrawn on save.
+    const provisionalPos = src && tgt
+      ? { x: Math.round((src.position.x + tgt.position.x) / 2), y: Math.round((src.position.y + tgt.position.y) / 2) }
+      : src ? { x: src.position.x, y: src.position.y } : { x: 0, y: 0 };
+    const adapterTemplate: DeviceTemplate = {
+      deviceType: "adapter",
+      category: "adapter",
+      label: `${pending.sourcePort.signalType} → ${pending.targetPort.signalType} adapter`,
+      ports: [
+        {
+          id: "in",
+          label: "In",
+          signalType: pending.sourcePort.signalType,
+          direction: "input",
+          ...(pending.sourcePort.connectorType ? { connectorType: pending.sourcePort.connectorType } : {}),
+        },
+        {
+          id: "out",
+          label: "Out",
+          signalType: pending.targetPort.signalType,
+          direction: "output",
+          ...(pending.targetPort.connectorType ? { connectorType: pending.targetPort.connectorType } : {}),
+        },
+      ],
+    };
+    set({ adapterCreationRequest: pending, pendingIncompatibleConnection: null });
+    get().createAndEditDevice(adapterTemplate, provisionalPos);
+  },
+
+  completeAdapterCreation: (template) => {
+    const req = get().adapterCreationRequest;
+    if (!req) return;
+    // Restore the pending connection insertAdapterBetween consumes, then delegate.
+    set({ adapterCreationRequest: null, pendingIncompatibleConnection: req });
+    get().insertAdapterBetween(template);
+  },
+
+  cancelAdapterCreation: () => set({ adapterCreationRequest: null }),
+
+  // ── Internal wiring (DeviceData.internalLinks; endpoints are port LABELS) ────
+  addInternalLink: (deviceId, link) => {
+    const state = get();
+    const node = state.nodes.find((n) => n.id === deviceId && n.type === "device");
+    if (!node) return;
+    const existing = (node.data as DeviceData).internalLinks ?? [];
+    if (existing.some((l) => l.from === link.from && l.to === link.to)) return; // idempotent
+    pushUndo({ nodes: state.nodes, edges: state.edges });
+    set({
+      nodes: state.nodes.map((n) =>
+        n.id === deviceId && n.type === "device"
+          ? ({
+              ...n,
+              data: { ...n.data, internalLinks: [...((n.data as DeviceData).internalLinks ?? []), link] },
+            } as DeviceNode)
+          : n,
+      ),
+    });
+    get().saveToLocalStorage();
+  },
+
+  removeInternalLink: (deviceId, link) => {
+    const state = get();
+    const node = state.nodes.find((n) => n.id === deviceId && n.type === "device");
+    if (!node) return;
+    const existing = (node.data as DeviceData).internalLinks ?? [];
+    if (!existing.some((l) => l.from === link.from && l.to === link.to)) return;
+    pushUndo({ nodes: state.nodes, edges: state.edges });
+    set({
+      nodes: state.nodes.map((n) => {
+        if (n.id !== deviceId || n.type !== "device") return n;
+        const links = ((n.data as DeviceData).internalLinks ?? []).filter(
+          (l) => !(l.from === link.from && l.to === link.to),
+        );
+        return {
+          ...n,
+          data: { ...n.data, internalLinks: links.length > 0 ? links : undefined },
+        } as DeviceNode;
+      }),
+    });
+    get().saveToLocalStorage();
+  },
+
+  // ── Multi-document project tabs (snapshot-swap; session-only, not serialized) ─
+  newDocument: (name) => {
+    // Seed the current live document as tab #1 if tabs haven't been used yet.
+    if (get().documents.length === 0) {
+      const seedId = crypto.randomUUID();
+      set({
+        documents: [{ id: seedId, name: get().schematicName, snapshot: get().exportToJSON() }],
+        activeDocumentId: seedId,
+      });
+    }
+    const docs = get().documents;
+    const activeId = get().activeDocumentId;
+    const liveSnapshot = get().exportToJSON();
+    const newId = crypto.randomUUID();
+    const docName = name?.trim() || `Untitled ${docs.length + 1}`;
+    const blank = createBlankSchematicFile(docName);
+    const nextDocs: ProjectDocument[] = [
+      ...docs.map((d) => (d.id === activeId ? { ...d, name: get().schematicName, snapshot: liveSnapshot } : d)),
+      { id: newId, name: docName, snapshot: blank },
+    ];
+    set({ documents: nextDocs, activeDocumentId: newId });
+    get().importFromJSON(blank);
+    set({ activeDocumentId: newId }); // importFromJSON leaves tab state untouched
+  },
+
+  switchDocument: (id) => {
+    if (get().documents.length === 0) {
+      const seedId = crypto.randomUUID();
+      set({
+        documents: [{ id: seedId, name: get().schematicName, snapshot: get().exportToJSON() }],
+        activeDocumentId: seedId,
+      });
+    }
+    const activeId = get().activeDocumentId;
+    if (id === activeId) return;
+    const target = get().documents.find((d) => d.id === id);
+    if (!target) return;
+    const liveSnapshot = get().exportToJSON();
+    const nextDocs = get().documents.map((d) =>
+      d.id === activeId ? { ...d, name: get().schematicName, snapshot: liveSnapshot } : d,
+    );
+    set({ documents: nextDocs, activeDocumentId: id });
+    get().importFromJSON(target.snapshot);
+    set({ activeDocumentId: id });
+  },
+
+  renameDocument: (id, name) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const docs = get().documents;
+    set({ documents: docs.map((d) => (d.id === id ? { ...d, name: trimmed } : d)) });
+    if (docs.length === 0 || id === get().activeDocumentId) {
+      set({ schematicName: trimmed });
+      get().saveToLocalStorage();
+    }
+  },
+
+  closeDocument: (id) => {
+    if (get().documents.length === 0) {
+      const seedId = crypto.randomUUID();
+      set({
+        documents: [{ id: seedId, name: get().schematicName, snapshot: get().exportToJSON() }],
+        activeDocumentId: seedId,
+      });
+    }
+    const docs = get().documents;
+    if (docs.length <= 1) return; // never close the last tab
+    const idx = docs.findIndex((d) => d.id === id);
+    if (idx === -1) return;
+    const remaining = docs.filter((d) => d.id !== id);
+    if (id === get().activeDocumentId) {
+      const neighbour = remaining[Math.min(idx, remaining.length - 1)];
+      set({ documents: remaining, activeDocumentId: neighbour.id });
+      get().importFromJSON(neighbour.snapshot);
+      set({ activeDocumentId: neighbour.id });
+    } else {
+      set({ documents: remaining });
+    }
+  },
+
+  listDocuments: () => {
+    const { documents, activeDocumentId, schematicName } = get();
+    if (documents.length === 0) {
+      return [{ id: activeDocumentId || "__active__", name: schematicName }];
+    }
+    return documents.map((d) => ({ id: d.id, name: d.id === activeDocumentId ? schematicName : d.name }));
   },
 
   setPrintView: (v) => { set({ printView: v }); },

@@ -147,6 +147,130 @@ function newPortDraft(direction: PortDirection): PortDraft {
 
 const MIME = "application/easyschematic-port";
 
+/** Internal wiring — echoes the violet AES token used by the node's internal-link pip. */
+const INTERNAL_LINK_COLOR = "var(--color-aes)";
+
+interface InternalWiringPanelProps {
+  /** The node id being edited — internal links are stored on this device's data. */
+  deviceId: string;
+  /** Distinct, non-empty port LABELS the editor is currently building. */
+  portLabels: string[];
+  /** Existing internal links (endpoints are port labels). */
+  links: { from: string; to: string }[];
+  onAdd: (link: { from: string; to: string }) => void;
+  onRemove: (link: { from: string; to: string }) => void;
+}
+
+/** Intra-device routing editor: lists the device's internal links (Port → Port) and
+ *  offers a From/To picker to add one. Endpoints are port labels; changes commit
+ *  straight to the store (undoable) rather than through the editor's Save. */
+function InternalWiringPanel({ deviceId, portLabels, links, onAdd, onRemove }: InternalWiringPanelProps) {
+  const [fromLabel, setFromLabel] = useState("");
+  const [toLabel, setToLabel] = useState("");
+
+  const isDuplicate = links.some((l) => l.from === fromLabel && l.to === toLabel);
+  const canAdd = fromLabel !== "" && toLabel !== "" && fromLabel !== toLabel && !isDuplicate;
+
+  const handleAdd = () => {
+    if (!canAdd) return;
+    onAdd({ from: fromLabel, to: toLabel });
+    setToLabel("");
+  };
+
+  return (
+    <div className="border-t border-[var(--ui-border)] pt-3 flex flex-col gap-2">
+      <div className="flex items-center gap-2">
+        <span
+          className="w-[6px] h-[6px] rounded-full flex-none"
+          style={{ background: INTERNAL_LINK_COLOR }}
+        />
+        <span
+          className="text-[9px] tracking-[0.13em] uppercase text-[var(--color-text-muted)]"
+          style={{ fontFamily: "var(--font-mono)" }}
+        >
+          Internal wiring
+        </span>
+      </div>
+      <p className="text-[10px] text-[var(--color-text-muted)] leading-[1.4]">
+        Route a signal internally between two of this device&rsquo;s ports (e.g. a
+        loop-through or normalled jack).
+      </p>
+
+      {links.length > 0 ? (
+        <div className="flex flex-col gap-1">
+          {links.map((link) => (
+            <div
+              key={`${link.from}→${link.to}`}
+              className="flex items-center gap-1.5 text-[11px] px-2 py-1 rounded border border-[var(--ui-border)] bg-[var(--color-surface-raised)]"
+            >
+              <span className="truncate text-[var(--color-text)]" title={link.from}>{link.from}</span>
+              <span className="flex-none" style={{ color: INTERNAL_LINK_COLOR }}>&rarr;</span>
+              <span className="truncate text-[var(--color-text)]" title={link.to}>{link.to}</span>
+              <button
+                type="button"
+                onClick={() => onRemove(link)}
+                title={`Remove internal link ${link.from} → ${link.to}`}
+                aria-label={`Remove internal link ${link.from} → ${link.to}`}
+                className="ml-auto flex-none w-4 h-4 leading-none rounded text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-hover)] cursor-pointer"
+              >
+                &times;
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="text-[10px] italic text-[var(--color-text-muted)] px-1">
+          No internal links yet.
+        </div>
+      )}
+
+      {portLabels.length >= 2 ? (
+        <div className="flex flex-col gap-1.5 mt-0.5" data-internal-wiring-add={deviceId}>
+          <div className="flex items-center gap-1.5">
+            <select
+              value={fromLabel}
+              onChange={(e) => setFromLabel(e.target.value)}
+              onKeyDown={(e) => e.stopPropagation()}
+              aria-label="Internal link from port"
+              className="ui-input flex-1 min-w-0 h-[26px] text-[11px]"
+            >
+              <option value="">From port…</option>
+              {portLabels.map((lbl) => (
+                <option key={lbl} value={lbl}>{lbl}</option>
+              ))}
+            </select>
+            <span className="flex-none text-[11px]" style={{ color: INTERNAL_LINK_COLOR }}>&rarr;</span>
+            <select
+              value={toLabel}
+              onChange={(e) => setToLabel(e.target.value)}
+              onKeyDown={(e) => e.stopPropagation()}
+              aria-label="Internal link to port"
+              className="ui-input flex-1 min-w-0 h-[26px] text-[11px]"
+            >
+              <option value="">To port…</option>
+              {portLabels.map((lbl) => (
+                <option key={lbl} value={lbl} disabled={lbl === fromLabel}>{lbl}</option>
+              ))}
+            </select>
+          </div>
+          <button
+            type="button"
+            onClick={handleAdd}
+            disabled={!canAdd}
+            className="ui-btn ui-btn-secondary text-[11px] h-[26px] disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {isDuplicate ? "Link already exists" : "Add internal link"}
+          </button>
+        </div>
+      ) : (
+        <div className="text-[10px] italic text-[var(--color-text-muted)] px-1">
+          Add at least two named ports to wire them internally.
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function DeviceEditor() {
   const editingNodeId = useSchematicStore((s) => s.editingNodeId);
   const nodes = useSchematicStore((s) => s.nodes);
@@ -176,6 +300,11 @@ export default function DeviceEditor() {
   const addOwnedGear = useSchematicStore((s) => s.addOwnedGear);
   const addDevices = useSchematicStore((s) => s.addDevices);
   const reparentNode = useSchematicStore((s) => s.reparentNode);
+  const adapterCreationRequest = useSchematicStore((s) => s.adapterCreationRequest);
+  const completeAdapterCreation = useSchematicStore((s) => s.completeAdapterCreation);
+  const cancelAdapterCreation = useSchematicStore((s) => s.cancelAdapterCreation);
+  const addInternalLink = useSchematicStore((s) => s.addInternalLink);
+  const removeInternalLink = useSchematicStore((s) => s.removeInternalLink);
 
   const node = nodes.find((n) => n.id === editingNodeId && n.type === "device") as DeviceNode | undefined;
 
@@ -494,6 +623,18 @@ export default function DeviceEditor() {
   const handleSave = useCallback(() => {
     if (!editingNodeId) return;
 
+    // Adapter-create mode: the editor is building a two-port adapter to bridge an
+    // incompatible connection. Snapshot the template, withdraw the provisional node
+    // via close()'s single-undo cancel path, then hand off to the store — which
+    // restores the pending connection and inserts the real placed-and-wired adapter
+    // (net one undo entry). Branch BEFORE the normal device-save path.
+    if (adapterCreationRequest) {
+      const template = buildTemplate();
+      close();
+      completeAdapterCreation(template);
+      return;
+    }
+
     const isCreating = creatingNodeId !== null && creatingNodeId === editingNodeId;
 
     if (isCreating && pendingQuickCreate && !pendingQuickCreate.placeOnSave) {
@@ -579,7 +720,13 @@ export default function DeviceEditor() {
       ...(integratedWithCable ? { integratedWithCable: true } : {}),
       ...(isVenueProvided ? { isVenueProvided: true } : {}),
       ...(adapterVisibility !== "default" ? { adapterVisibility } : {}),
-      ...(existing?.baseLabel ? { baseLabel: existing.baseLabel } : {}),
+      // baseLabel is the auto-numbering base + the inventory-key grouping slot. Preserve it ONLY
+      // when the name is unchanged; if the user renamed the device here, a stale base (e.g. the
+      // "New Device" creator default) must be dropped, or My Devices / the cable schedule would
+      // group and LABEL the device by the old name instead of what the user just typed.
+      ...(existing?.baseLabel && label.trim() === (existing.label ?? "").trim()
+        ? { baseLabel: existing.baseLabel }
+        : {}),
       ...(existing?.slots ? { slots: existing.slots } : {}),
       ...((() => {
         const trimmed = trimTrailingEmpty(auxiliaryData);
@@ -625,7 +772,14 @@ export default function DeviceEditor() {
     }
     setCreatingNodeId(null); // commit the node — close won't undo it
     close();
-  }, [editingNodeId, ports, label, shortName, artworkAssetId, useShortName, wrapLabel, hostname, deviceType, manufacturer, modelNumber, referenceUrl, category, serialNumber, note, isSpare, procurementSource, tags, color, headerColor, node, updateDevice, recordSuggestions, close, setCreatingNodeId, showAllPorts, hiddenPorts, dhcpServer, powerDrawW, powerCapacityW, voltage, thermalBtuh, poeBudgetW, poeDrawW, unitCost, heightMm, widthMm, depthMm, weightKg, isCableAccessory, integratedWithCable, isVenueProvided, adapterVisibility, speakerSensitivityDb, speakerMaxPowerW, speakerCoverageAngleDeg, auxiliaryData, searchTermsRaw, creatingNodeId, pendingQuickCreate, createAddToOwned, buildTemplate, addCustomTemplate, addOwnedGear, addDevices, reparentNode]);
+  }, [editingNodeId, ports, label, shortName, artworkAssetId, useShortName, wrapLabel, hostname, deviceType, manufacturer, modelNumber, referenceUrl, category, serialNumber, note, isSpare, procurementSource, tags, color, headerColor, node, updateDevice, recordSuggestions, close, setCreatingNodeId, showAllPorts, hiddenPorts, dhcpServer, powerDrawW, powerCapacityW, voltage, thermalBtuh, poeBudgetW, poeDrawW, unitCost, heightMm, widthMm, depthMm, weightKg, isCableAccessory, integratedWithCable, isVenueProvided, adapterVisibility, speakerSensitivityDb, speakerMaxPowerW, speakerCoverageAngleDeg, auxiliaryData, searchTermsRaw, creatingNodeId, pendingQuickCreate, createAddToOwned, buildTemplate, addCustomTemplate, addOwnedGear, addDevices, reparentNode, adapterCreationRequest, completeAdapterCreation]);
+
+  // Cancel/Library: in adapter-create mode, abandon the request first (clears
+  // adapterCreationRequest without inserting), then run the normal close/withdraw.
+  const handleCancel = useCallback(() => {
+    if (adapterCreationRequest) cancelAdapterCreation();
+    close();
+  }, [adapterCreationRequest, cancelAdapterCreation, close]);
 
   // Ctrl+Enter anywhere in the editor → Apply & Close
   const onCtrlEnter = useCallback((e: React.KeyboardEvent) => {
@@ -1049,6 +1203,25 @@ export default function DeviceEditor() {
   const outCount = ports.filter((p) => p.direction === "output").length;
   const selectedPort = ports.find((p) => p.id === selectedPortId);
 
+  // Internal-wiring endpoints are port LABELS — offer the distinct, non-empty labels
+  // the editor is currently building (in list order). Cheap derived value; this sits
+  // below the component's early returns, so it must not be a hook.
+  const internalPortLabels = ((): string[] => {
+    const seen = new Set<string>();
+    const labels: string[] = [];
+    for (const p of ports) {
+      const label = p.label.trim();
+      if (label && !seen.has(label)) {
+        seen.add(label);
+        labels.push(label);
+      }
+    }
+    return labels;
+  })();
+  // Links live on the store node (addInternalLink/removeInternalLink write there
+  // directly and undoably), so read them straight from node.data — not local state.
+  const internalLinks = node?.data.internalLinks ?? [];
+
   // Live preview rows: outputs are right-justified, everything else left.
   const previewName = label.trim() || "Untitled";
   const previewCategory = (category.trim() || deviceType.trim() || "device").toUpperCase();
@@ -1072,7 +1245,7 @@ export default function DeviceEditor() {
       {/* ── Header (50px) ── */}
       <header className="h-[50px] flex-none flex items-center gap-3 px-4 bg-[var(--color-surface)] border-b border-[var(--ui-border)]">
         <button
-          onClick={close}
+          onClick={handleCancel}
           className="flex items-center gap-1.5 h-[30px] pl-2 pr-2.5 bg-transparent border border-[var(--ui-border)] rounded-lg cursor-pointer text-[var(--color-text)] text-[11.5px] font-medium hover:bg-[var(--color-surface-hover)] transition-colors"
           title="Back to library — discard or keep your changes via Cancel/Done"
         >
@@ -1119,8 +1292,10 @@ export default function DeviceEditor() {
               {templateId && customTemplates.some((t) => t.id === templateId) ? "User template" : "Editing device"}
             </span>
           )}
-          <button onClick={close} className="ui-btn ui-btn-secondary h-[30px] text-[11.5px]">Cancel</button>
-          <button onClick={handleSave} className="ui-btn ui-btn-primary h-[30px] text-[11.5px]">Done</button>
+          <button onClick={handleCancel} className="ui-btn ui-btn-secondary h-[30px] text-[11.5px]">Cancel</button>
+          <button onClick={handleSave} className="ui-btn ui-btn-primary h-[30px] text-[11.5px]">
+            {adapterCreationRequest ? "Create Adapter" : "Done"}
+          </button>
         </div>
       </header>
 
@@ -2027,6 +2202,15 @@ export default function DeviceEditor() {
                 dropTarget={dropTarget}
                 setDropTarget={setDropTarget}
                 onDragEnd={handleDragEnd}
+              />
+            )}
+            {editingNodeId && (
+              <InternalWiringPanel
+                deviceId={editingNodeId}
+                portLabels={internalPortLabels}
+                links={internalLinks}
+                onAdd={(link) => addInternalLink(editingNodeId, link)}
+                onRemove={(link) => removeInternalLink(editingNodeId, link)}
               />
             )}
           </div>

@@ -122,9 +122,13 @@ export default function EditorTopBar() {
   const uiScale = useSchematicStore((s) => s.uiScale);
   const setUiScale = useSchematicStore((s) => s.setUiScale);
   const reduceMotion = useSchematicStore((s) => s.reduceMotion);
+  const showWarnings = useSchematicStore((s) => s.showWarnings);
   const rfInstance = useReactFlow();
 
-  const issues = useMemo(() => countIssues(validateSchematic(nodes, edges)), [nodes, edges]);
+  // Warnings are opt-in (View ▸ Show warnings). When off, only errors surface in the pill;
+  // a warning-only document reads as "Clean" and the pill stays quiet.
+  const rawIssues = useMemo(() => countIssues(validateSchematic(nodes, edges)), [nodes, edges]);
+  const issues = showWarnings ? rawIssues : { ...rawIssues, warnings: 0 };
 
   // ── Health pill wording ───────────────────────────────────────────────────
   // The dot's meaning is always spelled out: the count line states the tally and
@@ -237,7 +241,7 @@ export default function EditorTopBar() {
       {/* ── Desktop unified bar ──────────────────────────────────────────── */}
       <header className="relative hidden md:flex items-center h-[46px] px-3 gap-3 bg-[var(--color-surface)] border-b border-[var(--ui-border)] select-none">
         {/* Left cluster */}
-        <div className="flex items-center gap-2.5 min-w-0">
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
           <span className="relative w-[26px] h-[26px] rounded-md bg-[var(--color-surface-raised)] border border-[var(--ui-border)] flex items-center justify-center shrink-0">
             <span className="absolute left-0 top-[5px] bottom-[5px] w-[2.5px] rounded bg-[var(--color-accent)]" />
             <img src="/favicon.svg" className="w-3.5 h-3.5" alt="" />
@@ -287,16 +291,17 @@ export default function EditorTopBar() {
           {/* ⌘K launcher */}
           <button
             onClick={() => fire("easyschematic:open-command-palette")}
-            className="ml-1 flex items-center gap-2 h-7 px-2.5 rounded-md bg-[var(--color-bg)] border border-[var(--ui-border)] text-[var(--color-text-muted)] hover:border-[var(--ui-border-strong)] transition-colors cursor-pointer min-w-[150px] lg:min-w-[190px]"
+            title="Search or run a command (⌘K)"
+            className="ml-1 flex items-center gap-2 h-7 px-2.5 rounded-md bg-[var(--color-bg)] border border-[var(--ui-border)] text-[var(--color-text-muted)] hover:border-[var(--ui-border-strong)] transition-colors cursor-pointer shrink min-w-0 lg:min-w-[190px]"
             style={{ fontSize: "11.5px" }}
           >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" className="shrink-0">
               <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="1.6" />
               <path d="M21 21l-4-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
             </svg>
-            <span>Search or run a command</span>
+            <span className="hidden lg:inline truncate">Search or run a command</span>
             <span
-              className="ml-auto px-1.5 py-px rounded border border-[var(--ui-border)]"
+              className="ml-auto hidden lg:inline px-1.5 py-px rounded border border-[var(--ui-border)]"
               style={{ fontFamily: "var(--font-mono)", fontSize: "9.5px" }}
             >
               ⌘K
@@ -304,15 +309,16 @@ export default function EditorTopBar() {
           </button>
         </div>
 
-        {/* Center: persona switcher */}
-        <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-0.5 p-[3px] rounded-lg bg-[var(--color-bg)] border border-[var(--ui-border)]">
+        {/* Center: persona switcher — in normal flow (never overlaps), icon-only when cramped */}
+        <div className="flex items-center gap-0.5 p-[3px] rounded-lg bg-[var(--color-bg)] border border-[var(--ui-border)] shrink-0">
           {PERSONAS.map((p) => {
             const active = persona === p.key;
             return (
               <button
                 key={p.key}
                 onClick={() => goPersona(p.key)}
-                className={`relative flex items-center gap-1.5 h-7 px-3 rounded-md text-[11.5px] font-medium transition-colors cursor-pointer ${
+                title={p.label}
+                className={`relative flex items-center gap-1.5 h-7 px-2.5 lg:px-3 rounded-md text-[11.5px] font-medium transition-colors cursor-pointer ${
                   active
                     ? "text-[var(--color-text-heading)]"
                     : "text-[var(--color-text)] hover:text-[var(--color-text-heading)]"
@@ -328,15 +334,18 @@ export default function EditorTopBar() {
                 }
               >
                 {p.icon}
-                <span>{p.label}</span>
+                <span className="hidden lg:inline">{p.label}</span>
               </button>
             );
           })}
         </div>
 
         {/* Right cluster */}
-        <div className="ml-auto flex items-center gap-2">
-          {/* Health pill — status over a "Validation" caption, plus a severity tag */}
+        <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
+          {/* Health pill — only shown when there is an error, or when the user has opted into
+              warnings (View ▸ Show warnings). With warnings off and no errors, the entire
+              validation pill (including the "all good" state) is hidden — no validation chrome. */}
+          {(showWarnings || errors > 0) && (
           <button
             onClick={() => fire("easyschematic:show-validate")}
             title="Document health — click to view validation issues"
@@ -373,6 +382,7 @@ export default function EditorTopBar() {
               </span>
             </span>
           </button>
+          )}
 
           {/* Interface scale */}
           <div ref={scaleRef} className="relative">

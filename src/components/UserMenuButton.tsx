@@ -65,7 +65,7 @@ export default function UserMenuButton() {
       <>
         <button
           onClick={() => setShowLogin(true)}
-          className="px-3 py-1.5 text-xs text-[var(--color-text)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-heading)] rounded transition-colors cursor-pointer"
+          className="shrink-0 whitespace-nowrap px-3 py-1.5 text-xs text-[var(--color-text)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-heading)] rounded transition-colors cursor-pointer"
         >
           Log in
         </button>
