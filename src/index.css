@@ -21,20 +21,11 @@
 .dark .text-gray-400 { color: var(--color-text-muted) !important; }
 .dark .text-gray-300 { color: var(--color-border) !important; }
 
-@font-face {
-  font-family: 'Inter';
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-  src: url('/fonts/Inter-Regular.ttf') format('truetype');
-}
-@font-face {
-  font-family: 'Inter';
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-  src: url('/fonts/Inter-Bold.ttf') format('truetype');
-}
+/* UI faces (board 5g): Jost default + IBM Plex Sans + Public Sans, all self-hosted
+   variable woff2. The interface font preference swaps --font-ui only (numerics, IDs
+   and .lab labels stay IBM Plex Mono in every option). NOTE: /fonts/Inter-*.ttf stay
+   on disk — the UI no longer declares Inter, but the PDF exporters (rackPdf/reportPdf)
+   embed those files into generated documents. */
 @font-face {
   /* Jost — geometric UI face for v3 "Currents". One variable file covers weights 300–800. */
   font-family: 'Jost';
@@ -42,6 +33,20 @@
   font-style: normal;
   font-display: swap;
   src: url('/fonts/Jost.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-weight: 100 700;
+  font-style: normal;
+  font-display: swap;
+  src: url('/fonts/IBMPlexSans.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Public Sans';
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  src: url('/fonts/PublicSans.woff2') format('woff2');
 }
 
 html, body, #root {
@@ -198,11 +203,13 @@ html, body, #root {
 }
 
 .ui-btn-danger {
-  background: #dc2626;
-  color: #ffffff;
+  background: var(--color-error);
+  color: var(--color-on-error);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--color-error) 25%, transparent);
 }
 .ui-btn-danger:hover:not(:disabled) {
-  background: #b91c1c;
+  background: color-mix(in srgb, var(--color-error) 85%, #000000);
+  box-shadow: 0 4px 12px -3px color-mix(in srgb, var(--color-error) 45%, transparent);
 }
 
 /* ===== Motion primitives ===== */
@@ -285,41 +292,11 @@ html, body, #root {
 .react-flow.tool-pan .react-flow__pane { cursor: grab; }
 .react-flow.tool-pan .react-flow__pane:active { cursor: grabbing; }
 
-/* On-canvas validation status: a corner dot on devices flagged by the validation engine
-   (same source as the top-bar warnings badge + Validate rail tab). */
-.react-flow__node.node-error::after,
-.react-flow__node.node-warning::after {
-  content: "";
-  position: absolute;
-  top: -5px;
-  right: -5px;
-  width: 10px;
-  height: 10px;
-  box-shadow: 0 0 0 2px var(--color-bg);
-  pointer-events: none;
-  z-index: 6;
-  animation: ui-fade-in 0.18s var(--ui-ease) both;
-}
-
-/* Severity reads by SHAPE first and colour second — round dot for warning, diamond
-   for error — so the two stay tellable apart without colour vision. The wording lives
-   on the Validate tab; the canvas marker stays glyph-free at this size. */
-.react-flow__node.node-warning::after {
-  border-radius: 9999px;
-  background: var(--color-warning);
-}
-/* Rotation is about the square's own centre, so the diamond still hangs off the
-   device's top-right corner. 9px (not 10) because the 45° diagonal spans ~12.7px —
-   that keeps its visual weight level with the warning dot. */
-.react-flow__node.node-error::after {
-  width: 9px;
-  height: 9px;
-  top: -4.5px;
-  right: -4.5px;
-  border-radius: 2px;
-  transform: rotate(45deg);
-  background: var(--color-error);
-}
+/* On-canvas validation status is carried by the in-header status dot inside DeviceNode
+   (the v7 spec), NOT a corner badge. The old node-error/node-warning ::after dot hung off
+   the top-right corner straddling the border (round-3 R5e; Glen: "remove the brown blob") —
+   removed so the node reads clean and status lives in one place. The severity classes are
+   still applied (harmless) in case a future non-corner treatment wants them. */
 
 /* ===== Device-node states (most-seen object — keep conservative) =====
    React Flow's default selected/hover box-shadow is scoped to its built-in node
@@ -638,4 +615,86 @@ html, body, #root {
   .react-flow__controls {
     display: none !important;
   }
+}
+
+/* Device artwork chip — the inner vector fills ~66% of the chip and inherits currentColor
+   (library symbols and sanitized uploads are viewBox-only, so they scale cleanly). */
+.artwork-chip svg {
+  width: 66%;
+  height: 66%;
+  display: block;
+}
+
+/* ===== Adaptive layout (round-3 §R2) =====
+   Tiers are stamped on <html data-tier="desktop|tablet|phone"> by useLayoutTier;
+   `.touch-device` is stamped when the pointer is coarse. Nothing here HIDES a
+   feature — the rules only re-compose chrome and widen hit targets. */
+
+/* Tier B + C: cap every shared dialog at 92vw so nothing overflows a narrow viewport. */
+:root[data-tier="tablet"] .ui-dialog,
+:root[data-tier="phone"] .ui-dialog {
+  max-width: 92vw;
+}
+
+/* Tier C: dialogs grow to a near-full-screen sheet; the 3-column Device Editor body
+   stacks into a single scrolling column (board 1d). No horizontal scroll at any point. */
+:root[data-tier="phone"] .ui-dialog {
+  width: min(94vw, 680px);
+  max-width: 94vw;
+  max-height: 92vh;
+}
+:root[data-tier="phone"] .ui-dialog-backdrop {
+  padding: 0;
+}
+:root[data-tier="phone"] .device-editor-shell .de-body {
+  flex-direction: column;
+  overflow-y: auto;
+}
+:root[data-tier="phone"] .device-editor-shell .de-body > aside,
+:root[data-tier="phone"] .device-editor-shell .de-body > div {
+  width: 100% !important;
+  flex: none !important;
+  border-right: none !important;
+  border-bottom: 1px solid var(--ui-border);
+}
+
+/* The mobile inspector sheet hosts the full RightRail; strip its fixed width +
+   left border so it fills the sheet. */
+.mobile-sheet-railwrap > * {
+  width: 100% !important;
+  border-left: none !important;
+}
+
+/* Touch: widen port-handle hit targets to 44px via the pseudo-element ONLY, so the
+   handle element's own box (which React Flow measures for edge anchoring) and its
+   visual 9px glyph are both unchanged. */
+.touch-device .react-flow__handle::after {
+  width: 44px;
+  height: 44px;
+}
+
+/* Tier B/C Schedule: give the cable grid a min-width so it scrolls horizontally in
+   its overflow-auto container, and pin the first column while scrolling (board 1f). */
+:root[data-tier="tablet"] .schedule-table,
+:root[data-tier="phone"] .schedule-table {
+  min-width: 720px;
+}
+:root[data-tier="tablet"] .schedule-table th:first-child,
+:root[data-tier="tablet"] .schedule-table td:first-child,
+:root[data-tier="phone"] .schedule-table th:first-child,
+:root[data-tier="phone"] .schedule-table td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--color-surface);
+}
+
+/* Touch input hygiene — kill the 300ms tap delay + grey tap flash on controls. */
+.touch-device button,
+.touch-device a,
+.touch-device [role="button"],
+.touch-device .ui-btn,
+.touch-device .ui-input {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }

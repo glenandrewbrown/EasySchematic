@@ -93,10 +93,12 @@ function TabButton({
       {label}
       {badge != null && badge > 0 && (
         <span
-          className={`inline-flex items-center justify-center min-w-[15px] h-[15px] px-1 rounded text-[9px] font-bold text-white ${
-            badgeTone === "error" ? "bg-red-500" : "bg-amber-500"
-          }`}
-          style={MONO_STYLE}
+          className="inline-flex items-center justify-center min-w-[15px] h-[15px] px-1 rounded text-[9px] font-bold"
+          style={{
+            ...MONO_STYLE,
+            color: badgeTone === "error" ? "var(--color-error)" : "var(--color-warning)",
+            background: `color-mix(in srgb, ${badgeTone === "error" ? "var(--color-error)" : "var(--color-warning)"} 18%, transparent)`,
+          }}
         >
           {badge}
         </span>
@@ -113,6 +115,7 @@ export default function RightRail() {
   const dismissedIssueIds = useSchematicStore((s) => s.dismissedIssueIds);
   const dismissIssue = useSchematicStore((s) => s.dismissIssue);
   const undismissIssue = useSchematicStore((s) => s.undismissIssue);
+  const showWarnings = useSchematicStore((s) => s.showWarnings);
   const cableNamingScheme = useSchematicStore((s) => s.cableNamingScheme);
   const roomDistances = useSchematicStore((s) => s.roomDistances);
   const distanceSettings = useSchematicStore((s) => s.distanceSettings);
@@ -253,7 +256,7 @@ export default function RightRail() {
           label="Issues"
           active={tab}
           onSelect={setTab}
-          badge={counts.total}
+          badge={showWarnings ? counts.total : counts.errors}
           badgeTone={counts.errors > 0 ? "error" : "warning"}
         />
         <TabButton
@@ -281,7 +284,10 @@ export default function RightRail() {
             <span>View</span>
           </button>
           {viewOpen && (
-            <div className="absolute right-2 top-12 z-30 w-72 max-h-[70vh] overflow-y-auto rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_14px_38px_-22px_rgba(0,0,0,.9)]">
+            <div
+              className="absolute right-2 top-12 z-30 w-72 max-h-[70vh] overflow-y-auto rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)]"
+              style={{ boxShadow: "var(--ui-shadow-menu)" }}
+            >
               <ViewOptionsPanel mobile onClose={() => setViewOpen(false)} />
               <div className="border-t border-[var(--ui-border)]">
                 <ShowInfoPanel mobile onClose={() => setViewOpen(false)} />

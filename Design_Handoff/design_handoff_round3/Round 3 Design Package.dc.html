@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics><meta name="design_doc_mode" content="canvas"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous"><link href="https://fonts.googleapis.com/css2?family=Jost:wght@300..800&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=Public+Sans:wght@400;500;600&amp;display=swap" rel="stylesheet"><style>
+body{margin:0;background:#dfe4ec;font-family:Jost,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#1664c8}a:hover{color:#1155ac}
+.dv-turn{padding:40px 44px 32px;border-bottom:1px solid rgba(0,0,0,.08);scroll-margin-top:16px}
+.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 20px}
+.dv-tid{font:600 10px "IBM Plex Mono",monospace;padding:3px 7px;background:#11151b;color:#fff;border-radius:4px;text-decoration:none}
+.dv-tname{font:600 15px/1.2 Jost,sans-serif;color:#11151b;letter-spacing:.01em}
+.dv-tsub{font:400 11.5px Jost,sans-serif;color:#586273}
+.dv-opts{display:flex;flex-wrap:wrap;gap:30px;align-items:flex-start}
+.dv-opt{flex:none;display:flex;flex-direction:column;gap:9px;scroll-margin-top:16px}
+.dv-oid{font:600 10.5px "IBM Plex Mono",monospace;padding:3px 7px;background:rgba(0,0,0,.1);color:#11151b;border-radius:5px;text-decoration:none}
+.dv-olabel{display:flex;align-items:baseline;gap:8px;font:500 11.5px/1.3 Jost,sans-serif;color:#343c47}
+.dv-card{max-width:100%;background:#fff;border:1px solid rgba(0,0,0,.1);border-radius:10px;box-shadow:0 1px 3px rgba(20,25,40,.08),0 8px 24px -18px rgba(20,25,40,.25);overflow:hidden}
+.dv-notes{max-width:100%;font:400 10.5px/1.55 Jost,sans-serif;color:#4a5462;background:rgba(255,255,255,.55);border:1px dashed rgba(0,0,0,.14);border-radius:8px;padding:8px 11px;margin:0}
+.dv-notes b{color:#11151b;font-weight:600}
+.dv-notes code,.dv-card code{font:500 9.5px "IBM Plex Mono",monospace;background:rgba(17,21,27,.06);padding:1px 4px;border-radius:3px;color:#11151b}
+.dv-opt:target .dv-oid{background:#1664c8;color:#fff}
+.dv-next{margin:22px 0 0;font:12px/1.5 Jost,sans-serif;color:rgba(0,0,0,.5)}
+@keyframes r3flow{to{stroke-dashoffset:-72}}
+@keyframes r3flowrev{to{stroke-dashoffset:72}}
+@keyframes r3glow{0%,100%{box-shadow:0 0 0 0 transparent}50%{box-shadow:0 0 7px 1.5px var(--g,transparent)}}
+@media (prefers-reduced-motion: reduce){*{animation:none !important}}
+</style></helmet>
+
+<section class="dv-turn" id="t0" data-screen-label="0 · Package overview">
+<div class="dv-thd"><a class="dv-tid" href="#t0">0</a><span class="dv-tname">Round 3 Design Package — EasySchematic</span><span class="dv-tsub">Companion to RED-LINES.md · GAP-AUDIT.md · PATCH-PLAN-2.md · v7 prototype remains the pixel spec</span></div>
+<div class="dv-opts">
+<div class="dv-opt" id="0a"><div class="dv-olabel"><a class="dv-oid" href="#0a">0a</a>Scope, decisions applied, index</div>
+<div class="dv-card" style="width:700px;padding:24px 28px;">
+  <div style="display:flex;gap:24px;">
+    <div style="flex:1;">
+      <div style="font:600 18px Jost;color:#11151b;margin-bottom:6px;">What this package is</div>
+      <div style="font:400 12.5px/1.6 Jost;color:#343c47;">Visual + technical designs for every open item from Glen's 2026-07-17 review. Each board carries the <b>look</b> (hi-fi mock) and the <b>build spec</b> (values, tokens, behaviors) so it can be integrated without interpretation. Boards are referenceable by id (<code>1a</code>, <code>2b</code>…) from chat and from the markdown pack.</div>
+      <div style="font:600 11px 'IBM Plex Mono';letter-spacing:.12em;color:#586273;margin:16px 0 6px;">DECISIONS APPLIED (GLEN, 07-17)</div>
+      <div style="display:flex;flex-direction:column;gap:5px;font:400 12px/1.45 Jost;color:#343c47;">
+        <div style="display:flex;gap:8px;"><span style="color:#188a64;font-weight:600;">✓</span><span><b>Theme default follows the OS</b> (<code>prefers-color-scheme</code>); manual toggle persists.</span></div>
+        <div style="display:flex;gap:8px;"><span style="color:#188a64;font-weight:600;">✓</span><span><b>Per-workspace accents stay</b> (azure / teal / amber / violet personas — see <a href="#5b">5b</a>).</span></div>
+        <div style="display:flex;gap:8px;"><span style="color:#188a64;font-weight:600;">✓</span><span><b>Idle port glow stays and means connector type</b> — the halo hue is always the port's signal colour (see <a href="#2b">2b</a>).</span></div>
+      </div>
+    </div>
+    <div style="width:250px;flex:none;border-left:1px solid #e4e8ee;padding-left:22px;">
+      <div style="font:600 11px 'IBM Plex Mono';letter-spacing:.12em;color:#586273;margin-bottom:8px;">INDEX</div>
+      <div style="display:flex;flex-direction:column;gap:7px;font:500 12px Jost;color:#11151b;">
+        <a href="#t1" style="text-decoration:none;color:#1664c8;">1 · Responsive system (phone + tablet)</a>
+        <a href="#t2" style="text-decoration:none;color:#1664c8;">2 · Device node &amp; connectors</a>
+        <a href="#t3" style="text-decoration:none;color:#1664c8;">3 · Artwork system (no emoji)</a>
+        <a href="#t4" style="text-decoration:none;color:#1664c8;">4 · Search → Create flow</a>
+        <a href="#t5" style="text-decoration:none;color:#1664c8;">5 · Design system reference</a>
+      </div>
+      <div style="font:400 10.5px/1.5 Jost;color:#586273;margin-top:14px;">Signal-flow direction fix is specified visually in <a href="#2d">2d</a>; the code-level root cause is in RED-LINES §R1.</div>
+    </div>
+  </div>
+</div></div>
+</div>
+</section>
+
+<section class="dv-turn" id="t1" data-screen-label="1 · Responsive system">
+<div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">Responsive system — the app on any screen</span><span class="dv-tsub">Replaces MobileGate. Three tiers: A ≥1140 (today) · B 768–1139 (tablet) · C &lt;768 (phone). Same document, same features — recomposed, never removed.</span></div>
+<div class="dv-opts">
+
+<div class="dv-opt" id="1a"><div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a>Phone · Schematic workspace — 390×844</div>
+<div class="dv-card" style="width:390px;height:844px;border-radius:34px;position:relative;background:#e7ebf1;">
+  <!-- top bar -->
+  <div style="position:absolute;top:0;left:0;right:0;height:48px;background:#ffffff;border-bottom:1px solid #c9d1db;display:flex;align-items:center;gap:10px;padding:0 12px;z-index:5;">
+    <div style="width:26px;height:26px;border-radius:7px;background:#11151b;position:relative;flex:none;"><span style="position:absolute;left:4px;top:4px;bottom:4px;width:3px;border-radius:2px;background:#1664c8;"></span><span style="position:absolute;right:5px;top:8px;width:10px;height:10px;border:2px solid #fff;border-radius:50%;"></span></div>
+    <div style="flex:1;min-width:0;display:flex;align-items:center;gap:6px;">
+      <span style="font:500 12.5px Jost;color:#11151b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">GAB_Studio_26-07-16</span>
+      <span style="width:6px;height:6px;border-radius:50%;background:#188a64;flex:none;" title="saved"></span>
+    </div>
+    <div style="width:40px;height:40px;border-radius:9px;display:flex;align-items:center;justify-content:center;color:#343c47;flex:none;"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="7" cy="7" r="4.5"></circle><path d="M10.5 10.5 14 14"></path></svg></div>
+    <div style="width:40px;height:40px;border-radius:9px;display:flex;align-items:center;justify-content:center;color:#343c47;flex:none;font:600 15px Jost;letter-spacing:.05em;">⋯</div>
+  </div>
+  <!-- canvas -->
+  <div style="position:absolute;top:48px;left:0;right:0;bottom:84px;background-image:radial-gradient(rgba(40,45,60,.16) 1px,transparent 1.2px);background-size:24px 24px;overflow:hidden;">
+    <!-- edge -->
+    <svg style="position:absolute;inset:0;width:100%;height:100%;" viewBox="0 0 390 712" fill="none">
+      <path d="M 212 264 L 282 264 L 282 424 L 24 424 L 24 521 L 46 521" stroke="rgba(22,16,48,.22)" stroke-width="4.6" stroke-linecap="round" data-comment-anchor="ea4702222f-path"></path>
+      <path d="M 212 264 L 282 264 L 282 424 L 24 424 L 24 521 L 46 521" stroke="#19b6a6" stroke-width="2.2" stroke-linecap="round"></path>
+      <path d="M 212 264 L 282 264 L 282 424 L 24 424 L 24 521 L 46 521" stroke="#c5f2eb" stroke-width="2.2" stroke-linecap="round" stroke-dasharray="10 62" style="animation:r3flow 1.6s linear infinite;"></path>
+    </svg>
+    <!-- node 1 -->
+    <div style="position:absolute;left:64px;top:196px;width:150px;background:#fff;border:1.5px solid #19b6a6;border-radius:8px;box-shadow:0 1px 2px rgba(40,45,60,.08);">
+      <div style="height:3px;margin:1.5px 1.5px 0;border-radius:5px 5px 0 0;background:#3b82f6;"></div>
+      <div style="display:flex;align-items:center;gap:6px;padding:6px 8px;background:rgba(25,182,166,.14);border-bottom:1px solid #c9d1db;">
+        <span style="width:18px;height:18px;border-radius:5px;background:rgba(25,182,166,.15);display:flex;align-items:center;justify-content:center;color:#0d7a6a;flex:none;"><svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2.5" y="1" width="7" height="10" rx="1.2"></rect><circle cx="6" cy="7.6" r="2"></circle><circle cx="6" cy="3.4" r=".9"></circle></svg></span>
+        <span style="font:600 10.5px Jost;color:#11151b;">Kii Control</span>
+        <span style="margin-left:auto;width:5px;height:5px;border-radius:50%;background:#188a64;"></span>
+      </div>
+      <div style="padding:4px 0;position:relative;">
+        <div style="display:flex;align-items:center;height:18px;padding:0 8px;position:relative;"><span style="position:absolute;left:-6px;top:50%;transform:translateY(-50%);width:9px;height:9px;border-radius:50%;background:#e7ebf1;box-shadow:inset 0 0 0 1.5px #e06aa6;"></span><span style="font:400 9px Jost;color:#343c47;">USB</span></div>
+        <div style="display:flex;align-items:center;height:18px;padding:0 8px;position:relative;"><span style="position:absolute;right:-6px;top:50%;transform:translateY(-50%);width:9px;height:9px;border-radius:50%;background:#19b6a6;border:1.5px solid #fff;"></span><span style="font:400 9px Jost;color:#343c47;margin-left:auto;">Network Out</span></div>
+      </div>
+    </div>
+    <!-- node 2 -->
+    <div style="position:absolute;left:44px;top:470px;width:150px;background:#fff;border:1.5px solid #19b6a6;border-radius:8px;box-shadow:0 0 0 3px rgba(22,100,200,.18),0 1px 2px rgba(40,45,60,.08);">
+      <div style="height:3px;margin:1.5px 1.5px 0;border-radius:5px 5px 0 0;background:#3b82f6;"></div>
+      <div style="display:flex;align-items:center;gap:6px;padding:6px 8px;background:rgba(25,182,166,.14);border-bottom:1px solid #c9d1db;">
+        <span style="width:18px;height:18px;border-radius:5px;background:rgba(25,182,166,.15);display:flex;align-items:center;justify-content:center;color:#0d7a6a;flex:none;"><svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2.5" y="1" width="7" height="10" rx="1.2"></rect><circle cx="6" cy="7.6" r="2"></circle><circle cx="6" cy="3.4" r=".9"></circle></svg></span>
+        <span style="font:600 10.5px Jost;color:#11151b;">Kii Three</span>
+        <span style="margin-left:auto;width:5px;height:5px;border-radius:50%;background:#188a64;"></span>
+      </div>
+      <div style="padding:4px 0;">
+        <div style="display:flex;align-items:center;height:18px;padding:0 8px;position:relative;"><span style="position:absolute;left:-6px;top:4.5px;width:9px;height:9px;border-radius:50%;background:#19b6a6;border:1.5px solid #fff;"></span><span style="font:400 9px Jost;color:#343c47;">Network In</span></div>
+        <div style="display:flex;align-items:center;height:18px;padding:0 8px;position:relative;"><span style="position:absolute;left:-6px;top:4.5px;width:9px;height:9px;border-radius:50%;background:#e7ebf1;box-shadow:inset 0 0 0 1.5px #cfa920;"></span><span style="font:400 9px Jost;color:#343c47;">Analog In</span></div>
+      </div>
+    </div>
+    <!-- run label -->
+    <div style="position:absolute;left:288px;top:330px;background:#fff;border:1px solid #c9d1db;border-radius:6px;padding:3px 7px;display:flex;align-items:center;gap:5px;box-shadow:0 1px 2px rgba(40,45,60,.08);"><span style="width:7px;height:7px;border-radius:2px;background:#19b6a6;"></span><span style="font:500 8.5px 'IBM Plex Mono';color:#11151b;">A-014 · 12.0 m</span></div>
+    <!-- FAB cluster -->
+    <div style="position:absolute;left:14px;bottom:14px;display:flex;flex-direction:column;gap:10px;align-items:center;">
+      <div style="width:44px;height:44px;border-radius:14px;background:#fff;border:1px solid #c9d1db;display:flex;align-items:center;justify-content:center;color:#343c47;box-shadow:0 1px 0 rgba(40,45,60,.05),0 2px 8px -3px rgba(40,45,60,.12);"><svg width="17" height="17" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 2.5 13 7.5 8.6 8.6 7.5 13z"></path></svg></div>
+      <div style="width:52px;height:52px;border-radius:17px;background:#1664c8;display:flex;align-items:center;justify-content:center;color:#fff;box-shadow:0 6px 16px -6px rgba(22,100,200,.55);"><svg width="21" height="21" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3v10M3 8h10"></path></svg></div>
+    </div>
+    <!-- zoom + view pill -->
+    <div style="position:absolute;right:14px;bottom:14px;display:flex;align-items:center;gap:2px;background:#fff;border:1px solid #c9d1db;border-radius:12px;padding:4px 6px;box-shadow:0 1px 0 rgba(40,45,60,.05),0 2px 8px -3px rgba(40,45,60,.12);">
+      <span style="width:32px;height:36px;display:flex;align-items:center;justify-content:center;font:500 15px Jost;color:#343c47;">−</span>
+      <span style="font:500 10px 'IBM Plex Mono';color:#11151b;min-width:34px;text-align:center;">86%</span>
+      <span style="width:32px;height:36px;display:flex;align-items:center;justify-content:center;font:500 15px Jost;color:#343c47;">+</span>
+      <span style="width:1px;height:20px;background:#c9d1db;margin:0 3px;"></span>
+      <span style="width:36px;height:36px;display:flex;align-items:center;justify-content:center;color:#343c47;"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1.5 8s2.4-4.5 6.5-4.5S14.5 8 14.5 8 12.1 12.5 8 12.5 1.5 8 1.5 8z"></path><circle cx="8" cy="8" r="2"></circle></svg></span>
+    </div>
+  </div>
+  <!-- bottom tab bar -->
+  <div style="position:absolute;left:0;right:0;bottom:0;height:84px;background:#fff;border-top:1px solid #c9d1db;display:flex;padding:6px 8px 26px;gap:4px;">
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border-radius:10px;background:rgba(22,100,200,.10);color:#1664c8;"><svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="4" cy="4" r="2"></circle><circle cx="12" cy="12" r="2"></circle><path d="M6 4h5v6"></path></svg><span style="font:600 9.5px Jost;">Schematic</span></div>
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:#586273;"><svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="1"></rect><path d="M2 9h6V2M8 9v5"></path></svg><span style="font:500 9.5px Jost;">Plan</span></div>
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:#586273;"><svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12M2 8h12M2 12h8"></path></svg><span style="font:500 9.5px Jost;">Schedule</span></div>
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:#586273;"><svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="1.5" width="10" height="13" rx="1"></rect><path d="M5 5h6M5 8h6M5 11h6"></path></svg><span style="font:500 9.5px Jost;">Rack</span></div>
+  </div>
+  <div style="position:absolute;bottom:8px;left:50%;transform:translateX(-50%);width:120px;height:4px;border-radius:2px;background:rgba(17,21,27,.25);"></div>
+</div>
+<p class="dv-notes" style="width:390px;"><b>Top bar 48px:</b> logo mark · document name + saved dot · ⌘K search (opens palette full-screen) · ⋯ overflow (theme, export, log in, help). <b>Workspace nav moves to a bottom tab bar</b> (thumb reach) — 4 tabs, active = accent + <code>--color-accent-soft</code> pill; bar is <code>env(safe-area-inset-bottom)</code> padded. <b>Tool rail → FAB cluster</b> bottom-left: 52px accent Add + current tool above it (tap to expand the full stack — see <a href="#1c">1c</a>). Zoom/view pill bottom-right, 36px+ targets. Minimap off by default. Canvas: pinch zoom, two-finger pan, long-press = context menu. Wire endpoints terminate <b>under the port indicator</b> — the dot covers the joint, so every cable reads as anchored to its exact port.</p>
+</div>
+
+<div class="dv-opt" id="1b"><div class="dv-olabel"><a class="dv-oid" href="#1b">1b</a>Phone · Inspector bottom sheet — 3 detents</div>
+<div style="display:flex;gap:14px;">
+  <div class="dv-card" style="width:246px;height:430px;border-radius:22px;position:relative;background:#e7ebf1;overflow:hidden;">
+    <div style="position:absolute;inset:0;background-image:radial-gradient(rgba(40,45,60,.14) 1px,transparent 1.2px);background-size:20px 20px;"></div>
+    <div style="position:absolute;left:0;right:0;bottom:0;height:96px;background:#fff;border-radius:16px 16px 0 0;border:1px solid #c9d1db;border-bottom:none;box-shadow:0 -8px 24px -16px rgba(40,45,60,.3);padding:8px 14px;">
+      <div style="width:36px;height:4px;border-radius:2px;background:#c9d1db;margin:0 auto 10px;"></div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="width:26px;height:26px;border-radius:7px;background:rgba(25,182,166,.15);display:flex;align-items:center;justify-content:center;color:#0d7a6a;"><svg width="14" height="14" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="2.5" y="1" width="7" height="10" rx="1.2"></rect><circle cx="6" cy="7.6" r="2"></circle><circle cx="6" cy="3.4" r=".9"></circle></svg></span>
+        <div><div style="font:600 12px Jost;color:#11151b;">Kii Three</div><div style="font:500 7.5px 'IBM Plex Mono';letter-spacing:.1em;color:#586273;">SPEAKER · 2 CONNECTIONS</div></div>
+        <span style="margin-left:auto;font:500 9px 'IBM Plex Mono';color:#1664c8;">EDIT</span>
+      </div>
+    </div>
+    <div style="position:absolute;top:8px;left:10px;font:600 9px 'IBM Plex Mono';background:#11151b;color:#fff;border-radius:4px;padding:2px 6px;">PEEK · 96px</div>
+  </div>
+  <div class="dv-card" style="width:246px;height:430px;border-radius:22px;position:relative;background:#e7ebf1;overflow:hidden;">
+    <div style="position:absolute;inset:0;background-image:radial-gradient(rgba(40,45,60,.14) 1px,transparent 1.2px);background-size:20px 20px;"></div>
+    <div style="position:absolute;left:0;right:0;bottom:0;height:215px;background:#fff;border-radius:16px 16px 0 0;border:1px solid #c9d1db;border-bottom:none;box-shadow:0 -8px 24px -16px rgba(40,45,60,.3);padding:8px 14px;">
+      <div style="width:36px;height:4px;border-radius:2px;background:#c9d1db;margin:0 auto 10px;"></div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <span style="width:26px;height:26px;border-radius:7px;background:rgba(25,182,166,.15);display:flex;align-items:center;justify-content:center;color:#0d7a6a;"><svg width="14" height="14" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="2.5" y="1" width="7" height="10" rx="1.2"></rect><circle cx="6" cy="7.6" r="2"></circle><circle cx="6" cy="3.4" r=".9"></circle></svg></span>
+        <div><div style="font:600 12px Jost;color:#11151b;">Kii Three</div><div style="font:500 7.5px 'IBM Plex Mono';letter-spacing:.1em;color:#586273;">SPEAKER · 2 CONNECTIONS</div></div>
+      </div>
+      <div style="display:flex;gap:4px;background:#eef1f6;border-radius:8px;padding:3px;margin-bottom:10px;">
+        <span style="flex:1;text-align:center;font:600 9.5px Jost;color:#11151b;background:#fff;border-radius:6px;padding:4px 0;box-shadow:inset 0 -2px 0 #1664c8;">Inspect</span>
+        <span style="flex:1;text-align:center;font:500 9.5px Jost;color:#586273;padding:4px 0;">Cables</span>
+        <span style="flex:1;text-align:center;font:500 9.5px Jost;color:#586273;padding:4px 0;">Layers</span>
+      </div>
+      <div style="font:500 8px 'IBM Plex Mono';letter-spacing:.12em;color:#586273;margin-bottom:5px;">BLOCK COLOUR</div>
+      <div style="display:flex;gap:5px;margin-bottom:10px;" data-comment-anchor="6e893fb86f-div">
+        <span style="width:18px;height:18px;border-radius:5px;background:#3d8bfd;"></span><span style="width:18px;height:18px;border-radius:5px;background:#1fb6a6;box-shadow:0 0 0 2px #fff,0 0 0 3.5px #1664c8;"></span><span style="width:18px;height:18px;border-radius:5px;background:#e0a345;"></span><span style="width:18px;height:18px;border-radius:5px;background:#c879e8;"></span><span style="width:18px;height:18px;border-radius:5px;background:#e5645f;"></span><span style="width:18px;height:18px;border-radius:5px;background:#46c89a;"></span><span title="Custom colour…" style="width:18px;height:18px;border-radius:5px;background:conic-gradient(from 40deg,#e5645f,#e0a345,#46c89a,#3d8bfd,#c879e8,#e5645f);display:flex;align-items:center;justify-content:center;"><span style="width:10px;height:10px;border-radius:3px;background:#fff;display:flex;align-items:center;justify-content:center;font:700 8px Jost;color:#11151b;line-height:1;">＋</span></span>
+      </div>
+      <div style="font:500 8px 'IBM Plex Mono';letter-spacing:.12em;color:#586273;margin-bottom:5px;">BLOCK VIEW</div>
+      <div style="display:flex;gap:4px;background:#eef1f6;border-radius:8px;padding:3px;">
+        <span style="flex:1;text-align:center;font:500 9px Jost;color:#586273;padding:3px 0;">Tile</span>
+        <span style="flex:1;text-align:center;font:500 9px Jost;color:#586273;padding:3px 0;">Compact</span>
+        <span style="flex:1;text-align:center;font:600 9px Jost;color:#11151b;background:#fff;border-radius:6px;padding:3px 0;">Default</span>
+        <span style="flex:1;text-align:center;font:500 9px Jost;color:#586273;padding:3px 0;">Detailed</span>
+      </div>
+    </div>
+    <div style="position:absolute;top:8px;left:10px;font:600 9px 'IBM Plex Mono';background:#11151b;color:#fff;border-radius:4px;padding:2px 6px;">HALF · 50%</div>
+  </div>
+  <div class="dv-card" style="width:246px;height:430px;border-radius:22px;position:relative;background:#e7ebf1;overflow:hidden;">
+    <div style="position:absolute;inset:0;background:rgba(17,21,27,.28);"></div>
+    <div style="position:absolute;left:0;right:0;bottom:0;top:34px;background:#fff;border-radius:16px 16px 0 0;border:1px solid #c9d1db;border-bottom:none;box-shadow:0 -8px 24px -16px rgba(40,45,60,.4);padding:8px 14px;overflow:hidden;">
+      <div style="width:36px;height:4px;border-radius:2px;background:#c9d1db;margin:0 auto 10px;"></div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <span style="width:26px;height:26px;border-radius:7px;background:rgba(25,182,166,.15);display:flex;align-items:center;justify-content:center;color:#0d7a6a;"><svg width="14" height="14" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="2.5" y="1" width="7" height="10" rx="1.2"></rect><circle cx="6" cy="7.6" r="2"></circle><circle cx="6" cy="3.4" r=".9"></circle></svg></span>
+        <div><div style="font:600 12px Jost;color:#11151b;">Kii Three</div><div style="font:500 7.5px 'IBM Plex Mono';letter-spacing:.1em;color:#586273;">SPEAKER · 2 CONNECTIONS</div></div>
+        <span style="margin-left:auto;width:24px;height:24px;border-radius:7px;background:#eef1f6;display:flex;align-items:center;justify-content:center;color:#343c47;font:500 11px Jost;">✕</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:7px;">
+        <div style="display:flex;justify-content:space-between;border:1px solid #c9d1db;border-radius:8px;padding:7px 10px;"><span style="font:400 10px Jost;color:#586273;">Manufacturer</span><span style="font:500 10px Jost;color:#11151b;">Kii Audio</span></div>
+        <div style="display:flex;justify-content:space-between;border:1px solid #c9d1db;border-radius:8px;padding:7px 10px;"><span style="font:400 10px Jost;color:#586273;">Short name</span><span style="font:500 10px 'IBM Plex Mono';color:#11151b;">KII-3</span></div>
+        <div style="display:flex;justify-content:space-between;border:1px solid #c9d1db;border-radius:8px;padding:7px 10px;"><span style="font:400 10px Jost;color:#586273;">W × D × H</span><span style="font:500 10px 'IBM Plex Mono';color:#11151b;">200 × 400 × 660 mm</span></div>
+        <div style="font:500 8px 'IBM Plex Mono';letter-spacing:.12em;color:#586273;margin-top:4px;">CONNECTIONS</div>
+        <div style="display:flex;align-items:center;gap:6px;border:1px solid #c9d1db;border-radius:8px;padding:7px 10px;"><span style="width:7px;height:7px;border-radius:2px;background:#19b6a6;"></span><span style="font:500 9.5px 'IBM Plex Mono';color:#11151b;">A-014</span><span style="font:400 9.5px Jost;color:#586273;">▸ Kii Control · Network</span><span style="margin-left:auto;font:500 9.5px 'IBM Plex Mono';color:#586273;">12.0 m</span></div>
+        <div style="display:flex;align-items:center;gap:6px;border:1px solid #c9d1db;border-radius:8px;padding:7px 10px;"><span style="width:7px;height:7px;border-radius:2px;background:#cfa920;"></span><span style="font:500 9.5px 'IBM Plex Mono';color:#11151b;">A-015</span><span style="font:400 9.5px Jost;color:#586273;">▸ DAC · Analog</span><span style="margin-left:auto;font:500 9.5px 'IBM Plex Mono';color:#586273;">3.5 m</span></div>
+      </div>
+    </div>
+    <div style="position:absolute;top:8px;left:10px;font:600 9px 'IBM Plex Mono';background:#11151b;color:#fff;border-radius:4px;padding:2px 6px;">FULL · 92%</div>
+  </div>
+</div>
+<p class="dv-notes" style="width:766px;"><b>Selection opens the sheet at PEEK</b>; drag or tap the header to cycle detents (96px / 50% / 92%). Spring 300ms <code>cubic-bezier(.23,1,.32,1)</code>; scrim appears above HALF; swipe-down or ✕ dismisses (selection kept). Layers lives as the third tab. Batch selection shows "N devices selected" in the same header. Same sheet pattern hosts the Connection Inspector on edge select. <b>Every colour row ends with a ＋ custom chip</b> (here, desktop inspector, layers, context menu) → the native OS colour picker (<code>input[type=color]</code>; the Apple picker on macOS); picked colours join a per-document recent-colours row.</p>
+</div>
+
+<div class="dv-opt" id="1c"><div class="dv-olabel"><a class="dv-oid" href="#1c">1c</a>Touch connect — tap-tap storyboard</div>
+<div style="display:flex;gap:14px;">
+  <div class="dv-card" style="width:236px;height:300px;position:relative;background:#e7ebf1;overflow:hidden;">
+    <div style="position:absolute;inset:0;background-image:radial-gradient(rgba(40,45,60,.14) 1px,transparent 1.2px);background-size:20px 20px;"></div>
+    <div style="position:absolute;left:16px;top:38px;width:128px;background:#fff;border:1.5px solid #19b6a6;border-radius:8px;">
+      <div style="padding:5px 8px;background:rgba(25,182,166,.14);border-bottom:1px solid #c9d1db;font:600 9.5px Jost;color:#11151b;">Kii Control</div>
+      <div style="display:flex;align-items:center;height:20px;padding:0 8px;position:relative;"><span style="position:absolute;right:-7px;width:11px;height:11px;border-radius:50%;background:#19b6a6;border:1.5px solid #fff;box-shadow:0 0 0 5px rgba(22,100,200,.22);"></span><span style="font:400 9px Jost;color:#343c47;margin-left:auto;">Network Out</span></div>
+    </div>
+    <div style="position:absolute;right:26px;top:44px;width:34px;height:34px;border-radius:50%;border:1.5px dashed #1664c8;background:rgba(22,100,200,.08);"></div>
+    <div style="position:absolute;left:50%;transform:translateX(-50%);bottom:14px;background:#fff;border:1px solid #c9d1db;border-radius:8px;padding:5px 10px;font:500 9.5px Jost;color:#343c47;box-shadow:0 2px 8px -3px rgba(40,45,60,.12);white-space:nowrap;">Tap an input port to connect</div>
+    <div style="position:absolute;top:8px;left:10px;font:600 9px 'IBM Plex Mono';background:#1664c8;color:#fff;border-radius:4px;padding:2px 6px;">1 · TAP OUTPUT</div>
+  </div>
+  <div class="dv-card" style="width:236px;height:300px;position:relative;background:#e7ebf1;overflow:hidden;">
+    <div style="position:absolute;inset:0;background-image:radial-gradient(rgba(40,45,60,.14) 1px,transparent 1.2px);background-size:20px 20px;"></div>
+    <svg style="position:absolute;inset:0;width:100%;height:100%;"><path d="M 142 75 L 196 75 L 196 232 L 17 232 L 17 197" stroke="#1664c8" stroke-width="1.8" stroke-dasharray="6 5" fill="none" style="animation:r3flow 2.2s linear infinite;"></path></svg>
+    <div style="position:absolute;left:16px;top:38px;width:128px;background:#fff;border:1.5px solid #19b6a6;border-radius:8px;">
+      <div style="padding:5px 8px;background:rgba(25,182,166,.14);border-bottom:1px solid #c9d1db;font:600 9.5px Jost;color:#11151b;">Kii Control</div>
+      <div style="display:flex;align-items:center;height:20px;padding:0 8px;position:relative;"><span style="position:absolute;right:-7px;width:11px;height:11px;border-radius:50%;background:#19b6a6;border:1.5px solid #fff;"></span><span style="font:400 9px Jost;color:#343c47;margin-left:auto;">Network Out</span></div>
+    </div>
+    <div style="position:absolute;left:16px;top:156px;width:128px;background:#fff;border:1.5px solid #19b6a6;border-radius:8px;">
+      <div style="padding:5px 8px;background:rgba(25,182,166,.14);border-bottom:1px solid #c9d1db;font:600 9.5px Jost;color:#11151b;">Kii Three</div>
+      <div style="display:flex;align-items:center;height:20px;padding:0 8px;position:relative;"><span style="position:absolute;left:-7px;width:11px;height:11px;border-radius:50%;background:#e7ebf1;box-shadow:inset 0 0 0 1.5px #19b6a6,0 0 0 5px rgba(25,182,166,.28);"></span><span style="font:400 9px Jost;color:#343c47;">Network In</span></div>
+      <div style="display:flex;align-items:center;height:20px;padding:0 8px;position:relative;opacity:.35;"><span style="position:absolute;left:-7px;width:11px;height:11px;border-radius:50%;background:#e7ebf1;box-shadow:inset 0 0 0 1.5px #cfa920;"></span><span style="font:400 9px Jost;color:#343c47;">Analog In</span></div>
+    </div>
+    <div style="position:absolute;left:50%;transform:translateX(-50%);bottom:14px;background:#eaf6ef;border:1px solid #188a64;border-radius:8px;padding:5px 10px;font:600 9.5px Jost;color:#188a64;box-shadow:0 2px 8px -3px rgba(40,45,60,.12);white-space:nowrap;">Connect ▸ Kii Three · Network In</div>
+    <div style="position:absolute;top:8px;left:10px;font:600 9px 'IBM Plex Mono';background:#1664c8;color:#fff;border-radius:4px;padding:2px 6px;">2 · COMPATIBLE PORTS GLOW</div>
+  </div>
+  <div class="dv-card" style="width:236px;height:300px;position:relative;background:#e7ebf1;overflow:hidden;">
+    <div style="position:absolute;inset:0;background-image:radial-gradient(rgba(40,45,60,.14) 1px,transparent 1.2px);background-size:20px 20px;"></div>
+    <svg style="position:absolute;inset:0;width:100%;height:100%;">
+      <path d="M 142 75 L 196 75 L 196 232 L 17 232 L 17 197" stroke="rgba(22,16,48,.22)" stroke-width="4.2" fill="none" stroke-linecap="round"></path>
+      <path d="M 142 75 L 196 75 L 196 232 L 17 232 L 17 197" stroke="#19b6a6" stroke-width="2.2" fill="none" stroke-linecap="round"></path>
+      <path d="M 142 75 L 196 75 L 196 232 L 17 232 L 17 197" stroke="#c5f2eb" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-dasharray="10 62" style="animation:r3flow 1.6s linear infinite;"></path>
+    </svg>
+    <div style="position:absolute;left:16px;top:38px;width:128px;background:#fff;border:1.5px solid #19b6a6;border-radius:8px;">
+      <div style="padding:5px 8px;background:rgba(25,182,166,.14);border-bottom:1px solid #c9d1db;font:600 9.5px Jost;color:#11151b;">Kii Control</div>
+      <div style="display:flex;align-items:center;height:20px;padding:0 8px;position:relative;"><span style="position:absolute;right:-7px;width:11px;height:11px;border-radius:50%;background:#19b6a6;border:1.5px solid #fff;"></span><span style="font:400 9px Jost;color:#343c47;margin-left:auto;">Network Out</span></div>
+    </div>
+    <div style="position:absolute;left:16px;top:156px;width:128px;background:#fff;border:1.5px solid #19b6a6;border-radius:8px;">
+      <div style="padding:5px 8px;background:rgba(25,182,166,.14);border-bottom:1px solid #c9d1db;font:600 9.5px Jost;color:#11151b;">Kii Three</div>
+      <div style="display:flex;align-items:center;height:20px;padding:0 8px;position:relative;"><span style="position:absolute;left:-7px;width:11px;height:11px;border-radius:50%;background:#19b6a6;border:1.5px solid #fff;"></span><span style="font:400 9px Jost;color:#343c47;">Network In</span></div>
+    </div>
+    <div style="position:absolute;left:50%;transform:translateX(-50%);bottom:14px;background:#fff;border:1px solid #c9d1db;border-radius:8px;padding:4px 9px;display:flex;align-items:center;gap:5px;box-shadow:0 2px 8px -3px rgba(40,45,60,.12);"><span style="width:7px;height:7px;border-radius:2px;background:#19b6a6;"></span><span style="font:500 8.5px 'IBM Plex Mono';color:#11151b;">A-016 created</span></div>
+    <div style="position:absolute;top:8px;left:10px;font:600 9px 'IBM Plex Mono';background:#188a64;color:#fff;border-radius:4px;padding:2px 6px;">3 · TAP INPUT → CONNECTED</div>
+  </div>
+</div>
+<p class="dv-notes" style="width:742px;"><b>Reuses the desktop Connect-tool click-click path</b> — no new engine. First tap arms from any port (44px effective target: 11px glyph + invisible expanded hit area). While armed: compatible ports halo in <b>their own signal colour</b>, incompatible rows dim to 35%, dashed accent preview marches (<code>esdash</code>), validity chip mirrors desktop (green target / red reason). Tap canvas or ✕ chip cancels. Mismatch on drop → the same Mismatch popover, bottom-sheet-anchored.</p>
+</div>
+
+<div class="dv-opt" id="1d"><div class="dv-olabel"><a class="dv-oid" href="#1d">1d</a>Phone · Device editor as full-screen sheet</div>
+<div class="dv-card" style="width:390px;height:620px;border-radius:24px;position:relative;background:#e7ebf1;overflow:hidden;">
+  <div style="position:absolute;top:0;left:0;right:0;height:52px;background:#fff;border-bottom:1px solid #c9d1db;display:flex;align-items:center;padding:0 14px;gap:10px;">
+    <span style="font:500 12.5px Jost;color:#1664c8;">Cancel</span>
+    <span style="font:600 13px Jost;color:#11151b;margin:0 auto;">Edit device</span>
+    <span style="font:600 12.5px Jost;color:#fff;background:#1664c8;border-radius:8px;padding:6px 14px;">Save</span>
+  </div>
+  <div style="position:absolute;top:52px;left:0;right:0;bottom:0;overflow:hidden;padding:14px;display:flex;flex-direction:column;gap:10px;">
+    <div style="background:#fff;border:1px solid #c9d1db;border-radius:10px;padding:10px 12px;display:flex;align-items:center;gap:10px;">
+      <span style="width:44px;height:44px;border-radius:10px;background:rgba(25,182,166,.15);display:flex;align-items:center;justify-content:center;color:#0d7a6a;"><svg width="24" height="24" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.1"><rect x="2.5" y="1" width="7" height="10" rx="1.2"></rect><circle cx="6" cy="7.6" r="2"></circle><circle cx="6" cy="3.4" r=".9"></circle></svg></span>
+      <div style="flex:1;"><div style="font:500 8px 'IBM Plex Mono';letter-spacing:.12em;color:#586273;">ARTWORK</div><div style="font:500 11.5px Jost;color:#11151b;">Loudspeaker · Audio</div></div>
+      <span style="font:600 11px Jost;color:#1664c8;">Choose…</span>
+    </div>
+    <div style="background:#fff;border:1px solid #c9d1db;border-radius:10px;padding:9px 12px;"><div style="font:500 8px 'IBM Plex Mono';letter-spacing:.12em;color:#586273;margin-bottom:3px;">DEVICE NAME</div><div style="font:500 12.5px Jost;color:#11151b;">Kii Three</div></div>
+    <div style="display:flex;gap:10px;">
+      <div style="flex:1;background:#fff;border:1px solid #c9d1db;border-radius:10px;padding:9px 12px;"><div style="font:500 8px 'IBM Plex Mono';letter-spacing:.12em;color:#586273;margin-bottom:3px;">SHORT NAME</div><div style="font:500 12px 'IBM Plex Mono';color:#11151b;">KII-3</div></div>
+      <div style="flex:1;background:#fff;border:1px solid #c9d1db;border-radius:10px;padding:9px 12px;"><div style="font:500 8px 'IBM Plex Mono';letter-spacing:.12em;color:#586273;margin-bottom:3px;">CATEGORY</div><div style="font:500 12px Jost;color:#11151b;display:flex;justify-content:space-between;">Speaker <span style="color:#586273;">▾</span></div></div>
+    </div>
+    <div style="font:500 8px 'IBM Plex Mono';letter-spacing:.12em;color:#586273;margin-top:4px;">PORTS · 4 IN · 1 OUT</div>
+    <div style="background:#fff;border:1px solid #c9d1db;border-radius:10px;overflow:hidden;">
+      <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid #eef1f6;"><span style="width:9px;height:9px;border-radius:50%;background:#cfa920;"></span><span style="font:500 11.5px Jost;color:#11151b;flex:1;">Analog In</span><span style="font:500 8.5px 'IBM Plex Mono';color:#586273;background:#eef1f6;border-radius:5px;padding:2px 6px;">IN · XLR</span><span style="color:#9aa4b2;font:500 12px Jost;">≡</span></div>
+      <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid #eef1f6;"><span style="width:9px;height:9px;border-radius:50%;background:#a98bf0;"></span><span style="font:500 11.5px Jost;color:#11151b;flex:1;">Digital In</span><span style="font:500 8.5px 'IBM Plex Mono';color:#586273;background:#eef1f6;border-radius:5px;padding:2px 6px;">IN · AES</span><span style="color:#9aa4b2;font:500 12px Jost;">≡</span></div>
+      <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid #eef1f6;"><span style="width:9px;height:9px;border-radius:50%;background:#19b6a6;"></span><span style="font:500 11.5px Jost;color:#11151b;flex:1;">Network In</span><span style="font:500 8.5px 'IBM Plex Mono';color:#586273;background:#eef1f6;border-radius:5px;padding:2px 6px;">IN · RJ45</span><span style="color:#9aa4b2;font:500 12px Jost;">≡</span></div>
+      <div style="display:flex;align-items:center;gap:8px;padding:11px 12px;color:#1664c8;font:600 11.5px Jost;">＋ Add port</div>
+    </div>
+  </div>
+</div>
+<p class="dv-notes" style="width:390px;">&lt;768px the 3-column Device Editor becomes a <b>full-screen sheet</b>: sticky header (Cancel / Save), single-column stack, sections in card groups, port rows 44px with drag grips. The desktop editor is unchanged ≥768px. Same pattern for Preferences, Reports, Import wizard.</p>
+</div>
+
+<div class="dv-opt" id="1e"><div class="dv-olabel"><a class="dv-oid" href="#1e">1e</a>Tablet 768–1139 · rails become overlays</div>
+<div class="dv-card" style="width:560px;height:420px;position:relative;background:#e7ebf1;overflow:hidden;">
+  <div style="position:absolute;top:0;left:0;right:0;height:40px;background:#fff;border-bottom:1px solid #c9d1db;display:flex;align-items:center;gap:8px;padding:0 10px;z-index:6;">
+    <div style="width:22px;height:22px;border-radius:6px;background:#11151b;position:relative;flex:none;"><span style="position:absolute;left:3px;top:3px;bottom:3px;width:2.5px;border-radius:2px;background:#1664c8;"></span></div>
+    <span style="font:500 10.5px Jost;color:#11151b;">GAB_Studio_26-07-16</span><span style="width:5px;height:5px;border-radius:50%;background:#188a64;"></span>
+    <div style="margin-left:auto;display:flex;background:#eef1f6;border-radius:9px;padding:2px;gap:2px;">
+      <span style="font:600 9.5px Jost;color:#11151b;background:#fff;border-radius:7px;padding:4px 10px;box-shadow:inset 0 -2px 0 #1664c8;">Schematic</span>
+      <span style="font:500 9.5px Jost;color:#586273;padding:4px 10px;">Plan</span>
+      <span style="font:500 9.5px Jost;color:#586273;padding:4px 10px;">Schedule</span>
+      <span style="font:500 9.5px Jost;color:#586273;padding:4px 10px;">Rack</span>
+    </div>
+    <span style="font:600 10px Jost;color:#fff;background:#1664c8;border-radius:7px;padding:5px 10px;margin-left:8px;">Export</span>
+  </div>
+  <div style="position:absolute;top:40px;left:0;right:0;bottom:0;background-image:radial-gradient(rgba(40,45,60,.14) 1px,transparent 1.2px);background-size:20px 20px;">
+    <div style="position:absolute;left:180px;top:90px;width:120px;background:#fff;border:1.5px solid #ec8a3e;border-radius:8px;"><div style="height:3px;margin:1.5px 1.5px 0;border-radius:5px 5px 0 0;background:#3b82f6;"></div><div style="padding:5px 8px;background:rgba(236,138,62,.14);border-bottom:1px solid #c9d1db;font:600 9px Jost;color:#11151b;">X32 Rack</div><div style="height:26px;"></div></div>
+    <div style="position:absolute;left:360px;top:190px;width:120px;background:#fff;border:1.5px solid #19b6a6;border-radius:8px;"><div style="height:3px;margin:1.5px 1.5px 0;border-radius:5px 5px 0 0;background:#3b82f6;"></div><div style="padding:5px 8px;background:rgba(25,182,166,.14);border-bottom:1px solid #c9d1db;font:600 9px Jost;color:#11151b;">Kii Three</div><div style="height:26px;"></div></div>
+    <svg style="position:absolute;inset:0;width:100%;height:100%;"><path d="M 300 122 L 330 122 L 330 222 L 360 222" stroke="#19b6a6" stroke-width="2" fill="none"></path></svg>
+  </div>
+  <!-- overlay insert drawer -->
+  <div style="position:absolute;top:40px;bottom:0;left:0;width:200px;background:#fff;border-right:1px solid #c9d1db;box-shadow:16px 0 40px -24px rgba(40,45,60,.35);padding:10px;z-index:5;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;"><span style="font:600 11px Jost;color:#11151b;">Insert</span><span style="font:500 10px Jost;color:#586273;">✕</span></div>
+    <div style="border:1px solid #c9d1db;border-radius:8px;padding:6px 9px;font:400 10px Jost;color:#586273;margin-bottom:8px;">Search catalog…</div>
+    <div style="display:flex;align-items:center;gap:7px;padding:7px 6px;border-radius:7px;background:#eef1f6;"><span style="width:18px;height:18px;border-radius:5px;background:rgba(25,182,166,.15);color:#0d7a6a;display:flex;align-items:center;justify-content:center;"><svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="2.5" y="1" width="7" height="10" rx="1.2"></rect><circle cx="6" cy="7.6" r="2"></circle></svg></span><span style="font:500 10px Jost;color:#11151b;">Kii Three</span></div>
+    <div style="display:flex;align-items:center;gap:7px;padding:7px 6px;"><span style="width:18px;height:18px;border-radius:5px;background:rgba(236,138,62,.15);color:#b45309;display:flex;align-items:center;justify-content:center;"><svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="1.5" y="2.5" width="9" height="7" rx="1"></rect><path d="M3.5 5h2M3.5 7h3"></path></svg></span><span style="font:500 10px Jost;color:#11151b;">X32 Rack</span></div>
+  </div>
+  <div style="position:absolute;top:40px;bottom:0;left:200px;right:0;background:rgba(17,21,27,.14);z-index:4;"></div>
+  <!-- minimized right rail restore tab -->
+  <div style="position:absolute;right:0;top:120px;width:22px;height:64px;background:#fff;border:1px solid #c9d1db;border-right:none;border-radius:8px 0 0 8px;display:flex;align-items:center;justify-content:center;box-shadow:-4px 0 12px -8px rgba(40,45,60,.3);z-index:5;"><span style="font:500 9px 'IBM Plex Mono';color:#586273;transform:rotate(-90deg);letter-spacing:.1em;">INSPECT</span></div>
+</div>
+<p class="dv-notes" style="width:560px;"><b>Tier B (768–1139):</b> top bar keeps one row (breadcrumb truncates, health pill icon-only per existing ≤1140 rules). <b>Insert drawer overlays with a scrim</b> instead of docking; right rail starts minimised to its restore tab and opens as an overlay; minimap default-off; dialogs cap at 92vw; Schedule keeps desktop layout with horizontal scroll + sticky first column and 2×2 KPI wrap.</p>
+</div>
+
+<div class="dv-opt" id="1f"><div class="dv-olabel"><a class="dv-oid" href="#1f">1f</a>Breakpoint &amp; behaviour map</div>
+<div class="dv-card" style="width:620px;padding:16px 18px;">
+  <div style="display:grid;grid-template-columns:120px 1fr 1fr 1fr;gap:0;font:400 10.5px/1.45 Jost;color:#343c47;">
+    <div style="font:600 9px 'IBM Plex Mono';letter-spacing:.1em;color:#586273;padding:6px 8px;border-bottom:1.5px solid #11151b;">ELEMENT</div>
+    <div style="font:600 9px 'IBM Plex Mono';letter-spacing:.1em;color:#586273;padding:6px 8px;border-bottom:1.5px solid #11151b;">A · ≥1140</div>
+    <div style="font:600 9px 'IBM Plex Mono';letter-spacing:.1em;color:#586273;padding:6px 8px;border-bottom:1.5px solid #11151b;">B · 768–1139</div>
+    <div style="font:600 9px 'IBM Plex Mono';letter-spacing:.1em;color:#586273;padding:6px 8px;border-bottom:1.5px solid #11151b;">C · &lt;768</div>
+    <div style="font-weight:600;padding:7px 8px;border-bottom:1px solid #eef1f6;">Top bar</div><div style="padding:7px 8px;border-bottom:1px solid #eef1f6;">52px, full clusters</div><div style="padding:7px 8px;border-bottom:1px solid #eef1f6;">52px, existing ≤1300/1240/1140 degradation</div><div style="padding:7px 8px;border-bottom:1px solid #eef1f6;">48px: logo · doc · ⌘K icon · ⋯ overflow</div>
+    <div style="font-weight:600;padding:7px 8px;border-bottom:1px solid #eef1f6;">Workspace nav</div><div style="padding:7px 8px;border-bottom:1px solid #eef1f6;">Persona pill, center</div><div style="padding:7px 8px;border-bottom:1px solid #eef1f6;">Persona pill, icons-only ≤1240</div><div style="padding:7px 8px;border-bottom:1px solid #eef1f6;">Bottom tab bar, safe-area padded</div>
+    <div style="font-weight:600;padding:7px 8px;border-bottom:1px solid #eef1f6;">Tool rail</div><div style="padding:7px 8px;border-bottom:1px solid #eef1f6;">Docked left, labelled</div><div style="padding:7px 8px;border-bottom:1px solid #eef1f6;">Docked, icon-only</div><div style="padding:7px 8px;border-bottom:1px solid #eef1f6;">FAB cluster (Add + active tool, expandable)</div>
+    <div style="font-weight:600;padding:7px 8px;border-bottom:1px solid #eef1f6;">Bottom bar</div><div style="padding:7px 8px;border-bottom:1px solid #eef1f6;">Full: zoom·tier·toggles·View</div><div style="padding:7px 8px;border-bottom:1px solid #eef1f6;">Full, tighter gaps</div><div style="padding:7px 8px;border-bottom:1px solid #eef1f6;">Zoom + View sheet trigger only; toggles live in sheet</div>
+    <div style="font-weight:600;padding:7px 8px;border-bottom:1px solid #eef1f6;">Right rail</div><div style="padding:7px 8px;border-bottom:1px solid #eef1f6;">Docked 288px + Layers dock</div><div style="padding:7px 8px;border-bottom:1px solid #eef1f6;">Starts minimised; opens as overlay</div><div style="padding:7px 8px;border-bottom:1px solid #eef1f6;">Bottom sheet, 3 detents; Layers = tab (<a href="#1b">1b</a>)</div>
+    <div style="font-weight:600;padding:7px 8px;border-bottom:1px solid #eef1f6;">Insert drawer</div><div style="padding:7px 8px;border-bottom:1px solid #eef1f6;">Docked panel</div><div style="padding:7px 8px;border-bottom:1px solid #eef1f6;">Overlay + scrim (<a href="#1e">1e</a>)</div><div style="padding:7px 8px;border-bottom:1px solid #eef1f6;">Full-screen sheet from FAB ▸ Device</div>
+    <div style="font-weight:600;padding:7px 8px;border-bottom:1px solid #eef1f6;">Minimap</div><div style="padding:7px 8px;border-bottom:1px solid #eef1f6;">On, bottom-left</div><div style="padding:7px 8px;border-bottom:1px solid #eef1f6;">Off by default (View toggle)</div><div style="padding:7px 8px;border-bottom:1px solid #eef1f6;">Hidden</div>
+    <div style="font-weight:600;padding:7px 8px;border-bottom:1px solid #eef1f6;">Dialogs / editors</div><div style="padding:7px 8px;border-bottom:1px solid #eef1f6;">Centered, sized to content</div><div style="padding:7px 8px;border-bottom:1px solid #eef1f6;">≤92vw</div><div style="padding:7px 8px;border-bottom:1px solid #eef1f6;">Full-screen sheets (<a href="#1d">1d</a>)</div>
+    <div style="font-weight:600;padding:7px 8px;">Schedule grid</div><div style="padding:7px 8px;">Full grid + sidebar</div><div style="padding:7px 8px;">H-scroll, sticky Cable ID col, KPI 2×2</div><div style="padding:7px 8px;">Card-per-run list; filters in a sheet</div>
+  </div>
+</div>
+<p class="dv-notes" style="width:620px;">Tiers are <b>container-width driven</b> (one <code>useLayoutTier()</code> hook on <code>window.innerWidth</code>, values 1140/768), not user-agent sniffing. <b>Nothing is feature-gated</b> — every action reachable at every tier. <code>MobileGate.tsx</code> is deleted.</p>
+</div>
+
+<div class="dv-opt" id="1g"><div class="dv-olabel"><a class="dv-oid" href="#1g">1g</a>Touch &amp; safe-area technical spec</div>
+<div class="dv-card" style="width:430px;padding:16px 18px;">
+  <div style="display:flex;flex-direction:column;gap:9px;font:400 11px/1.5 Jost;color:#343c47;">
+    <div><b style="color:#11151b;">Hit targets ≥44px</b> — port handles keep the 9–11px glyph but get an invisible expanded touch radius (<code>::after</code> 44×44 centered); all chrome buttons ≥40px at Tier C, rows ≥44px.</div>
+    <div><b style="color:#11151b;">Gestures</b> — pinch = zoom (<code>zoomOnPinch</code>), two-finger drag = pan, one-finger drag on node = move, long-press 500ms = context menu, double-tap = fit selection. Marquee select only via Select tool.</div>
+    <div><b style="color:#11151b;">Safe areas</b> — <code>viewport-fit=cover</code>; tab bar + sheets pad with <code>env(safe-area-inset-*)</code>; FAB cluster offsets above the tab bar.</div>
+    <div><b style="color:#11151b;">Input hygiene</b> — <code>touch-action: manipulation</code> on all controls (kills 300ms/double-tap zoom); <code>-webkit-tap-highlight-color: transparent</code>; hover-only affordances get press equivalents (tooltips → long-press label).</div>
+    <div><b style="color:#11151b;">Keyboard-optional</b> — every ⌘K command reachable via visible UI at Tier C; ⌘K itself works with external keyboards on tablet.</div>
+    <div><b style="color:#11151b;">Acceptance</b> — 390×844 / 768×1024 / 1024×768 / 1440×900: place device → connect (tap-tap) → edit in sheet → read BOM. No horizontal body scroll, no gate, no sub-44px target.</div>
+  </div>
+</div>
+</div>
+
+</div>
+<p class="dv-next">Try next: "show the phone Schedule card list" · "riff on the FAB cluster — expanded state" · "dark-theme version of <a class="dv-oid" href="#1a">1a</a>"</p>
+</section>
+
+<section class="dv-turn" id="t2" data-screen-label="2 · Device node and connectors">
+<div class="dv-thd"><a class="dv-tid" href="#t2">2</a><span class="dv-tname">Device node &amp; connectors — corrected anatomy</span><span class="dv-tsub">Fixes GAP-AUDIT §R5: tinted header, left-aligned identity, ONE glyph per port, glow = connector type, flow direction.</span></div>
+<div class="dv-opts">
+
+<div class="dv-opt" id="2a"><div class="dv-olabel"><a class="dv-oid" href="#2a">2a</a>Node anatomy — annotated (Default tier)</div>
+<div class="dv-card" style="width:640px;padding:26px 24px 26px 62px;background:#e7ebf1;background-image:radial-gradient(rgba(40,45,60,.14) 1px,transparent 1.2px);background-size:24px 24px;">
+  <div style="display:flex;gap:48px;align-items:flex-start;">
+    <div style="width:250px;flex:none;position:relative;background:#fff;border:1.5px solid #19b6a6;border-radius:8px;box-shadow:0 1px 2px rgba(40,45,60,.08);">
+      <div style="height:3px;margin:1.5px 1.5px 0;border-radius:5px 5px 0 0;background:#3b82f6;"></div>
+      <div style="display:flex;align-items:center;gap:8px;padding:9px 10px;background:rgba(25,182,166,.14);border-bottom:1px solid #c9d1db;">
+        <span style="width:24px;height:24px;border-radius:6px;background:rgba(25,182,166,.15);display:flex;align-items:center;justify-content:center;color:#0d7a6a;flex:none;"><svg width="15" height="15" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="2.5" y="1" width="7" height="10" rx="1.2"></rect><circle cx="6" cy="7.6" r="2"></circle><circle cx="6" cy="3.4" r=".9"></circle></svg></span>
+        <div style="flex:1;min-width:0;">
+          <div style="font:600 11.5px/1.25 Jost;color:#11151b;">Kii Three</div>
+          <div style="display:flex;align-items:center;gap:5px;"><span style="font:500 8px 'IBM Plex Mono';letter-spacing:.08em;color:#586273;">SPEAKER</span><span style="color:#9aa4b2;font-size:8px;">·</span><span style="width:6px;height:6px;border-radius:2px;background:#3b82f6;"></span><span style="font:500 8px 'IBM Plex Mono';letter-spacing:.08em;color:#586273;">AUDIO</span></div>
+        </div>
+        <span style="width:6px;height:6px;border-radius:50%;background:#188a64;flex:none;"></span>
+      </div>
+      <div style="padding:5px 0;">
+        <div style="display:flex;align-items:center;height:20px;padding:0 10px;position:relative;"><span style="position:absolute;left:-6px;top:50%;transform:translateY(-50%);width:9px;height:9px;border-radius:50%;background:#cfa920;border:1.5px solid #fff;"></span><span style="font:400 9.5px Jost;color:#343c47;">Analog In</span></div>
+        <div style="display:flex;align-items:center;height:20px;padding:0 10px;position:relative;"><span style="position:absolute;left:-6px;top:50%;transform:translateY(-50%);width:9px;height:9px;border-radius:50%;background:#e7ebf1;box-shadow:inset 0 0 0 1.5px #a98bf0;"></span><span style="font:400 9.5px Jost;color:#343c47;">Digital In</span></div>
+        <div style="display:flex;align-items:center;height:20px;padding:0 10px;position:relative;"><span style="position:absolute;left:-6px;top:50%;transform:translateY(-50%);width:9px;height:9px;border-radius:50%;background:#19b6a6;border:1.5px solid #fff;"></span><span style="font:400 9.5px Jost;color:#343c47;">Network In</span><span style="margin-left:auto;font:400 9.5px Jost;color:#343c47;">Network Out</span><span style="position:absolute;right:-6px;top:50%;transform:translateY(-50%);width:9px;height:9px;border-radius:50%;background:#19b6a6;border:1.5px solid #fff;"></span></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:5px 10px;border-top:1px solid #eef1f6;"><span style="font:500 8px 'IBM Plex Mono';letter-spacing:.06em;color:#586273;">3 in · 1 out</span><span style="font:500 8px 'IBM Plex Mono';letter-spacing:.06em;color:#586273;">#DEV-07</span></div>
+      <span style="position:absolute;left:-34px;top:-8px;font:600 9px 'IBM Plex Mono';background:#11151b;color:#fff;border-radius:4px;padding:1px 5px;">1</span>
+      <span style="position:absolute;left:-34px;top:26px;font:600 9px 'IBM Plex Mono';background:#11151b;color:#fff;border-radius:4px;padding:1px 5px;">2</span>
+      <span style="position:absolute;right:-34px;top:34px;font:600 9px 'IBM Plex Mono';background:#11151b;color:#fff;border-radius:4px;padding:1px 5px;">3</span>
+      <span style="position:absolute;left:-34px;top:88px;font:600 9px 'IBM Plex Mono';background:#11151b;color:#fff;border-radius:4px;padding:1px 5px;">4</span>
+      <span style="position:absolute;right:-34px;bottom:22px;font:600 9px 'IBM Plex Mono';background:#11151b;color:#fff;border-radius:4px;padding:1px 5px;">5</span>
+      <span style="position:absolute;left:-34px;bottom:-6px;font:600 9px 'IBM Plex Mono';background:#11151b;color:#fff;border-radius:4px;padding:1px 5px;">6</span>
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;gap:8px;font:400 10.5px/1.5 Jost;color:#343c47;background:rgba(255,255,255,.85);border-radius:10px;padding:12px 14px;">
+      <div><b style="color:#11151b;">1 · Layer band</b> 3px, layer colour (band mode), <b>inset 1.5px inside the class border</b> (radius = outer − border) so it never bleeds unevenly over the border corners.</div>
+      <div><b style="color:#11151b;">2 · Header band</b> <code>color-mix(in srgb, {classColor} 14%, var(--color-surface-raised))</code> — CLASS colour, never block/header colour (that was the old washed-out failure). Body wash stays 7% over surface.</div>
+      <div><b style="color:#11151b;">3 · Identity, left-aligned</b> — 24px artwork chip (tinted SVG on <code>{class} 15%</code> chip) · name Jost 600 11.5px, wraps ≤2 lines, never truncates · meta line: CATEGORY · layer chip, Plex Mono 8px caps. Status dot right.</div>
+      <div><b style="color:#11151b;">4 · ONE connector glyph per port</b> — the 9px indicator ON the edge IS the @xyflow Handle, vertically centred on its 20px row (uniform pitch). Delete the inner square swatches and the grey outer rings. <b>The indicator centre is the wire anchor</b> — every cable terminates exactly under its dot, one distinct anchor per port, so adjacent-port runs are never ambiguous.</div>
+      <div><b style="color:#11151b;">5 · Width is content-fit</b> 132–330px — widen before truncating; at cap, middle-truncate + title tooltip. "Network …" must not happen at default widths.</div>
+      <div><b style="color:#11151b;">6 · Footer</b> (Detailed tier) mono counts + ID. Issue badges clamp ≥6px inside the corner radius — never straddle the border.</div>
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="dv-opt" id="2b"><div class="dv-olabel"><a class="dv-oid" href="#2b">2b</a>Connector states — glow means connector type</div>
+<div class="dv-card" style="width:600px;padding:20px 22px;background:#fff;">
+  <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:14px;">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:8px;"><span style="width:44px;height:44px;border-radius:10px;background:#e7ebf1;display:flex;align-items:center;justify-content:center;"><span style="width:11px;height:11px;border-radius:50%;background:#19b6a6;border:1.5px solid #fff;"></span></span><span style="font:600 8.5px 'IBM Plex Mono';letter-spacing:.06em;color:#11151b;">WIRED</span><span style="font:400 9px/1.35 Jost;color:#586273;text-align:center;">Filled, signal colour</span></div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:8px;"><span style="width:44px;height:44px;border-radius:10px;background:#e7ebf1;display:flex;align-items:center;justify-content:center;"><span style="width:11px;height:11px;border-radius:50%;background:#e7ebf1;box-shadow:inset 0 0 0 1.5px #19b6a6;"></span></span><span style="font:600 8.5px 'IBM Plex Mono';letter-spacing:.06em;color:#11151b;">OPEN</span><span style="font:400 9px/1.35 Jost;color:#586273;text-align:center;">1.5px hollow ring</span></div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:8px;"><span style="width:44px;height:44px;border-radius:10px;background:#e7ebf1;display:flex;align-items:center;justify-content:center;"><span style="width:11px;height:11px;border-radius:50%;background:#e7ebf1;box-shadow:inset 0 0 0 1.5px #a98bf0,0 0 0 2.5px rgba(169,139,240,.3);"></span></span><span style="font:600 8.5px 'IBM Plex Mono';letter-spacing:.06em;color:#11151b;">VIRTUAL</span><span style="font:400 9px/1.35 Jost;color:#586273;text-align:center;">Violet ring — no physical socket</span></div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:8px;"><span style="width:44px;height:44px;border-radius:10px;background:#e7ebf1;display:flex;align-items:center;justify-content:center;gap:0;"><span style="width:11px;height:11px;border-radius:50%;background:#19b6a6;border:1.5px solid #fff;box-shadow:0 0 0 2px #e7ebf1,0 0 0 3.5px #19b6a6;"></span></span><span style="font:600 8.5px 'IBM Plex Mono';letter-spacing:.06em;color:#11151b;">MULTI</span><span style="font:400 9px/1.35 Jost;color:#586273;text-align:center;">Halo ring = multi-connect port</span></div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:8px;"><span style="width:44px;height:44px;border-radius:10px;background:#e7ebf1;display:flex;align-items:center;justify-content:center;"><span style="width:11px;height:11px;border-radius:50%;background:#e06aa6;border:1.5px solid #fff;animation:r3glow 2s ease-in-out infinite;--g:#e06aa6;"></span></span><span style="font:600 8.5px 'IBM Plex Mono';letter-spacing:.06em;color:#11151b;">IDLE GLOW</span><span style="font:400 9px/1.35 Jost;color:#586273;text-align:center;">Live-signal ON: halo pulses in the connector's own colour</span></div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:8px;"><span style="width:44px;height:44px;border-radius:10px;background:#e7ebf1;display:flex;align-items:center;justify-content:center;"><span style="width:11px;height:11px;border-radius:50%;background:#e7ebf1;box-shadow:inset 0 0 0 1.5px #19b6a6,0 0 0 4px rgba(25,182,166,.28);"></span></span><span style="font:600 8.5px 'IBM Plex Mono';letter-spacing:.06em;color:#11151b;">CONNECT</span><span style="font:400 9px/1.35 Jost;color:#586273;text-align:center;">Tool armed: compatible ports halo in signal colour</span></div>
+  </div>
+  <div style="margin-top:14px;border-top:1px solid #eef1f6;padding-top:10px;font:400 10.5px/1.5 Jost;color:#343c47;"><b style="color:#11151b;">Glen's rule:</b> the glow's job is to say <b>what kind of connector this is</b> — the halo hue always equals the port's resolved signal colour (never accent, never white). Wired ports pulse (2s ease) when Live signal is on; open ports glow only while the Connect tool is armed. Gated by <code>prefers-reduced-motion</code>. Keep <code>deviceNodeSwatchGlow</code>, re-anchor it to the edge connector once the inner swatches are deleted.</div>
+</div>
+</div>
+
+<div class="dv-opt" id="2c"><div class="dv-olabel"><a class="dv-oid" href="#2c">2c</a>View tiers</div>
+<div class="dv-card" style="width:640px;padding:20px 22px;background:#e7ebf1;background-image:radial-gradient(rgba(40,45,60,.14) 1px,transparent 1.2px);background-size:24px 24px;">
+  <div style="display:flex;gap:22px;align-items:flex-start;">
+    <div style="display:flex;flex-direction:column;gap:6px;align-items:center;">
+      <div style="width:88px;background:rgba(25,182,166,.07);border:1.5px solid #19b6a6;border-radius:9px;position:relative;box-shadow:0 1px 2px rgba(40,45,60,.12);padding:10px 6px 7px;display:flex;flex-direction:column;align-items:center;gap:3px;"><span style="width:26px;height:26px;border-radius:7px;background:rgba(25,182,166,.15);color:#0d7a6a;display:flex;align-items:center;justify-content:center;"><svg width="16" height="16" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="2.5" y="1" width="7" height="10" rx="1.2"></rect><circle cx="6" cy="7.6" r="2"></circle><circle cx="6" cy="3.4" r=".9"></circle></svg></span><span style="font:600 8.5px Jost;color:#11151b;text-align:center;line-height:1.2;">Kii Three</span><span style="font:500 6.5px 'IBM Plex Mono';color:#586273;">2 IN · 1 OUT</span><span style="position:absolute;left:-6px;top:50%;transform:translateY(-50%);width:11px;height:11px;border-radius:50%;background:#74819a;border:1.5px solid #fff;"></span><span style="position:absolute;right:-6px;top:50%;transform:translateY(-50%);width:11px;height:11px;border-radius:50%;background:#19b6a6;border:1.5px solid #fff;"></span></div>
+      <span style="font:600 8.5px 'IBM Plex Mono';color:#586273;">TILE · zoom &lt;55%</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px;align-items:center;">
+      <div style="width:130px;background:#fff;border:1.5px solid #19b6a6;border-radius:8px;"><div style="height:3px;margin:1.5px 1.5px 0;border-radius:5px 5px 0 0;background:#3b82f6;"></div><div style="display:flex;align-items:center;gap:5px;padding:5px 7px;background:rgba(25,182,166,.14);border-bottom:1px solid #c9d1db;"><span style="width:16px;height:16px;border-radius:4px;background:rgba(25,182,166,.15);color:#0d7a6a;display:flex;align-items:center;justify-content:center;"><svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2.5" y="1" width="7" height="10" rx="1.2"></rect><circle cx="6" cy="7.6" r="2"></circle></svg></span><span style="font:600 9.5px Jost;color:#11151b;">Kii Three</span></div>
+      <div style="padding:3px 0;"><div style="height:16px;display:flex;align-items:center;padding:0 7px;position:relative;"><span style="position:absolute;left:-5px;width:8px;height:8px;border-radius:50%;background:#19b6a6;border:1.5px solid #fff;"></span><span style="font:400 8.5px Jost;color:#343c47;">Network In</span></div></div></div>
+      <span style="font:600 8.5px 'IBM Plex Mono';color:#586273;">COMPACT · 16px rows</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px;align-items:center;">
+      <div style="width:150px;background:#fff;border:1.5px solid #19b6a6;border-radius:8px;"><div style="height:3px;margin:1.5px 1.5px 0;border-radius:5px 5px 0 0;background:#3b82f6;"></div><div style="display:flex;align-items:center;gap:6px;padding:7px 8px;background:rgba(25,182,166,.14);border-bottom:1px solid #c9d1db;"><span style="width:20px;height:20px;border-radius:5px;background:rgba(25,182,166,.15);color:#0d7a6a;display:flex;align-items:center;justify-content:center;"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="2.5" y="1" width="7" height="10" rx="1.2"></rect><circle cx="6" cy="7.6" r="2"></circle></svg></span><div><div style="font:600 10px Jost;color:#11151b;">Kii Three</div><div style="font:500 7px 'IBM Plex Mono';letter-spacing:.08em;color:#586273;">SPEAKER</div></div></div>
+      <div style="padding:4px 0;"><div style="height:19px;display:flex;align-items:center;padding:0 8px;position:relative;"><span style="position:absolute;left:-5px;width:9px;height:9px;border-radius:50%;background:#19b6a6;border:1.5px solid #fff;"></span><span style="font:400 9px Jost;color:#343c47;">Network In</span></div><div style="height:19px;display:flex;align-items:center;padding:0 8px;position:relative;"><span style="position:absolute;left:-5px;width:9px;height:9px;border-radius:50%;background:#e7ebf1;box-shadow:inset 0 0 0 1.5px #cfa920;"></span><span style="font:400 9px Jost;color:#343c47;">Analog In</span></div></div></div>
+      <span style="font:600 8.5px 'IBM Plex Mono';color:#586273;">DEFAULT · 20px rows</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px;align-items:center;">
+      <div style="width:170px;background:#fff;border:1.5px solid #19b6a6;border-radius:8px;"><div style="height:3px;margin:1.5px 1.5px 0;border-radius:5px 5px 0 0;background:#3b82f6;"></div><div style="display:flex;align-items:center;gap:6px;padding:8px 9px;background:rgba(25,182,166,.14);border-bottom:1px solid #c9d1db;"><span style="width:24px;height:24px;border-radius:6px;background:rgba(25,182,166,.15);color:#0d7a6a;display:flex;align-items:center;justify-content:center;"><svg width="14" height="14" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="2.5" y="1" width="7" height="10" rx="1.2"></rect><circle cx="6" cy="7.6" r="2"></circle><circle cx="6" cy="3.4" r=".9"></circle></svg></span><div><div style="font:600 10.5px Jost;color:#11151b;">Kii Three</div><div style="display:flex;gap:4px;align-items:center;"><span style="font:500 7.5px 'IBM Plex Mono';letter-spacing:.08em;color:#586273;">SPEAKER</span><span style="width:5px;height:5px;border-radius:1.5px;background:#3b82f6;"></span><span style="font:500 7.5px 'IBM Plex Mono';letter-spacing:.08em;color:#586273;">AUDIO</span></div></div><span style="margin-left:auto;width:5px;height:5px;border-radius:50%;background:#188a64;"></span></div>
+      <div style="padding:4px 0;"><div style="height:20px;display:flex;align-items:center;padding:0 9px;position:relative;"><span style="position:absolute;left:-5px;width:9px;height:9px;border-radius:50%;background:#19b6a6;border:1.5px solid #fff;"></span><span style="font:400 9.5px Jost;color:#343c47;">Network In</span></div><div style="height:20px;display:flex;align-items:center;padding:0 9px;position:relative;"><span style="position:absolute;left:-5px;width:9px;height:9px;border-radius:50%;background:#e7ebf1;box-shadow:inset 0 0 0 1.5px #cfa920;"></span><span style="font:400 9.5px Jost;color:#343c47;">Analog In</span></div></div>
+      <div style="display:flex;justify-content:space-between;padding:4px 9px;border-top:1px solid #eef1f6;"><span style="font:500 7.5px 'IBM Plex Mono';color:#586273;">2 in · 1 out</span><span style="font:500 7.5px 'IBM Plex Mono';color:#586273;">#DEV-07</span></div></div>
+      <span style="font:600 8.5px 'IBM Plex Mono';color:#586273;">DETAILED · + footer</span>
+    </div>
+  </div>
+</div>
+<p class="dv-notes" style="width:640px;">Per-node <code>nodeView</code> (set in inspector seg / context menu, batches across selection); zoom bands force tiers: Chip &lt;55% · Compact &lt;78% · Standard &lt;120% · Detailed ≥120%. <b>Tile = artwork + name + ONE aggregate connector per side</b>: every inbound wire lands on the single left dot, every outbound leaves the single right dot — signal colour when uniform, neutral slate <code>#74819a</code> when mixed; the counts line says what's concatenated. Wire anchors derive from the same row math at every tier — no drift.</p>
+</div>
+
+<div class="dv-opt" id="2d"><div class="dv-olabel"><a class="dv-oid" href="#2d">2d</a>Edge &amp; flow direction — the spec</div>
+<div class="dv-card" style="width:600px;background:#e7ebf1;background-image:radial-gradient(rgba(40,45,60,.14) 1px,transparent 1.2px);background-size:24px 24px;padding:22px;">
+  <div style="position:relative;height:240px;">
+    <svg style="position:absolute;inset:0;width:100%;height:100%;" viewBox="0 0 556 240" fill="none">
+      <path d="M 96 52 L 300 52 L 300 150 L 170 150 L 170 208 L 420 208" stroke="rgba(22,16,48,.22)" stroke-width="4.6" stroke-linecap="round"></path>
+      <path d="M 96 52 L 300 52 L 300 150 L 170 150 L 170 208 L 420 208" stroke="#19b6a6" stroke-width="2.2" stroke-linecap="round"></path>
+      <path d="M 96 52 L 300 52 L 300 150 L 170 150 L 170 208 L 420 208" stroke="#bff0e9" stroke-width="2.2" stroke-linecap="round" stroke-dasharray="10 62" style="animation:r3flow 1.8s linear infinite;"></path>
+      <path d="M 194 48 l 7 4 -7 4" stroke="#0d7a6a" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity=".7"></path>
+      <path d="M 322 204 l 7 4 -7 4" stroke="#0d7a6a" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity=".7"></path>
+    </svg>
+    <div style="position:absolute;left:24px;top:30px;width:74px;background:#fff;border:1.5px solid #19b6a6;border-radius:7px;padding:5px 7px;"><div style="font:600 8.5px Jost;color:#11151b;">Source</div><div style="font:500 7px 'IBM Plex Mono';color:#586273;">OUTPUT ●</div></div>
+    <div style="position:absolute;left:420px;top:186px;width:78px;background:#fff;border:1.5px solid #19b6a6;border-radius:7px;padding:5px 7px;"><div style="font:600 8.5px Jost;color:#11151b;">Destination</div><div style="font:500 7px 'IBM Plex Mono';color:#586273;">INPUT ●</div></div>
+    <div style="position:absolute;left:316px;top:120px;background:#fff;border:1px solid #c9d1db;border-radius:6px;padding:3px 7px;display:flex;align-items:center;gap:5px;box-shadow:0 1px 2px rgba(40,45,60,.08);"><span style="width:7px;height:7px;border-radius:2px;background:#19b6a6;"></span><span style="font:500 8.5px 'IBM Plex Mono';color:#11151b;">A-014 · 12.0 m</span></div>
+  </div>
+  <div style="border-top:1px solid rgba(0,0,0,.1);margin-top:6px;padding-top:12px;font:400 10.5px/1.55 Jost;color:#343c47;">
+    <b style="color:#11151b;">The band follows the PATH, not the chord.</b> Replace the chord-axis <code>linearGradient</code> with a dash-march overlay on the same routed <code>d</code>: <code>stroke-dasharray: 10 62</code> · animate <code>stroke-dashoffset 0 → −72</code> (CSS keyframes in <code>liveSignal.css</code>) · bright colour <code>color-mix(in srgb, white 65%, {signal})</code> · width = core (2.2px) · 3s idle / 1.7s selected. Decreasing offset = forward along path = <b>output → input through every turn</b> (marked by two quiet chevrons — direction cues stay subtle so the canvas never clutters). <code>flowDir "reverse"</code> animates 0 → +72; <code>"bi"</code> renders two offset overlays in opposite directions. Keep all gates (liveSignal flag, reduced motion, wireless, direct-attach, dashed cores). Casing stays <code>rgba(22,16,48,.22)</code> light / <code>rgba(255,255,255,.26)</code> dark, everything <code>vector-effect: non-scaling-stroke</code>.
+  </div>
+</div>
+</div>
+
+</div>
+<p class="dv-next">Try next: "dark-theme node set" · "show batch-selection inspector state" · "wireless RF link board"</p>
+</section>
+
+<section class="dv-turn" id="t3" data-screen-label="3 · Artwork system">
+<div class="dv-thd"><a class="dv-tid" href="#t3">3</a><span class="dv-tname">Artwork system — vector gallery replaces emoji</span><span class="dv-tsub">Wires the existing symbolLibrary (~150 SVGs) + upload pipeline into device identity. RED-LINES §R3.</span></div>
+<div class="dv-opts">
+
+<div class="dv-opt" id="3a"><div class="dv-olabel"><a class="dv-oid" href="#3a">3a</a>Symbol picker — "Choose artwork"</div>
+<div class="dv-card" style="width:470px;padding:0;">
+  <div style="padding:14px 16px 10px;border-bottom:1px solid #eef1f6;">
+    <div style="font:600 14px Jost;color:#11151b;margin-bottom:9px;">Choose artwork</div>
+    <div style="display:flex;align-items:center;gap:7px;border:1px solid #c9d1db;border-radius:8px;padding:7px 10px;"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="#586273" stroke-width="1.6"><circle cx="7" cy="7" r="4.5"></circle><path d="M10.5 10.5 14 14"></path></svg><span style="font:400 11.5px Jost;color:#9aa4b2;">Search 190 symbols…</span></div>
+  </div>
+  <div style="display:flex;gap:5px;padding:9px 16px;border-bottom:1px solid #eef1f6;flex-wrap:wrap;">
+    <span style="font:600 9.5px Jost;color:#fff;background:#1664c8;border-radius:20px;padding:4px 10px;">All</span>
+    <span style="font:500 9.5px Jost;color:#343c47;background:#eef1f6;border-radius:20px;padding:4px 10px;">Audio</span>
+    <span style="font:500 9.5px Jost;color:#343c47;background:#eef1f6;border-radius:20px;padding:4px 10px;">Video</span>
+    <span style="font:500 9.5px Jost;color:#343c47;background:#eef1f6;border-radius:20px;padding:4px 10px;">Lighting</span>
+    <span style="font:500 9.5px Jost;color:#343c47;background:#eef1f6;border-radius:20px;padding:4px 10px;">Network</span>
+    <span style="font:500 9.5px Jost;color:#343c47;background:#eef1f6;border-radius:20px;padding:4px 10px;">Compute</span>
+    <span style="font:500 9.5px Jost;color:#343c47;background:#eef1f6;border-radius:20px;padding:4px 10px;">Power</span>
+    <span style="font:500 9.5px Jost;color:#343c47;background:#eef1f6;border-radius:20px;padding:4px 10px;">Shapes</span>
+    <span style="font:500 9.5px Jost;color:#343c47;background:#eef1f6;border-radius:20px;padding:4px 10px;">Furniture</span>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;padding:14px 16px;">
+    <div style="aspect-ratio:1;border:2px solid #1664c8;border-radius:9px;background:rgba(22,100,200,.06);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:#343c47;"><svg width="22" height="22" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1"><rect x="2.5" y="1" width="7" height="10" rx="1.2"></rect><circle cx="6" cy="7.6" r="2"></circle><circle cx="6" cy="3.4" r=".9"></circle></svg><span style="font:500 6.5px Jost;color:#586273;">Loudspeaker</span></div>
+    <div style="aspect-ratio:1;border:1px solid #e4e8ee;border-radius:9px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:#343c47;"><svg width="22" height="22" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1"><rect x="1.5" y="3" width="9" height="6" rx="1"></rect><path d="M3 9v1.5M9 9v1.5M3.4 5h.01M5 5h.01"></path></svg><span style="font:500 6.5px Jost;color:#586273;">Subwoofer</span></div>
+    <div style="aspect-ratio:1;border:1px solid #e4e8ee;border-radius:9px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:#343c47;"><svg width="22" height="22" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1"><rect x="4.2" y="1" width="3.6" height="6" rx="1.8"></rect><path d="M3 5.5a3 3 0 0 0 6 0M6 8.5V11M4.5 11h3"></path></svg><span style="font:500 6.5px Jost;color:#586273;">Microphone</span></div>
+    <div style="aspect-ratio:1;border:1px solid #e4e8ee;border-radius:9px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:#343c47;"><svg width="22" height="22" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1"><rect x="1" y="3" width="10" height="6.5" rx="1"></rect><path d="M3 5v3M5 4.5v3M7 6v3M9 4v3"></path></svg><span style="font:500 6.5px Jost;color:#586273;">Mixing console</span></div>
+    <div style="aspect-ratio:1;border:1px solid #e4e8ee;border-radius:9px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:#343c47;"><svg width="22" height="22" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1"><rect x="1" y="4" width="10" height="4.5" rx="1"></rect><circle cx="8.6" cy="6.2" r="1.1"></circle><path d="M2.5 6.2h3.5"></path></svg><span style="font:500 6.5px Jost;color:#586273;">Amplifier</span></div>
+    <div style="aspect-ratio:1;border:1px solid #e4e8ee;border-radius:9px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:#343c47;"><svg width="22" height="22" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1"><rect x="1" y="3.5" width="7.5" height="5" rx="1.2"></rect><path d="M8.5 5.5 11 4v4L8.5 6.5"></path></svg><span style="font:500 6.5px Jost;color:#586273;">PTZ camera</span></div>
+    <div style="aspect-ratio:1;border:1px solid #e4e8ee;border-radius:9px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:#343c47;"><svg width="22" height="22" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1"><rect x="1" y="4" width="10" height="4.5" rx="2.2"></rect><circle cx="8.4" cy="6.2" r="1.3"></circle><path d="M3 10h6"></path></svg><span style="font:500 6.5px Jost;color:#586273;">Projector</span></div>
+    <div style="aspect-ratio:1;border:1px solid #e4e8ee;border-radius:9px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:#343c47;"><svg width="22" height="22" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1"><rect x="1.5" y="2" width="9" height="6" rx="1"></rect><path d="M4 10h4M6 8v2"></path></svg><span style="font:500 6.5px Jost;color:#586273;">Display</span></div>
+    <div style="aspect-ratio:1;border:1px solid #e4e8ee;border-radius:9px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:#343c47;"><svg width="22" height="22" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1"><path d="M4 1.5h4l-.5 3h-3zM3.5 4.5h5v3h-5z"></path><path d="M4.5 7.5 4 10.5M7.5 7.5l.5 3"></path></svg><span style="font:500 6.5px Jost;color:#586273;">Moving head</span></div>
+    <div style="aspect-ratio:1;border:1px solid #e4e8ee;border-radius:9px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:#343c47;"><svg width="22" height="22" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1"><rect x="1" y="4.5" width="10" height="3" rx=".8"></rect><path d="M3 6h.01M4.6 6h.01M6.2 6h.01M7.8 6h.01M9.4 6h.01"></path></svg><span style="font:500 6.5px Jost;color:#586273;">Network switch</span></div>
+    <div style="aspect-ratio:1;border:1px solid #e4e8ee;border-radius:9px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:#343c47;"><svg width="22" height="22" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1"><rect x="2" y="1.5" width="8" height="9" rx="1"></rect><path d="M4 3.5h4M4 5.5h4M4 8.5h1.5"></path></svg><span style="font:500 6.5px Jost;color:#586273;">Server</span></div>
+    <div style="aspect-ratio:1;border:1px solid #e4e8ee;border-radius:9px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:#343c47;"><svg width="22" height="22" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1"><path d="M2 8.5h8v1.5H2zM3 8.5V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v4.5"></path></svg><span style="font:500 6.5px Jost;color:#586273;">Laptop</span></div>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;padding:12px 16px;border-top:1px solid #eef1f6;">
+    <span style="font:600 11px Jost;color:#1664c8;display:flex;align-items:center;gap:5px;"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 11V3M4.5 6.5 8 3l3.5 3.5M3 13h10"></path></svg>Upload SVG…</span>
+    <span style="font:500 11px Jost;color:#586273;">None</span>
+    <span style="margin-left:auto;font:500 11.5px Jost;color:#586273;padding:7px 14px;">Cancel</span>
+    <span style="font:600 11.5px Jost;color:#fff;background:#1664c8;border-radius:8px;padding:7px 16px;">Choose</span>
+  </div>
+</div>
+<p class="dv-notes" style="width:470px;">Extends the existing <code>SymbolPickerDialog</code> — same grid, search, and <code>addSvgAsset()</code> upload path. All glyphs <code>currentColor</code> line-work so they tint by class colour. <b>New categories to build</b> (via the existing <code>_build</code> pipeline, license-clean per RESEARCH.md): Video · Lighting · Compute/Control · Power (~40 symbols). Keyboard: arrows navigate, Enter chooses.</p>
+</div>
+
+<div class="dv-opt" id="3b"><div class="dv-olabel"><a class="dv-oid" href="#3b">3b</a>Where artwork lives</div>
+<div class="dv-card" style="width:560px;padding:18px 20px;">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+    <div style="border:1px solid #e4e8ee;border-radius:10px;padding:10px 12px;">
+      <div style="font:600 8px 'IBM Plex Mono';letter-spacing:.12em;color:#586273;margin-bottom:7px;">DEVICE EDITOR · IDENTITY</div>
+      <div style="display:flex;align-items:center;gap:9px;"><span style="width:38px;height:38px;border-radius:9px;background:rgba(25,182,166,.15);display:flex;align-items:center;justify-content:center;color:#0d7a6a;"><svg width="20" height="20" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.1"><rect x="2.5" y="1" width="7" height="10" rx="1.2"></rect><circle cx="6" cy="7.6" r="2"></circle><circle cx="6" cy="3.4" r=".9"></circle></svg></span><div style="flex:1;"><div style="font:500 11px Jost;color:#11151b;">Loudspeaker</div><div style="font:400 9px Jost;color:#586273;">audio · loudspeaker</div></div><span style="font:600 10px Jost;color:#1664c8;">Choose…</span></div>
+      <div style="font:400 9px/1.4 Jost;color:#586273;margin-top:7px;">Replaces the emoji strip (<code>DeviceEditor.tsx:1182</code>).</div>
+    </div>
+    <div style="border:1px solid #e4e8ee;border-radius:10px;padding:10px 12px;">
+      <div style="font:600 8px 'IBM Plex Mono';letter-spacing:.12em;color:#586273;margin-bottom:7px;">NODE HEADER · 24px CHIP</div>
+      <div style="display:flex;align-items:center;gap:8px;background:rgba(25,182,166,.14);border:1px solid #c9d1db;border-radius:7px;padding:7px 9px;"><span style="width:24px;height:24px;border-radius:6px;background:rgba(25,182,166,.15);display:flex;align-items:center;justify-content:center;color:#0d7a6a;"><svg width="14" height="14" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="2.5" y="1" width="7" height="10" rx="1.2"></rect><circle cx="6" cy="7.6" r="2"></circle><circle cx="6" cy="3.4" r=".9"></circle></svg></span><div><div style="font:600 10.5px Jost;color:#11151b;">Kii Three</div><div style="font:500 7.5px 'IBM Plex Mono';letter-spacing:.08em;color:#586273;">SPEAKER</div></div></div>
+      <div style="font:400 9px/1.4 Jost;color:#586273;margin-top:7px;">Replaces the emoji span (<code>DeviceNode.tsx:718</code>); 16px in Compact.</div>
+    </div>
+    <div style="border:1px solid #e4e8ee;border-radius:10px;padding:10px 12px;">
+      <div style="font:600 8px 'IBM Plex Mono';letter-spacing:.12em;color:#586273;margin-bottom:7px;">LIBRARY + QUICK-ADD ROWS · 20px</div>
+      <div style="display:flex;align-items:center;gap:7px;padding:5px 7px;border-radius:7px;background:#eef1f6;"><span style="width:20px;height:20px;border-radius:5px;background:rgba(25,182,166,.15);color:#0d7a6a;display:flex;align-items:center;justify-content:center;"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="2.5" y="1" width="7" height="10" rx="1.2"></rect><circle cx="6" cy="7.6" r="2"></circle></svg></span><span style="font:500 10px Jost;color:#11151b;">Kii Three</span><span style="margin-left:auto;font:500 8px 'IBM Plex Mono';color:#586273;">SPEAKER</span></div>
+      <div style="font:400 9px/1.4 Jost;color:#586273;margin-top:7px;">Also replaces 📝/▢/⊞ special-row glyphs in QuickAdd.</div>
+    </div>
+    <div style="border:1px solid #e4e8ee;border-radius:10px;padding:10px 12px;">
+      <div style="font:600 8px 'IBM Plex Mono';letter-spacing:.12em;color:#586273;margin-bottom:7px;">PLAN FOOTPRINT + INSPECTOR HERO</div>
+      <div style="display:flex;gap:10px;align-items:center;"><span style="width:44px;height:34px;border:1.5px solid #0d7a6a;border-radius:4px;background:rgba(13,122,106,.08);display:flex;align-items:center;justify-content:center;color:#0d7a6a;"><svg width="16" height="16" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="2.5" y="1" width="7" height="10" rx="1.2"></rect><circle cx="6" cy="7.6" r="2"></circle></svg></span><span style="width:38px;height:38px;border-radius:9px;background:rgba(25,182,166,.15);display:flex;align-items:center;justify-content:center;color:#0d7a6a;"><svg width="20" height="20" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.1"><rect x="2.5" y="1" width="7" height="10" rx="1.2"></rect><circle cx="6" cy="7.6" r="2"></circle><circle cx="6" cy="3.4" r=".9"></circle></svg></span></div>
+      <div style="font:400 9px/1.4 Jost;color:#586273;margin-top:7px;">Same <code>svgAssetId</code> everywhere — one source of identity.</div>
+    </div>
+  </div>
+</div>
+<p class="dv-notes" style="width:560px;"><b>Data model:</b> <code>data.icon</code> (emoji) is deprecated → <code>artworkAssetId</code> (symbol or upload). Load-time migration maps the 20 legacy emojis to symbols; unknown → class default. Inspector's free-text "Icon" field becomes a read-only artwork row + "Change…".</p>
+</div>
+
+<div class="dv-opt" id="3c"><div class="dv-olabel"><a class="dv-oid" href="#3c">3c</a>Class-default artwork (no device is ever blank)</div>
+<div class="dv-card" style="width:430px;padding:16px 18px;">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 18px;font:400 10.5px Jost;color:#343c47;">
+    <div style="display:flex;justify-content:space-between;border-bottom:1px solid #eef1f6;padding:5px 0;"><span>Speaker</span><code>audio/loudspeaker</code></div>
+    <div style="display:flex;justify-content:space-between;border-bottom:1px solid #eef1f6;padding:5px 0;"><span>Subwoofer</span><code>audio/subwoofer</code></div>
+    <div style="display:flex;justify-content:space-between;border-bottom:1px solid #eef1f6;padding:5px 0;"><span>Mixer</span><code>audio/mixing-console</code></div>
+    <div style="display:flex;justify-content:space-between;border-bottom:1px solid #eef1f6;padding:5px 0;"><span>Microphone</span><code>audio/microphone-fa</code></div>
+    <div style="display:flex;justify-content:space-between;border-bottom:1px solid #eef1f6;padding:5px 0;"><span>Amplifier</span><code>audio/power-amplifier</code></div>
+    <div style="display:flex;justify-content:space-between;border-bottom:1px solid #eef1f6;padding:5px 0;"><span>DSP / processor</span><code>audio/dsp-processor</code></div>
+    <div style="display:flex;justify-content:space-between;border-bottom:1px solid #eef1f6;padding:5px 0;"><span>Network switch</span><code>network/network-switch</code></div>
+    <div style="display:flex;justify-content:space-between;border-bottom:1px solid #eef1f6;padding:5px 0;"><span>Router / WAP</span><code>network/router</code></div>
+    <div style="display:flex;justify-content:space-between;border-bottom:1px solid #eef1f6;padding:5px 0;"><span>Server / NAS</span><code>network/server</code></div>
+    <div style="display:flex;justify-content:space-between;border-bottom:1px solid #eef1f6;padding:5px 0;"><span>Camera</span><code>video/camera-ptz *</code></div>
+    <div style="display:flex;justify-content:space-between;border-bottom:1px solid #eef1f6;padding:5px 0;"><span>Display / projector</span><code>video/display *</code></div>
+    <div style="display:flex;justify-content:space-between;border-bottom:1px solid #eef1f6;padding:5px 0;"><span>Lighting</span><code>lighting/moving-head *</code></div>
+    <div style="display:flex;justify-content:space-between;border-bottom:1px solid #eef1f6;padding:5px 0;"><span>Computer</span><code>compute/desktop *</code></div>
+    <div style="display:flex;justify-content:space-between;border-bottom:1px solid #eef1f6;padding:5px 0;"><span>Power / PDU</span><code>power/pdu *</code></div>
+    <div style="display:flex;justify-content:space-between;padding:5px 0;"><span>Remote / control</span><code>compute/touch-panel *</code></div>
+    <div style="display:flex;justify-content:space-between;padding:5px 0;"><span>Other / unknown</span><code>generic/rounded-rectangle</code></div>
+  </div>
+  <div style="font:400 9.5px/1.45 Jost;color:#586273;margin-top:10px;">* = new symbols from the category expansion in <a href="#3a">3a</a>. Map lives beside <code>deviceClassColor.ts</code> so class → colour and class → artwork stay in one place.</div>
+</div>
+</div>
+
+</div>
+<p class="dv-next">Try next: "mock the upload-SVG flow" · "show a node using uploaded brand artwork" · "artwork-tile node mode"</p>
+</section>
+
+<section class="dv-turn" id="t4" data-screen-label="4 · Search to Create flow">
+<div class="dv-thd"><a class="dv-tid" href="#t4">4</a><span class="dv-tname">Search → Create — no dead ends</span><span class="dv-tsub">RED-LINES §R4: every empty result offers creation.</span></div>
+<div class="dv-opts">
+
+<div class="dv-opt" id="4a"><div class="dv-olabel"><a class="dv-oid" href="#4a">4a</a>Quick-add · no match → Create row</div>
+<div class="dv-card" style="width:400px;padding:12px 12px 8px;background:#fff;">
+  <div style="display:flex;gap:8px;margin-bottom:8px;">
+    <div style="flex:1;border:2px solid #1664c8;border-radius:9px;padding:7px 11px;font:500 12px Jost;color:#11151b;box-shadow:0 0 0 3px rgba(22,100,200,.12);">Trinnov<span style="display:inline-block;width:1px;height:12px;background:#1664c8;margin-left:1px;vertical-align:-2px;"></span></div>
+    <div style="display:flex;align-items:center;gap:8px;border:1px solid #c9d1db;border-radius:9px;padding:0 10px;"><span style="font:500 13px Jost;color:#586273;">−</span><span style="font:500 11px 'IBM Plex Mono';color:#11151b;">1</span><span style="font:500 13px Jost;color:#586273;">＋</span></div>
+  </div>
+  <div style="display:flex;gap:8px;margin-bottom:10px;">
+    <div style="flex:1;border:1px solid #c9d1db;border-radius:9px;padding:6px 11px;font:400 11px Jost;color:#586273;">Categories</div>
+    <div style="flex:1;border:1px solid #c9d1db;border-radius:9px;padding:6px 11px;font:400 11px Jost;color:#586273;">Brands</div>
+  </div>
+  <div style="border-top:1px solid #eef1f6;margin:0 -12px;padding:6px 12px 4px;">
+    <div style="display:flex;align-items:center;gap:9px;background:rgba(22,100,200,.10);border:1px solid rgba(22,100,200,.35);border-radius:9px;padding:9px 11px;">
+      <span style="width:22px;height:22px;border-radius:6px;background:#1664c8;color:#fff;display:flex;align-items:center;justify-content:center;font:600 13px Jost;flex:none;">＋</span>
+      <div style="flex:1;"><div style="font:600 11.5px Jost;color:#11151b;">Create "Trinnov"</div><div style="font:400 9.5px Jost;color:#586273;">New device template — opens the editor prefilled</div></div>
+      <span style="font:500 9px 'IBM Plex Mono';color:#586273;background:#eef1f6;border-radius:4px;padding:2px 6px;">↵</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:9px;padding:9px 11px;">
+      <span style="width:22px;height:22px;border-radius:6px;background:#eef1f6;color:#586273;display:flex;align-items:center;justify-content:center;flex:none;"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="7" cy="7" r="4.5"></circle><path d="M10.5 10.5 14 14"></path></svg></span>
+      <div style="flex:1;font:500 11px Jost;color:#343c47;">Search full catalog for "Trinnov"</div>
+      <span style="font:500 9px 'IBM Plex Mono';color:#586273;">2.6k</span>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:12px;border-top:1px solid #eef1f6;margin:4px -12px 0;padding:8px 14px 2px;font:400 9.5px Jost;color:#586273;">
+    <span style="display:flex;align-items:center;gap:5px;"><span style="width:13px;height:13px;border:1.5px solid #9aa4b2;border-radius:4px;"></span>Rapid</span>
+    <span style="font-family:'IBM Plex Mono';font-size:8.5px;">↑↓ nav</span>
+    <span style="font-family:'IBM Plex Mono';font-size:8.5px;">⏎ place</span>
+    <span style="font-family:'IBM Plex Mono';font-size:8.5px;">⇧⏎ +keep</span>
+  </div>
+</div>
+<p class="dv-notes" style="width:400px;">Create row is <b>keyboard-first</b>: it joins the results list, so ↑↓ reaches it and <b>⏎ activates it when it's the sole result</b>. Opens the new-template editor prefilled <code>name = query</code>, carries the qty; on save → template lands in My Devices, N devices placed at the quick-add anchor (ownership registration: <a href="#4c">4c</a>). The catalog row appears only when scope was "My Devices". Same Create row in <code>DeviceCreatorPicker</code>.</p>
+</div>
+
+<div class="dv-opt" id="4b"><div class="dv-olabel"><a class="dv-oid" href="#4b">4b</a>Paste list · per-row create</div>
+<div class="dv-card" style="width:400px;padding:12px;background:#fff;">
+  <div style="font:500 8px 'IBM Plex Mono';letter-spacing:.12em;color:#586273;margin-bottom:6px;">3 LINES PASTED</div>
+  <div style="border:1px solid #eef1f6;border-radius:9px;overflow:hidden;">
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 11px;border-bottom:1px solid #eef1f6;"><span style="font:500 9.5px 'IBM Plex Mono';color:#586273;width:22px;">2×</span><span style="color:#188a64;font:600 10px Jost;">✓</span><span style="font:500 10.5px Jost;color:#11151b;">Kii Three</span></div>
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 11px;border-bottom:1px solid #eef1f6;"><span style="font:500 9.5px 'IBM Plex Mono';color:#586273;width:22px;">1×</span><span style="color:#188a64;font:600 10px Jost;">✓</span><span style="font:500 10.5px Jost;color:#11151b;">X32 Rack</span></div>
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 11px;background:rgba(138,94,18,.05);"><span style="font:500 9.5px 'IBM Plex Mono';color:#586273;width:22px;">1×</span><span style="color:#8a5e12;font:600 10px Jost;">✗</span><span style="font:500 10.5px Jost;color:#343c47;flex:1;">Trinnov Altitude32 <span style="font-weight:400;color:#9aa4b2;">(no match)</span></span><span style="font:600 9.5px Jost;color:#fff;background:#1664c8;border-radius:6px;padding:4px 10px;">Create</span></div>
+  </div>
+</div>
+<p class="dv-notes" style="width:400px;">Each unmatched row gets its own <b>Create</b> chip → editor prefilled with that line; on save the row flips to ✓ and the list state (counts, other rows) is preserved. <code>DeviceSwapDialog</code> keeps a plain empty state + "Try a different term" (creating mid-swap is out of scope).</p>
+</div>
+
+<div class="dv-opt" id="4c"><div class="dv-olabel"><a class="dv-oid" href="#4c">4c</a>Owned-list registration — nothing disappears</div>
+<div class="dv-card" style="width:430px;padding:14px 16px;">
+  <div style="font:500 8px 'IBM Plex Mono';letter-spacing:.12em;color:#586273;margin-bottom:6px;">DEVICE CREATOR · FOOTER</div>
+  <div style="display:flex;align-items:center;gap:10px;border:1px solid #c9d1db;border-radius:9px;padding:9px 12px;margin-bottom:14px;">
+    <span style="width:15px;height:15px;border-radius:4.5px;background:#1664c8;display:flex;align-items:center;justify-content:center;color:#fff;font:700 9px Jost;flex:none;">✓</span>
+    <div style="flex:1;"><div style="font:500 11px Jost;color:#11151b;">Also add to My Devices</div><div style="font:400 9px Jost;color:#586273;">Registers this template + quantity to your owned list</div></div>
+    <span style="font:600 11px Jost;color:#fff;background:#1664c8;border-radius:7px;padding:6px 14px;">Save</span>
+  </div>
+  <div style="font:500 8px 'IBM Plex Mono';letter-spacing:.12em;color:#586273;margin-bottom:6px;">INSERT DRAWER · MY DEVICES</div>
+  <div style="border:1px solid #eef1f6;border-radius:9px;overflow:hidden;">
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 11px;border-bottom:1px solid #eef1f6;"><span style="font:600 10.5px Jost;color:#11151b;">My Devices</span><span style="font:500 9px 'IBM Plex Mono';color:#586273;">· 3</span></div>
+    <div style="display:flex;align-items:center;gap:8px;padding:7px 11px;border-bottom:1px solid #eef1f6;"><span style="width:20px;height:20px;border-radius:5px;background:rgba(25,182,166,.15);color:#0d7a6a;display:flex;align-items:center;justify-content:center;"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="2.5" y="1" width="7" height="10" rx="1.2"></rect><circle cx="6" cy="7.6" r="2"></circle></svg></span><span style="font:500 10.5px Jost;color:#11151b;flex:1;">Kii Three</span><span style="font:500 9px 'IBM Plex Mono';color:#586273;">×2</span><span style="font:600 8px 'IBM Plex Mono';letter-spacing:.06em;color:#188a64;background:rgba(24,138,100,.1);border-radius:4px;padding:2px 5px;">OWNED</span></div>
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 11px;background:rgba(22,100,200,.06);"><span style="width:20px;height:20px;border-radius:5px;background:#1664c8;color:#fff;display:flex;align-items:center;justify-content:center;font:600 12px Jost;">＋</span><span style="font:600 10.5px Jost;color:#1664c8;flex:1;">Add all project devices</span><span style="font:500 9px 'IBM Plex Mono';color:#586273;">12 distinct · 40 units</span></div>
+  </div>
+</div>
+<p class="dv-notes" style="width:430px;"><b>Every created or placed device must be visible in a list immediately.</b> The creator's "Also add to My Devices" checkbox defaults ON (remembered per user). The Insert drawer's My Devices tab gains a bulk <b>Add all project devices</b> action — syncs everything already on the canvas into the owned list with counts (dedupe by inventory key; existing quantities merge, never duplicate). Owned status feeds Schedule ▸ Items source chips and gear inventory.</p>
+</div>
+
+</div>
+<p class="dv-next">Try next: "creator prefill screen" · "what ⇧⏎ +keep does after Create"</p>
+</section>
+
+<section class="dv-turn" id="t5" data-screen-label="5 · Design system reference">
+<div class="dv-thd"><a class="dv-tid" href="#t5">5</a><span class="dv-tname">Design system — Slate × Carbon reference</span><span class="dv-tsub">Every value verified against src/theme.css · index.css · the v7 prototype. Visual + technical, both themes.</span></div>
+<div class="dv-opts">
+
+<div class="dv-opt" id="5a"><div class="dv-olabel"><a class="dv-oid" href="#5a">5a</a>Core tokens — light / dark</div>
+<div class="dv-card" style="width:700px;padding:18px 20px;">
+  <div style="font:600 8.5px 'IBM Plex Mono';letter-spacing:.12em;color:#586273;margin-bottom:8px;">LIGHT (:root)</div>
+  <div style="display:grid;grid-template-columns:repeat(8,1fr);gap:8px;margin-bottom:16px;">
+    <div><div style="height:34px;border-radius:7px;background:#e7ebf1;border:1px solid #d5dae2;"></div><div style="font:500 7.5px 'IBM Plex Mono';color:#11151b;margin-top:4px;">--color-bg</div><div style="font:400 7.5px 'IBM Plex Mono';color:#9aa4b2;">#e7ebf1</div></div>
+    <div><div style="height:34px;border-radius:7px;background:#ffffff;border:1px solid #d5dae2;"></div><div style="font:500 7.5px 'IBM Plex Mono';color:#11151b;margin-top:4px;">--surface / raised</div><div style="font:400 7.5px 'IBM Plex Mono';color:#9aa4b2;">#ffffff</div></div>
+    <div><div style="height:34px;border-radius:7px;background:#eef1f6;border:1px solid #d5dae2;"></div><div style="font:500 7.5px 'IBM Plex Mono';color:#11151b;margin-top:4px;">--surface-hover</div><div style="font:400 7.5px 'IBM Plex Mono';color:#9aa4b2;">#eef1f6</div></div>
+    <div><div style="height:34px;border-radius:7px;background:#c9d1db;"></div><div style="font:500 7.5px 'IBM Plex Mono';color:#11151b;margin-top:4px;">--ui-border</div><div style="font:400 7.5px 'IBM Plex Mono';color:#9aa4b2;">#c9d1db</div></div>
+    <div><div style="height:34px;border-radius:7px;background:#9aa4b2;"></div><div style="font:500 7.5px 'IBM Plex Mono';color:#11151b;margin-top:4px;">--border strong</div><div style="font:400 7.5px 'IBM Plex Mono';color:#9aa4b2;">#9aa4b2</div></div>
+    <div><div style="height:34px;border-radius:7px;background:#343c47;"></div><div style="font:500 7.5px 'IBM Plex Mono';color:#11151b;margin-top:4px;">--text</div><div style="font:400 7.5px 'IBM Plex Mono';color:#9aa4b2;">#343c47</div></div>
+    <div><div style="height:34px;border-radius:7px;background:#11151b;"></div><div style="font:500 7.5px 'IBM Plex Mono';color:#11151b;margin-top:4px;">--text-heading</div><div style="font:400 7.5px 'IBM Plex Mono';color:#9aa4b2;">#11151b</div></div>
+    <div><div style="height:34px;border-radius:7px;background:#586273;"></div><div style="font:500 7.5px 'IBM Plex Mono';color:#11151b;margin-top:4px;">--text-muted</div><div style="font:400 7.5px 'IBM Plex Mono';color:#9aa4b2;">#586273</div></div>
+    <div><div style="height:34px;border-radius:7px;background:#1664c8;"></div><div style="font:500 7.5px 'IBM Plex Mono';color:#11151b;margin-top:4px;">--accent</div><div style="font:400 7.5px 'IBM Plex Mono';color:#9aa4b2;">#1664c8</div></div>
+    <div><div style="height:34px;border-radius:7px;background:rgba(22,100,200,.10);border:1px solid #d5dae2;"></div><div style="font:500 7.5px 'IBM Plex Mono';color:#11151b;margin-top:4px;">--accent-soft</div><div style="font:400 7.5px 'IBM Plex Mono';color:#9aa4b2;">10%</div></div>
+    <div><div style="height:34px;border-radius:7px;background:#188a64;"></div><div style="font:500 7.5px 'IBM Plex Mono';color:#11151b;margin-top:4px;">--success</div><div style="font:400 7.5px 'IBM Plex Mono';color:#9aa4b2;">#188a64</div></div>
+    <div><div style="height:34px;border-radius:7px;background:#8a5e12;"></div><div style="font:500 7.5px 'IBM Plex Mono';color:#11151b;margin-top:4px;">--warning</div><div style="font:400 7.5px 'IBM Plex Mono';color:#9aa4b2;">#8a5e12</div></div>
+    <div><div style="height:34px;border-radius:7px;background:#d6453a;"></div><div style="font:500 7.5px 'IBM Plex Mono';color:#11151b;margin-top:4px;">--error · coral</div><div style="font:400 7.5px 'IBM Plex Mono';color:#9aa4b2;">#d6453a</div></div>
+    <div><div style="height:34px;border-radius:7px;background:#f0f3f7;border:1px solid #d5dae2;"></div><div style="font:500 7.5px 'IBM Plex Mono';color:#11151b;margin-top:4px;">--canvas-origin</div><div style="font:400 7.5px 'IBM Plex Mono';color:#9aa4b2;">#f0f3f7</div></div>
+    <div><div style="height:34px;border-radius:7px;background:#fff;box-shadow:0 1px 0 rgba(40,45,60,.05),0 2px 8px -3px rgba(40,45,60,.12);border:1px solid #eef1f6;"></div><div style="font:500 7.5px 'IBM Plex Mono';color:#11151b;margin-top:4px;">shadow-toolbar</div><div style="font:400 7.5px 'IBM Plex Mono';color:#9aa4b2;">slate-tinted</div></div>
+    <div><div style="height:34px;border-radius:7px;background:#fff;box-shadow:0 16px 40px -16px rgba(40,45,60,.26),0 6px 16px -8px rgba(40,45,60,.16);border:1px solid #eef1f6;"></div><div style="font:500 7.5px 'IBM Plex Mono';color:#11151b;margin-top:4px;">shadow-menu</div><div style="font:400 7.5px 'IBM Plex Mono';color:#9aa4b2;">never black</div></div>
+  </div>
+  <div style="background:#1a212d;border-radius:12px;padding:14px 16px;">
+    <div style="font:600 8.5px 'IBM Plex Mono';letter-spacing:.12em;color:#b6c0cd;margin-bottom:8px;">DARK (.dark)</div>
+    <div style="display:grid;grid-template-columns:repeat(8,1fr);gap:8px;">
+      <div><div style="height:34px;border-radius:7px;background:#1a212d;border:1px solid #2a3542;"></div><div style="font:500 7.5px 'IBM Plex Mono';color:#e8edf4;margin-top:4px;">bg</div><div style="font:400 7.5px 'IBM Plex Mono';color:#7e8a9a;">#1a212d</div></div>
+      <div><div style="height:34px;border-radius:7px;background:#3a4659;"></div><div style="font:500 7.5px 'IBM Plex Mono';color:#e8edf4;margin-top:4px;">surface</div><div style="font:400 7.5px 'IBM Plex Mono';color:#7e8a9a;">#3a4659</div></div>
+      <div><div style="height:34px;border-radius:7px;background:#46556a;"></div><div style="font:500 7.5px 'IBM Plex Mono';color:#e8edf4;margin-top:4px;">raised</div><div style="font:400 7.5px 'IBM Plex Mono';color:#7e8a9a;">#46556a</div></div>
+      <div><div style="height:34px;border-radius:7px;background:#232c38;"></div><div style="font:500 7.5px 'IBM Plex Mono';color:#e8edf4;margin-top:4px;">hover/inset</div><div style="font:400 7.5px 'IBM Plex Mono';color:#7e8a9a;">#232c38</div></div>
+      <div><div style="height:34px;border-radius:7px;background:#52617a;"></div><div style="font:500 7.5px 'IBM Plex Mono';color:#e8edf4;margin-top:4px;">ui-border</div><div style="font:400 7.5px 'IBM Plex Mono';color:#7e8a9a;">#52617a</div></div>
+      <div><div style="height:34px;border-radius:7px;background:#e8edf4;"></div><div style="font:500 7.5px 'IBM Plex Mono';color:#e8edf4;margin-top:4px;">text</div><div style="font:400 7.5px 'IBM Plex Mono';color:#7e8a9a;">#e8edf4</div></div>
+      <div><div style="height:34px;border-radius:7px;background:#6fb8ff;"></div><div style="font:500 7.5px 'IBM Plex Mono';color:#e8edf4;margin-top:4px;">accent</div><div style="font:400 7.5px 'IBM Plex Mono';color:#7e8a9a;">#6fb8ff</div></div>
+      <div><div style="height:34px;border-radius:7px;background:#ff8a7e;"></div><div style="font:500 7.5px 'IBM Plex Mono';color:#e8edf4;margin-top:4px;">error · coral</div><div style="font:400 7.5px 'IBM Plex Mono';color:#7e8a9a;">#ff8a7e</div></div>
+    </div>
+    <div style="font:400 9.5px/1.5 Jost;color:#b6c0cd;margin-top:10px;"><b style="color:#f9fbfd;">On-accent ink is near-black <span style="font-family:'IBM Plex Mono';font-size:8.5px;">#04101f</span></b> — dark accents are luminous; white on them fails AA (1.9–2.3:1). Coral is the attention accent ONLY (errors/alerts), never decorative. Theme default follows the OS.</div>
+  </div>
+</div>
+</div>
+
+<div class="dv-opt" id="5b"><div class="dv-olabel"><a class="dv-oid" href="#5b">5b</a>Per-workspace accents (kept)</div>
+<div class="dv-card" style="width:430px;padding:16px 18px;">
+  <div style="display:grid;grid-template-columns:86px 1fr 1fr;gap:6px 12px;font:400 10px Jost;color:#343c47;align-items:center;">
+    <div style="font:600 8px 'IBM Plex Mono';letter-spacing:.1em;color:#586273;">PERSONA</div><div style="font:600 8px 'IBM Plex Mono';letter-spacing:.1em;color:#586273;">LIGHT</div><div style="font:600 8px 'IBM Plex Mono';letter-spacing:.1em;color:#586273;">DARK</div>
+    <div style="font-weight:600;color:#11151b;">Schematic</div>
+    <div style="display:flex;align-items:center;gap:6px;"><span style="width:16px;height:16px;border-radius:5px;background:#1664c8;"></span><code>#1664c8</code></div>
+    <div style="display:flex;align-items:center;gap:6px;"><span style="width:16px;height:16px;border-radius:5px;background:#6fb8ff;"></span><code>#6fb8ff</code></div>
+    <div style="font-weight:600;color:#11151b;">Plan</div>
+    <div style="display:flex;align-items:center;gap:6px;"><span style="width:16px;height:16px;border-radius:5px;background:#0d7a6a;"></span><code>#0d7a6a</code></div>
+    <div style="display:flex;align-items:center;gap:6px;"><span style="width:16px;height:16px;border-radius:5px;background:#35c8b2;"></span><code>#35c8b2</code></div>
+    <div style="font-weight:600;color:#11151b;">Schedule</div>
+    <div style="display:flex;align-items:center;gap:6px;"><span style="width:16px;height:16px;border-radius:5px;background:#915f10;"></span><code>#915f10</code></div>
+    <div style="display:flex;align-items:center;gap:6px;"><span style="width:16px;height:16px;border-radius:5px;background:#e6b354;"></span><code>#e6b354</code></div>
+    <div style="font-weight:600;color:#11151b;">Rack</div>
+    <div style="display:flex;align-items:center;gap:6px;"><span style="width:16px;height:16px;border-radius:5px;background:#5b3fc4;"></span><code>#5b3fc4</code></div>
+    <div style="display:flex;align-items:center;gap:6px;"><span style="width:16px;height:16px;border-radius:5px;background:#b49cf6;"></span><code>#b49cf6</code></div>
+  </div>
+  <div style="font:400 9.5px/1.45 Jost;color:#586273;margin-top:10px;">Attribute-scoped (<code>[data-workspace="…"]</code>) so any subtree can adopt a persona's accent — swatches/previews must consume the var, never hand-copy hexes. Soft variants: 10–12% light / 16% dark.</div>
+</div>
+</div>
+
+<div class="dv-opt" id="5c"><div class="dv-olabel"><a class="dv-oid" href="#5c">5c</a>Signal palette — 11 core (theme-invariant data)</div>
+<div class="dv-card" style="width:430px;padding:16px 18px;">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px 16px;font:400 10px Jost;color:#343c47;">
+    <div style="display:flex;align-items:center;gap:7px;padding:3px 0;"><span style="width:14px;height:14px;border-radius:4px;background:#cfa920;"></span>Analog audio <code style="margin-left:auto;">#cfa920</code></div>
+    <div style="display:flex;align-items:center;gap:7px;padding:3px 0;"><span style="width:14px;height:14px;border-radius:4px;background:#19b6a6;"></span>Ethernet <code style="margin-left:auto;">#19b6a6</code></div>
+    <div style="display:flex;align-items:center;gap:7px;padding:3px 0;"><span style="width:14px;height:14px;border-radius:4px;background:#a98bf0;"></span>AES / digital <code style="margin-left:auto;">#a98bf0</code></div>
+    <div style="display:flex;align-items:center;gap:7px;padding:3px 0;"><span style="width:14px;height:14px;border-radius:4px;background:#ec8a3e;"></span>Dante <code style="margin-left:auto;">#ec8a3e</code></div>
+    <div style="display:flex;align-items:center;gap:7px;padding:3px 0;"><span style="width:14px;height:14px;border-radius:4px;background:#6db0f0;"></span>SDI <code style="margin-left:auto;">#6db0f0</code></div>
+    <div style="display:flex;align-items:center;gap:7px;padding:3px 0;"><span style="width:14px;height:14px;border-radius:4px;background:#ef7a72;"></span>HDMI <code style="margin-left:auto;">#ef7a72</code></div>
+    <div style="display:flex;align-items:center;gap:7px;padding:3px 0;"><span style="width:14px;height:14px;border-radius:4px;background:#e06aa6;"></span>USB <code style="margin-left:auto;">#e06aa6</code></div>
+    <div style="display:flex;align-items:center;gap:7px;padding:3px 0;"><span style="width:14px;height:14px;border-radius:4px;background:#6b7689;"></span>Thunderbolt <code style="margin-left:auto;">#6b7689</code></div>
+    <div style="display:flex;align-items:center;gap:7px;padding:3px 0;"><span style="width:14px;height:14px;border-radius:4px;background:#7a8290;"></span>Power <code style="margin-left:auto;">#7a8290</code></div>
+    <div style="display:flex;align-items:center;gap:7px;padding:3px 0;"><span style="width:14px;height:14px;border-radius:4px;background:#9f1239;"></span>Speaker level <code style="margin-left:auto;">#9f1239</code></div>
+    <div style="display:flex;align-items:center;gap:7px;padding:3px 0;"><span style="width:14px;height:14px;border-radius:4px;background:#9c8cc4;"></span>Custom <code style="margin-left:auto;">#9c8cc4</code></div>
+    <div style="display:flex;align-items:center;gap:7px;padding:3px 0;"><span style="width:14px;height:14px;border-radius:4px;background:#e7ebf1;box-shadow:inset 0 0 0 1.5px #a98bf0;"></span>Virtual port ring <code style="margin-left:auto;">#a98bf0</code></div>
+  </div>
+  <div style="font:400 9.5px/1.45 Jost;color:#586273;margin-top:10px;">Signal colours are <b>data, not styling</b> — identical hex in both themes; source of truth <code>signalColors.ts</code> / <code>signalFamilies.ts</code>. Remaining ~58 types keep their legacy values. Block-colour quick-assign palette (LAYPAL): <code>#3d8bfd #1fb6a6 #e0a345 #c879e8 #e5645f #46c89a #ef7a72 #6f86e0 #74819a</code> — every LAYPAL row ends with a ＋ custom chip → native colour picker (see <a href="#1b">1b</a>).</div>
+</div>
+</div>
+
+<div class="dv-opt" id="5d"><div class="dv-olabel"><a class="dv-oid" href="#5d">5d</a>Typography</div>
+<div class="dv-card" style="width:460px;padding:18px 20px;">
+  <div style="display:flex;flex-direction:column;gap:10px;">
+    <div style="display:flex;align-items:baseline;gap:12px;border-bottom:1px solid #eef1f6;padding-bottom:8px;"><span style="font:600 20px Jost;color:#11151b;">Dialog title</span><code style="margin-left:auto;">Jost 600 · 18–20px</code></div>
+    <div style="display:flex;align-items:baseline;gap:12px;border-bottom:1px solid #eef1f6;padding-bottom:8px;"><span style="font:600 13px Jost;color:#11151b;">Panel heading / node name</span><code style="margin-left:auto;">Jost 600 · 11.5–13px</code></div>
+    <div style="display:flex;align-items:baseline;gap:12px;border-bottom:1px solid #eef1f6;padding-bottom:8px;"><span style="font:400 12px Jost;color:#343c47;">Body & field text</span><code style="margin-left:auto;">Jost 400/500 · 11–12.5px</code></div>
+    <div style="display:flex;align-items:baseline;gap:12px;border-bottom:1px solid #eef1f6;padding-bottom:8px;"><span style="font:500 9px 'IBM Plex Mono';letter-spacing:.12em;color:#586273;">SECTION LABEL · .lab</span><code style="margin-left:auto;">Plex Mono 500 · 8.5–9.5px · caps · .12em</code></div>
+    <div style="display:flex;align-items:baseline;gap:12px;border-bottom:1px solid #eef1f6;padding-bottom:8px;"><span style="font:500 11px 'IBM Plex Mono';color:#11151b;">A-014 · 12.0 m · 42U · #DEV-07</span><code style="margin-left:auto;">Plex Mono · all numerics/IDs · tabular-nums</code></div>
+    <div style="font:400 9.5px/1.5 Jost;color:#586273;">Jost 300–800 variable (self-hosted <code>/fonts/Jost.woff2</code>). <b>Delete the Inter faces</b> (<code>index.css:24–36</code> + TTFs) — nothing may reference Inter. Device names wrap (≤2–3 lines), never truncate; port labels widen the node before they ellipsize. UI face is user-selectable — see <a href="#5g">5g</a>.</div>
+  </div>
+</div>
+</div>
+
+<div class="dv-opt" id="5e"><div class="dv-olabel"><a class="dv-oid" href="#5e">5e</a>Controls — light + dark</div>
+<div class="dv-card" style="width:640px;padding:0;">
+  <div style="padding:16px 18px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;background:#fff;">
+    <span style="font:600 11.5px Jost;color:#fff;background:#1664c8;border-radius:8px;padding:8px 16px;box-shadow:0 1px 2px rgba(40,45,60,.08);">Primary</span>
+    <span style="font:500 11.5px Jost;color:#343c47;border:1px solid #c9d1db;border-radius:8px;padding:7px 15px;background:#fff;">Secondary</span>
+    <span style="font:500 11.5px Jost;color:#343c47;border-radius:8px;padding:8px 12px;">Ghost</span>
+    <span style="font:600 11.5px Jost;color:#fff;background:#d6453a;border-radius:8px;padding:8px 16px;">Danger</span>
+    <span style="display:flex;background:#eef1f6;border-radius:9px;padding:3px;gap:2px;"><span style="font:600 10px Jost;color:#11151b;background:#fff;border-radius:7px;padding:5px 12px;box-shadow:inset 0 -2px 0 #1664c8;">Active</span><span style="font:500 10px Jost;color:#586273;padding:5px 12px;">Seg</span><span style="font:500 10px Jost;color:#586273;padding:5px 12px;">Seg</span></span>
+    <span style="border:1px solid #c9d1db;border-radius:8px;padding:7px 12px;font:400 11px Jost;color:#9aa4b2;min-width:120px;">Input placeholder</span>
+    <span style="width:34px;height:20px;border-radius:10px;background:#1664c8;position:relative;display:inline-block;"><span style="position:absolute;right:2px;top:2px;width:16px;height:16px;border-radius:50%;background:#fff;"></span></span>
+    <span style="font:500 9px 'IBM Plex Mono';color:#586273;background:#eef1f6;border-radius:5px;padding:3px 7px;">⌘K</span>
+    <span style="font:600 9.5px Jost;color:#8a5e12;background:rgba(138,94,18,.1);border:1px solid rgba(138,94,18,.3);border-radius:20px;padding:3px 9px;">2 warnings</span>
+  </div>
+  <div style="padding:16px 18px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;background:#1a212d;">
+    <span style="font:600 11.5px Jost;color:#04101f;background:#6fb8ff;border-radius:8px;padding:8px 16px;">Primary</span>
+    <span style="font:500 11.5px Jost;color:#e8edf4;border:1px solid #52617a;border-radius:8px;padding:7px 15px;background:#3a4659;">Secondary</span>
+    <span style="font:500 11.5px Jost;color:#e8edf4;border-radius:8px;padding:8px 12px;">Ghost</span>
+    <span style="font:600 11.5px Jost;color:#2a0d0a;background:#ff8a7e;border-radius:8px;padding:8px 16px;">Danger</span>
+    <span style="display:flex;background:#232c38;border-radius:9px;padding:3px;gap:2px;"><span style="font:600 10px Jost;color:#f9fbfd;background:#46556a;border-radius:7px;padding:5px 12px;box-shadow:inset 0 -2px 0 #6fb8ff;">Active</span><span style="font:500 10px Jost;color:#b6c0cd;padding:5px 12px;">Seg</span><span style="font:500 10px Jost;color:#b6c0cd;padding:5px 12px;">Seg</span></span>
+    <span style="border:1px solid #52617a;border-radius:8px;padding:7px 12px;font:400 11px Jost;color:#94a0af;background:#3a4659;min-width:120px;">Input placeholder</span>
+    <span style="width:34px;height:20px;border-radius:10px;background:#6fb8ff;position:relative;display:inline-block;"><span style="position:absolute;right:2px;top:2px;width:16px;height:16px;border-radius:50%;background:#04101f;"></span></span>
+    <span style="font:500 9px 'IBM Plex Mono';color:#b6c0cd;background:#232c38;border-radius:5px;padding:3px 7px;">⌘K</span>
+    <span style="font:600 9.5px Jost;color:#eac06a;background:rgba(234,192,106,.12);border:1px solid rgba(234,192,106,.35);border-radius:20px;padding:3px 9px;">2 warnings</span>
+  </div>
+  <div style="padding:10px 18px;border-top:1px solid #eef1f6;font:400 9.5px/1.5 Jost;color:#586273;background:#fff;">Controls 32px tall · radius: chip 6 / control 8 / panel 12 · popovers get <code>--ui-shadow-menu</code> + 1px <code>--ui-border</code> · primary uses <code>--color-on-accent</code> ink (white light / #04101f dark — never "fix" it to white).</div>
+</div>
+</div>
+
+<div class="dv-opt" id="5f"><div class="dv-olabel"><a class="dv-oid" href="#5f">5f</a>Motion, focus &amp; interaction states</div>
+<div class="dv-card" style="width:460px;padding:16px 18px;">
+  <div style="display:flex;flex-direction:column;gap:8px;font:400 10.5px/1.5 Jost;color:#343c47;">
+    <div><b style="color:#11151b;">Transitions</b> — colour/bg/border/shadow <code>.14s ease</code>; transform <code>.16s cubic-bezier(.23,1,.32,1)</code>. Press: buttons <code>scale(.96)</code>, clickable rows <code>scale(.98)</code>.</div>
+    <div><b style="color:#11151b;">Popovers</b> — <code>espop</code> 160ms from <code>opacity:0 scale(.96)</code> with anchor-correct <code>transform-origin</code>. Occasional menus stagger children 25ms (cap 150ms). <b>⌘K opens with NO animation</b> (keyboard-invoked, high frequency).</div>
+    <div><b style="color:#11151b;">Canvas motion</b> — flow dash (see <a href="#2d">2d</a>) 3s / 1.7s selected; connect preview <code>esdash</code>; swatch glow 2s (see <a href="#2b">2b</a>); wireless TX rings 2.4s ease-out ×2 staggered; re-fit glide 180ms.</div>
+    <div><b style="color:#11151b;">Reduced motion</b> — every animation above gated by <code>prefers-reduced-motion</code>; staggered items must land at <code>opacity:1</code>.</div>
+    <div><b style="color:#11151b;">Focus</b> — <code>:focus-visible</code> 2px <code>--color-accent</code> ring, 2px offset, everywhere. Scrollbars: 9px rounded thumb on <code>--ui-border-strong</code>.</div>
+    <div><b style="color:#11151b;">Persistence</b> — all view prefs under one <code>easyschematic.ui.v1</code> key (theme, tier prefs, sheet detent, unit, nodeView, toggles…).</div>
+  </div>
+</div>
+</div>
+
+<div class="dv-opt" id="5g"><div class="dv-olabel"><a class="dv-oid" href="#5g">5g</a>UI font preference — Preferences ▸ Appearance</div>
+<div class="dv-card" style="width:430px;padding:16px 18px;">
+  <div style="font:500 8px 'IBM Plex Mono';letter-spacing:.12em;color:#586273;margin-bottom:8px;">INTERFACE FONT</div>
+  <div style="display:flex;flex-direction:column;gap:6px;">
+    <div style="display:flex;align-items:center;gap:10px;border:1.5px solid #1664c8;background:rgba(22,100,200,.06);border-radius:9px;padding:9px 12px;">
+      <span style="width:14px;height:14px;border-radius:50%;border:4.5px solid #1664c8;background:#fff;flex:none;"></span>
+      <div style="flex:1;font-family:Jost,sans-serif;"><div style="font-weight:600;font-size:12px;color:#11151b;">Jost <span style="font-weight:400;color:#586273;font-size:10px;">· default</span></div><div style="font-size:10.5px;color:#586273;">Kii Three · Speaker — geometric, the Slate × Carbon voice</div></div>
+      <span style="font:600 15px Jost;color:#343c47;">Aa</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;border:1px solid #c9d1db;border-radius:9px;padding:9px 12px;">
+      <span style="width:14px;height:14px;border-radius:50%;border:1.5px solid #9aa4b2;flex:none;"></span>
+      <div style="flex:1;font-family:'IBM Plex Sans',sans-serif;"><div style="font-weight:600;font-size:12px;color:#11151b;">IBM Plex Sans</div><div style="font-size:10.5px;color:#586273;">Kii Three · Speaker — grotesque, pairs with Plex Mono</div></div>
+      <span style="font-family:'IBM Plex Sans';font-weight:600;font-size:15px;color:#343c47;">Aa</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;border:1px solid #c9d1db;border-radius:9px;padding:9px 12px;">
+      <span style="width:14px;height:14px;border-radius:50%;border:1.5px solid #9aa4b2;flex:none;"></span>
+      <div style="flex:1;font-family:'Public Sans',sans-serif;"><div style="font-weight:600;font-size:12px;color:#11151b;">Public Sans</div><div style="font-size:10.5px;color:#586273;">Kii Three · Speaker — neutral, high legibility at small sizes</div></div>
+      <span style="font-family:'Public Sans';font-weight:600;font-size:15px;color:#343c47;">Aa</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;border:1px solid #c9d1db;border-radius:9px;padding:9px 12px;">
+      <span style="width:14px;height:14px;border-radius:50%;border:1.5px solid #9aa4b2;flex:none;"></span>
+      <div style="flex:1;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;"><div style="font-weight:600;font-size:12px;color:#11151b;">System</div><div style="font-size:10.5px;color:#586273;">Kii Three · Speaker — native (SF / Segoe), zero download</div></div>
+      <span style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;font-weight:600;font-size:15px;color:#343c47;">Aa</span>
+    </div>
+  </div>
+  <div style="font:400 9.5px/1.5 Jost;color:#586273;margin-top:10px;">Swaps <code>--font-ui</code> only — numerics, IDs and .lab labels stay IBM Plex Mono in every option. Self-hosted woff2 (Jost / Plex Sans / Public Sans ≈ 40KB each); persisted in <code>easyschematic.ui.v1</code>; applies instantly app-wide, no per-element overrides.</div>
+</div>
+</div>
+
+</div>
+<p class="dv-next">Try next: "add a Plan-workspace board in teal persona" · "dark variants of <a class="dv-oid" href="#2a">2a</a>–<a class="dv-oid" href="#2d">2d</a>" · "print this package to PDF"</p>
+</section>
+
+</x-dc>
+</body>
+</html>

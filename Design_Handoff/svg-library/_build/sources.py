@@ -215,3 +215,58 @@ FURNITURE = [
     ("lighting", "lighting-fixture", "material", "light.svg", True),
     ("dancefloor", "dancefloor", "gameicons", "delapouite/ballerina-shoes.svg", True),
 ]
+
+VIDEO = [
+    # cameras
+    ("camera-ptz", "camera-ptz", "tabler", "device-cctv.svg", True),
+    ("camera-fixed", "camera-fixed", "tabler", "camera.svg", True),
+    ("camcorder", "camcorder", "tabler", "video.svg", True),
+    # projection & walls
+    ("projector", "projector", "tabler", "device-projector.svg", True),
+    ("led-wall", "led-wall", "tabler", "border-all.svg", True),
+    ("display", "display", "tabler", "device-tv.svg", True),
+    # signal chain
+    ("capture-device", "capture-device", "material", "settings_input_hdmi.svg", True),
+    ("video-switcher", "video-switcher", "material", "dvr.svg", True),
+    ("media-server", "media-server", "material", "smart_display.svg", True),
+    ("scaler", "scaler", "material", "aspect_ratio.svg", True),
+    ("streaming-encoder", "streaming-encoder", "material", "cast_connected.svg", True),
+    ("playback-deck", "playback-deck", "tabler", "movie.svg", True),
+]
+
+LIGHTING = [
+    ("moving-head", "moving-head", "material", "flashlight_on.svg", True),
+    ("par-can", "par-can", "material", "wb_incandescent.svg", True),
+    ("fresnel", "fresnel", "material", "highlight.svg", True),
+    ("wash-light", "wash-light", "material", "flare.svg", True),
+    ("blinder", "blinder", "material", "light.svg", True),
+    ("worklight", "worklight", "tabler", "bulb.svg", True),
+    ("dimmer", "dimmer", "material", "tune.svg", True),
+    ("lighting-console", "lighting-console", "tabler", "adjustments.svg", True),
+    ("hazer", "hazer", "tabler", "wind.svg", True),
+    ("strobe", "strobe", "tabler", "bolt.svg", True),
+]
+
+COMPUTE = [
+    ("desktop", "desktop", "tabler", "device-desktop.svg", True),
+    ("laptop", "laptop", "tabler", "device-laptop.svg", True),
+    ("tablet", "tablet", "tabler", "device-tablet.svg", True),
+    ("phone", "phone", "tabler", "device-mobile.svg", True),
+    ("touch-panel", "touch-panel", "material", "touch_app.svg", True),
+    ("control-processor", "control-processor", "tabler", "cpu.svg", True),
+    ("sbc-board", "sbc-board", "material", "developer_board.svg", True),
+    ("kvm", "kvm-switch", "material", "settings_input_component.svg", True),
+    ("rack-server", "rack-server", "tabler", "server-2.svg", True),
+    ("keyboard", "keyboard", "tabler", "keyboard.svg", True),
+]
+
+POWER = [
+    ("pdu", "pdu", "fontawesome", "solid/plug-circle-bolt.svg", True),
+    ("ups", "ups", "material", "battery_charging_full.svg", True),
+    ("power-conditioner", "power-conditioner", "material", "power.svg", True),
+    ("power-distro", "power-distro", "material", "electrical_services.svg", True),
+    ("power-inlet", "power-inlet", "material", "power_input.svg", True),
+    ("outlet", "outlet", "material", "outlet.svg", True),
+    ("battery", "battery", "tabler", "battery.svg", True),
+    ("battery-bank", "battery-bank", "fontawesome", "solid/car-battery.svg", True),
+]

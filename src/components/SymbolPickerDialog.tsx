@@ -15,6 +15,10 @@ interface SymbolPickerDialogProps {
   /** Called with the chosen symbol; the caller registers/assigns it. */
   onPick: (entry: SymbolLibraryEntry) => void;
   onClose: () => void;
+  /** When set, the footer shows "Upload SVG…" (board 3a) — the caller opens its upload flow. */
+  onUpload?: () => void;
+  /** When set, the footer shows "None" — clears the current assignment back to the class default. */
+  onClear?: () => void;
 }
 
 /**
@@ -23,7 +27,7 @@ interface SymbolPickerDialogProps {
  * graphic and to place library furniture as objects. Each glyph is app-bundled and
  * already sanitiser-verified, so it is injected directly like the furniture catalog.
  */
-export default function SymbolPickerDialog({ title = "Symbol library", onPick, onClose }: SymbolPickerDialogProps) {
+export default function SymbolPickerDialog({ title = "Symbol library", onPick, onClose, onUpload, onClear }: SymbolPickerDialogProps) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<SymbolCategory | "all">("all");
   const counts = useMemo(() => symbolCountByCategory(), []);
@@ -119,7 +123,33 @@ export default function SymbolPickerDialog({ title = "Symbol library", onPick, o
           )}
         </div>
 
-        {/* Footer: attribution */}
+        {/* Footer: actions + attribution */}
+        {(onUpload || onClear) && (
+          <div className="px-4 py-2 border-t border-[var(--ui-border)] shrink-0 flex items-center gap-3">
+            {onUpload && (
+              <button
+                type="button"
+                onClick={onUpload}
+                className="text-[11.5px] font-medium text-[var(--color-accent)] hover:opacity-80 cursor-pointer"
+              >
+                ↥ Upload SVG…
+              </button>
+            )}
+            {onClear && (
+              <button
+                type="button"
+                onClick={onClear}
+                className="text-[11.5px] text-[var(--color-text-muted)] hover:text-[var(--color-text)] cursor-pointer"
+                title="Use the class-default symbol"
+              >
+                None
+              </button>
+            )}
+            <button type="button" onClick={onClose} className="ml-auto ui-btn ui-btn-secondary h-[26px] text-[11px]">
+              Cancel
+            </button>
+          </div>
+        )}
         <div className="px-4 py-2 border-t border-[var(--ui-border)] shrink-0">
           <p className="text-[9.5px] leading-snug text-[var(--color-text-muted)]">{SYMBOL_LIBRARY_ATTRIBUTION}</p>
         </div>

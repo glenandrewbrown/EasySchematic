@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo, type DragEvent } from "react";
 import { useSchematicStore } from "../store";
 import { isSpeaker } from "../speakerSpec";
-import { buildBulkSlots } from "../slotBulk";
+import { buildBulkSlots, buildBulkPorts } from "../slotBulk";
 import { autoNamePorts } from "../portNaming";
 import {
   SIGNAL_LABELS,
@@ -18,13 +18,18 @@ import {
   type AuxRow,
   type DeviceData,
   type DeviceNode,
+  type DeviceTemplate,
   type DhcpServerConfig,
   type SlotDefinition,
 } from "../types";
+import { deviceFootprint, gridPositions } from "../quickAddLayout";
 import { CONNECTORS_WITH_GENDER_VARIATION, DEFAULT_CONNECTOR, NETWORK_SIGNAL_TYPES, VIDEO_SIGNAL_TYPES, resolvePortGender, shouldDefaultMultiConnect } from "../connectorTypes";
 import { getBundledTemplates, getTemplateById, getCardsByFamily, fetchTemplates, checkSession, createDraft, createHandoff } from "../templateApi";
 import { getTemplateDrift } from "../templateSync";
 import LoginDialog from "./LoginDialog";
+import SymbolPickerDialog from "./SymbolPickerDialog";
+import SvgAssetImportDialog from "./SvgAssetImportDialog";
+import ArtworkChip from "./ArtworkChip";
 import CardCreatorDialog from "./CardCreatorDialog";
 import TemplateSyncDialog from "./TemplateSyncDialog";
 import { isValidIpv4, isValidSubnetMask, isValidVlan, findDuplicateIps } from "../networkValidation";
@@ -142,6 +147,130 @@ function newPortDraft(direction: PortDirection): PortDraft {
 
 const MIME = "application/easyschematic-port";
 
+/** Internal wiring — echoes the violet AES token used by the node's internal-link pip. */
+const INTERNAL_LINK_COLOR = "var(--color-aes)";
+
+interface InternalWiringPanelProps {
+  /** The node id being edited — internal links are stored on this device's data. */
+  deviceId: string;
+  /** Distinct, non-empty port LABELS the editor is currently building. */
+  portLabels: string[];
+  /** Existing internal links (endpoints are port labels). */
+  links: { from: string; to: string }[];
+  onAdd: (link: { from: string; to: string }) => void;
+  onRemove: (link: { from: string; to: string }) => void;
+}
+
+/** Intra-device routing editor: lists the device's internal links (Port → Port) and
+ *  offers a From/To picker to add one. Endpoints are port labels; changes commit
+ *  straight to the store (undoable) rather than through the editor's Save. */
+function InternalWiringPanel({ deviceId, portLabels, links, onAdd, onRemove }: InternalWiringPanelProps) {
+  const [fromLabel, setFromLabel] = useState("");
+  const [toLabel, setToLabel] = useState("");
+
+  const isDuplicate = links.some((l) => l.from === fromLabel && l.to === toLabel);
+  const canAdd = fromLabel !== "" && toLabel !== "" && fromLabel !== toLabel && !isDuplicate;
+
+  const handleAdd = () => {
+    if (!canAdd) return;
+    onAdd({ from: fromLabel, to: toLabel });
+    setToLabel("");
+  };
+
+  return (
+    <div className="border-t border-[var(--ui-border)] pt-3 flex flex-col gap-2">
+      <div className="flex items-center gap-2">
+        <span
+          className="w-[6px] h-[6px] rounded-full flex-none"
+          style={{ background: INTERNAL_LINK_COLOR }}
+        />
+        <span
+          className="text-[9px] tracking-[0.13em] uppercase text-[var(--color-text-muted)]"
+          style={{ fontFamily: "var(--font-mono)" }}
+        >
+          Internal wiring
+        </span>
+      </div>
+      <p className="text-[10px] text-[var(--color-text-muted)] leading-[1.4]">
+        Route a signal internally between two of this device&rsquo;s ports (e.g. a
+        loop-through or normalled jack).
+      </p>
+
+      {links.length > 0 ? (
+        <div className="flex flex-col gap-1">
+          {links.map((link) => (
+            <div
+              key={`${link.from}→${link.to}`}
+              className="flex items-center gap-1.5 text-[11px] px-2 py-1 rounded border border-[var(--ui-border)] bg-[var(--color-surface-raised)]"
+            >
+              <span className="truncate text-[var(--color-text)]" title={link.from}>{link.from}</span>
+              <span className="flex-none" style={{ color: INTERNAL_LINK_COLOR }}>&rarr;</span>
+              <span className="truncate text-[var(--color-text)]" title={link.to}>{link.to}</span>
+              <button
+                type="button"
+                onClick={() => onRemove(link)}
+                title={`Remove internal link ${link.from} → ${link.to}`}
+                aria-label={`Remove internal link ${link.from} → ${link.to}`}
+                className="ml-auto flex-none w-4 h-4 leading-none rounded text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-hover)] cursor-pointer"
+              >
+                &times;
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="text-[10px] italic text-[var(--color-text-muted)] px-1">
+          No internal links yet.
+        </div>
+      )}
+
+      {portLabels.length >= 2 ? (
+        <div className="flex flex-col gap-1.5 mt-0.5" data-internal-wiring-add={deviceId}>
+          <div className="flex items-center gap-1.5">
+            <select
+              value={fromLabel}
+              onChange={(e) => setFromLabel(e.target.value)}
+              onKeyDown={(e) => e.stopPropagation()}
+              aria-label="Internal link from port"
+              className="ui-input flex-1 min-w-0 h-[26px] text-[11px]"
+            >
+              <option value="">From port…</option>
+              {portLabels.map((lbl) => (
+                <option key={lbl} value={lbl}>{lbl}</option>
+              ))}
+            </select>
+            <span className="flex-none text-[11px]" style={{ color: INTERNAL_LINK_COLOR }}>&rarr;</span>
+            <select
+              value={toLabel}
+              onChange={(e) => setToLabel(e.target.value)}
+              onKeyDown={(e) => e.stopPropagation()}
+              aria-label="Internal link to port"
+              className="ui-input flex-1 min-w-0 h-[26px] text-[11px]"
+            >
+              <option value="">To port…</option>
+              {portLabels.map((lbl) => (
+                <option key={lbl} value={lbl} disabled={lbl === fromLabel}>{lbl}</option>
+              ))}
+            </select>
+          </div>
+          <button
+            type="button"
+            onClick={handleAdd}
+            disabled={!canAdd}
+            className="ui-btn ui-btn-secondary text-[11px] h-[26px] disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {isDuplicate ? "Link already exists" : "Add internal link"}
+          </button>
+        </div>
+      ) : (
+        <div className="text-[10px] italic text-[var(--color-text-muted)] px-1">
+          Add at least two named ports to wire them internally.
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function DeviceEditor() {
   const editingNodeId = useSchematicStore((s) => s.editingNodeId);
   const nodes = useSchematicStore((s) => s.nodes);
@@ -163,6 +292,19 @@ export default function DeviceEditor() {
   const tagSuggestions = useSchematicStore((s) => s.tagSuggestions);
   const fieldSuggestions = useSchematicStore((s) => s.fieldSuggestions);
   const recordSuggestions = useSchematicStore((s) => s.recordSuggestions);
+  const creatingNodeId = useSchematicStore((s) => s.creatingNodeId);
+  const pendingQuickCreate = useSchematicStore((s) => s.pendingQuickCreate);
+  const setPendingQuickCreate = useSchematicStore((s) => s.setPendingQuickCreate);
+  const createAddToOwned = useSchematicStore((s) => s.createAddToOwned);
+  const setCreateAddToOwned = useSchematicStore((s) => s.setCreateAddToOwned);
+  const addOwnedGear = useSchematicStore((s) => s.addOwnedGear);
+  const addDevices = useSchematicStore((s) => s.addDevices);
+  const reparentNode = useSchematicStore((s) => s.reparentNode);
+  const adapterCreationRequest = useSchematicStore((s) => s.adapterCreationRequest);
+  const completeAdapterCreation = useSchematicStore((s) => s.completeAdapterCreation);
+  const cancelAdapterCreation = useSchematicStore((s) => s.cancelAdapterCreation);
+  const addInternalLink = useSchematicStore((s) => s.addInternalLink);
+  const removeInternalLink = useSchematicStore((s) => s.removeInternalLink);
 
   const node = nodes.find((n) => n.id === editingNodeId && n.type === "device") as DeviceNode | undefined;
 
@@ -183,7 +325,9 @@ export default function DeviceEditor() {
   const [templatesLoaded, setTemplatesLoaded] = useState(0);
   const [label, setLabel] = useState("");
   const [shortName, setShortName] = useState("");
-  const [icon, setIcon] = useState("");
+  const [artworkAssetId, setArtworkAssetId] = useState("");
+  const [showArtworkPicker, setShowArtworkPicker] = useState(false);
+  const [showArtworkUpload, setShowArtworkUpload] = useState(false);
   /** Tri-state per-instance toggle: undefined = inherit schematic default. */
   const [useShortName, setUseShortName] = useState<boolean | undefined>(undefined);
   const [wrapLabel, setWrapLabelState] = useState<boolean | undefined>(undefined);
@@ -198,8 +342,14 @@ export default function DeviceEditor() {
   const [headerColor, setHeaderColor] = useState<string | undefined>(undefined);
   const [ports, setPorts] = useState<PortDraft[]>([]);
 
-  /** Which port is open in the RIGHT config panel. null = empty state. */
+  /** Which port is open in the RIGHT config panel (the "primary"). null = empty state. */
   const [selectedPortId, setSelectedPortId] = useState<string | null>(null);
+  /** Multi-selection for bulk edit. Always holds the primary once a row is clicked; ≥2 → bulk-edit bar.
+   *  May transiently contain ids that no longer exist (a removed/re-synced port) — every consumer
+   *  filters against the live port list, so stale ids are inert (no prune effect needed). */
+  const [selectedPortIds, setSelectedPortIds] = useState<Set<string>>(new Set());
+  /** Anchor row for shift-range selection (the last plain/⌘-clicked row). */
+  const [rangeAnchorId, setRangeAnchorId] = useState<string | null>(null);
 
   // Port visibility local state
   const [showAllPorts, setShowAllPorts] = useState(false);
@@ -285,7 +435,7 @@ export default function DeviceEditor() {
       : undefined;
     setLabel(node.data.label);
     setShortName(node.data.shortName ?? "");
-    setIcon(node.data.icon ?? "");
+    setArtworkAssetId(node.data.artworkAssetId ?? "");
     setUseShortName(node.data.useShortName);
     setWrapLabelState(node.data.wrapLabel);
     setHostname(node.data.hostname ?? "");
@@ -376,7 +526,11 @@ export default function DeviceEditor() {
     // Opening a different device: the 3-column builder's config panel needs a Port selected.
     // Only on a fresh open — re-syncing the SAME device (a card install mid-edit) must not
     // yank the selection off the Port the user is configuring.
-    if (!sameNode) setSelectedPortId(synced.length > 0 ? synced[0].id : null);
+    if (!sameNode) {
+      setSelectedPortId(synced.length > 0 ? synced[0].id : null);
+      setSelectedPortIds(new Set());
+      setRangeAnchorId(null);
+    }
     setHiddenPorts(node.data.hiddenPorts ?? []);
   }, [editingNodeId, portSignature]);
   /* eslint-enable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
@@ -404,6 +558,8 @@ export default function DeviceEditor() {
       undo();
       setCreatingNodeId(null);
     }
+    // Any quick-create context is spent once the creator closes (saved or cancelled).
+    setPendingQuickCreate(null);
     // Reset the port-sync session marker so REOPENING this device does a clean
     // replace from the store instead of merging stale `draft-` ports back in.
     // The mid-edit draft-carry (#180) only needs the marker WITHIN one session
@@ -412,10 +568,96 @@ export default function DeviceEditor() {
     // them duplicates ports on every Apply→reopen cycle.
     syncedPortsNodeRef.current = null;
     setEditingNodeId(null);
-  }, [undo, setCreatingNodeId, setEditingNodeId]);
+  }, [undo, setCreatingNodeId, setEditingNodeId, setPendingQuickCreate]);
+
+  // A template captures the device SPEC only. Per-placement/instance fields —
+  // rotationDeg, layerId, groupId, hostDeviceId, position — are intentionally NOT
+  // carried over (DeviceTemplate has no such fields; do not spread node.data here).
+  // Shared by "Save as template" and the create-from-search save path (which also
+  // registers the template in My Devices / places bulk copies).
+  const buildTemplate = useCallback((): DeviceTemplate => {
+    const finalPorts: Port[] = ports
+      .filter((p) => p.label.trim())
+      .map((p, i) => ({
+        ...p,
+        id: `tpl-${i}`,
+        label: p.label.trim(),
+      }));
+
+    const trimmedAux = trimTrailingEmpty(auxiliaryData);
+    const existing = node?.data;
+
+    return ({
+      id: `custom-${Date.now()}`,
+      deviceType: deviceType.trim() || "custom",
+      label: label.trim() || "Custom Device",
+      ...(shortName.trim() ? { shortName: shortName.trim() } : {}),
+      ports: finalPorts,
+      ...(color ? { color } : {}),
+      ...(artworkAssetId ? { artworkAssetId } : {}),
+      ...(category.trim() ? { category: category.trim() } : {}),
+      ...(manufacturer.trim() ? { manufacturer: manufacturer.trim() } : {}),
+      ...(modelNumber.trim() ? { modelNumber: modelNumber.trim() } : {}),
+      ...(referenceUrl.trim() ? { referenceUrl: referenceUrl.trim() } : {}),
+      ...(hostname.trim() ? { hostname: hostname.trim() } : {}),
+      ...(powerDrawW != null ? { powerDrawW } : {}),
+      ...(powerCapacityW != null ? { powerCapacityW } : {}),
+      ...(voltage ? { voltage } : {}),
+      ...(thermalBtuh != null ? { thermalBtuh } : {}),
+      ...(poeBudgetW != null ? { poeBudgetW } : {}),
+      ...(poeDrawW != null ? { poeDrawW } : {}),
+      ...(unitCost != null ? { unitCost } : {}),
+      ...(heightMm != null ? { heightMm } : {}),
+      ...(widthMm != null ? { widthMm } : {}),
+      ...(depthMm != null ? { depthMm } : {}),
+      ...(weightKg != null ? { weightKg } : {}),
+      ...(isVenueProvided ? { isVenueProvided: true } : {}),
+      // Convert InstalledSlot[] back to the blueprint SlotDefinition[] that DeviceTemplate
+      // expects — card selections are per-placement, not part of the template spec.
+      ...(existing?.slots && existing.slots.length > 0
+        ? {
+            slots: existing.slots.map((s) => ({
+              id: s.slotId,
+              label: s.label,
+              slotFamily: s.slotFamily ?? "",
+              ...(s.cardTemplateId ? { defaultCardId: s.cardTemplateId } : {}),
+            })),
+          }
+        : {}),
+      ...(existing?.slotFamily ? { slotFamily: existing.slotFamily as string } : {}),
+      ...(trimmedAux.some((r) => r.text.trim()) ? { auxiliaryData: trimmedAux } : {}),
+      ...(() => { const t = searchTermsRaw.split(",").map((s) => s.trim()).filter(Boolean).slice(0, 20); return t.length > 0 ? { searchTerms: t } : {}; })(),
+    });
+  }, [ports, label, shortName, hostname, node, powerDrawW, powerCapacityW, voltage, thermalBtuh, poeBudgetW, poeDrawW, unitCost, heightMm, widthMm, depthMm, weightKg, isVenueProvided, deviceType, color, artworkAssetId, manufacturer, modelNumber, referenceUrl, category, auxiliaryData, searchTermsRaw]);
 
   const handleSave = useCallback(() => {
     if (!editingNodeId) return;
+
+    // Adapter-create mode: the editor is building a two-port adapter to bridge an
+    // incompatible connection. Snapshot the template, withdraw the provisional node
+    // via close()'s single-undo cancel path, then hand off to the store — which
+    // restores the pending connection and inserts the real placed-and-wired adapter
+    // (net one undo entry). Branch BEFORE the normal device-save path.
+    if (adapterCreationRequest) {
+      const template = buildTemplate();
+      close();
+      completeAdapterCreation(template);
+      return;
+    }
+
+    const isCreating = creatingNodeId !== null && creatingNodeId === editingNodeId;
+
+    if (isCreating && pendingQuickCreate && !pendingQuickCreate.placeOnSave) {
+      // Paste-list "Create" chip: mint the template only. The provisional node is
+      // withdrawn via close()'s single-undo cancel path — the quick-add list (still
+      // mounted underneath) re-resolves the row against the new template, and its
+      // "Place all" does the placement.
+      const template = buildTemplate();
+      addCustomTemplate(template);
+      if (createAddToOwned) addOwnedGear(template, pendingQuickCreate.qty);
+      close();
+      return;
+    }
 
     // Build old→new ID map for draft ports. Unnamed ports are auto-named (not
     // dropped) so a row you added never silently vanishes on Apply.
@@ -461,7 +703,7 @@ export default function DeviceEditor() {
       ...(speakerSensitivityDb != null ? { speakerSensitivityDb } : {}),
       ...(speakerMaxPowerW != null ? { speakerMaxPowerW } : {}),
       ...(speakerCoverageAngleDeg != null ? { speakerCoverageAngleDeg } : {}),
-      ...(icon ? { icon } : {}),
+      ...(artworkAssetId ? { artworkAssetId } : {}),
       ...(color ? { color } : {}),
       ...(headerColor ? { headerColor } : {}),
       ...(existing?.model ? { model: existing.model } : {}),
@@ -488,7 +730,13 @@ export default function DeviceEditor() {
       ...(integratedWithCable ? { integratedWithCable: true } : {}),
       ...(isVenueProvided ? { isVenueProvided: true } : {}),
       ...(adapterVisibility !== "default" ? { adapterVisibility } : {}),
-      ...(existing?.baseLabel ? { baseLabel: existing.baseLabel } : {}),
+      // baseLabel is the auto-numbering base + the inventory-key grouping slot. Preserve it ONLY
+      // when the name is unchanged; if the user renamed the device here, a stale base (e.g. the
+      // "New Device" creator default) must be dropped, or My Devices / the cable schedule would
+      // group and LABEL the device by the old name instead of what the user just typed.
+      ...(existing?.baseLabel && label.trim() === (existing.label ?? "").trim()
+        ? { baseLabel: existing.baseLabel }
+        : {}),
       ...(existing?.slots ? { slots: existing.slots } : {}),
       ...((() => {
         const trimmed = trimTrailingEmpty(auxiliaryData);
@@ -509,9 +757,39 @@ export default function DeviceEditor() {
       ...(deviceType.trim() ? { deviceType: deviceType.trim() } : {}),
       ...(tags.length > 0 ? { tags } : {}),
     });
+    // Creator sessions: register the finished spec as a searchable template and (per the
+    // remembered "Also add to My Devices" checkbox) as owned gear, then place any extra
+    // copies a "N× create" from quick-add asked for.
+    if (isCreating && (pendingQuickCreate || createAddToOwned)) {
+      const template = buildTemplate();
+      addCustomTemplate(template);
+      if (createAddToOwned) addOwnedGear(template, pendingQuickCreate?.qty ?? 1);
+      const anchor = pendingQuickCreate?.anchor;
+      const qty = pendingQuickCreate?.qty ?? 1;
+      if (anchor && qty > 1) {
+        // First copy is the just-saved node at the anchor; lay the rest on the same grid.
+        const extraPositions = gridPositions(anchor, deviceFootprint(template), qty).slice(1);
+        addDevices(extraPositions.map((position) => ({ template, position })));
+        setTimeout(() => {
+          const state = useSchematicStore.getState();
+          const devices = state.nodes.filter((n) => n.type === "device");
+          const placed = devices.slice(-extraPositions.length);
+          placed.forEach((n2, i) => {
+            if (extraPositions[i]) reparentNode(n2.id, extraPositions[i], { skipUndo: true });
+          });
+        }, 0);
+      }
+    }
     setCreatingNodeId(null); // commit the node — close won't undo it
     close();
-  }, [editingNodeId, ports, label, shortName, icon, useShortName, wrapLabel, hostname, deviceType, manufacturer, modelNumber, referenceUrl, category, serialNumber, note, isSpare, procurementSource, tags, color, headerColor, node, updateDevice, recordSuggestions, close, setCreatingNodeId, showAllPorts, hiddenPorts, dhcpServer, powerDrawW, powerCapacityW, voltage, thermalBtuh, poeBudgetW, poeDrawW, unitCost, heightMm, widthMm, depthMm, weightKg, isCableAccessory, integratedWithCable, isVenueProvided, adapterVisibility, speakerSensitivityDb, speakerMaxPowerW, speakerCoverageAngleDeg, auxiliaryData, searchTermsRaw]);
+  }, [editingNodeId, ports, label, shortName, artworkAssetId, useShortName, wrapLabel, hostname, deviceType, manufacturer, modelNumber, referenceUrl, category, serialNumber, note, isSpare, procurementSource, tags, color, headerColor, node, updateDevice, recordSuggestions, close, setCreatingNodeId, showAllPorts, hiddenPorts, dhcpServer, powerDrawW, powerCapacityW, voltage, thermalBtuh, poeBudgetW, poeDrawW, unitCost, heightMm, widthMm, depthMm, weightKg, isCableAccessory, integratedWithCable, isVenueProvided, adapterVisibility, speakerSensitivityDb, speakerMaxPowerW, speakerCoverageAngleDeg, auxiliaryData, searchTermsRaw, creatingNodeId, pendingQuickCreate, createAddToOwned, buildTemplate, addCustomTemplate, addOwnedGear, addDevices, reparentNode, adapterCreationRequest, completeAdapterCreation]);
+
+  // Cancel/Library: in adapter-create mode, abandon the request first (clears
+  // adapterCreationRequest without inserting), then run the normal close/withdraw.
+  const handleCancel = useCallback(() => {
+    if (adapterCreationRequest) cancelAdapterCreation();
+    close();
+  }, [adapterCreationRequest, cancelAdapterCreation, close]);
 
   // Ctrl+Enter anywhere in the editor → Apply & Close
   const onCtrlEnter = useCallback((e: React.KeyboardEvent) => {
@@ -522,62 +800,10 @@ export default function DeviceEditor() {
     }
   }, [handleSave]);
 
+
   const handleSaveAsTemplate = useCallback(() => {
-    const finalPorts: Port[] = ports
-      .filter((p) => p.label.trim())
-      .map((p, i) => ({
-        ...p,
-        id: `tpl-${i}`,
-        label: p.label.trim(),
-      }));
-
-    const trimmedAux = trimTrailingEmpty(auxiliaryData);
-    const existing = node?.data;
-
-    // A template captures the device SPEC only. Per-placement/instance fields —
-    // rotationDeg, layerId, groupId, hostDeviceId, position — are intentionally NOT
-    // carried over (DeviceTemplate has no such fields; do not spread node.data here).
-    addCustomTemplate({
-      id: `custom-${Date.now()}`,
-      deviceType: deviceType.trim() || "custom",
-      label: label.trim() || "Custom Device",
-      ...(shortName.trim() ? { shortName: shortName.trim() } : {}),
-      ports: finalPorts,
-      ...(color ? { color } : {}),
-      ...(category.trim() ? { category: category.trim() } : {}),
-      ...(manufacturer.trim() ? { manufacturer: manufacturer.trim() } : {}),
-      ...(modelNumber.trim() ? { modelNumber: modelNumber.trim() } : {}),
-      ...(referenceUrl.trim() ? { referenceUrl: referenceUrl.trim() } : {}),
-      ...(hostname.trim() ? { hostname: hostname.trim() } : {}),
-      ...(powerDrawW != null ? { powerDrawW } : {}),
-      ...(powerCapacityW != null ? { powerCapacityW } : {}),
-      ...(voltage ? { voltage } : {}),
-      ...(thermalBtuh != null ? { thermalBtuh } : {}),
-      ...(poeBudgetW != null ? { poeBudgetW } : {}),
-      ...(poeDrawW != null ? { poeDrawW } : {}),
-      ...(unitCost != null ? { unitCost } : {}),
-      ...(heightMm != null ? { heightMm } : {}),
-      ...(widthMm != null ? { widthMm } : {}),
-      ...(depthMm != null ? { depthMm } : {}),
-      ...(weightKg != null ? { weightKg } : {}),
-      ...(isVenueProvided ? { isVenueProvided: true } : {}),
-      // Convert InstalledSlot[] back to the blueprint SlotDefinition[] that DeviceTemplate
-      // expects — card selections are per-placement, not part of the template spec.
-      ...(existing?.slots && existing.slots.length > 0
-        ? {
-            slots: existing.slots.map((s) => ({
-              id: s.slotId,
-              label: s.label,
-              slotFamily: s.slotFamily ?? "",
-              ...(s.cardTemplateId ? { defaultCardId: s.cardTemplateId } : {}),
-            })),
-          }
-        : {}),
-      ...(existing?.slotFamily ? { slotFamily: existing.slotFamily as string } : {}),
-      ...(trimmedAux.some((r) => r.text.trim()) ? { auxiliaryData: trimmedAux } : {}),
-      ...(() => { const t = searchTermsRaw.split(",").map((s) => s.trim()).filter(Boolean).slice(0, 20); return t.length > 0 ? { searchTerms: t } : {}; })(),
-    });
-  }, [ports, label, shortName, hostname, addCustomTemplate, node, powerDrawW, powerCapacityW, voltage, thermalBtuh, poeBudgetW, poeDrawW, unitCost, heightMm, widthMm, depthMm, weightKg, isVenueProvided, deviceType, color, manufacturer, modelNumber, referenceUrl, category, auxiliaryData, searchTermsRaw]);
+    addCustomTemplate(buildTemplate());
+  }, [addCustomTemplate, buildTemplate]);
 
   const handleUpdateUserTemplate = useCallback(() => {
     if (!node?.data.templateId) return;
@@ -597,6 +823,7 @@ export default function DeviceEditor() {
       ...(shortName.trim() ? { shortName: shortName.trim() } : {}),
       ports: finalPorts,
       ...(color ? { color } : {}),
+      ...(artworkAssetId ? { artworkAssetId } : {}),
       ...(category.trim() ? { category: category.trim() } : {}),
       ...(manufacturer.trim() ? { manufacturer: manufacturer.trim() } : {}),
       ...(modelNumber.trim() ? { modelNumber: modelNumber.trim() } : {}),
@@ -629,7 +856,7 @@ export default function DeviceEditor() {
       ...(() => { const t = searchTermsRaw.split(",").map((s) => s.trim()).filter(Boolean).slice(0, 20); return t.length > 0 ? { searchTerms: t } : {}; })(),
     });
     handleSave();
-  }, [node, ports, label, shortName, hostname, updateCustomTemplate, powerDrawW, powerCapacityW, voltage, thermalBtuh, poeBudgetW, poeDrawW, unitCost, heightMm, widthMm, depthMm, weightKg, isVenueProvided, deviceType, color, manufacturer, modelNumber, referenceUrl, category, auxiliaryData, searchTermsRaw, handleSave]);
+  }, [node, ports, label, shortName, hostname, updateCustomTemplate, powerDrawW, powerCapacityW, voltage, thermalBtuh, poeBudgetW, poeDrawW, unitCost, heightMm, widthMm, depthMm, weightKg, isVenueProvided, deviceType, color, artworkAssetId, manufacturer, modelNumber, referenceUrl, category, auxiliaryData, searchTermsRaw, handleSave]);
 
   const handleSubmitToCommunity = useCallback(async () => {
     const finalPorts: Port[] = ports
@@ -847,28 +1074,116 @@ export default function DeviceEditor() {
       setSelectedPortId((sel) => (sel === id ? (next[0]?.id ?? null) : sel));
       return next;
     });
+    setSelectedPortIds((prev) => {
+      if (!prev.has(id)) return prev;
+      const nextSel = new Set(prev);
+      nextSel.delete(id);
+      return nextSel;
+    });
   };
 
   const updatePort = (id: string, updates: Partial<PortDraft>) => {
     setPorts((prev) => prev.map((p) => (p.id === id ? { ...p, ...updates } : p)));
   };
 
-  const bulkAddPorts = (direction: PortDirection, prefix: string, start: number, count: number, signalType: SignalType, section: string) => {
-    const newPorts: PortDraft[] = [];
-    const connectorType = DEFAULT_CONNECTOR[signalType];
-    const multiConnect = shouldDefaultMultiConnect(signalType, connectorType) || undefined;
-    for (let i = 0; i < count; i++) {
-      newPorts.push({
-        id: `draft-${Date.now()}-${Math.random().toString(36).slice(2, 6)}-${i}`,
-        label: `${prefix} ${start + i}`,
-        signalType,
-        direction,
-        section: section || undefined,
-        multiConnect,
+  /** Apply one edit to every port whose id is in `ids`, in a single logical setPorts pass.
+   *  `updates` may be a partial (same change to all) or a per-port function (e.g. direction
+   *  changes that depend on the port's current signal). */
+  const updatePorts = useCallback(
+    (ids: Set<string>, updates: Partial<PortDraft> | ((p: PortDraft) => Partial<PortDraft>)) => {
+      setPorts((prev) =>
+        prev.map((p) =>
+          ids.has(p.id) ? { ...p, ...(typeof updates === "function" ? updates(p) : updates) } : p,
+        ),
+      );
+    },
+    [],
+  );
+
+  /** Reduce the multi-selection back to just the primary (Esc / "Clear selection"). */
+  const clearMultiSelect = useCallback(() => {
+    setSelectedPortIds(selectedPortId ? new Set([selectedPortId]) : new Set());
+    setRangeAnchorId(selectedPortId ?? null);
+  }, [selectedPortId]);
+
+  /** Row-click selection: plain = select one, ⌘/Ctrl = toggle, Shift = range within the same
+   *  direction group (inputs/outputs/etc. are separate ranges). The clicked row becomes primary. */
+  const handleRowSelect = useCallback(
+    (id: string, mods: { meta: boolean; shift: boolean }, direction: PortDirection) => {
+      if (mods.shift && rangeAnchorId) {
+        const group = ports.filter((p) => p.direction === direction);
+        const ai = group.findIndex((p) => p.id === rangeAnchorId);
+        const bi = group.findIndex((p) => p.id === id);
+        if (ai !== -1 && bi !== -1) {
+          const [lo, hi] = ai <= bi ? [ai, bi] : [bi, ai];
+          setSelectedPortIds(new Set(group.slice(lo, hi + 1).map((p) => p.id)));
+          setSelectedPortId(id);
+          return;
+        }
+        // Anchor lives in another group — fall through to a plain select.
+      }
+      if (mods.meta) {
+        setSelectedPortIds((prev) => {
+          const next = new Set(prev);
+          if (next.has(id)) next.delete(id);
+          else next.add(id);
+          return next;
+        });
+        setSelectedPortId(id);
+        setRangeAnchorId(id);
+        return;
+      }
+      setSelectedPortIds(new Set([id]));
+      setSelectedPortId(id);
+      setRangeAnchorId(id);
+    },
+    [ports, rangeAnchorId],
+  );
+
+  /** Section header "select all": toggles every port in a direction group in/out of the selection. */
+  const toggleSelectAll = useCallback(
+    (direction: PortDirection) => {
+      const groupIds = ports.filter((p) => p.direction === direction).map((p) => p.id);
+      if (groupIds.length === 0) return;
+      setSelectedPortIds((prev) => {
+        const allSelected = groupIds.every((id) => prev.has(id));
+        const next = new Set(prev);
+        groupIds.forEach((id) => (allSelected ? next.delete(id) : next.add(id)));
+        return next;
       });
-    }
+      setRangeAnchorId(groupIds[groupIds.length - 1]);
+      setSelectedPortId((prev) => (prev && groupIds.includes(prev) ? prev : groupIds[0]));
+    },
+    [ports],
+  );
+
+  const bulkAddPorts = (
+    direction: PortDirection,
+    prefix: string,
+    start: number,
+    count: number,
+    signalType: SignalType,
+    section: string,
+    connectorType: ConnectorType,
+  ) => {
+    const conn = connectorType ?? DEFAULT_CONNECTOR[signalType];
+    const multiConnect = shouldDefaultMultiConnect(signalType, conn) || undefined;
+    const stamp = Date.now();
+    const newPorts: PortDraft[] = buildBulkPorts(prefix, start, count, signalType, conn, section).map(
+      (bp, i) => ({
+        id: `draft-${stamp}-${Math.random().toString(36).slice(2, 6)}-${i}`,
+        label: bp.label,
+        signalType: bp.signalType,
+        direction,
+        connectorType: bp.connectorType,
+        ...(bp.section ? { section: bp.section } : {}),
+        ...(multiConnect ? { multiConnect } : {}),
+      }),
+    );
+    if (newPorts.length === 0) return;
     setPorts((prev) => [...prev, ...newPorts]);
-    if (newPorts.length > 0) setSelectedPortId(newPorts[0].id);
+    setSelectedPortId(newPorts[0].id);
+    setSelectedPortIds(new Set([newPorts[0].id]));
   };
 
   // Drag-and-drop: move a port to a new position/section
@@ -986,6 +1301,31 @@ export default function DeviceEditor() {
   const outCount = ports.filter((p) => p.direction === "output").length;
   const selectedPort = ports.find((p) => p.id === selectedPortId);
 
+  // Bulk-selection derived state. The set may carry stale ids (removed / re-synced ports); filter
+  // against the live list so the count and the bulk-vs-single decision stay honest.
+  const selectedPortsForBulk = ports.filter((p) => selectedPortIds.has(p.id));
+  const liveSelectedCount = selectedPortsForBulk.length;
+  const bulkMode = liveSelectedCount >= 2;
+
+  // Internal-wiring endpoints are port LABELS — offer the distinct, non-empty labels
+  // the editor is currently building (in list order). Cheap derived value; this sits
+  // below the component's early returns, so it must not be a hook.
+  const internalPortLabels = ((): string[] => {
+    const seen = new Set<string>();
+    const labels: string[] = [];
+    for (const p of ports) {
+      const label = p.label.trim();
+      if (label && !seen.has(label)) {
+        seen.add(label);
+        labels.push(label);
+      }
+    }
+    return labels;
+  })();
+  // Links live on the store node (addInternalLink/removeInternalLink write there
+  // directly and undoably), so read them straight from node.data — not local state.
+  const internalLinks = node?.data.internalLinks ?? [];
+
   // Live preview rows: outputs are right-justified, everything else left.
   const previewName = label.trim() || "Untitled";
   const previewCategory = (category.trim() || deviceType.trim() || "device").toUpperCase();
@@ -1003,13 +1343,21 @@ export default function DeviceEditor() {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex flex-col bg-[var(--color-bg)]"
+      className="device-editor-shell fixed inset-0 z-50 flex flex-col bg-[var(--color-bg)]"
       onKeyDownCapture={onCtrlEnter}
+      onKeyDown={(e) => {
+        // Esc collapses a multi-selection back to the primary. Text inputs stopPropagation on
+        // keydown, so typing Esc in a field never reaches here.
+        if (e.key === "Escape" && liveSelectedCount > 1) {
+          e.preventDefault();
+          clearMultiSelect();
+        }
+      }}
     >
       {/* ── Header (50px) ── */}
       <header className="h-[50px] flex-none flex items-center gap-3 px-4 bg-[var(--color-surface)] border-b border-[var(--ui-border)]">
         <button
-          onClick={close}
+          onClick={handleCancel}
           className="flex items-center gap-1.5 h-[30px] pl-2 pr-2.5 bg-transparent border border-[var(--ui-border)] rounded-lg cursor-pointer text-[var(--color-text)] text-[11.5px] font-medium hover:bg-[var(--color-surface-hover)] transition-colors"
           title="Back to library — discard or keep your changes via Cancel/Done"
         >
@@ -1040,17 +1388,31 @@ export default function DeviceEditor() {
         )}
 
         <div className="ml-auto flex items-center gap-2.5">
-          <span className="flex items-center gap-1.5 text-[11px] text-[var(--color-text-muted)]">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#1aa179]" />
-            {templateId && customTemplates.some((t) => t.id === templateId) ? "User template" : "Editing device"}
-          </span>
-          <button onClick={close} className="ui-btn ui-btn-secondary h-[30px] text-[11.5px]">Cancel</button>
-          <button onClick={handleSave} className="ui-btn ui-btn-primary h-[30px] text-[11.5px]">Done</button>
+          {creatingNodeId !== null && creatingNodeId === editingNodeId ? (
+            <label className="flex items-center gap-1.5 text-[11px] text-[var(--color-text)] cursor-pointer select-none" title="Registers this device in the My Devices owned list on save (remembered)">
+              <input
+                type="checkbox"
+                checked={createAddToOwned}
+                onChange={(e) => setCreateAddToOwned(e.target.checked)}
+                className="accent-[var(--color-accent)]"
+              />
+              Also add to My Devices
+            </label>
+          ) : (
+            <span className="flex items-center gap-1.5 text-[11px] text-[var(--color-text-muted)]">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#1aa179]" />
+              {templateId && customTemplates.some((t) => t.id === templateId) ? "User template" : "Editing device"}
+            </span>
+          )}
+          <button onClick={handleCancel} className="ui-btn ui-btn-secondary h-[30px] text-[11.5px]">Cancel</button>
+          <button onClick={handleSave} className="ui-btn ui-btn-primary h-[30px] text-[11.5px]">
+            {adapterCreationRequest ? "Create Adapter" : "Done"}
+          </button>
         </div>
       </header>
 
       {/* ── Body ── */}
-      <div className="flex-1 flex min-h-0">
+      <div className="de-body flex-1 flex min-h-0">
 
         {/* LEFT: live preview + identity + advanced sections */}
         <aside className="w-[330px] flex-none border-r border-[var(--ui-border)] bg-[var(--color-surface)] flex flex-col overflow-auto">
@@ -1074,7 +1436,11 @@ export default function DeviceEditor() {
                 className="flex items-center gap-2 pl-[13px] pr-[11px] py-[9px] border-b border-[var(--ui-border)] rounded-t-lg"
                 style={{ background: headerColor ?? "var(--color-surface-raised)" }}
               >
-                {icon && <span className="text-[12px] leading-none flex-none">{icon}</span>}
+                <ArtworkChip
+                  artworkAssetId={artworkAssetId || undefined}
+                  device={{ deviceType, category, ports }}
+                  size={18}
+                />
                 <span className="flex flex-col leading-[1.3] min-w-0">
                   <span className="text-[11.5px] font-semibold text-[var(--color-text-heading)] whitespace-nowrap overflow-hidden text-ellipsis">
                     {previewName}
@@ -1177,26 +1543,34 @@ export default function DeviceEditor() {
               </label>
             </div>
 
-            <Field label="Icon">
-              <div className="flex flex-wrap items-center gap-1">
-                {["🎥", "📹", "📷", "🎤", "🎙", "🔊", "🎛", "🎚", "🖥", "💻", "📺", "📡", "🌐", "🔀", "💡", "🔌", "⚡", "🗄", "☁️", "⚙️"].map((glyph) => (
+            <Field label="Artwork">
+              <div className="flex items-center gap-2">
+                <ArtworkChip
+                  artworkAssetId={artworkAssetId || undefined}
+                  device={{ deviceType, category, ports }}
+                  size={32}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowArtworkPicker(true)}
+                  className="ui-btn ui-btn-secondary text-[11px] h-[26px]"
+                >
+                  Choose artwork…
+                </button>
+                {artworkAssetId && (
                   <button
-                    key={glyph}
                     type="button"
-                    onClick={() => setIcon(icon === glyph ? "" : glyph)}
-                    className={`w-7 h-7 rounded-md text-sm flex items-center justify-center cursor-pointer transition-colors ${
-                      icon === glyph
-                        ? "bg-[var(--color-accent-soft)] ring-1 ring-[var(--color-accent)]"
-                        : "hover:bg-[var(--color-surface-hover)]"
-                    }`}
-                    title={icon === glyph ? "Click to remove icon" : "Use this icon"}
+                    onClick={() => setArtworkAssetId("")}
+                    className="text-[11px] text-[var(--color-text-muted)] hover:text-[var(--color-text)] cursor-pointer"
+                    title="Clear — the class-default symbol renders instead"
                   >
-                    {glyph}
+                    None
                   </button>
-                ))}
+                )}
               </div>
               <div className="text-[10px] text-[var(--color-text-muted)] mt-0.5">
-                Shown before the device name on the canvas.
+                Vector identity shown in the node header, library rows and Plan view.
+                {!artworkAssetId && " Using the class-default symbol."}
               </div>
             </Field>
 
@@ -1878,8 +2252,10 @@ export default function DeviceEditor() {
               title={deviceType === "patch-panel" ? "Rear" : "Inputs"}
               direction="input"
               ports={inputs}
-              selectedPortId={selectedPortId}
-              onSelect={setSelectedPortId}
+              selectedPortIds={selectedPortIds}
+              primaryPortId={selectedPortId}
+              onRowSelect={handleRowSelect}
+              onToggleSelectAll={toggleSelectAll}
               onAdd={() => addPort("input")}
               onBulkAdd={bulkAddPorts}
               hiddenPorts={hiddenPorts}
@@ -1894,8 +2270,10 @@ export default function DeviceEditor() {
               title={deviceType === "patch-panel" ? "Front" : "Outputs"}
               direction="output"
               ports={outputs}
-              selectedPortId={selectedPortId}
-              onSelect={setSelectedPortId}
+              selectedPortIds={selectedPortIds}
+              primaryPortId={selectedPortId}
+              onRowSelect={handleRowSelect}
+              onToggleSelectAll={toggleSelectAll}
               onAdd={() => addPort("output")}
               onBulkAdd={bulkAddPorts}
               hiddenPorts={hiddenPorts}
@@ -1911,8 +2289,10 @@ export default function DeviceEditor() {
                 title="Bidirectional"
                 direction="bidirectional"
                 ports={bidir}
-                selectedPortId={selectedPortId}
-                onSelect={setSelectedPortId}
+                selectedPortIds={selectedPortIds}
+                primaryPortId={selectedPortId}
+                onRowSelect={handleRowSelect}
+                onToggleSelectAll={toggleSelectAll}
                 onAdd={() => addPort("bidirectional")}
                 onBulkAdd={bulkAddPorts}
                 hiddenPorts={hiddenPorts}
@@ -1929,8 +2309,10 @@ export default function DeviceEditor() {
                 title="Passthrough Circuits"
                 direction="passthrough"
                 ports={passthroughPorts}
-                selectedPortId={selectedPortId}
-                onSelect={setSelectedPortId}
+                selectedPortIds={selectedPortIds}
+                primaryPortId={selectedPortId}
+                onRowSelect={handleRowSelect}
+                onToggleSelectAll={toggleSelectAll}
                 onAdd={() => addPort("passthrough")}
                 onBulkAdd={bulkAddPorts}
                 hiddenPorts={hiddenPorts}
@@ -1942,12 +2324,28 @@ export default function DeviceEditor() {
                 onDragEnd={handleDragEnd}
               />
             )}
+            {editingNodeId && (
+              <InternalWiringPanel
+                deviceId={editingNodeId}
+                portLabels={internalPortLabels}
+                links={internalLinks}
+                onAdd={(link) => addInternalLink(editingNodeId, link)}
+                onRemove={(link) => removeInternalLink(editingNodeId, link)}
+              />
+            )}
           </div>
         </div>
 
         {/* RIGHT: selected-port config */}
         <div className="flex-1 min-w-0 bg-[var(--color-bg)] flex flex-col">
-          {selectedPort ? (
+          {bulkMode ? (
+            <PortBulkEditPanel
+              key={selectedPortsForBulk.map((p) => p.id).sort().join("|")}
+              ports={selectedPortsForBulk}
+              onApply={(u) => updatePorts(selectedPortIds, u)}
+              onClear={clearMultiSelect}
+            />
+          ) : selectedPort ? (
             <PortConfigPanel
               key={selectedPort.id}
               port={selectedPort}
@@ -2004,6 +2402,33 @@ export default function DeviceEditor() {
       </footer>
 
       <LoginDialog open={showLoginDialog} onClose={() => setShowLoginDialog(false)} />
+      {showArtworkPicker && (
+        <SymbolPickerDialog
+          title="Choose artwork"
+          onPick={(entry) => {
+            setArtworkAssetId(`${entry.category}/${entry.id}`);
+            setShowArtworkPicker(false);
+          }}
+          onClose={() => setShowArtworkPicker(false)}
+          onUpload={() => {
+            setShowArtworkPicker(false);
+            setShowArtworkUpload(true);
+          }}
+          onClear={artworkAssetId ? () => {
+            setArtworkAssetId("");
+            setShowArtworkPicker(false);
+          } : undefined}
+        />
+      )}
+      {showArtworkUpload && (
+        <SvgAssetImportDialog
+          onPicked={(assetId) => {
+            setArtworkAssetId(assetId);
+            setShowArtworkUpload(false);
+          }}
+          onClose={() => setShowArtworkUpload(false)}
+        />
+      )}
       {showFacePlateEditor && node && (
         <FacePlateEditor
           deviceData={node.data as DeviceData}
@@ -2119,8 +2544,10 @@ function PortListGroup({
   title,
   direction,
   ports,
-  selectedPortId,
-  onSelect,
+  selectedPortIds,
+  primaryPortId,
+  onRowSelect,
+  onToggleSelectAll,
   onAdd,
   onBulkAdd,
   hiddenPorts,
@@ -2134,10 +2561,12 @@ function PortListGroup({
   title: string;
   direction: PortDirection;
   ports: PortDraft[];
-  selectedPortId: string | null;
-  onSelect: (id: string) => void;
+  selectedPortIds: Set<string>;
+  primaryPortId: string | null;
+  onRowSelect: (id: string, mods: { meta: boolean; shift: boolean }, direction: PortDirection) => void;
+  onToggleSelectAll: (direction: PortDirection) => void;
   onAdd: () => void;
-  onBulkAdd: (direction: PortDirection, prefix: string, start: number, count: number, signalType: SignalType, section: string) => void;
+  onBulkAdd: (direction: PortDirection, prefix: string, start: number, count: number, signalType: SignalType, section: string, connectorType: ConnectorType) => void;
   hiddenPorts: string[];
   setHiddenPorts: React.Dispatch<React.SetStateAction<string[]>>;
   draggedPortId: string | null;
@@ -2148,6 +2577,8 @@ function PortListGroup({
 }) {
   const sectionRef = useRef<HTMLDivElement>(null);
   const [showBulkAdd, setShowBulkAdd] = useState(false);
+  const allSelected = ports.length > 0 && ports.every((p) => selectedPortIds.has(p.id));
+  const someSelected = ports.some((p) => selectedPortIds.has(p.id));
 
   const handleSectionDragOver = (e: DragEvent) => {
     e.preventDefault();
@@ -2169,6 +2600,17 @@ function PortListGroup({
   return (
     <div ref={sectionRef} onDragOver={handleSectionDragOver} onDrop={handleSectionDrop} onDragLeave={handleSectionDragLeave}>
       <div className="flex items-center gap-2 px-1 mb-1">
+        {ports.length > 0 && (
+          <input
+            type="checkbox"
+            className="w-3 h-3 cursor-pointer accent-[var(--color-accent)]"
+            checked={allSelected}
+            ref={(el) => { if (el) el.indeterminate = someSelected && !allSelected; }}
+            onChange={() => onToggleSelectAll(direction)}
+            title={allSelected ? `Deselect all ${title.toLowerCase()}` : `Select all ${title.toLowerCase()}`}
+            aria-label={allSelected ? `Deselect all ${title.toLowerCase()}` : `Select all ${title.toLowerCase()}`}
+          />
+        )}
         <span className="text-[9px] uppercase tracking-[0.1em] text-[var(--color-text-muted)]">{title}</span>
         <span className="text-[9px] text-[var(--color-text-muted)]">{ports.length}</span>
         <div className="ml-auto flex items-center gap-2">
@@ -2201,10 +2643,10 @@ function PortListGroup({
             port={port}
             index={i}
             direction={direction}
-            selected={port.id === selectedPortId}
+            selected={selectedPortIds.has(port.id) || port.id === primaryPortId}
             hidden={hiddenPorts.includes(port.id)}
             isLast={i === ports.length - 1}
-            onSelect={() => onSelect(port.id)}
+            onSelect={(mods) => onRowSelect(port.id, mods, direction)}
             onToggleVisibility={() =>
               setHiddenPorts((prev) => (prev.includes(port.id) ? prev.filter((id) => id !== port.id) : [...prev, port.id]))
             }
@@ -2242,7 +2684,7 @@ function PortListRow({
   selected: boolean;
   hidden: boolean;
   isLast: boolean;
-  onSelect: () => void;
+  onSelect: (mods: { meta: boolean; shift: boolean }) => void;
   onToggleVisibility: () => void;
   draggedPortId: string | null;
   setDraggedPortId: (id: string | null) => void;
@@ -2285,7 +2727,7 @@ function PortListRow({
       {showBefore && <div className="h-0.5 bg-[var(--color-accent)] rounded-full my-0.5" />}
       <div
         ref={rowRef}
-        onClick={onSelect}
+        onClick={(e) => onSelect({ meta: e.metaKey || e.ctrlKey, shift: e.shiftKey })}
         onDragOver={handleDragOver}
         onDrop={handleDrop}
         className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg cursor-pointer border transition-colors ${
@@ -2816,25 +3258,200 @@ function Segmented({
   );
 }
 
+/** The value shared by every selected port for a field, or `mixed` when they differ. `undefined`
+ *  is a legitimate shared value (e.g. no section), so mixed-ness is tracked separately. */
+function commonFieldValue<T>(values: T[]): { mixed: boolean; value: T | undefined } {
+  if (values.length === 0) return { mixed: false, value: undefined };
+  const [first] = values;
+  const mixed = values.some((v) => v !== first);
+  return { mixed, value: mixed ? undefined : first };
+}
+
+/** Sentinel option value for a bulk select whose ports currently hold differing values. */
+const MIXED_VALUE = "__mixed__";
+
+/** RIGHT panel when ≥2 ports are selected: set Signal type, Connector, Section group, and Direction
+ *  across the whole selection at once. Reuses the same controls/visual language as PortConfigPanel.
+ *  A field where the selection differs shows a "— Mixed" state; setting it unifies the selection. */
+function PortBulkEditPanel({
+  ports,
+  onApply,
+  onClear,
+}: {
+  ports: PortDraft[];
+  onApply: (updates: Partial<PortDraft> | ((p: PortDraft) => Partial<PortDraft>)) => void;
+  onClear: () => void;
+}) {
+  const sig = commonFieldValue(ports.map((p) => p.signalType));
+  const conn = commonFieldValue(ports.map((p) => p.connectorType ?? DEFAULT_CONNECTOR[p.signalType]));
+  const dir = commonFieldValue(ports.map((p) => p.direction));
+  const sectionCommon = commonFieldValue(ports.map((p) => p.section ?? ""));
+  // Section is free text — seed once from the shared value (the panel is remounted via `key` when
+  // the selection changes) and apply on edit so an untouched field never overwrites the ports.
+  const [section, setSection] = useState(sectionCommon.value ?? "");
+
+  // Signal tiles: the shared signal first (when unified), then the common AV signals — matching
+  // PortConfigPanel's grid.
+  const signalTiles: SignalType[] = [
+    ...(sig.value ? [sig.value] : []),
+    ...COMMON_SIGNAL_CHOICES.filter((s) => s !== sig.value),
+  ];
+
+  // Choosing a signal also resets the connector to that signal's default — exactly as the
+  // single-port editor does — so a bulk signal change lands sensible connectors too.
+  const applySignal = (s: SignalType) => onApply({ signalType: s, connectorType: DEFAULT_CONNECTOR[s] });
+
+  return (
+    <div className="flex-1 overflow-auto px-6 py-5">
+      <div className="max-w-[560px] flex flex-col gap-5">
+        {/* Header */}
+        <div className="flex items-center gap-3">
+          <span
+            className="w-[34px] h-[34px] rounded-lg bg-[var(--color-surface)] border border-[var(--ui-border)] flex items-center justify-center flex-none text-[13px] font-semibold text-[var(--color-accent)]"
+            style={{ fontFamily: "var(--font-mono)" }}
+          >
+            {ports.length}
+          </span>
+          <div className="flex flex-col gap-0.5 min-w-0">
+            <span className="text-[16px] font-semibold text-[var(--color-text-heading)] tracking-[-0.01em]">Bulk edit</span>
+            <span className="text-[10px] text-[var(--color-text-muted)]" style={{ fontFamily: "var(--font-mono)" }}>
+              {ports.length} PORTS SELECTED
+            </span>
+          </div>
+          <button
+            onClick={onClear}
+            className="ml-auto flex items-center gap-1.5 h-[30px] px-2.5 bg-transparent border border-[var(--ui-border)] rounded-lg cursor-pointer text-[var(--color-text-muted)] text-[11px] font-medium hover:text-[var(--color-text)] transition-colors"
+            title="Clear the multi-selection (Esc)"
+          >
+            Clear selection
+          </button>
+        </div>
+
+        <p className="text-[11px] text-[var(--color-text-muted)] leading-[1.45] -mt-2">
+          Changes apply to all {ports.length} selected ports. A field showing{" "}
+          <span style={{ fontFamily: "var(--font-mono)" }}>—</span> differs across the selection; set it to unify.
+        </p>
+
+        {/* Signal type */}
+        <div className="flex flex-col gap-2.5">
+          <div className="flex items-center gap-2">
+            <span className="text-[9px] tracking-[0.13em] uppercase text-[var(--color-text-muted)]" style={{ fontFamily: "var(--font-mono)" }}>Signal type</span>
+            <select
+              className="ml-auto bg-[var(--color-surface)] border border-[var(--ui-border)] rounded px-1.5 py-0.5 text-[10px] text-[var(--color-text)] outline-none cursor-pointer"
+              value={sig.mixed ? MIXED_VALUE : sig.value}
+              onChange={(e) => { if (e.target.value !== MIXED_VALUE) applySignal(e.target.value as SignalType); }}
+              title="All signal types"
+            >
+              {sig.mixed && <option value={MIXED_VALUE} disabled>— Mixed</option>}
+              {ALL_SIGNAL_TYPES.map((t) => (
+                <option key={t} value={t}>{SIGNAL_LABELS[t]}</option>
+              ))}
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-[7px]">
+            {signalTiles.map((s) => {
+              const active = !sig.mixed && sig.value === s;
+              return (
+                <button
+                  key={s}
+                  onClick={() => applySignal(s)}
+                  className={`flex items-center gap-2.5 h-[38px] px-3 rounded-lg cursor-pointer text-xs font-medium text-left border transition-colors ${
+                    active
+                      ? "border-[var(--color-accent)] text-[var(--color-text-heading)]"
+                      : "border-[var(--ui-border)] text-[var(--color-text)] hover:bg-[var(--color-surface-hover)]"
+                  }`}
+                  style={active ? { background: "var(--color-accent-soft)" } : { background: "var(--color-surface)" }}
+                >
+                  <span className="w-[11px] h-[11px] rounded-[3px] flex-none" style={{ background: SIGNAL_COLORS[s] }} />
+                  <span className="truncate">{SIGNAL_LABELS[s]}</span>
+                  {active && (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="ml-auto flex-none">
+                      <path d="M5 12l5 5 9-11" stroke="var(--color-accent)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Connector + Section group */}
+        <div className="flex gap-3.5 flex-wrap">
+          <label className="flex-1 min-w-[200px] flex flex-col gap-1.5">
+            <span className="text-[9px] tracking-[0.13em] uppercase text-[var(--color-text-muted)]" style={{ fontFamily: "var(--font-mono)" }}>Connector</span>
+            <select
+              className="ui-input cursor-pointer"
+              value={conn.mixed ? MIXED_VALUE : conn.value}
+              onChange={(e) => { if (e.target.value !== MIXED_VALUE) onApply({ connectorType: e.target.value as ConnectorType }); }}
+            >
+              {conn.mixed && <option value={MIXED_VALUE} disabled>— Mixed</option>}
+              {CONNECTOR_GROUP_ENTRIES.map(([groupName, types]) => (
+                <optgroup key={groupName} label={groupName}>
+                  {types.map((c) => (
+                    <option key={c} value={c}>{CONNECTOR_LABELS[c]}</option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+          </label>
+          <label className="flex-1 min-w-[160px] flex flex-col gap-1.5">
+            <span className="text-[9px] tracking-[0.13em] uppercase text-[var(--color-text-muted)]" style={{ fontFamily: "var(--font-mono)" }}>Section group</span>
+            <input
+              className="ui-input text-xs"
+              value={section}
+              onChange={(e) => { const v = e.target.value; setSection(v); onApply({ section: v.trim() || undefined }); }}
+              placeholder={sectionCommon.mixed ? "— Mixed" : "e.g. Cameras"}
+              onKeyDown={(e) => e.stopPropagation()}
+            />
+          </label>
+        </div>
+
+        {/* Direction */}
+        <div className="flex flex-col gap-2">
+          <span className="text-[9px] tracking-[0.13em] uppercase text-[var(--color-text-muted)]" style={{ fontFamily: "var(--font-mono)" }}>Direction</span>
+          <Segmented
+            options={DIRECTION_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+            value={dir.mixed ? "" : (dir.value ?? "")}
+            onChange={(v) => {
+              const next = v as PortDirection;
+              // Mirror the single-port direction logic: passthrough inherits its signal; leaving
+              // passthrough restores a concrete connector default for each port.
+              if (next === "passthrough") onApply({ direction: next, signalType: "custom", inheritsSignal: true });
+              else onApply((p) => ({
+                direction: next,
+                ...(p.inheritsSignal ? { inheritsSignal: undefined, connectorType: DEFAULT_CONNECTOR[p.signalType] } : {}),
+              }));
+            }}
+          />
+          {dir.mixed && (
+            <span className="text-[10px] text-[var(--color-text-muted)]">Mixed directions — pick one to unify the selection.</span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function BulkAddForm({
   direction,
   onBulkAdd,
   onClose,
 }: {
   direction: PortDirection;
-  onBulkAdd: (direction: PortDirection, prefix: string, start: number, count: number, signalType: SignalType, section: string) => void;
+  onBulkAdd: (direction: PortDirection, prefix: string, start: number, count: number, signalType: SignalType, section: string, connectorType: ConnectorType) => void;
   onClose: () => void;
 }) {
   const [prefix, setPrefix] = useState("Input");
   const [start, setStart] = useState(1);
   const [end, setEnd] = useState(8);
   const [signalType, setSignalType] = useState<SignalType>("sdi");
+  const [connectorType, setConnectorType] = useState<ConnectorType>(DEFAULT_CONNECTOR.sdi);
   const [section, setSection] = useState("");
 
   const handleSubmit = () => {
     const count = end - start + 1;
     if (count < 1 || !prefix.trim()) return;
-    onBulkAdd(direction, prefix.trim(), start, count, signalType, section.trim());
+    onBulkAdd(direction, prefix.trim(), start, count, signalType, section.trim(), connectorType);
     onClose();
   };
 
@@ -2874,10 +3491,32 @@ function BulkAddForm({
         <select
           className="bg-[var(--color-surface)] text-[var(--color-text)] border border-[var(--color-border)] rounded px-1 py-1 text-xs outline-none focus:border-[var(--color-accent)] cursor-pointer"
           value={signalType}
-          onChange={(e) => setSignalType(e.target.value as SignalType)}
+          onChange={(e) => {
+            const s = e.target.value as SignalType;
+            setSignalType(s);
+            // Track the signal's default connector like the single-port editor does; the user can
+            // still override it below before adding.
+            setConnectorType(DEFAULT_CONNECTOR[s]);
+          }}
         >
           {ALL_SIGNAL_TYPES.map((t) => (
             <option key={t} value={t}>{SIGNAL_LABELS[t]}</option>
+          ))}
+        </select>
+      </div>
+      <div className="flex items-center gap-1.5">
+        <span className="text-[10px] text-[var(--color-text-muted)]">Connector:</span>
+        <select
+          className="flex-1 min-w-0 bg-[var(--color-surface)] text-[var(--color-text)] border border-[var(--color-border)] rounded px-1 py-1 text-xs outline-none focus:border-[var(--color-accent)] cursor-pointer"
+          value={connectorType}
+          onChange={(e) => setConnectorType(e.target.value as ConnectorType)}
+        >
+          {CONNECTOR_GROUP_ENTRIES.map(([groupName, types]) => (
+            <optgroup key={groupName} label={groupName}>
+              {types.map((c) => (
+                <option key={c} value={c}>{CONNECTOR_LABELS[c]}</option>
+              ))}
+            </optgroup>
           ))}
         </select>
       </div>
@@ -2905,6 +3544,7 @@ function BulkAddForm({
       </div>
       <div className="text-[10px] text-[var(--color-text-muted)]">
         Preview: {prefix} {start}, {prefix} {start + 1}, ... {prefix} {end}
+        <span className="text-[var(--color-text)]"> · {CONNECTOR_LABELS[connectorType]}</span>
       </div>
     </div>
   );

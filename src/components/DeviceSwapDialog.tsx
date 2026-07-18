@@ -126,7 +126,7 @@ export default function DeviceSwapDialog() {
                 </div>
               ) : filtered.length === 0 ? (
                 <div className="text-[11px] text-[var(--color-text-muted)] py-4 text-center">
-                  No matching devices
+                  No matching devices — try a different term
                 </div>
               ) : (
                 filtered.map((t) => {

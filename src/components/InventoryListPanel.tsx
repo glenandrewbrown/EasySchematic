@@ -16,8 +16,22 @@ const GHOST =
   "w-full text-xs bg-transparent outline-none rounded px-1 py-0.5 border border-transparent " +
   "hover:border-[var(--ui-border)] focus:border-[var(--color-accent)] focus:bg-[var(--color-surface)] text-[var(--color-text)]";
 
+/** Source chip: where an Items row comes from — the owned-gear list or a manual entry. */
+function SourceChip({ owned }: { owned: boolean }) {
+  return owned ? (
+    <span className="inline-block px-1.5 py-[1px] rounded text-[9px] font-semibold tracking-wide uppercase bg-[var(--color-success,#1aa179)]/15 text-[var(--color-success,#1aa179)]">
+      Owned
+    </span>
+  ) : (
+    <span className="inline-block px-1.5 py-[1px] rounded text-[9px] font-semibold tracking-wide uppercase bg-[var(--color-surface)] text-[var(--color-text-muted)] border border-[var(--ui-border)]">
+      Manual
+    </span>
+  );
+}
+
 export default function InventoryListPanel() {
   const items = useSchematicStore((s) => s.ownedInventory);
+  const ownedGear = useSchematicStore((s) => s.ownedGear);
   const addItem = useSchematicStore((s) => s.addOwnedInventoryItem);
   const updateItem = useSchematicStore((s) => s.updateOwnedInventoryItem);
   const removeItem = useSchematicStore((s) => s.removeOwnedInventoryItem);
@@ -61,19 +75,32 @@ export default function InventoryListPanel() {
             <tr className="text-left text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">
               <th className="px-3 py-2 font-semibold">Item</th>
               <th className="px-2 py-2 font-semibold w-32">Category</th>
+              <th className="px-2 py-2 font-semibold w-20">Source</th>
               <th className="px-2 py-2 font-semibold w-16 text-right">Qty</th>
               <th className="px-2 py-2 font-semibold">Notes</th>
               <th className="px-2 py-2 w-8" />
             </tr>
           </thead>
           <tbody>
-            {items.length === 0 && (
+            {items.length === 0 && ownedGear.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-3 py-10 text-center text-[var(--color-text-muted)]">
+                <td colSpan={6} className="px-3 py-10 text-center text-[var(--color-text-muted)]">
                   No items yet — add cables, adapters or peripherals below.
                 </td>
               </tr>
             )}
+            {/* Owned devices surface here read-only so everything owned is visible in ONE
+                list; quantities are managed from Insert ▸ My Devices. */}
+            {ownedGear.map((g, i) => (
+              <tr key={`owned-${i}`} className="border-b border-[var(--ui-border)]">
+                <td className="px-4 py-1.5 text-[var(--color-text)]">{g.template.label}</td>
+                <td className="px-3 py-1.5 text-[var(--color-text-muted)]">{g.template.category ?? "Device"}</td>
+                <td className="px-2 py-1.5"><SourceChip owned /></td>
+                <td className="px-3 py-1.5 text-right tabular-nums text-[var(--color-text)]">{g.quantity}</td>
+                <td className="px-3 py-1.5 text-[var(--color-text-muted)] text-[10px]">Managed in Insert ▸ My Devices</td>
+                <td className="px-2 py-1.5" />
+              </tr>
+            ))}
             {items.map((it) => (
               <InventoryRow key={it.id} item={it} onUpdate={updateItem} onRemove={removeItem} />
             ))}
@@ -167,6 +194,9 @@ function InventoryRow({ item, onUpdate, onRemove }: InventoryRowProps) {
           defaultValue={item.category ?? ""}
           onBlur={(e) => onUpdate(item.id, { category: e.target.value.trim() || undefined })}
         />
+      </td>
+      <td className="px-2 py-1.5">
+        <SourceChip owned={false} />
       </td>
       <td className="px-2 py-1.5 text-right">
         <input

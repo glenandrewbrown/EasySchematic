@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useReactFlow } from "@xyflow/react";
 import { useSchematicStore } from "../store";
 import { exportImage } from "../exportUtils";
@@ -41,7 +42,16 @@ interface MenuSeparatorDef {
   type: "separator";
 }
 
-type MenuEntry = MenuItemDef | MenuSeparatorDef;
+/** A nested sublist — renders as a hover flyout on desktop, an indented group on mobile. */
+interface MenuSubmenuDef {
+  type: "submenu";
+  label: string;
+  title?: string;
+  disabled?: boolean;
+  items: MenuEntry[];
+}
+
+type MenuEntry = MenuItemDef | MenuSeparatorDef | MenuSubmenuDef;
 
 // ─── Sub-components ──────────────────────────────────────────────
 
@@ -94,26 +104,75 @@ function looksLikeSchematic(data: unknown): data is SchematicFile {
   return !!data && typeof data === "object" && Array.isArray((data as SchematicFile).nodes);
 }
 
-function MenuDropdown({ items, onClose }: { items: MenuEntry[]; onClose: () => void }) {
+/** One row that opens a nested sublist to the side on hover (desktop menus). */
+function SubmenuRow({ entry, onClose }: { entry: MenuSubmenuDef; onClose: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [flipLeft, setFlipLeft] = useState(false);
+  const rowRef = useRef<HTMLDivElement>(null);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancel = () => { if (closeTimer.current) { clearTimeout(closeTimer.current); closeTimer.current = null; } };
+  const scheduleClose = () => { cancel(); closeTimer.current = setTimeout(() => setOpen(false), 220); };
+  const openNow = () => {
+    cancel();
+    // Flip to the left when there isn't ~240px of room to the right of the row.
+    const r = rowRef.current?.getBoundingClientRect();
+    setFlipLeft(!!r && r.right + 240 > window.innerWidth);
+    setOpen(true);
+  };
   return (
-    <div className="chrome-menu absolute top-full left-0 mt-1 min-w-[230px] z-50">
-      {items.map((entry, i) => {
-        if (entry.type === "separator") return <MenuSeparator key={i} />;
-        return (
-          <MenuItem
-            key={i}
-            label={entry.label}
-            shortcut={entry.shortcut}
-            checked={entry.checked}
-            disabled={entry.disabled}
-            title={entry.title}
-            onClick={() => {
-              entry.onClick();
-              onClose();
-            }}
-          />
-        );
-      })}
+    <div ref={rowRef} className="relative" onMouseEnter={openNow} onMouseLeave={scheduleClose}>
+      <button
+        disabled={entry.disabled}
+        title={entry.title}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className="flex items-center w-full px-2 py-1.5 text-xs rounded-md hover:bg-[var(--color-surface-hover)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer text-left gap-2"
+      >
+        <span className="w-4 shrink-0" aria-hidden />
+        <span className="flex-1 truncate">{entry.label}</span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="shrink-0 text-[var(--color-text-muted)]" aria-hidden>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 6l6 6-6 6" />
+        </svg>
+      </button>
+      {open && !entry.disabled && (
+        <div
+          role="menu"
+          className={`chrome-menu absolute top-0 -mt-1 min-w-[220px] z-50 ${flipLeft ? "right-full mr-0.5" : "left-full ml-0.5"}`}
+        >
+          {entry.items.map((sub, i) => renderMenuEntry(sub, i, onClose))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Render one menu entry (item / separator / submenu) inside a dropdown. */
+function renderMenuEntry(entry: MenuEntry, key: number, onClose: () => void) {
+  if (entry.type === "separator") return <MenuSeparator key={key} />;
+  if (entry.type === "submenu") return <SubmenuRow key={key} entry={entry} onClose={onClose} />;
+  return (
+    <MenuItem
+      key={key}
+      label={entry.label}
+      shortcut={entry.shortcut}
+      checked={entry.checked}
+      disabled={entry.disabled}
+      title={entry.title}
+      onClick={() => {
+        entry.onClick();
+        onClose();
+      }}
+    />
+  );
+}
+
+function MenuDropdown({ items, onClose, side = "below" }: { items: MenuEntry[]; onClose: () => void; side?: "below" | "right" }) {
+  // "below" = under its trigger (top-bar menu buttons); "right" = a cascading flyout beside
+  // its row (the ≡ root menu, so sibling menu names aren't covered).
+  const pos = side === "right" ? "top-0 left-full ml-0.5" : "top-full left-0 mt-1";
+  return (
+    <div className={`chrome-menu absolute ${pos} min-w-[230px] z-50`}>
+      {items.map((entry, i) => renderMenuEntry(entry, i, onClose))}
     </div>
   );
 }
@@ -588,6 +647,9 @@ export default function MenuBar({ variant = "full" }: { variant?: "full" | "menu
   useEffect(() => {
     const onNew = () => { handleNew(); };
     const onReports = () => setReportsTab("devices");
+    // Phone: the top-bar ⋯ overflow opens the full menu accordion (all File/Edit/View/…
+    // lists + sublists) so nothing is desktop-only.
+    const onOpenMenu = () => setMobileMenuOpen(true);
     const onFit = () => reactFlowInstance.fitView({ padding: 0.2, duration: 300 });
     // Zoom to the current selection (falls back to fit-all when nothing is selected),
     // mirroring the Shift+2 shortcut so the action has a visible, clickable home.
@@ -598,11 +660,13 @@ export default function MenuBar({ variant = "full" }: { variant?: "full" | "menu
     };
     window.addEventListener("easyschematic:new", onNew);
     window.addEventListener("easyschematic:open-reports", onReports);
+    window.addEventListener("easyschematic:open-menu", onOpenMenu);
     window.addEventListener("easyschematic:fit-view", onFit);
     window.addEventListener("easyschematic:zoom-to-selection", onZoomSel);
     return () => {
       window.removeEventListener("easyschematic:new", onNew);
       window.removeEventListener("easyschematic:open-reports", onReports);
+      window.removeEventListener("easyschematic:open-menu", onOpenMenu);
       window.removeEventListener("easyschematic:fit-view", onFit);
       window.removeEventListener("easyschematic:zoom-to-selection", onZoomSel);
     };
@@ -610,20 +674,45 @@ export default function MenuBar({ variant = "full" }: { variant?: "full" | "menu
 
   const closeMenu = () => setOpenMenu(null);
 
+  // Live store snapshot for menu checkmarks. The component subscribes to the whole store
+  // (destructure above), so this is re-read on every store change and stays current.
+  const st = useSchematicStore.getState();
+  const toggle = (get: () => boolean, set: (v: boolean) => void) => () => set(!get());
+
   const menus: Record<string, MenuEntry[]> = {
     File: [
       { type: "item", label: "New", onClick: handleNew },
+      { type: "item", label: "Open...", shortcut: "Ctrl+O", onClick: handleOpen },
+      { type: "item", label: "My Schematics...", disabled: !isLoggedIn, title: isLoggedIn ? undefined : "Must be logged in", onClick: () => setShowSchematicBrowser(true) },
       { type: "separator" },
       { type: "item", label: "Save", shortcut: "Ctrl+S", onClick: handleSave },
       { type: "item", label: "Save As...", shortcut: "Ctrl+Shift+S", onClick: handleSaveAs },
-      { type: "item", label: "Open...", shortcut: "Ctrl+O", onClick: handleOpen },
+      { type: "item", label: cloudSaving ? "Saving to Cloud..." : isOnline ? "Save to Cloud" : "Save to Cloud (Offline)", disabled: cloudSaving || !isOnline, onClick: handleCloudSave },
       { type: "separator" },
-      { type: "item", label: cloudSaving ? "Saving..." : isOnline ? "Save to Cloud" : "Save to Cloud (Offline)", disabled: cloudSaving || !isOnline, onClick: handleCloudSave },
-      { type: "item", label: "My Schematics...", disabled: !isLoggedIn, title: isLoggedIn ? undefined : "Must be logged in", onClick: () => setShowSchematicBrowser(true) },
-      { type: "separator" },
+      {
+        type: "submenu",
+        label: "Import",
+        items: [
+          { type: "item", label: "Device Archive...", onClick: handleOpenArchive },
+          { type: "item", label: "Cable Schedule (CSV)...", onClick: () => setShowCsvImport(true) },
+        ],
+      },
+      {
+        type: "submenu",
+        label: "Export",
+        items: [
+          { type: "item", label: "PNG Image", onClick: doExportPng },
+          { type: "item", label: "SVG Vector", onClick: doExportSvg },
+          { type: "item", label: "DXF (CAD)", onClick: doExportDxf },
+          { type: "separator" },
+          { type: "item", label: "PDF Document", onClick: doExportPdf },
+          { type: "item", label: "Rack Elevation PDF", onClick: doExportRackPdf },
+          { type: "item", label: "Print Sheets", onClick: doExportPrintSheets },
+          { type: "separator" },
+          { type: "item", label: "Title Block...", onClick: () => setShowTitleBlockDialog(true) },
+        ],
+      },
       { type: "item", label: "Save Device Archive", onClick: handleSaveArchive },
-      { type: "item", label: "Import Device Archive...", onClick: handleOpenArchive },
-      { type: "item", label: "Import Cable Schedule...", onClick: () => setShowCsvImport(true) },
       { type: "separator" },
       { type: "item", label: "Preferences...", onClick: () => setShowPreferences(true) },
     ],
@@ -640,71 +729,88 @@ export default function MenuBar({ variant = "full" }: { variant?: "full" | "menu
       { type: "item", label: "Reset All Routes", title: "Clear every manual route so the whole schematic re-auto-routes (undoable)", onClick: () => useSchematicStore.getState().clearAllManualWaypoints() },
     ],
     Insert: [
-      { type: "item", label: "Add Rectangle", onClick: () => addAnnotation("rectangle") },
-      { type: "item", label: "Add Ellipse", onClick: () => addAnnotation("ellipse") },
-      { type: "item", label: "Add Circle", onClick: () => addAnnotation("circle") },
-      { type: "item", label: "Add Diamond", onClick: () => addAnnotation("diamond") },
-      { type: "item", label: "Add Triangle", onClick: () => addAnnotation("triangle") },
+      {
+        type: "submenu",
+        label: "Shape",
+        items: [
+          { type: "item", label: "Rectangle", onClick: () => addAnnotation("rectangle") },
+          { type: "item", label: "Ellipse", onClick: () => addAnnotation("ellipse") },
+          { type: "item", label: "Circle", onClick: () => addAnnotation("circle") },
+          { type: "item", label: "Diamond", onClick: () => addAnnotation("diamond") },
+          { type: "item", label: "Triangle", onClick: () => addAnnotation("triangle") },
+        ],
+      },
     ],
     View: [
       {
-        type: "item",
-        label: "Print View",
-        shortcut: "F9",
-        checked: printView,
-        onClick: () => useSchematicStore.getState().setPrintView(!printView),
+        type: "submenu",
+        label: "Workspace",
+        items: [
+          { type: "item", label: "Schematic", checked: st.canvasViewMode === "schematic", onClick: () => useSchematicStore.getState().setCanvasViewMode("schematic") },
+          { type: "item", label: "Plan", checked: st.canvasViewMode === "layout", onClick: () => useSchematicStore.getState().setCanvasViewMode("layout") },
+          { type: "item", label: "Schedule", checked: st.canvasViewMode === "schedule", onClick: () => useSchematicStore.getState().setCanvasViewMode("schedule") },
+        ],
       },
-      {
-        type: "item",
-        label: "Show Owned Gear",
-        checked: showOwnedGearPane,
-        onClick: () => {
-          const s = useSchematicStore.getState();
-          s.setShowOwnedGearPane(!s.showOwnedGearPane);
-        },
-      },
-      {
-        type: "item",
-        label: "Hide Unconnected Ports",
-        checked: useSchematicStore.getState().hideUnconnectedPorts,
-        onClick: () => {
-          const s = useSchematicStore.getState();
-          s.setHideUnconnectedPorts(!s.hideUnconnectedPorts);
-        },
-      },
-      {
-        type: "item",
-        label: "Minimap",
-        checked: useSchematicStore.getState().showMiniMap,
-        onClick: () => {
-          const s = useSchematicStore.getState();
-          s.setShowMiniMap(!s.showMiniMap);
-        },
-      },
-      {
-        type: "item",
-        label: "Auto-Route Edges",
-        checked: useSchematicStore.getState().autoRoute,
-        onClick: () => useSchematicStore.getState().toggleAutoRoute(),
-      },
+      { type: "item", label: "Print View", shortcut: "F9", checked: printView, onClick: () => useSchematicStore.getState().setPrintView(!printView) },
       { type: "separator" },
       {
-        type: "item",
-        label: "Debug Edges",
-        shortcut: "Ctrl+B",
-        checked: useSchematicStore.getState().debugEdges,
-        onClick: () => useSchematicStore.getState().toggleDebugEdges(),
+        type: "submenu",
+        label: "Canvas",
+        items: [
+          { type: "item", label: "Show Grid", checked: st.gridSettings.gridVisible, onClick: () => { const s = useSchematicStore.getState(); s.setGridSettings({ gridVisible: !s.gridSettings.gridVisible }); } },
+          {
+            type: "submenu",
+            label: "Grid Style",
+            items: [
+              { type: "item", label: "Ruled Lines", checked: st.gridSettings.layoutGridStyle === "lines", onClick: () => useSchematicStore.getState().setGridSettings({ layoutGridStyle: "lines" }) },
+              { type: "item", label: "Dots", checked: st.gridSettings.layoutGridStyle === "dots", onClick: () => useSchematicStore.getState().setGridSettings({ layoutGridStyle: "dots" }) },
+            ],
+          },
+          {
+            type: "submenu",
+            label: "Grid Units",
+            items: [
+              { type: "item", label: "Meters", checked: st.gridSettings.layoutGridUnit === "m", onClick: () => useSchematicStore.getState().setGridSettings({ layoutGridUnit: "m" }) },
+              { type: "item", label: "Feet", checked: st.gridSettings.layoutGridUnit === "ft", onClick: () => useSchematicStore.getState().setGridSettings({ layoutGridUnit: "ft" }) },
+            ],
+          },
+          { type: "item", label: "Show Minimap", checked: st.showMiniMap, onClick: toggle(() => useSchematicStore.getState().showMiniMap, (v) => useSchematicStore.getState().setShowMiniMap(v)) },
+        ],
       },
-    ],
-    Export: [
-      { type: "item", label: "Export as PNG", onClick: doExportPng },
-      { type: "item", label: "Export as SVG", onClick: doExportSvg },
-      { type: "item", label: "Export as DXF", onClick: doExportDxf },
-      { type: "item", label: "Export as PDF", onClick: doExportPdf },
-      { type: "item", label: "Export Rack PDF", onClick: doExportRackPdf },
-      { type: "item", label: "Export Print Sheets", onClick: doExportPrintSheets },
+      {
+        type: "submenu",
+        label: "Devices",
+        items: [
+          { type: "item", label: "Compact Devices", checked: st.nodeCompact, onClick: toggle(() => useSchematicStore.getState().nodeCompact, (v) => useSchematicStore.getState().setNodeCompact(v)) },
+          { type: "item", label: "Show Port Counts", checked: st.showPortCounts, onClick: toggle(() => useSchematicStore.getState().showPortCounts, (v) => useSchematicStore.getState().setShowPortCounts(v)) },
+          { type: "item", label: "Hide Unconnected Ports", checked: st.hideUnconnectedPorts, onClick: toggle(() => useSchematicStore.getState().hideUnconnectedPorts, (v) => useSchematicStore.getState().setHideUnconnectedPorts(v)) },
+          { type: "item", label: "Show Owned Gear Panel", checked: showOwnedGearPane, onClick: toggle(() => useSchematicStore.getState().showOwnedGearPane, (v) => useSchematicStore.getState().setShowOwnedGearPane(v)) },
+        ],
+      },
+      {
+        type: "submenu",
+        label: "Signal & Cables",
+        items: [
+          { type: "item", label: "Live Signal Flow", checked: st.liveSignal, onClick: toggle(() => useSchematicStore.getState().liveSignal, (v) => useSchematicStore.getState().setLiveSignal(v)) },
+          {
+            type: "submenu",
+            label: "Colour By",
+            items: [
+              { type: "item", label: "Signal Type", checked: st.colorBy === "signal", onClick: () => useSchematicStore.getState().setColorBy("signal") },
+              { type: "item", label: "Layer", checked: st.colorBy === "layer", onClick: () => useSchematicStore.getState().setColorBy("layer") },
+              { type: "item", label: "None", checked: st.colorBy === "none", onClick: () => useSchematicStore.getState().setColorBy("none") },
+            ],
+          },
+          { type: "separator" },
+          { type: "item", label: "Auto-Route Cables", checked: st.autoRoute, onClick: () => useSchematicStore.getState().toggleAutoRoute() },
+          { type: "item", label: "Show Line Jumps", checked: st.showLineJumps, onClick: toggle(() => useSchematicStore.getState().showLineJumps, (v) => useSchematicStore.getState().setShowLineJumps(v)) },
+          { type: "item", label: "Show Cable ID Labels", checked: st.showCableIdLabels, onClick: toggle(() => useSchematicStore.getState().showCableIdLabels, (v) => useSchematicStore.getState().setShowCableIdLabels(v)) },
+          { type: "item", label: "Show Custom Labels", checked: st.showCustomLabels, onClick: toggle(() => useSchematicStore.getState().showCustomLabels, (v) => useSchematicStore.getState().setShowCustomLabels(v)) },
+          { type: "item", label: "Hide Adapters", checked: st.hideAdapters, onClick: toggle(() => useSchematicStore.getState().hideAdapters, (v) => useSchematicStore.getState().setHideAdapters(v)) },
+        ],
+      },
       { type: "separator" },
-      { type: "item", label: "Title Block...", onClick: () => setShowTitleBlockDialog(true) },
+      { type: "item", label: "Debug Edges", shortcut: "Ctrl+B", checked: st.debugEdges, onClick: () => useSchematicStore.getState().toggleDebugEdges() },
     ],
     Reports: [
       { type: "item", label: "Device List...", onClick: () => setReportsTab("devices") },
@@ -712,11 +818,23 @@ export default function MenuBar({ variant = "full" }: { variant?: "full" | "menu
       { type: "item", label: "Cable BOM...", onClick: () => setReportsTab("cableBom") },
       { type: "item", label: "Patch Panels...", onClick: () => setReportsTab("patchPanel") },
       { type: "item", label: "Pack List...", onClick: () => setReportsTab("packList") },
-      { type: "item", label: "Network Report...", onClick: () => setReportsTab("network") },
-      { type: "item", label: "Power Report...", onClick: () => setReportsTab("power") },
       { type: "separator" },
-      { type: "item", label: "Room Distances...", onClick: () => setShowRoomDistances(true) },
-      { type: "item", label: "Cable Inventory...", onClick: () => useSchematicStore.getState().setShowCableInventory(true) },
+      {
+        type: "submenu",
+        label: "Analysis",
+        items: [
+          { type: "item", label: "Network Report...", onClick: () => setReportsTab("network") },
+          { type: "item", label: "Power Report...", onClick: () => setReportsTab("power") },
+        ],
+      },
+      {
+        type: "submenu",
+        label: "Inventory & Measurements",
+        items: [
+          { type: "item", label: "Cable Inventory...", onClick: () => useSchematicStore.getState().setShowCableInventory(true) },
+          { type: "item", label: "Room Distances...", onClick: () => setShowRoomDistances(true) },
+        ],
+      },
     ],
     Help: [
       {
@@ -755,6 +873,36 @@ export default function MenuBar({ variant = "full" }: { variant?: "full" | "menu
     setOpenSection(null);
   };
 
+  // Recursively render a menu entry in the mobile accordion. Submenus become an indented
+  // group (label subheading + nested items) so every sublist stays reachable on phone.
+  const renderMobileEntry = (entry: MenuEntry, key: number, depth: number): React.ReactNode => {
+    if (entry.type === "separator") return <div key={key} className="h-px bg-[var(--color-border)] my-1 mx-2" />;
+    if (entry.type === "submenu") {
+      return (
+        <div key={key} className={depth > 0 ? "pl-3" : ""}>
+          <div className="px-4 pt-2 pb-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]" style={{ paddingLeft: 16 + depth * 12 }}>
+            {entry.label}
+          </div>
+          {entry.items.map((sub, i) => renderMobileEntry(sub, i, depth + 1))}
+        </div>
+      );
+    }
+    return (
+      <button
+        key={key}
+        disabled={entry.disabled}
+        onClick={() => { entry.onClick(); closeMobileMenu(); }}
+        className="flex items-center w-full py-2.5 text-sm rounded hover:bg-[var(--color-surface-hover)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-left gap-3"
+        style={{ paddingLeft: 16 + depth * 12, paddingRight: 16 }}
+      >
+        <span className="w-5 text-center shrink-0 text-xs">
+          {entry.checked != null ? (entry.checked ? "✓" : "") : ""}
+        </span>
+        <span className="flex-1 text-[var(--color-text)]">{entry.label}</span>
+      </button>
+    );
+  };
+
   const MobileAccordionSection = ({ name, items }: { name: string; items: MenuEntry[] }) => {
     const isOpen = openSection === name;
     return (
@@ -773,25 +921,7 @@ export default function MenuBar({ variant = "full" }: { variant?: "full" | "menu
         </button>
         {isOpen && (
           <div className="pb-2 px-2">
-            {items.map((entry, i) => {
-              if (entry.type === "separator") return <div key={i} className="h-px bg-[var(--color-border)] my-1 mx-2" />;
-              return (
-                <button
-                  key={i}
-                  disabled={entry.disabled}
-                  onClick={() => {
-                    entry.onClick();
-                    closeMobileMenu();
-                  }}
-                  className="flex items-center w-full px-4 py-2.5 text-sm rounded hover:bg-[var(--color-surface-hover)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-left gap-3"
-                >
-                  <span className="w-5 text-center shrink-0 text-xs">
-                    {entry.checked != null ? (entry.checked ? "\u2713" : "") : ""}
-                  </span>
-                  <span className="flex-1 text-[var(--color-text)]">{entry.label}</span>
-                </button>
-              );
-            })}
+            {items.map((entry, i) => renderMobileEntry(entry, i, 0))}
           </div>
         )}
       </div>
@@ -843,6 +973,7 @@ export default function MenuBar({ variant = "full" }: { variant?: "full" | "menu
                   {openMenu === name && (
                     <MenuDropdown
                       items={menus[name]}
+                      side="right"
                       onClose={() => {
                         setOpenMenu(null);
                         setMenuRootOpen(false);
@@ -1023,8 +1154,10 @@ export default function MenuBar({ variant = "full" }: { variant?: "full" | "menu
         </button>
       </div>
 
-      {/* Mobile menu overlay */}
-      {mobileMenuOpen && (
+      {/* Mobile menu overlay — portalled to <body> so it escapes the desktop-only
+          (display:none on phone) wrapper this MenuBar is embedded in, letting the phone
+          ⋯ overflow open the full File/Edit/View/… accordion. */}
+      {mobileMenuOpen && createPortal(
         <div className="fixed inset-0 z-[100] bg-[var(--color-surface)] flex flex-col">
           {/* Overlay header: undo/redo + close */}
           <div className="flex items-center justify-between px-3 h-12 border-b border-[var(--color-border)] shrink-0">
@@ -1117,12 +1250,13 @@ export default function MenuBar({ variant = "full" }: { variant?: "full" | "menu
           <div className="border-t border-[var(--color-border)] px-4 py-3 shrink-0">
             <UserMenuButton />
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
 
-      {/* Mobile panel overlay */}
-      {activeMobilePanel && (
-        <div className="fixed inset-0 z-[100] bg-[var(--color-surface)] flex flex-col md:hidden">
+      {/* Mobile panel overlay — portalled for the same reason as the menu overlay above. */}
+      {activeMobilePanel && createPortal(
+        <div className="fixed inset-0 z-[100] bg-[var(--color-surface)] flex flex-col">
           {activeMobilePanel === "viewOptions" && (
             <ViewOptionsPanel mobile onClose={() => setActiveMobilePanel(null)} />
           )}
@@ -1132,7 +1266,8 @@ export default function MenuBar({ variant = "full" }: { variant?: "full" | "menu
           {activeMobilePanel === "signalColors" && (
             <SignalColorPanel mobile onClose={() => setActiveMobilePanel(null)} />
           )}
-        </div>
+        </div>,
+        document.body,
       )}
 
       {/* Hidden file inputs */}

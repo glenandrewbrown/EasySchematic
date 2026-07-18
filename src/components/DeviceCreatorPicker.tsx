@@ -58,15 +58,18 @@ export default function DeviceCreatorPicker({
       .map((r) => r.template);
   }, [allTemplates, search]);
 
-  const createBlank = useCallback(() => {
-    const blank: DeviceTemplate = {
-      deviceType: "custom",
-      label: "New Device",
-      ports: [],
-    };
-    createAndEditDevice(blank, position);
-    onClose();
-  }, [createAndEditDevice, position, onClose]);
+  const createBlank = useCallback(
+    (name?: string) => {
+      const blank: DeviceTemplate = {
+        deviceType: "custom",
+        label: name?.trim() || "New Device",
+        ports: [],
+      };
+      createAndEditDevice(blank, position);
+      onClose();
+    },
+    [createAndEditDevice, position, onClose],
+  );
 
   const createFromTemplate = useCallback(
     (source: DeviceTemplate) => {
@@ -89,7 +92,7 @@ export default function DeviceCreatorPicker({
       onClose();
     } else if (e.key === "Enter" && filtered.length === 0) {
       e.preventDefault();
-      createBlank();
+      createBlank(search);
     }
   };
 
@@ -109,7 +112,7 @@ export default function DeviceCreatorPicker({
             Create New Device
           </div>
           <button
-            onClick={createBlank}
+            onClick={() => createBlank()}
             className="w-full text-left px-2.5 py-2 rounded border border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-accent)] hover:bg-[var(--color-accent-soft)] transition-colors mb-2"
           >
             <div className="text-xs font-medium text-[var(--color-text-heading)]">
@@ -155,9 +158,16 @@ export default function DeviceCreatorPicker({
               Type to search {allTemplates.length} library devices
             </div>
           ) : filtered.length === 0 ? (
-            <div className="text-[10px] text-[var(--color-text-muted)] py-2 text-center">
-              No matching devices
-            </div>
+            <button
+              onClick={() => createBlank(search)}
+              className="w-full text-left px-2 py-1.5 rounded flex items-center gap-2 text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10 transition-colors"
+            >
+              <span className="text-xs font-semibold shrink-0">＋</span>
+              <div className="min-w-0 flex-1">
+                <div className="text-xs font-medium truncate">Create &ldquo;{search.trim()}&rdquo;</div>
+                <div className="text-[10px] opacity-70">New device — opens the creator prefilled</div>
+              </div>
+            </button>
           ) : (
             filtered.map((t) => {
               const key = t.id ?? t.deviceType;

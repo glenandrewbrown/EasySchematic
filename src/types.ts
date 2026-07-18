@@ -1,5 +1,10 @@
 import type { Node, Edge } from "@xyflow/react";
 import { GRID_SIZE } from "./gridConstants";
+import type { NormallingMode, Terminal as PatchTerminal } from "./patchbayNormalling";
+
+// Re-export so the schema layer is the single import site for the normalling mode
+// union (the pure resolver in patchbayNormalling.ts owns the source definition).
+export type { NormallingMode } from "./patchbayNormalling";
 
 export type ConnectorType =
   | "bnc" | "hdmi" | "displayport" | "vga"
@@ -201,6 +206,52 @@ export interface Port {
   templatePortId?: string;
 }
 
+// ── Channel ⇄ connector model (R2-3) ────────────────────────────────────────
+// The unifying abstraction for professional multi-channel gear (Trinnov, MADI/
+// Dante interfaces, DB25 breakouts): a many-to-many mapping between logical
+// channels and physical connectors, both owned by the device. Additive over the
+// legacy Port[] — simple 1:1 gear ignores these fields and keeps working. See
+// docs/superpowers/specs/2026-07-18-r2-trinnov-channel-model-design.md §2.
+
+/** A logical signal on a device — the routable unit. */
+export interface DeviceChannel {
+  id: string;                 // stable, device-local, e.g. "ain1"
+  label: string;              // "Analog In 1"
+  signalType: SignalType;
+  direction: "in" | "out";
+  group?: string;             // section/group (matches Port.section grouping)
+}
+
+/** "physical" = a real jack; "bus" = a virtual internal-only summing/mixing endpoint. */
+export type ConnectorRole = "physical" | "bus";
+
+/** A physical jack (or virtual bus) that exposes ("carries") a set of channels.
+ *  Mutex is DERIVED, not stored: a channel is occupied when any connector that
+ *  carries it is wired (see deviceChannels.ts). */
+export interface DeviceConnector {
+  id: string;                 // stable, device-local, e.g. "db25-in-a"
+  label: string;              // "Analog In DB25"
+  type: ConnectorType;
+  role: ConnectorRole;
+  carries: string[];          // DeviceChannel.id[] this connector exposes
+  /** Patchbay jack role (R2-5). Which of a PatchPoint's four jacks this connector is:
+   *  rearA/rearB = permanent tie-lines (gear side, wired on the canvas);
+   *  frontA/frontB = patch face (patch cables plug here). Matches the resolver's
+   *  Terminal names so patchbayNormalling.resolvePatchPoint output maps 1:1. */
+  jackRole?: PatchTerminal;
+  /** Patchbay only (R2-5): the PatchPoint.id this jack belongs to. */
+  patchPointId?: string;
+}
+
+/** One patchbay point = a vertical A/B strip of four connectors (jacks) + a
+ *  normalling mode. The four jacks live in DeviceData.connectors, tagged with
+ *  jackRole + patchPointId. See spec §11. */
+export interface PatchPoint {
+  id: string;
+  label?: string;             // e.g. "1", or a tie-line name
+  mode: NormallingMode;
+}
+
 export interface SlotDefinition {
   id: string;
   label: string;               // "Slot 1", "VFC Slot A"
@@ -237,8 +288,12 @@ export interface DeviceData {
   layerId?: string;
   /** Logical group membership (Photoshop-style group). Absent = ungrouped. */
   groupId?: string;
-  /** Display glyph shown before the device label on the canvas. */
+  /** DEPRECATED (v49): legacy emoji glyph. Migrated to artworkAssetId on load; no longer
+   *  rendered anywhere. Kept optional so pre-migration data still typechecks. */
   icon?: string;
+  /** Device artwork: a qualified symbol-library id ("category/id") or an uploaded
+   *  svgAssets key. Absent → the class-default symbol renders (see deviceArtwork.ts). */
+  artworkAssetId?: string;
   /** When set, this device is software running inside the named host device. */
   hostDeviceId?: string;
   label: string;
@@ -338,6 +393,15 @@ export interface DeviceData {
   zoneId?: string;
   /** Custom face-plate connector layout (overrides auto-layout) */
   facePlateLayout?: FacePlateLayout;
+  /** Channel ⇄ connector model (R2-3): logical channels this device exposes.
+   *  Additive over ports[]; absent on simple 1:1 gear. See deviceChannels.ts. */
+  channels?: DeviceChannel[];
+  /** Channel ⇄ connector model (R2-3): physical jacks + virtual buses. Each
+   *  connector `carries` a set of DeviceChannel.ids. Absent on simple gear. */
+  connectors?: DeviceConnector[];
+  /** Patchbay archetype (R2-5): the normalling points. Each point's four jacks
+   *  live in `connectors` (tagged jackRole + patchPointId); mode lives here. */
+  patchbay?: { points: PatchPoint[] };
 }
 
 /** One row of auxiliary data shown on a device node. */
@@ -634,6 +698,19 @@ export interface ConnectionData {
   tested?: boolean;
   /** ISO date (YYYY-MM-DD) the cable was tested / certified (#P2-031) */
   testedDate?: string;
+  /** Multi-channel cable (R2-3): the source-end DeviceConnector.id the cable plugs
+   *  into (a cable plugs a possibly-different connector on each end). */
+  sourceConnectorId?: string;
+  /** Multi-channel cable (R2-3): the target-end DeviceConnector.id the cable plugs into. */
+  targetConnectorId?: string;
+  /** Multi-channel cable (R2-3): denormalized channel count for BOM/label —
+   *  min(sourceConnector.carries.length, targetConnector.carries.length). 1 or
+   *  absent = single-channel (no `·Nch` suffix). See cableFit.ts bundleChannelCount. */
+  channelCount?: number;
+  /** Internal routing (R2-4): both endpoints are on the SAME device (source === target).
+   *  Routes a source channel/bus to a sink channel/bus; hidden on the canvas unless the
+   *  device is expanded. Reuses the Connection plumbing so Cable BOM / path-explain see it. */
+  internal?: boolean;
 }
 
 export type ConnectionEdge = Edge<ConnectionData>;
@@ -650,6 +727,9 @@ export interface DeviceTemplate {
   hostname?: string;
   ports: Port[];
   color?: string;
+  /** Device artwork: qualified symbol-library id ("category/id") or uploaded svgAssets key.
+   *  Copied onto DeviceData at placement; absent → class-default symbol. */
+  artworkAssetId?: string;
   searchTerms?: string[];
   manufacturer?: string;
   modelNumber?: string;
@@ -672,6 +752,9 @@ export interface DeviceTemplate {
   rackForm?: "full" | "half" | "shelf-only"; // Optional override for the size-based rack-form heuristic
   auxiliaryData?: AuxRow[];      // Aux rows shown on the node (each row carries its own header/footer slot)
   facePlateLayout?: FacePlateLayout; // Custom face-plate connector positions
+  channels?: DeviceChannel[];    // Channel ⇄ connector model (R2-3): copied onto DeviceData at placement
+  connectors?: DeviceConnector[]; // Physical jacks + virtual buses (R2-3)
+  patchbay?: { points: PatchPoint[] }; // Patchbay archetype (R2-5)
 }
 
 export interface CustomTemplateGroup {
@@ -706,6 +789,10 @@ export interface SchematicLayer {
   /** Optional colour swatch for the layer (hex or CSS colour); used in the Layers panel
    *  and for optional on-canvas tinting of member nodes. */
   color?: string;
+  /** Parent layer id for nested layer groups (schema v50). Absent = root layer.
+   *  Effective visibility/lock cascades: a layer is hidden/locked when it OR any
+   *  ancestor is hidden/locked (see store `isLayerEffectivelyHidden` / `...Locked`). */
+  parentId?: string;
 }
 
 /** The implicit layer that unassigned content belongs to. */
@@ -1147,6 +1234,8 @@ export interface SchematicFile {
   /** Sanitized custom SVG graphics, keyed by UUID; referenced by
    *  DeviceData.layoutSvgAssetId / ObjectData.svgAssetId. */
   svgAssets?: Record<string, string>;
+  /** Per-document custom colours picked via the ＋ chip on colour swatch rows (newest first). */
+  recentCustomColors?: string[];
   /** Per-unit physical gear inventory (coexists with the ownedGear quantity view). */
   gearUnits?: GearUnit[];
   /** Document-level tag suggestion pool (unioned with per-device tags for the combobox). */

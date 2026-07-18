@@ -36,11 +36,13 @@
 - **Room dimensions** — give a room its real width × depth × ceiling height in meters; dimensions display on the canvas and scale intra-room cable-length estimates from actual device positions
 - **Custom room shapes** — right-click a room → Edit Shape to drag corners, add corners on any wall, and build L-shaped or irregular floor plans; each wall shows its real length in meters, updating live as you reshape
 - **Layers** — Photoshop-style layers panel (right edge): show/hide and lock layers, rename, move any selection onto a layer; hidden layers hide their devices and connections
-- **Device icons** — pick a glyph per device (camera, mic, speaker, computer, …) in the device editor, shown before the device name on the canvas
+- **Device artwork** — every device carries a clean vector symbol from a 160+ icon library (audio, video, lighting, network, compute, power, furniture) or your own uploaded SVG; pick one in the device editor, or let the class default apply. The same artwork shows in the node header, library rows, inspector, and floor-plan footprint
 - **Software devices** — mark a device as software running inside a host computer (right-click → Run Inside); it renders with a "runs on" badge
 - **Auto-numbering** — dropped devices auto-increment (Camera → Camera 1, Camera 2, …)
 - **Dark mode** — toggle light/dark themes from the menu bar; saved automatically, respects OS setting on first visit
-- **Mobile support** — mobile detection with hamburger menu and touch-friendly pan controls
+- **Interface font** — choose the UI typeface (Jost, IBM Plex Sans, Public Sans, or your system font) in Preferences; all self-hosted, applied instantly
+- **Custom colours** — every colour swatch row (device colour, layers) ends with a ＋ chip opening the native colour picker; picked colours are remembered per document
+- **Fully adaptive layout** — one responsive UI across desktop, tablet, and phone; on touch devices the tool rail becomes a FAB cluster, the inspector a drag-to-resize bottom sheet, and connections are made by tapping two ports. Nothing is hidden on small screens — every workspace and dialog is reachable
 - **Physical dimensions** — height, width, depth (mm) and weight (kg) fields on devices; drive rack auto-shelf classification, side-view depth conflicts, and per-rack stats
 - **Auxiliary data block** — up to 5 custom lines at the bottom of a device, either free text or bound to device properties (hostname, power, weight, port counts, etc.) via a `{{field}}` picker that keeps values in sync automatically
 - **Custom label expansion** — embed `{{cableId}}` and other tokens in device labels for inline cable references

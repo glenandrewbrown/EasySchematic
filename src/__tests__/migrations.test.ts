@@ -322,3 +322,37 @@ describe("v39→v40 bundles migration", () => {
     expect(out.bundles.b1.label).toBe("Snake A");
   });
 });
+
+describe("v48→v49 artwork migration (emoji → symbol)", () => {
+  it("maps known legacy emoji icons to library symbols and drops the icon field", () => {
+    const out = migrateSchematic({
+      version: 48,
+      nodes: [
+        { id: "n1", type: "device", position: { x: 0, y: 0 }, data: { label: "Speaker", deviceType: "speaker", ports: [], icon: "🔊" } },
+        { id: "n2", type: "device", position: { x: 0, y: 0 }, data: { label: "Switch", deviceType: "network-switch", ports: [], icon: "🌐" } },
+      ],
+      edges: [],
+    });
+    expect(out.version).toBe(CURRENT_SCHEMA_VERSION);
+    expect(out.nodes[0].data.artworkAssetId).toBe("audio/loudspeaker");
+    expect(out.nodes[0].data.icon).toBeUndefined();
+    expect(out.nodes[1].data.artworkAssetId).toBe("network/router");
+    expect(out.nodes[1].data.icon).toBeUndefined();
+  });
+
+  it("leaves artworkAssetId unset for unknown emoji (class default renders) and never overwrites an existing assignment", () => {
+    const out = migrateSchematic({
+      version: 48,
+      nodes: [
+        { id: "n1", type: "device", position: { x: 0, y: 0 }, data: { label: "X", deviceType: "custom", ports: [], icon: "🦄" } },
+        { id: "n2", type: "device", position: { x: 0, y: 0 }, data: { label: "Y", deviceType: "custom", ports: [], icon: "🔊", artworkAssetId: "generic/star" } },
+        { id: "note", type: "note", position: { x: 0, y: 0 }, data: { label: "note" } },
+      ],
+      edges: [],
+    });
+    expect(out.nodes[0].data.artworkAssetId).toBeUndefined();
+    expect(out.nodes[0].data.icon).toBeUndefined();
+    expect(out.nodes[1].data.artworkAssetId).toBe("generic/star");
+    expect(out.nodes[2].data.label).toBe("note");
+  });
+});

@@ -464,3 +464,81 @@ describe("buildLayerTree", () => {
     expect(room?.secondaryText).toBe("6.0 × 4.0 m");
   });
 });
+
+// ---------------------------------------------------------------------------
+// Nested layers (SchematicLayer.parentId, schema v50)
+// ---------------------------------------------------------------------------
+
+describe("buildLayerTree — nested layers", () => {
+  it("nests a child layer under its parent via parentId (Audio ▸ Speakers ▸ Kiis)", () => {
+    const input: BuildLayerTreeInput = {
+      nodes: [],
+      layers: [
+        { id: "audio", name: "Audio", visible: true, locked: false },
+        { id: "speakers", name: "Speakers", visible: true, locked: false, parentId: "audio" },
+        { id: "kiis", name: "Kiis", visible: true, locked: false, parentId: "speakers" },
+      ],
+    };
+    const tree = buildLayerTree(input);
+    // Roots: default + audio. Audio holds Speakers; Speakers holds Kiis.
+    const audio = tree.find((l) => l.id === "audio");
+    expect(audio).toBeDefined();
+    expect(tree.some((l) => l.id === "speakers")).toBe(false); // not a root
+    const speakers = audio?.subLayers?.find((l) => l.id === "speakers");
+    expect(speakers).toBeDefined();
+    const kiis = speakers?.subLayers?.find((l) => l.id === "kiis");
+    expect(kiis).toBeDefined();
+    expect(kiis?.kind).toBe("layer");
+  });
+
+  it("orders sub-layers by the input layers order", () => {
+    const input: BuildLayerTreeInput = {
+      nodes: [],
+      layers: [
+        { id: "audio", name: "Audio", visible: true, locked: false },
+        { id: "b", name: "B", visible: true, locked: false, parentId: "audio" },
+        { id: "a", name: "A", visible: true, locked: false, parentId: "audio" },
+      ],
+    };
+    const audio = buildLayerTree(input).find((l) => l.id === "audio");
+    expect(audio?.subLayers?.map((l) => l.id)).toEqual(["b", "a"]);
+  });
+
+  it("treats a layer with an unknown parentId as a root (defensive)", () => {
+    const input: BuildLayerTreeInput = {
+      nodes: [],
+      layers: [
+        { id: "orphan", name: "Orphan", visible: true, locked: false, parentId: "ghost" },
+      ],
+    };
+    const tree = buildLayerTree(input);
+    expect(tree.some((l) => l.id === "orphan")).toBe(true); // fell back to root
+  });
+
+  it("treats a self-referential parentId as a root (no infinite loop)", () => {
+    const input: BuildLayerTreeInput = {
+      nodes: [],
+      layers: [
+        { id: "loop", name: "Loop", visible: true, locked: false, parentId: "loop" },
+      ],
+    };
+    const tree = buildLayerTree(input);
+    expect(tree.some((l) => l.id === "loop")).toBe(true);
+    expect(tree.find((l) => l.id === "loop")?.subLayers ?? []).toEqual([]);
+  });
+
+  it("survives a 2-cycle in corrupt saved data without infinite recursion", () => {
+    // x → y → x. Neither has a valid root parent among {default}, so the cycle
+    // guard must terminate; both should surface somewhere without a stack overflow.
+    const input: BuildLayerTreeInput = {
+      nodes: [],
+      layers: [
+        { id: "x", name: "X", visible: true, locked: false, parentId: "y" },
+        { id: "y", name: "Y", visible: true, locked: false, parentId: "x" },
+      ],
+    };
+    // Must not throw / recurse infinitely.
+    const tree = buildLayerTree(input);
+    expect(Array.isArray(tree)).toBe(true);
+  });
+});

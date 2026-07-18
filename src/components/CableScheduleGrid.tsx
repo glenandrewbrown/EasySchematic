@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { groupCableScheduleByBundle, type CableScheduleRow } from "../cableSchedule";
 import type { RunLengthWarning } from "../cableBomBuild";
+import { channelCountSuffix } from "../cableFit";
 import { DEFAULT_SIGNAL_COLORS } from "../signalColors";
 import type { SignalType } from "../types";
 
@@ -29,6 +30,12 @@ interface RunView {
   /** True when this run exceeds its cable type's catalog maximum. */
   overMax: boolean;
   status: RunStatus;
+  /** Connector + `·Nch` bundle label for the Connector column, e.g. "DB25 · 8ch". "—" when
+   *  neither end resolves a connector. */
+  channelLabel: string;
+  /** True when the two ends' channel counts differ (an over/under-capacity run) — renders
+   *  the Connector column in the coral warning colour. */
+  channelMismatch: boolean;
 }
 
 interface SignalFilterEntry {
@@ -80,6 +87,15 @@ function resolveStatus(row: CableScheduleRow, overMax: boolean): RunStatus {
   return "to-order";
 }
 
+/** Connector label for the Connector column: the shared connector when both ends agree, an
+ *  "A → B" pair when they differ, or "—" when neither end resolves one. */
+function resolveConnectorLabel(row: CableScheduleRow): string {
+  const src = row.sourceConnector !== "—" ? row.sourceConnector : "";
+  const tgt = row.targetConnector !== "—" ? row.targetConnector : "";
+  if (src && tgt && src !== tgt) return `${src} → ${tgt}`;
+  return src || tgt || "—";
+}
+
 export default function CableScheduleGrid({
   rows,
   warnings,
@@ -113,6 +129,8 @@ export default function CableScheduleGrid({
         lengthM: row.computedLengthM,
         overMax,
         status: resolveStatus(row, overMax),
+        channelLabel: resolveConnectorLabel(row) + channelCountSuffix(row.channelCount),
+        channelMismatch: row.channelFit === "mismatch",
       };
     });
   }, [rows, warnings, groupBundle, hasBundles]);
@@ -482,7 +500,7 @@ function ScheduleTable({ runs, filtered, showBundle }: ScheduleTableProps) {
 
   return (
     <table
-      className="w-full text-[11.5px]"
+      className="schedule-table w-full text-[11.5px]"
       style={{ borderCollapse: "separate", borderSpacing: 0 }}
     >
       <thead>
@@ -501,6 +519,9 @@ function ScheduleTable({ runs, filtered, showBundle }: ScheduleTableProps) {
           </th>
           <th className={HEAD_CELL} style={{ fontFamily: "var(--font-mono)" }}>
             Cable
+          </th>
+          <th className={HEAD_CELL} style={{ fontFamily: "var(--font-mono)" }}>
+            Connector
           </th>
           {showBundle && (
             <th className={HEAD_CELL} style={{ fontFamily: "var(--font-mono)" }}>
@@ -574,6 +595,20 @@ function ScheduleRow({ run, showBundle }: { run: RunView; showBundle: boolean })
             — unassigned —
           </span>
         )}
+      </td>
+      <td
+        className="px-2.5 py-2.5"
+        style={{
+          fontFamily: "var(--font-mono)",
+          color: run.channelMismatch ? "var(--color-error)" : "var(--color-text-muted)",
+        }}
+        title={
+          run.channelMismatch
+            ? `Channel mismatch: ${row.sourceConnector} vs ${row.targetConnector}`
+            : undefined
+        }
+      >
+        {run.channelLabel}
       </td>
       {showBundle && (
         <td className="px-2.5 py-2.5">

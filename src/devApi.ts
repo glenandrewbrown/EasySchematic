@@ -32,6 +32,8 @@ export * as CableTypes from "./cableTypes";
 export * as DeviceTypeCategories from "./deviceTypeCategories";
 export * as NodeTypes from "./nodeTypes";
 export * as SignalColors from "./signalColors";
+export * as DeviceArtwork from "./deviceArtwork";
+export * as SymbolLibrary from "./symbolLibrary";
 
 // Routing & pathfinding
 export * as EdgeRouter from "./edgeRouter";

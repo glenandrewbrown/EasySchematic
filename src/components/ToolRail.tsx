@@ -83,18 +83,16 @@ export default function ToolRail({ onQuickAdd, floating = false }: ToolRailProps
             className={`group relative flex flex-col items-center justify-center gap-0.5 rounded-lg cursor-pointer
               bg-[var(--color-accent)] text-[var(--color-on-accent)] shadow-sm
               hover:brightness-110 active:scale-[0.94] transition-[transform,filter] duration-100 ${
-              floating ? "w-9 h-9" : "h-12"
+              floating ? "w-14 h-[50px]" : "h-12"
             }`}
           >
             <Plus className="w-[18px] h-[18px]" strokeWidth={2.25} aria-hidden />
-            {!floating && (
-              <span
-                className="text-[9px] font-semibold leading-none uppercase"
-                style={{ fontFamily: "var(--font-mono)", letterSpacing: "0.12em" }}
-              >
-                Add
-              </span>
-            )}
+            <span
+              className="text-[9px] font-semibold leading-none uppercase"
+              style={{ fontFamily: "var(--font-mono)", letterSpacing: "0.12em" }}
+            >
+              Add
+            </span>
             <Tooltip>Quick add · double-click canvas</Tooltip>
           </button>
           <div className="h-px my-1 mx-1 bg-[var(--ui-border)]" />
@@ -117,31 +115,27 @@ export default function ToolRail({ onQuickAdd, floating = false }: ToolRailProps
             aria-label={tool.label}
             className={`group relative flex flex-col items-center justify-center gap-0.5 rounded-lg cursor-pointer
               active:scale-[0.94] transition-[transform,background-color,color] duration-100 ${
-              floating ? "w-9 h-9" : "h-12"
+              floating ? "w-14 h-[50px]" : "h-12"
             } ${
               isActive
                 ? "bg-[var(--color-accent-soft)] text-[var(--color-accent)] font-semibold"
                 : "text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)]"
             }`}
           >
-            {/* Left indicator bar — only on the active tool (docked rail only). */}
-            {!floating && (
-              <span
-                className={`absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full bg-[var(--color-accent)] transition-opacity ${
-                  isActive ? "opacity-100" : "opacity-0"
-                }`}
-                aria-hidden
-              />
-            )}
+            {/* Left indicator bar — only on the active tool. */}
+            <span
+              className={`absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full bg-[var(--color-accent)] transition-opacity ${
+                isActive ? "opacity-100" : "opacity-0"
+              }`}
+              aria-hidden
+            />
             <IconCmp className="w-[18px] h-[18px]" strokeWidth={isActive ? 2.25 : 1.75} aria-hidden />
-            {!floating && (
-              <span
-                className={`text-[9px] leading-none uppercase ${isActive ? "font-semibold" : "font-medium"}`}
-                style={{ fontFamily: "var(--font-mono)", letterSpacing: "0.12em" }}
-              >
-                {tool.label}
-              </span>
-            )}
+            <span
+              className={`text-[9px] leading-none uppercase ${isActive ? "font-semibold" : "font-medium"}`}
+              style={{ fontFamily: "var(--font-mono)", letterSpacing: "0.12em" }}
+            >
+              {tool.label}
+            </span>
             <Tooltip>
               {tool.title}
               {tool.hotkey && <kbd className="ml-1.5 font-mono opacity-70">{tool.hotkey}</kbd>}

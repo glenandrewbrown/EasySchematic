@@ -37,10 +37,14 @@ import type {
   CustomTemplateGroup,
   CustomTemplateMeta,
   BundleMeta,
+  DeviceChannel,
+  DeviceConnector,
+  NormallingMode,
 } from "./types";
 import type { ReactFlowInstance } from "@xyflow/react";
 import type { SignalType, ScrollConfig, LineStyle, LabelCaseMode, DistanceSettings, PanMode, StubLabelPageMode, ProjectStatus, CanvasViewMode, GearUnit, FieldSuggestions, GridSettings, TransportContainer, TransportItem, TransportPhase, ObjectData, ZoneData } from "./types";
 import { addUnit, updateUnit, removeUnit, assignUnit, unassignUnit, clearAssignmentsForNode } from "./gearInventory";
+import { inventoryKeyFromTemplate, inventoryKeyFromDeviceData } from "./inventoryKey";
 import { setItemChecked as setContainerItemCheckedPure } from "./logistics";
 import type { FurnitureCatalogEntry } from "./furnitureCatalog";
 import { sanitizeSvg } from "./svgSanitizer";
@@ -59,6 +63,7 @@ import { CURRENT_SCHEMA_VERSION, STUB_LABEL_Z_INDEX, migrateSchematic } from "./
 import { healStaleWaypoints } from "./waypointHealing";
 import { newBundleId, gcBundles, reconcileBundleJunctions, bundleJunctionsFor, splitMemberWaypoints } from "./bundles";
 import { computeBundleTrunk, type BundleEndpoint } from "./routing/bundleRoute";
+import type { SignalFlowTrigger } from "./signalFlowTrace";
 import { buildHandleSnapshot } from "./routing/handleSnapshot";
 import { requestRoutes, setRoutingResultHandler, type RoutingResult } from "./routing/routingClient";
 import { reconcileWaypointNodes, syncEdgesFromWaypointNodes, spliceWaypointsForRemovedNodes } from "./waypointSync";
@@ -200,6 +205,45 @@ function readInitialCoverageVisible(): boolean {
   return localStorage.getItem(COVERAGE_VISIBLE_KEY) === "1";
 }
 
+const CREATE_ADD_TO_OWNED_KEY = "easyschematic-create-add-to-owned";
+
+/** Interface-font preference (board 5g) — persisted as JSON under the consolidated
+ *  "easyschematic.ui.v1" key. Swaps --font-ui only; --font-mono always stays Plex Mono. */
+export type UiFont = "jost" | "plex-sans" | "public-sans" | "system";
+const UI_PREFS_KEY = "easyschematic.ui.v1";
+const UI_FONTS: readonly UiFont[] = ["jost", "plex-sans", "public-sans", "system"];
+
+function readInitialUiFont(): UiFont {
+  if (typeof localStorage === "undefined") return "jost";
+  try {
+    const parsed = JSON.parse(localStorage.getItem(UI_PREFS_KEY) ?? "{}") as { font?: string };
+    return UI_FONTS.includes(parsed.font as UiFont) ? (parsed.font as UiFont) : "jost";
+  } catch {
+    return "jost";
+  }
+}
+
+/** Stamp the choice on <html>; theme.css maps data-ui-font → --font-ui. Jost = no attribute. */
+function applyUiFont(font: UiFont): void {
+  if (typeof document === "undefined") return;
+  if (font === "jost") document.documentElement.removeAttribute("data-ui-font");
+  else document.documentElement.setAttribute("data-ui-font", font);
+}
+
+function persistUiFont(font: UiFont): void {
+  if (typeof localStorage === "undefined") return;
+  let prefs: Record<string, unknown> = {};
+  try {
+    prefs = JSON.parse(localStorage.getItem(UI_PREFS_KEY) ?? "{}") as Record<string, unknown>;
+  } catch {
+    prefs = {};
+  }
+  localStorage.setItem(UI_PREFS_KEY, JSON.stringify({ ...prefs, font }));
+}
+
+const _initUiFont = readInitialUiFont();
+applyUiFont(_initUiFont);
+
 const DEVICE_DRAWER_PINNED_KEY = "easyschematic-device-drawer-pinned";
 
 /** Read the persisted device-library pin state. Pin-open is the DEFAULT — the drawer must
@@ -218,6 +262,7 @@ function readInitialLibraryDensity(): LibraryDensity {
 }
 
 const MINIMAP_VISIBLE_KEY = "easyschematic-minimap-visible";
+const SHOW_WARNINGS_KEY = "easyschematic-show-warnings";
 const MCP_ENABLED_KEY = "easyschematic-mcp-enabled";
 const MCP_TOKEN_KEY = "easyschematic-mcp-token";
 const MCP_PORT_KEY = "easyschematic-mcp-port";
@@ -228,6 +273,14 @@ const MCP_PORT_KEY = "easyschematic-mcp-port";
 function readInitialMiniMapVisible(): boolean {
   if (typeof localStorage === "undefined") return true;
   return localStorage.getItem(MINIMAP_VISIBLE_KEY) !== "0";
+}
+
+/** Read the persisted "show validation warnings" pref. Default OFF — warnings are opt-in
+ *  so the chrome (top-bar pill, canvas dots, Issues badge) stays quiet until the user asks
+ *  to see them. Errors are never gated by this; only warning-severity issues are hidden. */
+function readInitialShowWarnings(): boolean {
+  if (typeof localStorage === "undefined") return false;
+  return localStorage.getItem(SHOW_WARNINGS_KEY) === "1";
 }
 
 /** MCP bridge (Beta) editor preferences — persisted to localStorage, not the
@@ -399,6 +452,15 @@ interface Clipboard {
   boundsHeight: number;
 }
 
+/** One open project tab. The active document's live content lives in the main store
+ *  fields; `snapshot` is authoritative only for INACTIVE documents (refreshed whenever
+ *  that document is switched away from). Session-only — never part of SchematicFile. */
+export interface ProjectDocument {
+  id: string;
+  name: string;
+  snapshot: SchematicFile;
+}
+
 interface SchematicState {
   nodes: SchematicNode[];
   edges: ConnectionEdge[];
@@ -407,12 +469,48 @@ interface SchematicState {
   loadSeq: number;
   editingNodeId: string | null;
   creatingNodeId: string | null;
+  /** When set, the full-screen Device Details page is open for this device node id.
+   *  UI-only flag (session state); the page component reads/edits the live device. */
+  deviceDetailsPageId: string | null;
+  /** Open the Device Details page for a device node. */
+  openDeviceDetailsPage: (id: string) => void;
+  /** Close the Device Details page. */
+  closeDeviceDetailsPage: () => void;
+  /** When set, the full-screen routing matrix is open for this device node id.
+   *  UI-only flag (session state); the matrix reads/edits the live device's
+   *  channels/connectors + internal-route Connections. */
+  routingMatrixDeviceId: string | null;
+  /** Open the routing matrix for a device node. */
+  openRoutingMatrix: (id: string) => void;
+  /** Close the routing matrix. */
+  closeRoutingMatrix: () => void;
+  /** When set, the signal-flow / path-explain overlay traces this trigger
+   *  (a Connection or a patchbay point). UI-only flag (session state); the
+   *  overlay reads the live graph and resolves normalling on the fly. */
+  signalFlowTrigger: SignalFlowTrigger | null;
+  /** Open the signal-flow overlay for a Connection or patch point. */
+  openSignalFlow: (trigger: SignalFlowTrigger) => void;
+  /** Close the signal-flow overlay. */
+  closeSignalFlow: () => void;
   customTemplates: DeviceTemplate[];
   ownedGear: OwnedGearItem[];
   ownedCables: OwnedCableItem[];
   ownedInventory: OwnedInventoryItem[];
   showOwnedGearPane: boolean;
   libraryActiveTab: "devices" | "owned";
+  /** Context for a "+ Create "{query}"" creator session opened from search (quick-add or
+   *  paste list). Carries the requested quantity and the quick-add anchor; placeOnSave=false
+   *  means the creator only mints the template (paste-list rows place later via "Place all"). */
+  pendingQuickCreate: { qty: number; anchor: { x: number; y: number } | null; placeOnSave: boolean } | null;
+  /** Creator footer "Also add to My Devices" — persisted UI pref, default ON. */
+  createAddToOwned: boolean;
+  /** Interface font (board 5g) — swaps --font-ui only; persisted in easyschematic.ui.v1. */
+  uiFont: UiFont;
+  setUiFont: (font: UiFont) => void;
+  /** Per-DOCUMENT custom colours picked via the ＋ chip on colour swatch rows (boards 1b/5c).
+   *  Serialized in the schematic file; newest first, capped at 8. */
+  recentCustomColors: string[];
+  pushRecentCustomColor: (hex: string) => void;
 
   // React Flow handlers
   onNodesChange: OnNodesChange<SchematicNode>;
@@ -516,6 +614,13 @@ interface SchematicState {
   removeOwnedGear: (templateKey: string) => void;
   setShowOwnedGearPane: (show: boolean) => void;
   setLibraryActiveTab: (tab: "devices" | "owned") => void;
+  setPendingQuickCreate: (ctx: { qty: number; anchor: { x: number; y: number } | null; placeOnSave: boolean } | null) => void;
+  setCreateAddToOwned: (on: boolean) => void;
+  /** Bulk-sync every distinct device on the canvas into the owned-gear list, deduped by
+   *  inventory key. Existing owned quantities are raised to at least the canvas count
+   *  (never lowered, never duplicated — re-running is idempotent). Returns how many
+   *  distinct devices were added or raised. */
+  syncProjectDevicesToOwned: () => number;
   /** Left-library row density — session/UI pref, persisted to localStorage. */
   libraryDensity: LibraryDensity;
   setLibraryDensity: (density: LibraryDensity) => void;
@@ -638,6 +743,11 @@ interface SchematicState {
   /** Minimap visibility (per-user; localStorage-backed; not in SchematicFile). */
   showMiniMap: boolean;
   setShowMiniMap: (visible: boolean) => void;
+  /** Show validation *warnings* across the app (top-bar pill, canvas dots, Issues badge,
+   *  validation panel). Per-user; localStorage-backed; default OFF (warnings are opt-in).
+   *  Errors are never gated by this — only warning-severity issues are hidden. */
+  showWarnings: boolean;
+  setShowWarnings: (visible: boolean) => void;
   /** Merge a patch into the grid settings (persists to file; not undoable). */
   setGridSettings: (patch: Partial<GridSettings>) => void;
   /** Dismiss / restore a validation issue by stable id (persists to file; not undoable). */
@@ -687,6 +797,13 @@ interface SchematicState {
   toggleLayerLocked: (id: string) => void;
   /** Set or clear a layer's colour swatch (persists; not undoable). */
   setLayerColor: (id: string, color: string | undefined) => void;
+  /** Nest a layer under a parent (or pass null to make it a root). Cycle-guarded:
+   *  a layer can never be parented to itself or any of its own descendants. */
+  setLayerParent: (layerId: string, parentId: string | null) => void;
+  /** True when the layer OR any ancestor is hidden (cascading effective visibility). */
+  isLayerEffectivelyHidden: (layerId: string) => boolean;
+  /** True when the layer OR any ancestor is locked (cascading effective lock). */
+  isLayerEffectivelyLocked: (layerId: string) => boolean;
   /** Move all currently-selected nodes and edges onto a layer. */
   assignSelectionToLayer: (layerId: string) => void;
   /** Group all selected nodes under a new shared groupId (needs 2+ selected). */
@@ -934,6 +1051,87 @@ interface SchematicState {
   unbundleSelectedConnections: () => void;
   forceIncompatibleConnection: () => void;
   insertAdapterBetween: (template: DeviceTemplate) => void;
+
+  // Adapter-create flow (IncompatibleConnectionDialog "+ Create adapter")
+  /** The incompatible connection an in-progress custom adapter is being built to bridge.
+   *  Non-null while the DeviceEditor is open in adapter-create mode. */
+  adapterCreationRequest: {
+    connection: Connection;
+    sourcePort: Port;
+    targetPort: Port;
+    reason: "signal-mismatch" | "connector-mismatch";
+  } | null;
+  /** Close the incompatible dialog and open the DeviceEditor prefilled as a two-port
+   *  adapter (input = source signal/connector, output = target signal/connector). On save
+   *  the editor calls `completeAdapterCreation`; on cancel it calls `cancelAdapterCreation`. */
+  beginAdapterCreation: (pending: {
+    connection: Connection;
+    sourcePort: Port;
+    targetPort: Port;
+    reason: "signal-mismatch" | "connector-mismatch";
+  }) => void;
+  /** Finish adapter-create: place the user-defined adapter template between the two ports
+   *  (reuses `insertAdapterBetween`) and clear the request. */
+  completeAdapterCreation: (template: DeviceTemplate) => void;
+  /** Abandon adapter-create without inserting anything. */
+  cancelAdapterCreation: () => void;
+
+  // Internal wiring (intra-device port routing, DeviceData.internalLinks)
+  /** Add an intra-device internal link (endpoints are port LABELS). Idempotent. */
+  addInternalLink: (deviceId: string, link: { from: string; to: string }) => void;
+  /** Remove the intra-device internal link matching from/to (endpoints are port LABELS). */
+  removeInternalLink: (deviceId: string, link: { from: string; to: string }) => void;
+
+  // ── Channel ⇄ connector model (R2-3/4/5) ──────────────────────────────────
+  // Logical channels + physical/bus connectors + patchbay points on DeviceData,
+  // and internal routes as same-device Connections. All immutable + undoable.
+  /** Append a logical channel (caller supplies a stable device-local id). Idempotent by id. */
+  addDeviceChannel: (deviceId: string, channel: DeviceChannel) => void;
+  /** Patch a channel's fields (id is immutable). No-op if the channel is absent. */
+  updateDeviceChannel: (deviceId: string, channelId: string, patch: Partial<Omit<DeviceChannel, "id">>) => void;
+  /** Remove a channel and drop it from every connector's `carries`. */
+  removeDeviceChannel: (deviceId: string, channelId: string) => void;
+  /** Append a connector — role "physical" (a jack) or "bus" (a virtual bus). Idempotent by id. */
+  addDeviceConnector: (deviceId: string, connector: DeviceConnector) => void;
+  /** Patch a connector's fields (id is immutable). No-op if absent. */
+  updateDeviceConnector: (deviceId: string, connectorId: string, patch: Partial<Omit<DeviceConnector, "id">>) => void;
+  /** Remove a connector. Does not delete the channels it carried (they may be on others). */
+  removeDeviceConnector: (deviceId: string, connectorId: string) => void;
+  /** Create an internal route (same-device Connection, internal:true) between two of the
+   *  device's own channels/buses (endpoint ids = channelId or bus connectorId). Idempotent. */
+  addInternalRoute: (deviceId: string, fromId: string, toId: string) => void;
+  /** Delete the internal route matching from/to on this device. */
+  removeInternalRoute: (deviceId: string, fromId: string, toId: string) => void;
+  /** Internal routes (same-device internal Connections) on a device, source→sink. */
+  listInternalRoutes: (deviceId: string) => ConnectionEdge[];
+  /** Virtual buses (connectors with role "bus") on a device. */
+  listDeviceBuses: (deviceId: string) => DeviceConnector[];
+  /** Set a patchbay point's normalling mode. No-op if the device has no such point. */
+  setPatchPointMode: (deviceId: string, pointId: string, mode: NormallingMode) => void;
+  /** Devices whose internal-routing lane is expanded on the canvas (C6). Session/UI
+   *  state — never serialized into the SchematicFile; collapsed by default. */
+  expandedRoutingDeviceIds: string[];
+  /** Toggle a device's internal-routing lane open/closed on the canvas (immutable). */
+  toggleDeviceRoutingExpanded: (deviceId: string) => void;
+
+  // Multi-document project tabs (session/live state — never serialized into SchematicFile)
+  /** Open project tabs. The ACTIVE doc's live content is the main store; each entry's
+   *  `snapshot` is authoritative only for INACTIVE docs (refreshed on switch-away). */
+  documents: ProjectDocument[];
+  /** Id of the currently-live document within `documents`. */
+  activeDocumentId: string;
+  /** Create a new blank document, snapshot the current one, and switch to the new tab. */
+  newDocument: (name?: string) => void;
+  /** Snapshot the live document into its tab, then hydrate the target document. No-op if
+   *  the target is already active or unknown. */
+  switchDocument: (id: string) => void;
+  /** Rename a document tab (updates the live schematic name too when it's the active doc). */
+  renameDocument: (id: string, name: string) => void;
+  /** Close a tab. Blocks closing the last document; switches to a neighbour if the active
+   *  document is closed. */
+  closeDocument: (id: string) => void;
+  /** Tab metadata for rendering the tab bar (active doc's name reflects live state). */
+  listDocuments: () => { id: string; name: string }[];
 
   // Adapter visibility (#adapter-overhaul)
   hideAdapters: boolean;
@@ -1483,6 +1681,7 @@ function createDeviceNode(
       ...(template.modelNumber ? { modelNumber: template.modelNumber } : {}),
       ...(template.referenceUrl ? { referenceUrl: template.referenceUrl } : {}),
       ...(template.category ? { category: template.category } : {}),
+      ...(template.artworkAssetId ? { artworkAssetId: template.artworkAssetId } : {}),
       ...(template.powerDrawW != null ? { powerDrawW: template.powerDrawW } : {}),
       ...(template.powerCapacityW != null ? { powerCapacityW: template.powerCapacityW } : {}),
       ...(template.voltage ? { voltage: template.voltage } : {}),
@@ -1509,6 +1708,17 @@ function createDeviceNode(
       ...(template.auxiliaryData?.length
         ? { auxiliaryData: template.auxiliaryData.map((r) => ({ ...r })) }
         : { auxiliaryData: [{ text: "{{deviceType}}", position: "header" as const }] }),
+      // Channel ⇄ connector model (R2): deep-copy so the placed instance owns its
+      // own channel/connector/patchbay records (ids stay stable — they're device-local).
+      ...(template.channels?.length
+        ? { channels: template.channels.map((c) => ({ ...c })) }
+        : {}),
+      ...(template.connectors?.length
+        ? { connectors: template.connectors.map((c) => ({ ...c, carries: [...c.carries] })) }
+        : {}),
+      ...(template.patchbay?.points.length
+        ? { patchbay: { points: template.patchbay.points.map((p) => ({ ...p })) } }
+        : {}),
     },
   };
 }
@@ -1685,6 +1895,66 @@ function saveCategoryOrder(order: string[] | null) {
 const _initCustomTemplates = loadCustomTemplates();
 const _initCustomMeta = loadCustomTemplateMeta(_initCustomTemplates);
 
+// ── Nested-layer pure helpers (schema v50) ───────────────────────────────────
+
+/** Walk a layer's ancestry via parentId. Returns true if any layer along the chain
+ *  (including the layer itself) satisfies `pred`. Guarded against parentId cycles. */
+function layerChainSatisfies(
+  layers: readonly SchematicLayer[],
+  layerId: string,
+  pred: (layer: SchematicLayer) => boolean,
+): boolean {
+  const byId = new Map(layers.map((l) => [l.id, l]));
+  const seen = new Set<string>();
+  let current = byId.get(layerId);
+  while (current && !seen.has(current.id)) {
+    if (pred(current)) return true;
+    seen.add(current.id);
+    current = current.parentId ? byId.get(current.parentId) : undefined;
+  }
+  return false;
+}
+
+/** True when the layer OR any ancestor is not visible. */
+export function isLayerEffectivelyHiddenIn(
+  layers: readonly SchematicLayer[],
+  layerId: string,
+): boolean {
+  return layerChainSatisfies(layers, layerId, (l) => !l.visible);
+}
+
+/** True when the layer OR any ancestor is locked. */
+export function isLayerEffectivelyLockedIn(
+  layers: readonly SchematicLayer[],
+  layerId: string,
+): boolean {
+  return layerChainSatisfies(layers, layerId, (l) => l.locked);
+}
+
+/** True when re-parenting `layerId` under `parentId` would create a cycle — i.e. the
+ *  proposed parent is the layer itself or one of its current descendants. */
+function wouldCreateLayerCycle(
+  layers: readonly SchematicLayer[],
+  layerId: string,
+  parentId: string,
+): boolean {
+  if (layerId === parentId) return true;
+  // Walk UP from the proposed parent; if we reach layerId, parentId is a descendant.
+  return layerChainSatisfies(layers, parentId, (l) => l.id === layerId);
+}
+
+/** A blank SchematicFile at the current schema version — the seed content for a new
+ *  project tab (all other fields fill in via importFromJSON's defaults). */
+function createBlankSchematicFile(name: string): SchematicFile {
+  return {
+    version: CURRENT_SCHEMA_VERSION,
+    name,
+    nodes: [],
+    edges: [],
+    layers: [{ id: DEFAULT_LAYER_ID, name: "Base", visible: true, locked: false }],
+  };
+}
+
 export const useSchematicStore = create<SchematicState>((set, get) => ({
   nodes: [],
   edges: [],
@@ -1692,6 +1962,12 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
   loadSeq: 0,
   editingNodeId: null,
   creatingNodeId: null,
+  deviceDetailsPageId: null,
+  routingMatrixDeviceId: null,
+  signalFlowTrigger: null,
+  adapterCreationRequest: null,
+  documents: [],
+  activeDocumentId: "",
   customTemplates: _initCustomTemplates,
   ownedGear: [],
   ownedCables: [],
@@ -1704,9 +1980,25 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
   gridSettings: DEFAULT_GRID_SETTINGS,
   containers: [],
   showMiniMap: readInitialMiniMapVisible(),
+  showWarnings: readInitialShowWarnings(),
   layers: [{ id: DEFAULT_LAYER_ID, name: "Base", visible: true, locked: false }],
+  recentCustomColors: [],
   showOwnedGearPane: false,
   libraryActiveTab: "devices",
+  pendingQuickCreate: null,
+  createAddToOwned: readBoolPref(CREATE_ADD_TO_OWNED_KEY, true),
+  uiFont: _initUiFont,
+  setUiFont: (font) => {
+    persistUiFont(font);
+    applyUiFont(font);
+    set({ uiFont: font });
+  },
+  pushRecentCustomColor: (hex) => {
+    const norm = hex.toLowerCase();
+    const next = [norm, ...get().recentCustomColors.filter((c) => c.toLowerCase() !== norm)].slice(0, 8);
+    set({ recentCustomColors: next });
+    get().saveToLocalStorage();
+  },
   customTemplateGroups: _initCustomMeta.groups,
   customTemplateOrder: _initCustomMeta.order,
   customTemplateGroupAssignments: _initCustomMeta.groupAssignments,
@@ -3313,6 +3605,30 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
     set({ creatingNodeId: id });
   },
 
+  openDeviceDetailsPage: (id) => {
+    set({ deviceDetailsPageId: id });
+  },
+
+  closeDeviceDetailsPage: () => {
+    set({ deviceDetailsPageId: null });
+  },
+
+  openRoutingMatrix: (id) => {
+    set({ routingMatrixDeviceId: id });
+  },
+
+  closeRoutingMatrix: () => {
+    set({ routingMatrixDeviceId: null });
+  },
+
+  openSignalFlow: (trigger) => {
+    set({ signalFlowTrigger: trigger });
+  },
+
+  closeSignalFlow: () => {
+    set({ signalFlowTrigger: null });
+  },
+
   createAndEditDevice: (template, position) => {
     get().addDevice(template, position);
     const nodes = get().nodes;
@@ -3791,6 +4107,91 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
     get().saveToLocalStorage();
   },
 
+  setPendingQuickCreate: (ctx) => set({ pendingQuickCreate: ctx }),
+
+  setCreateAddToOwned: (on) => {
+    writePref(CREATE_ADD_TO_OWNED_KEY, String(on));
+    set({ createAddToOwned: on });
+  },
+
+  syncProjectDevicesToOwned: () => {
+    const state = get();
+    // Count distinct placed devices by inventory key; keep one representative node
+    // per key to synthesize a template from when no owned entry exists yet.
+    const counts = new Map<string, { count: number; data: DeviceData }>();
+    for (const node of state.nodes) {
+      if (node.type !== "device") continue;
+      const data = node.data as DeviceData;
+      const key = inventoryKeyFromDeviceData(data);
+      const entry = counts.get(key);
+      if (entry) entry.count += 1;
+      else counts.set(key, { count: 1, data });
+    }
+    if (counts.size === 0) return 0;
+
+    const ownedByInventoryKey = new Map<string, OwnedGearItem>();
+    const ownedGear = state.ownedGear.map((item) => {
+      const copy = { ...item };
+      ownedByInventoryKey.set(inventoryKeyFromTemplate(copy.template), copy);
+      return copy;
+    });
+
+    let changed = 0;
+    for (const [key, { count, data }] of counts) {
+      const existing = ownedByInventoryKey.get(key);
+      if (existing) {
+        // Merge: owned quantity is raised to the canvas count, never lowered, so
+        // re-running the sync is idempotent and never duplicates.
+        if (existing.quantity < count) {
+          existing.quantity = count;
+          changed += 1;
+        }
+        continue;
+      }
+      // Synthesize a template from the placed device's spec. The label goes in the inventory
+      // key's display-name slot (inventoryKeyFromTemplate), so it must agree with
+      // inventoryKeyFromDeviceData's `model ?? baseLabel ?? label` — that is what groups renamed
+      // instances back onto one owned row. Every spec field is carried so nothing is lost
+      // (power, thermal, PoE, dimensions, cost, artwork, aux rows, …); per-instance fields
+      // (layer, group, rotation, serials) are not.
+      const template: DeviceTemplate = {
+        deviceType: data.deviceType || "custom",
+        label: (data.model ?? data.baseLabel ?? data.label ?? data.deviceType ?? "Device").trim() || "Device",
+        ports: data.ports.map((p) => ({ ...p })),
+        ...(data.shortName ? { shortName: data.shortName } : {}),
+        ...(data.hostname ? { hostname: data.hostname } : {}),
+        ...(data.manufacturer ? { manufacturer: data.manufacturer } : {}),
+        ...(data.modelNumber ? { modelNumber: data.modelNumber } : {}),
+        ...(data.category ? { category: data.category } : {}),
+        ...(data.color ? { color: data.color } : {}),
+        ...(data.artworkAssetId ? { artworkAssetId: data.artworkAssetId } : {}),
+        ...(data.referenceUrl ? { referenceUrl: data.referenceUrl } : {}),
+        ...(data.searchTerms ? { searchTerms: [...data.searchTerms] } : {}),
+        ...(data.powerDrawW != null ? { powerDrawW: data.powerDrawW } : {}),
+        ...(data.powerCapacityW != null ? { powerCapacityW: data.powerCapacityW } : {}),
+        ...(data.voltage ? { voltage: data.voltage } : {}),
+        ...(data.thermalBtuh != null ? { thermalBtuh: data.thermalBtuh } : {}),
+        ...(data.isVenueProvided ? { isVenueProvided: data.isVenueProvided } : {}),
+        ...(data.poeBudgetW != null ? { poeBudgetW: data.poeBudgetW } : {}),
+        ...(data.poeDrawW != null ? { poeDrawW: data.poeDrawW } : {}),
+        ...(data.unitCost != null ? { unitCost: data.unitCost } : {}),
+        ...(data.heightMm != null ? { heightMm: data.heightMm } : {}),
+        ...(data.widthMm != null ? { widthMm: data.widthMm } : {}),
+        ...(data.depthMm != null ? { depthMm: data.depthMm } : {}),
+        ...(data.weightKg != null ? { weightKg: data.weightKg } : {}),
+        ...(data.auxiliaryData ? { auxiliaryData: structuredClone(data.auxiliaryData) } : {}),
+        ...(data.templateId ? { id: data.templateId } : {}),
+      };
+      ownedGear.push({ template: structuredClone(template), quantity: count });
+      changed += 1;
+    }
+    if (changed > 0) {
+      set({ ownedGear, showOwnedGearPane: true });
+      get().saveToLocalStorage();
+    }
+    return changed;
+  },
+
   addOwnedCable: (item) => {
     const cable: OwnedCableItem = { ...item, id: crypto.randomUUID() };
     set({ ownedCables: [...get().ownedCables, cable] });
@@ -3961,6 +4362,10 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
   setShowMiniMap: (visible) => {
     if (typeof localStorage !== "undefined") localStorage.setItem(MINIMAP_VISIBLE_KEY, visible ? "1" : "0");
     set({ showMiniMap: visible });
+  },
+  setShowWarnings: (visible) => {
+    if (typeof localStorage !== "undefined") localStorage.setItem(SHOW_WARNINGS_KEY, visible ? "1" : "0");
+    set({ showWarnings: visible });
   },
   setGridSettings: (patch) => {
     set({ gridSettings: { ...get().gridSettings, ...patch } });
@@ -4263,6 +4668,25 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
     set({ layers: get().layers.map((l) => (l.id === id ? { ...l, color: color || undefined } : l)) });
     get().saveToLocalStorage();
   },
+
+  setLayerParent: (layerId, parentId) => {
+    if (layerId === DEFAULT_LAYER_ID) return; // the base layer is always a root
+    const layers = get().layers;
+    if (!layers.some((l) => l.id === layerId)) return;
+    // Normalize + validate the target parent.
+    const nextParent = parentId ?? undefined;
+    if (nextParent !== undefined) {
+      if (!layers.some((l) => l.id === nextParent)) return; // unknown parent
+      if (wouldCreateLayerCycle(layers, layerId, nextParent)) return; // self/descendant
+    }
+    set({
+      layers: layers.map((l) => (l.id === layerId ? { ...l, parentId: nextParent } : l)),
+    });
+    get().saveToLocalStorage();
+  },
+
+  isLayerEffectivelyHidden: (layerId) => isLayerEffectivelyHiddenIn(get().layers, layerId),
+  isLayerEffectivelyLocked: (layerId) => isLayerEffectivelyLockedIn(get().layers, layerId),
 
   // Per-item Layers/Groups view overrides — ephemeral (no persist, no undo).
   hiddenNodeIds: [],
@@ -4723,6 +5147,431 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
       pendingIncompatibleConnection: null,
     });
     get().saveToLocalStorage();
+  },
+
+  // ── Adapter-create flow ────────────────────────────────────────────────────
+  // The IncompatibleConnectionDialog's "+ Create adapter" opens the DeviceEditor
+  // prefilled as a two-port adapter. On Save the editor withdraws its provisional
+  // node (close()'s single-undo) and calls completeAdapterCreation(template), which
+  // delegates to insertAdapterBetween — so the real placed-and-wired adapter reuses
+  // the exact same insertion path as the auto-matched-adapter case.
+  beginAdapterCreation: (pending) => {
+    const state = get();
+    const src = state.nodes.find((n) => n.id === pending.connection.source);
+    const tgt = state.nodes.find((n) => n.id === pending.connection.target);
+    // Provisional placement only — insertAdapterBetween recomputes the true midpoint
+    // once the template is finalized, and the provisional node is withdrawn on save.
+    const provisionalPos = src && tgt
+      ? { x: Math.round((src.position.x + tgt.position.x) / 2), y: Math.round((src.position.y + tgt.position.y) / 2) }
+      : src ? { x: src.position.x, y: src.position.y } : { x: 0, y: 0 };
+    const adapterTemplate: DeviceTemplate = {
+      deviceType: "adapter",
+      category: "adapter",
+      label: `${pending.sourcePort.signalType} → ${pending.targetPort.signalType} adapter`,
+      ports: [
+        {
+          id: "in",
+          label: "In",
+          signalType: pending.sourcePort.signalType,
+          direction: "input",
+          ...(pending.sourcePort.connectorType ? { connectorType: pending.sourcePort.connectorType } : {}),
+        },
+        {
+          id: "out",
+          label: "Out",
+          signalType: pending.targetPort.signalType,
+          direction: "output",
+          ...(pending.targetPort.connectorType ? { connectorType: pending.targetPort.connectorType } : {}),
+        },
+      ],
+    };
+    set({ adapterCreationRequest: pending, pendingIncompatibleConnection: null });
+    get().createAndEditDevice(adapterTemplate, provisionalPos);
+  },
+
+  completeAdapterCreation: (template) => {
+    const req = get().adapterCreationRequest;
+    if (!req) return;
+    // Restore the pending connection insertAdapterBetween consumes, then delegate.
+    set({ adapterCreationRequest: null, pendingIncompatibleConnection: req });
+    get().insertAdapterBetween(template);
+  },
+
+  cancelAdapterCreation: () => set({ adapterCreationRequest: null }),
+
+  // ── Internal wiring (DeviceData.internalLinks; endpoints are port LABELS) ────
+  addInternalLink: (deviceId, link) => {
+    const state = get();
+    const node = state.nodes.find((n) => n.id === deviceId && n.type === "device");
+    if (!node) return;
+    const existing = (node.data as DeviceData).internalLinks ?? [];
+    if (existing.some((l) => l.from === link.from && l.to === link.to)) return; // idempotent
+    pushUndo({ nodes: state.nodes, edges: state.edges });
+    set({
+      nodes: state.nodes.map((n) =>
+        n.id === deviceId && n.type === "device"
+          ? ({
+              ...n,
+              data: { ...n.data, internalLinks: [...((n.data as DeviceData).internalLinks ?? []), link] },
+            } as DeviceNode)
+          : n,
+      ),
+    });
+    get().saveToLocalStorage();
+  },
+
+  removeInternalLink: (deviceId, link) => {
+    const state = get();
+    const node = state.nodes.find((n) => n.id === deviceId && n.type === "device");
+    if (!node) return;
+    const existing = (node.data as DeviceData).internalLinks ?? [];
+    if (!existing.some((l) => l.from === link.from && l.to === link.to)) return;
+    pushUndo({ nodes: state.nodes, edges: state.edges });
+    set({
+      nodes: state.nodes.map((n) => {
+        if (n.id !== deviceId || n.type !== "device") return n;
+        const links = ((n.data as DeviceData).internalLinks ?? []).filter(
+          (l) => !(l.from === link.from && l.to === link.to),
+        );
+        return {
+          ...n,
+          data: { ...n.data, internalLinks: links.length > 0 ? links : undefined },
+        } as DeviceNode;
+      }),
+    });
+    get().saveToLocalStorage();
+  },
+
+  // ── Channel ⇄ connector model (R2-3/4/5) ──────────────────────────────────
+  addDeviceChannel: (deviceId, channel) => {
+    const state = get();
+    const node = state.nodes.find((n) => n.id === deviceId && n.type === "device");
+    if (!node) return;
+    const existing = (node.data as DeviceData).channels ?? [];
+    if (existing.some((c) => c.id === channel.id)) return; // idempotent by id
+    pushUndo({ nodes: state.nodes, edges: state.edges });
+    set({
+      nodes: state.nodes.map((n) =>
+        n.id === deviceId && n.type === "device"
+          ? ({ ...n, data: { ...n.data, channels: [...existing, channel] } } as DeviceNode)
+          : n,
+      ),
+    });
+    get().saveToLocalStorage();
+  },
+
+  updateDeviceChannel: (deviceId, channelId, patch) => {
+    const state = get();
+    const node = state.nodes.find((n) => n.id === deviceId && n.type === "device");
+    if (!node) return;
+    const existing = (node.data as DeviceData).channels ?? [];
+    if (!existing.some((c) => c.id === channelId)) return;
+    pushUndo({ nodes: state.nodes, edges: state.edges });
+    set({
+      nodes: state.nodes.map((n) =>
+        n.id === deviceId && n.type === "device"
+          ? ({
+              ...n,
+              data: {
+                ...n.data,
+                channels: ((n.data as DeviceData).channels ?? []).map((c) =>
+                  c.id === channelId ? { ...c, ...patch, id: c.id } : c,
+                ),
+              },
+            } as DeviceNode)
+          : n,
+      ),
+    });
+    get().saveToLocalStorage();
+  },
+
+  removeDeviceChannel: (deviceId, channelId) => {
+    const state = get();
+    const node = state.nodes.find((n) => n.id === deviceId && n.type === "device");
+    if (!node) return;
+    const data = node.data as DeviceData;
+    if (!(data.channels ?? []).some((c) => c.id === channelId)) return;
+    pushUndo({ nodes: state.nodes, edges: state.edges });
+    set({
+      nodes: state.nodes.map((n) => {
+        if (n.id !== deviceId || n.type !== "device") return n;
+        const d = n.data as DeviceData;
+        const channels = (d.channels ?? []).filter((c) => c.id !== channelId);
+        // Drop the removed channel from every connector's carries.
+        const connectors = (d.connectors ?? []).map((conn) =>
+          conn.carries.includes(channelId)
+            ? { ...conn, carries: conn.carries.filter((id) => id !== channelId) }
+            : conn,
+        );
+        return {
+          ...n,
+          data: {
+            ...n.data,
+            channels: channels.length > 0 ? channels : undefined,
+            connectors: connectors.length > 0 ? connectors : d.connectors,
+          },
+        } as DeviceNode;
+      }),
+    });
+    get().saveToLocalStorage();
+  },
+
+  addDeviceConnector: (deviceId, connector) => {
+    const state = get();
+    const node = state.nodes.find((n) => n.id === deviceId && n.type === "device");
+    if (!node) return;
+    const existing = (node.data as DeviceData).connectors ?? [];
+    if (existing.some((c) => c.id === connector.id)) return; // idempotent by id
+    pushUndo({ nodes: state.nodes, edges: state.edges });
+    set({
+      nodes: state.nodes.map((n) =>
+        n.id === deviceId && n.type === "device"
+          ? ({ ...n, data: { ...n.data, connectors: [...existing, connector] } } as DeviceNode)
+          : n,
+      ),
+    });
+    get().saveToLocalStorage();
+  },
+
+  updateDeviceConnector: (deviceId, connectorId, patch) => {
+    const state = get();
+    const node = state.nodes.find((n) => n.id === deviceId && n.type === "device");
+    if (!node) return;
+    const existing = (node.data as DeviceData).connectors ?? [];
+    if (!existing.some((c) => c.id === connectorId)) return;
+    pushUndo({ nodes: state.nodes, edges: state.edges });
+    set({
+      nodes: state.nodes.map((n) =>
+        n.id === deviceId && n.type === "device"
+          ? ({
+              ...n,
+              data: {
+                ...n.data,
+                connectors: ((n.data as DeviceData).connectors ?? []).map((c) =>
+                  c.id === connectorId ? { ...c, ...patch, id: c.id } : c,
+                ),
+              },
+            } as DeviceNode)
+          : n,
+      ),
+    });
+    get().saveToLocalStorage();
+  },
+
+  removeDeviceConnector: (deviceId, connectorId) => {
+    const state = get();
+    const node = state.nodes.find((n) => n.id === deviceId && n.type === "device");
+    if (!node) return;
+    if (!((node.data as DeviceData).connectors ?? []).some((c) => c.id === connectorId)) return;
+    pushUndo({ nodes: state.nodes, edges: state.edges });
+    set({
+      nodes: state.nodes.map((n) => {
+        if (n.id !== deviceId || n.type !== "device") return n;
+        const connectors = ((n.data as DeviceData).connectors ?? []).filter((c) => c.id !== connectorId);
+        return {
+          ...n,
+          data: { ...n.data, connectors: connectors.length > 0 ? connectors : undefined },
+        } as DeviceNode;
+      }),
+    });
+    get().saveToLocalStorage();
+  },
+
+  addInternalRoute: (deviceId, fromId, toId) => {
+    const state = get();
+    const node = state.nodes.find((n) => n.id === deviceId && n.type === "device");
+    if (!node || fromId === toId) return;
+    // Idempotent: bail if an internal route already joins these two endpoints.
+    const already = state.edges.some(
+      (e) =>
+        e.data?.internal &&
+        e.source === deviceId &&
+        e.target === deviceId &&
+        e.sourceHandle === fromId &&
+        e.targetHandle === toId,
+    );
+    if (already) return;
+
+    const data = node.data as DeviceData;
+    const signalOfEndpoint = (endpointId: string): SignalType => {
+      const channel = (data.channels ?? []).find((c) => c.id === endpointId);
+      if (channel) return channel.signalType;
+      const bus = (data.connectors ?? []).find((c) => c.id === endpointId);
+      if (bus) {
+        const firstChannel = (data.channels ?? []).find((c) => bus.carries.includes(c.id));
+        if (firstChannel) return firstChannel.signalType;
+      }
+      return "custom";
+    };
+
+    pushUndo({ nodes: state.nodes, edges: state.edges });
+    const newEdgeData: ConnectionData = { signalType: signalOfEndpoint(fromId), internal: true };
+    const existingEdges = ensureUniqueEdgeIds(state.edges);
+    const newEdge: ConnectionEdge = {
+      id: nextEdgeId(existingEdges),
+      source: deviceId,
+      target: deviceId,
+      sourceHandle: fromId,
+      targetHandle: toId,
+      data: newEdgeData,
+      style: { stroke: resolveEdgeStroke(newEdgeData), strokeWidth: 2 },
+    };
+    set({
+      nodes: existingEdges === state.edges ? state.nodes : reconcileWaypointNodes(state.nodes, existingEdges),
+      edges: [...existingEdges, newEdge],
+    });
+    get().saveToLocalStorage();
+  },
+
+  removeInternalRoute: (deviceId, fromId, toId) => {
+    const state = get();
+    const match = (e: ConnectionEdge) =>
+      e.data?.internal &&
+      e.source === deviceId &&
+      e.target === deviceId &&
+      e.sourceHandle === fromId &&
+      e.targetHandle === toId;
+    if (!state.edges.some(match)) return;
+    pushUndo({ nodes: state.nodes, edges: state.edges });
+    set({ edges: state.edges.filter((e) => !match(e)) });
+    get().saveToLocalStorage();
+  },
+
+  listInternalRoutes: (deviceId) =>
+    get().edges.filter(
+      (e) => e.data?.internal && e.source === deviceId && e.target === deviceId,
+    ),
+
+  listDeviceBuses: (deviceId) => {
+    const node = get().nodes.find((n) => n.id === deviceId && n.type === "device");
+    if (!node) return [];
+    return ((node.data as DeviceData).connectors ?? []).filter((c) => c.role === "bus");
+  },
+
+  setPatchPointMode: (deviceId, pointId, mode) => {
+    const state = get();
+    const node = state.nodes.find((n) => n.id === deviceId && n.type === "device");
+    if (!node) return;
+    const points = (node.data as DeviceData).patchbay?.points ?? [];
+    const point = points.find((p) => p.id === pointId);
+    if (!point || point.mode === mode) return;
+    pushUndo({ nodes: state.nodes, edges: state.edges });
+    set({
+      nodes: state.nodes.map((n) => {
+        if (n.id !== deviceId || n.type !== "device") return n;
+        const d = n.data as DeviceData;
+        return {
+          ...n,
+          data: {
+            ...n.data,
+            patchbay: {
+              ...d.patchbay,
+              points: (d.patchbay?.points ?? []).map((p) =>
+                p.id === pointId ? { ...p, mode } : p,
+              ),
+            },
+          },
+        } as DeviceNode;
+      }),
+    });
+    get().saveToLocalStorage();
+  },
+
+  // Internal-routing lane expansion (C6) — session/UI only, no undo, not persisted.
+  expandedRoutingDeviceIds: [],
+  toggleDeviceRoutingExpanded: (deviceId) =>
+    set((state) => ({
+      expandedRoutingDeviceIds: state.expandedRoutingDeviceIds.includes(deviceId)
+        ? state.expandedRoutingDeviceIds.filter((existingId) => existingId !== deviceId)
+        : [...state.expandedRoutingDeviceIds, deviceId],
+    })),
+
+  // ── Multi-document project tabs (snapshot-swap; session-only, not serialized) ─
+  newDocument: (name) => {
+    // Seed the current live document as tab #1 if tabs haven't been used yet.
+    if (get().documents.length === 0) {
+      const seedId = crypto.randomUUID();
+      set({
+        documents: [{ id: seedId, name: get().schematicName, snapshot: get().exportToJSON() }],
+        activeDocumentId: seedId,
+      });
+    }
+    const docs = get().documents;
+    const activeId = get().activeDocumentId;
+    const liveSnapshot = get().exportToJSON();
+    const newId = crypto.randomUUID();
+    const docName = name?.trim() || `Untitled ${docs.length + 1}`;
+    const blank = createBlankSchematicFile(docName);
+    const nextDocs: ProjectDocument[] = [
+      ...docs.map((d) => (d.id === activeId ? { ...d, name: get().schematicName, snapshot: liveSnapshot } : d)),
+      { id: newId, name: docName, snapshot: blank },
+    ];
+    set({ documents: nextDocs, activeDocumentId: newId });
+    get().importFromJSON(blank);
+    set({ activeDocumentId: newId }); // importFromJSON leaves tab state untouched
+  },
+
+  switchDocument: (id) => {
+    if (get().documents.length === 0) {
+      const seedId = crypto.randomUUID();
+      set({
+        documents: [{ id: seedId, name: get().schematicName, snapshot: get().exportToJSON() }],
+        activeDocumentId: seedId,
+      });
+    }
+    const activeId = get().activeDocumentId;
+    if (id === activeId) return;
+    const target = get().documents.find((d) => d.id === id);
+    if (!target) return;
+    const liveSnapshot = get().exportToJSON();
+    const nextDocs = get().documents.map((d) =>
+      d.id === activeId ? { ...d, name: get().schematicName, snapshot: liveSnapshot } : d,
+    );
+    set({ documents: nextDocs, activeDocumentId: id });
+    get().importFromJSON(target.snapshot);
+    set({ activeDocumentId: id });
+  },
+
+  renameDocument: (id, name) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const docs = get().documents;
+    set({ documents: docs.map((d) => (d.id === id ? { ...d, name: trimmed } : d)) });
+    if (docs.length === 0 || id === get().activeDocumentId) {
+      set({ schematicName: trimmed });
+      get().saveToLocalStorage();
+    }
+  },
+
+  closeDocument: (id) => {
+    if (get().documents.length === 0) {
+      const seedId = crypto.randomUUID();
+      set({
+        documents: [{ id: seedId, name: get().schematicName, snapshot: get().exportToJSON() }],
+        activeDocumentId: seedId,
+      });
+    }
+    const docs = get().documents;
+    if (docs.length <= 1) return; // never close the last tab
+    const idx = docs.findIndex((d) => d.id === id);
+    if (idx === -1) return;
+    const remaining = docs.filter((d) => d.id !== id);
+    if (id === get().activeDocumentId) {
+      const neighbour = remaining[Math.min(idx, remaining.length - 1)];
+      set({ documents: remaining, activeDocumentId: neighbour.id });
+      get().importFromJSON(neighbour.snapshot);
+      set({ activeDocumentId: neighbour.id });
+    } else {
+      set({ documents: remaining });
+    }
+  },
+
+  listDocuments: () => {
+    const { documents, activeDocumentId, schematicName } = get();
+    if (documents.length === 0) {
+      return [{ id: activeDocumentId || "__active__", name: schematicName }];
+    }
+    return documents.map((d) => ({ id: d.id, name: d.id === activeDocumentId ? schematicName : d.name }));
   },
 
   setPrintView: (v) => { set({ printView: v }); },
@@ -5727,6 +6576,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
       ownedCables: state.ownedCables.length > 0 ? state.ownedCables : undefined,
       ownedInventory: state.ownedInventory.length > 0 ? state.ownedInventory : undefined,
       layers: state.layers,
+      recentCustomColors: state.recentCustomColors.length > 0 ? state.recentCustomColors : undefined,
       gearUnits: state.gearUnits.length > 0 ? state.gearUnits : undefined,
       svgAssets: Object.keys(state.svgAssets).length > 0 ? state.svgAssets : undefined,
       tagSuggestions: state.tagSuggestions.length > 0 ? state.tagSuggestions : undefined,
@@ -5834,6 +6684,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
         ownedCables: data.ownedCables ?? [],
         ownedInventory: data.ownedInventory ?? [],
         layers: data.layers ?? [{ id: DEFAULT_LAYER_ID, name: "Base", visible: true, locked: false }],
+        recentCustomColors: data.recentCustomColors ?? [],
         gearUnits: data.gearUnits ?? [],
         svgAssets: sanitizeSvgAssets(data.svgAssets),
         tagSuggestions: data.tagSuggestions ?? [],
@@ -5928,6 +6779,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
         ownedCables: data.ownedCables ?? [],
         ownedInventory: data.ownedInventory ?? [],
         layers: data.layers ?? [{ id: DEFAULT_LAYER_ID, name: "Base", visible: true, locked: false }],
+        recentCustomColors: data.recentCustomColors ?? [],
         gearUnits: data.gearUnits ?? [],
         svgAssets: sanitizeSvgAssets(data.svgAssets),
         tagSuggestions: data.tagSuggestions ?? [],
@@ -6019,6 +6871,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
       ownedCables: state.ownedCables.length > 0 ? state.ownedCables : undefined,
       ownedInventory: state.ownedInventory.length > 0 ? state.ownedInventory : undefined,
       layers: state.layers,
+      recentCustomColors: state.recentCustomColors.length > 0 ? state.recentCustomColors : undefined,
       gearUnits: state.gearUnits.length > 0 ? state.gearUnits : undefined,
       svgAssets: Object.keys(state.svgAssets).length > 0 ? state.svgAssets : undefined,
       tagSuggestions: state.tagSuggestions.length > 0 ? state.tagSuggestions : undefined,
@@ -6128,6 +6981,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
         ownedCables: data.ownedCables ?? [],
         ownedInventory: data.ownedInventory ?? [],
         layers: data.layers ?? [{ id: DEFAULT_LAYER_ID, name: "Base", visible: true, locked: false }],
+        recentCustomColors: data.recentCustomColors ?? [],
         gearUnits: data.gearUnits ?? [],
         svgAssets: sanitizeSvgAssets(data.svgAssets),
         tagSuggestions: data.tagSuggestions ?? [],

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { useSchematicStore } from "../store";
 
 /** A named swatch offered in the layer colour picker. */
 interface Swatch {
@@ -44,6 +45,9 @@ export default function LayerColorPicker({
   onClose,
 }: LayerColorPickerProps) {
   const ref = useRef<HTMLDivElement>(null);
+  const customInputRef = useRef<HTMLInputElement>(null);
+  const recents = useSchematicStore((s) => s.recentCustomColors);
+  const pushRecent = useSchematicStore((s) => s.pushRecentCustomColor);
 
   useEffect(() => {
     const onMouseDown = (e: MouseEvent) => {
@@ -74,7 +78,14 @@ export default function LayerColorPicker({
       aria-label="Layer colour"
     >
       <div className="grid grid-cols-6 gap-1">
-        {SWATCHES.map((s) => {
+        {[
+          ...SWATCHES,
+          // Per-document recents from the ＋ chip (boards 1b/5c), deduped vs the curated set.
+          ...recents
+            .filter((hex) => !SWATCHES.some((s) => s.hex.toLowerCase() === hex.toLowerCase()))
+            .slice(0, 5)
+            .map((hex) => ({ name: hex, hex })),
+        ].map((s) => {
           const isCurrent = selected === s.hex.toLowerCase();
           return (
             <button
@@ -92,6 +103,33 @@ export default function LayerColorPicker({
             />
           );
         })}
+        {/* ＋ custom chip → native OS colour picker; picks join the per-document recents. */}
+        <button
+          onClick={() => customInputRef.current?.click()}
+          className="w-4 h-4 rounded-full cursor-pointer transition-transform hover:scale-110 border border-black/10 inline-flex items-center justify-center text-[9px] font-bold leading-none text-[var(--color-text)]"
+          style={{
+            background:
+              "conic-gradient(#ef4444, #f59e0b, #22c55e, #3b82f6, #8b5cf6, #ef4444)",
+          }}
+          title="Custom colour…"
+          aria-label="Custom colour"
+        >
+          <span className="w-2.5 h-2.5 rounded-full bg-[var(--color-surface-raised)] inline-flex items-center justify-center" aria-hidden>
+            +
+          </span>
+        </button>
+        <input
+          ref={customInputRef}
+          type="color"
+          defaultValue={selected && /^#[0-9a-f]{6}$/.test(selected) ? selected : "#3b82f6"}
+          className="w-px h-px opacity-0 border-0 p-0 absolute"
+          tabIndex={-1}
+          aria-hidden
+          onChange={(e) => {
+            pushRecent(e.target.value);
+            onSelect(e.target.value);
+          }}
+        />
       </div>
       <button
         onClick={onClear}

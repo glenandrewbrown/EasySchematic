@@ -7,10 +7,10 @@
 @keyframes deviceNodeSwatchGlow {
   0%,
   100% {
-    box-shadow: 0 0 0 0 transparent;
+    box-shadow: var(--ui-shadow-raised);
   }
   50% {
-    box-shadow: 0 0 5px 1px var(--swatch-glow, transparent);
+    box-shadow: var(--ui-shadow-raised), 0 0 6px 1px var(--swatch-glow, transparent);
   }
 }
 
@@ -18,8 +18,128 @@
   animation: deviceNodeSwatchGlow 2s ease-in-out infinite;
 }
 
+/* Connect-tool armed: OPEN connectors halo in their own signal colour (v7 uses a 4px accent
+ * halo; here it is the port's own signal colour so the cue matches the wire). The signal ring
+ * is now a real 2px border, so the keyframes only carry the permanent drop shadow plus the
+ * pulsing halo — no inset ring to repeat. */
+@keyframes deviceNodeConnectorArmed {
+  0%,
+  100% {
+    box-shadow: var(--ui-shadow-raised), 0 0 0 0 transparent;
+  }
+  50% {
+    box-shadow:
+      var(--ui-shadow-raised),
+      0 0 0 4px color-mix(in srgb, var(--swatch-glow, transparent) 42%, transparent);
+  }
+}
+
+.device-node-connector--armed {
+  animation: deviceNodeConnectorArmed 1.6s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .device-node-swatch--glow {
+  .device-node-swatch--glow,
+  .device-node-connector--armed {
+    animation: none;
+  }
+}
+
+/* Tile tier (board 2c): every per-port handle converges on the node's vertical centre.
+ * Removing the row's positioning context makes each absolutely-positioned handle resolve
+ * against the node root instead, so left handles stack on ONE aggregate anchor at the left
+ * edge and right handles on one at the right. The edge router snapshots DOM handle bounds,
+ * so every cable lands on the aggregate dot with zero router changes — and untiling restores
+ * the row anchors from the same row math. */
+.device-node-tiled .device-port-row {
+  position: static !important;
+}
+
+/* ── C1 — connector sublabels + shared-connector chip cluster ──────────────────
+ * A single mono muted sublabel (`· XLR`) on every port row; a chip cluster when a
+ * channel is exposed on ≥2 alternate connectors. Colour is DATA: the wired chip is
+ * lit in its signal colour (set inline); alternates stay muted; an occupied sibling
+ * (its channel wired on an alternate connector) dims + shows a lock. Only opacity/
+ * colour transitions — no entry animation on a surface the user stares at. */
+.device-connector-sub {
+  color: var(--color-text-muted);
+  font-size: 8px;
+  line-height: 16px;
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+}
+.device-connector-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  line-height: 12px;
+  padding: 0 3px;
+  border: 1px solid color-mix(in srgb, var(--color-border) 65%, transparent);
+  border-radius: 3px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  transition: opacity 150ms ease, color 150ms ease, border-color 150ms ease;
+}
+.device-connector-chip--active {
+  font-weight: 600;
+  /* colour + border-colour are the signal colour, applied inline */
+}
+.device-connector-chip--locked {
+  opacity: 0.5;
+}
+.device-connector-chip__ch {
+  opacity: 0.75;
+}
+
+/* ── C6 — internal-routing lane ────────────────────────────────────────────────
+ * A recessed inset panel below the port grid, drawing this device's internal routes
+ * as short orthogonal segments in their signal colour. Confined to the node — never
+ * enters the global router. Collapsed by default; the enter fade is a mild one-shot
+ * (opacity + a 4px lift), reduced-motion gated on both the class and the media query. */
+.device-internal-lane {
+  padding: 6px 10px 7px;
+  border-top: 1px solid var(--ui-border);
+  background: color-mix(in srgb, var(--color-bg) 55%, var(--color-surface));
+  box-shadow: inset 0 1px 2px color-mix(in srgb, #000 10%, transparent);
+  border-bottom-left-radius: 6px;
+  border-bottom-right-radius: 6px;
+}
+@keyframes deviceInternalLaneIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.device-internal-lane--enter {
+  animation: deviceInternalLaneIn 160ms ease-out;
+}
+.device-internal-toggle,
+.device-internal-collapse {
+  cursor: pointer;
+  transition: color 150ms ease, background-color 150ms ease;
+}
+.device-internal-toggle:hover,
+.device-internal-collapse:hover {
+  color: var(--color-text);
+}
+.device-internal-toggle:active,
+.device-internal-collapse:active {
+  transform: scale(0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .device-connector-chip,
+  .device-internal-toggle,
+  .device-internal-collapse {
+    transition: none;
+  }
+  .device-internal-lane--enter {
     animation: none;
   }
 }

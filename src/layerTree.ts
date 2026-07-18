@@ -36,6 +36,9 @@ export interface LayerTreeNode {
   nodeType?: string;
   /** For kind "layer": the user-chosen swatch colour (hex), if any. */
   color?: string;
+  /** For kind "layer": nested child layers (SchematicLayer.parentId pointing at this
+   *  layer) — the "Audio ▸ Speakers ▸ Kiis" hierarchy. Rendered above `children`. */
+  subLayers?: LayerTreeNode[];
   /**
    * Short muted summary line. Layers: a per-type tally of direct contents
    * (e.g. "4 devices · 1 room · 2 notes"). Room nodes: their child count
@@ -76,6 +79,8 @@ export interface InputLayer {
   locked: boolean;
   /** Optional swatch colour (hex) carried through to the layer tree node. */
   color?: string;
+  /** Parent layer id for nested layer groups (schema v50). Absent = root layer. */
+  parentId?: string;
 }
 
 /** Input contract for buildLayerTree. Both arrays are treated as read-only. */
@@ -209,6 +214,7 @@ function buildGroupEntry(groupId: string, members: LayerTreeNode[]): LayerTreeNo
 function buildLayerEntry(
   layer: InputLayer,
   children: LayerTreeNode[],
+  subLayers: LayerTreeNode[],
   secondaryText: string | undefined,
 ): LayerTreeNode {
   return {
@@ -219,6 +225,7 @@ function buildLayerEntry(
     locked: layer.locked,
     color: layer.color,
     secondaryText,
+    subLayers,
     children,
   };
 }
@@ -288,11 +295,19 @@ function buildLayerChildren(
  * Builds the full Layers/Groups panel tree from a flat list of nodes and
  * layer definitions.
  *
+ * Layers themselves nest via `InputLayer.parentId` (schema v50, e.g.
+ * "Audio ▸ Speakers ▸ Kiis") — the returned array holds only ROOT layers;
+ * each layer's `subLayers` carries its nested child layers recursively.
+ *
  * Ordering contract:
  * - The synthetic "default" layer is placed first when not already present in
  *   `layers`; if `layers` contains an entry with id "default" it is used as-is
- *   (no duplicate).
- * - Named layers follow in the order given by `layers`.
+ *   (no duplicate). It is always a root (matches the store's invariant that
+ *   the base layer can't be re-parented).
+ * - Root layers follow in the order given by `layers`; a layer whose
+ *   `parentId` is self-referential or points at an unknown layer id is
+ *   treated as a root (defensive against corrupt data).
+ * - A layer's `subLayers` follow in the order given by `layers`.
  * - Within a layer: groups first (first-seen group order), then ungrouped nodes
  *   (input order).
  * - Within a group: member nodes in input order.
@@ -327,7 +342,8 @@ export function buildLayerTree(input: BuildLayerTreeInput): LayerTreeNode[] {
   }
 
   // ------------------------------------------------------------------
-  // 2. Build the ordered list of layer definitions to render.
+  // 2. Build the ordered list of layer definitions, and index them by
+  //    parent so sub-layers can be nested under their owner recursively.
   //    Synthetic "default" is prepended if not already present.
   // ------------------------------------------------------------------
   const hasExplicitDefault = layers.some((l) => l.id === DEFAULT_LAYER_ID);
@@ -339,16 +355,32 @@ export function buildLayerTree(input: BuildLayerTreeInput): LayerTreeNode[] {
     locked: false,
   };
 
-  const orderedLayers: ReadonlyArray<InputLayer> = hasExplicitDefault
+  const allLayers: ReadonlyArray<InputLayer> = hasExplicitDefault
     ? layers
     : [syntheticDefault, ...layers];
 
+  const layerIds = new Set(allLayers.map((l) => l.id));
+  const childLayersByParent = new Map<string, InputLayer[]>();
+  const rootLayers: InputLayer[] = [];
+
+  for (const layer of allLayers) {
+    const pid = layer.parentId;
+    if (pid && pid !== layer.id && layerIds.has(pid)) {
+      if (!childLayersByParent.has(pid)) childLayersByParent.set(pid, []);
+      childLayersByParent.get(pid)!.push(layer);
+    } else {
+      rootLayers.push(layer);
+    }
+  }
+
   // ------------------------------------------------------------------
-  // 3. Build a LayerTreeNode for every layer (even empty ones).
-  //    Secondary text tallies the layer's DIRECT contents: nodes nested
-  //    inside a room on this layer are counted under the room, not the layer.
+  // 3. Build a LayerTreeNode for every layer (even empty ones), recursing
+  //    into sub-layers. Secondary text tallies the layer's DIRECT contents:
+  //    nodes nested inside a room on this layer are counted under the room,
+  //    not the layer, and sub-layer contents are counted on their own row.
+  //    `visiting` guards against a cycle in corrupt saved data.
   // ------------------------------------------------------------------
-  return orderedLayers.map((layer) => {
+  const buildLayerNode = (layer: InputLayer, visiting: ReadonlySet<string>): LayerTreeNode => {
     const layerNodes = nodesByLayer.get(layer.id) ?? [];
     const children = buildLayerChildren(layerNodes, childrenByParent);
     const roomIds = new Set(
@@ -358,6 +390,14 @@ export function buildLayerTree(input: BuildLayerTreeInput): LayerTreeNode[] {
       (n) => !(n.parentId && roomIds.has(n.parentId)),
     );
     const secondaryText = summarizeByType(directNodes);
-    return buildLayerEntry(layer, children, secondaryText);
-  });
+
+    const nextVisiting = new Set(visiting).add(layer.id);
+    const subLayers = (childLayersByParent.get(layer.id) ?? [])
+      .filter((child) => !nextVisiting.has(child.id))
+      .map((child) => buildLayerNode(child, nextVisiting));
+
+    return buildLayerEntry(layer, children, subLayers, secondaryText);
+  };
+
+  return rootLayers.map((layer) => buildLayerNode(layer, new Set()));
 }

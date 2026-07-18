@@ -12,7 +12,11 @@ import type { SymbolCategory, SymbolLibraryEntry } from "../symbolLibrary";
 const LIB_SIZE_BY_CAT: Record<SymbolCategory, [number, number]> = {
   furniture: [1, 1],
   audio: [0.5, 0.5],
+  video: [0.4, 0.3],
+  lighting: [0.3, 0.3],
   network: [0.5, 0.4],
+  compute: [0.4, 0.4],
+  power: [0.4, 0.3],
   generic: [1, 1],
 };
 

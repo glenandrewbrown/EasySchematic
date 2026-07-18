@@ -6,6 +6,7 @@ import {
 } from "@xyflow/react";
 import { useSchematicStore } from "../store";
 import {
+  CONNECTOR_LABELS,
   DEFAULT_DISTANCE_SETTINGS,
   LINE_STYLE_DASHARRAY,
   type ConnectionEdge,
@@ -14,6 +15,7 @@ import {
 } from "../types";
 import { usbcPowerShortfallW } from "../connectorTypes";
 import { resolvePort } from "../packList";
+import { bundleChannelCount, channelCountSuffix, channelFit } from "../cableFit";
 import { computeCableLength, getRoomDistance } from "../roomDistance";
 import { FEET_PER_METER, formatLengthMode } from "../lengthFormat";
 import "../liveSignal.css";
@@ -171,6 +173,32 @@ function OffsetEdgeComponent({
     );
   });
 
+  // Multi-channel cable bundle (C4): connector + channel count for the hover/selection chip,
+  // e.g. "DB25 · 8ch". Connector label comes from each end's Port.connectorType; the channel
+  // count comes from Port.isMulticable/channelCount (the populated multicable-port model —
+  // see cableFit.ts's bundle helpers). Empty string when neither end resolves a connector, so
+  // the chip renders nothing rather than an empty badge. Serialized (label\0fit) like every
+  // other selector here for a stable primitive comparison.
+  const channelChipStr = useSchematicStore((s) => {
+    const edge = s.edges.find((e) => e.id === id);
+    if (!edge) return "";
+    const srcNode = s.nodes.find((n) => n.id === edge.source);
+    const tgtNode = s.nodes.find((n) => n.id === edge.target);
+    const srcPort = resolvePort(srcNode, edge.sourceHandle);
+    const tgtPort = resolvePort(tgtNode, edge.targetHandle);
+    const srcLabel = srcPort?.connectorType ? CONNECTOR_LABELS[srcPort.connectorType] : "";
+    const tgtLabel = tgtPort?.connectorType ? CONNECTOR_LABELS[tgtPort.connectorType] : "";
+    const label = srcLabel && tgtLabel && srcLabel !== tgtLabel ? `${srcLabel} → ${tgtLabel}` : srcLabel || tgtLabel;
+    if (!label) return "";
+    const srcCount = srcPort?.isMulticable ? srcPort.channelCount : undefined;
+    const tgtCount = tgtPort?.isMulticable ? tgtPort.channelCount : undefined;
+    const suffix = channelCountSuffix(bundleChannelCount(srcCount, tgtCount));
+    return `${label}${suffix}\0${channelFit(srcCount, tgtCount)}`;
+  });
+  const [channelChipLabel, channelChipFit] = channelChipStr
+    ? (channelChipStr.split("\0") as [string, string])
+    : ["", "unknown"];
+
   // Real signal-flow direction along the cable (OUTPUT end → INPUT end), independent of React
   // Flow's source/target (which only reflect the order the connection was drawn). Drives the
   // live-signal band so it always travels out of an output into an input. "bi" = a bidirectional
@@ -182,10 +210,14 @@ function OffsetEdgeComponent({
     const tgtNode = s.nodes.find((n) => n.id === edge.target);
     const sEnd = endSignalDir(resolvePort(srcNode, edge.sourceHandle));
     const tEnd = endSignalDir(resolvePort(tgtNode, edge.targetHandle));
-    if (sEnd === "bi" || tEnd === "bi") return "bi";
+    // A definite end decides the direction even when the other end is a passthrough or
+    // bidirectional port (a patch-panel leg fed by an output still flows one way). Only a
+    // connection with NO definite end (bi↔bi, e.g. Ethernet) animates both ways.
     if (sEnd === "out") return "forward"; // source is the output → signal flows source→target
     if (tEnd === "out") return "reverse"; // target is the output → signal flows target→source
-    return "forward";
+    if (sEnd === "in") return "reverse"; // signal arrives at the source end → target→source
+    if (tEnd === "in") return "forward"; // signal arrives at the target end → source→target
+    return "bi";
   });
 
   // Read user-defined connection label (stable primitive selector)
@@ -778,6 +810,43 @@ function OffsetEdgeComponent({
     </div>
   ) : null;
 
+  // Multi-channel bundle chip (C4) — connector + `·Nch` at the cable's midpoint, revealed on
+  // hover/selection only (a chip on every cable would clutter the canvas). Not shown for
+  // wireless (has its own identity badge) or direct-attach (not a cable). Always mounted once
+  // there's a connector to show — visibility toggles via opacity/scale so the reveal transitions
+  // rather than popping in on mount. Coral border+text when the two ends' channel counts
+  // mismatch (an over/under-capacity run), same signal-colour border otherwise.
+  const showChannelChip = !!channelChipLabel && !isWireless && !directAttach && !!routeStr;
+  const channelChipVisible = showChannelChip && (selected || isHovered);
+  const channelChipMismatch = channelChipFit === "mismatch";
+  const channelChip = showChannelChip ? (
+    <div
+      key="channel-chip"
+      style={{
+        position: "absolute",
+        pointerEvents: "none",
+        transform:
+          `translate(-50%, -100%) translate(${customMidPt.x}px, ${customMidPt.y - 10}px)` +
+          (motionOff ? "" : ` scale(${channelChipVisible ? 1 : 0.95})`),
+        transformOrigin: "50% 100%",
+        opacity: channelChipVisible ? 1 : 0,
+        transition: motionOff ? "opacity 140ms ease-out" : "opacity 140ms ease-out, transform 140ms ease-out",
+        fontSize: 8.5,
+        fontFamily: "var(--font-mono)",
+        fontWeight: 700,
+        letterSpacing: "0.02em",
+        color: channelChipMismatch ? "var(--color-error)" : "var(--color-text-heading)",
+        background: "var(--color-surface)",
+        border: `1px solid ${channelChipMismatch ? "var(--color-error)" : signalColor}`,
+        borderRadius: 4,
+        padding: "1px 5px",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {channelChipLabel}
+    </div>
+  ) : null;
+
   // Visual-only reconnect circles + tooltip — rendered in HTML layer above cable labels.
   // Interaction is handled by RF's native SVG updater circles (pointer events pass through
   // labels since they have pointer-events: none). These HTML elements are purely decorative.
@@ -945,7 +1014,7 @@ function OffsetEdgeComponent({
   // All labels + reconnect visuals rendered via EdgeLabelRenderer (HTML layer above all SVG edges)
   const hasPortalContent =
     customLabels || cableIdLabels || reconnectVisuals || wirelessBadge || trunkBadge ||
-    usbcWarningBadge;
+    usbcWarningBadge || channelChip;
   const edgeLabelsPortal = hasPortalContent ? (
     <EdgeLabelRenderer>
       {cableIdLabels}
@@ -953,6 +1022,7 @@ function OffsetEdgeComponent({
       {wirelessBadge}
       {trunkBadge}
       {usbcWarningBadge}
+      {channelChip}
       {reconnectVisuals}
     </EdgeLabelRenderer>
   ) : null;
@@ -967,74 +1037,50 @@ function OffsetEdgeComponent({
   }, [debugEdges, id, sourceX, sourceY, targetX, targetY, turns]);
 
   // --- Live signal motion (additive, pointer-events:none) ---
-  // v3 "Currents" flow: a moving brightness band rides the SAME routed path as the static strand
-  // — an animated repeating linearGradient translated along the source→target axis, so a lit band
-  // sweeps toward the target. The selected edge shimmers faster (1.7s "live") than idle (3s).
+  // Signal march: a lit dash overlay rides the SAME routed `d` as the core strand, so the band
+  // follows every leg of a multi-turn route (a chord-axis gradient cannot — legs running against
+  // the chord appeared to flow backwards). Keyframes live in liveSignal.css: stroke-dashoffset
+  // 72→0 moves the dashes forward along path direction = source→target; the --reverse variant
+  // plays the same animation backwards. The selected edge marches faster (1.7s) than idle (3s).
   // Gated by the liveSignal store flag (default OFF); skipped under reduced motion, for wireless,
   // and for direct-attach. Touches no routing geometry, marker, hit area, or default appearance.
-  // Also skipped on a dashed core: the band is a solid sweep, so riding it over a dash pattern
-  // puts two competing rhythms on one strand and neither reads.
+  // Also skipped on a dashed core: the march is itself a dash pattern, so riding it over another
+  // dash rhythm puts two competing cadences on one strand and neither reads.
   const showLiveBand =
     liveSignal && !motionOff && !!routeStr && !isWireless && !directAttach && !coreDash;
-  const bandId = `cur-band-${id}`;
-  const bandDx = targetX - sourceX;
-  const bandDy = targetY - sourceY;
-  const bandLen = Math.hypot(bandDx, bandDy) || 1;
-  const bandUx = bandDx / bandLen;
-  const bandUy = bandDy / bandLen;
-  const BAND_PERIOD = 72;
   const bandBright = `color-mix(in srgb, white 65%, ${signalColor})`;
-  // One travelling brightness band. `sign`: -1 sweeps toward the TARGET (source→target), +1 toward
-  // the source — SVG translate moves the lit band OPPOSITE to the translate (verified empirically).
-  const renderBand = (sign: 1 | -1, key: string) => {
-    const gid = `${bandId}-${key}`;
-    return (
-      <g key={key} style={{ pointerEvents: "none" }}>
-        <defs>
-          <linearGradient
-            id={gid}
-            gradientUnits="userSpaceOnUse"
-            spreadMethod="repeat"
-            x1={sourceX}
-            y1={sourceY}
-            x2={sourceX + bandUx * BAND_PERIOD}
-            y2={sourceY + bandUy * BAND_PERIOD}
-          >
-            <stop offset="0" stopColor={signalColor} stopOpacity={0} />
-            <stop offset="0.38" stopColor={signalColor} stopOpacity={0} />
-            <stop offset="0.5" stopColor={bandBright} stopOpacity={0.9} />
-            <stop offset="0.62" stopColor={signalColor} stopOpacity={0} />
-            <stop offset="1" stopColor={signalColor} stopOpacity={0} />
-            <animateTransform
-              attributeName="gradientTransform"
-              type="translate"
-              from="0 0"
-              to={`${sign * bandUx * BAND_PERIOD} ${sign * bandUy * BAND_PERIOD}`}
-              dur={selected ? "1.7s" : "3s"}
-              repeatCount="indefinite"
-            />
-          </linearGradient>
-        </defs>
-        <path
-          d={edgePath}
-          fill="none"
-          stroke={`url(#${gid})`}
-          strokeWidth={coreW}
-          strokeLinecap="round"
-        />
-      </g>
-    );
-  };
-  // Band travels OUTPUT→INPUT: forward (source is the output) sweeps source→target = sign -1;
-  // reverse sweeps the other way = sign +1; bi (a bidirectional port like Ethernet) renders BOTH.
+  // One marching overlay. `reverse` plays the march target→source (used when the OUTPUT port is
+  // the target end). `phase` offsets the dash pattern so the bi pair doesn't strobe where the
+  // two opposing marches cross.
+  const renderBand = (reverse: boolean, key: string, phase = 0) => (
+    <path
+      key={key}
+      className={
+        "cur-dash-march" +
+        (reverse ? " cur-dash-march--reverse" : "") +
+        (selected ? " cur-dash-march--live" : "")
+      }
+      d={edgePath}
+      fill="none"
+      stroke={bandBright}
+      strokeWidth={coreW}
+      strokeLinecap="round"
+      strokeOpacity={0.9}
+      style={{ pointerEvents: "none", ...(phase ? { animationDelay: `${phase}s` } : {}) }}
+    />
+  );
+  // Band travels OUTPUT→INPUT: forward (source end is the output) marches source→target;
+  // reverse marches the other way. bi (both ends bidirectional, e.g. Ethernet) renders BOTH
+  // directions as two phase-offset marches — the chosen bi treatment (kept from the gradient
+  // era) — so the link reads as live traffic with no false directionality.
   const liveBandLayer = showLiveBand ? (
     flowDir === "bi" ? (
       <>
-        {renderBand(-1, "fwd")}
-        {renderBand(1, "rev")}
+        {renderBand(false, "fwd")}
+        {renderBand(true, "rev", -1.5)}
       </>
     ) : (
-      renderBand(flowDir === "reverse" ? 1 : -1, "flow")
+      renderBand(flowDir === "reverse", "flow")
     )
   ) : null;
 

@@ -17,7 +17,7 @@
     "file": "audio/antenna.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "broadcast-tower",
@@ -31,7 +31,7 @@
     "file": "audio/broadcast-tower.svg",
     "source": "https://github.com/FortAwesome/Font-Awesome",
     "license": "CC-BY-4.0",
-    "attribution": "Font Awesome Free 6 (fontawesome.com) \u2014 Icons: CC BY 4.0 License, \u00a9 Fonticons, Inc."
+    "attribution": "Font Awesome Free 6 (fontawesome.com) — Icons: CC BY 4.0 License, © Fonticons, Inc."
   },
   {
     "id": "podcast-rf",
@@ -45,7 +45,7 @@
     "file": "audio/podcast-rf.svg",
     "source": "https://github.com/google/material-design-icons",
     "license": "Apache-2.0",
-    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+    "attribution": "Material Symbols (fonts.google.com/icons) — Apache License 2.0, © Google"
   },
   {
     "id": "ceiling-speaker",
@@ -59,7 +59,7 @@
     "file": "audio/ceiling-speaker.svg",
     "source": "https://github.com/google/material-design-icons",
     "license": "Apache-2.0",
-    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+    "attribution": "Material Symbols (fonts.google.com/icons) — Apache License 2.0, © Google"
   },
   {
     "id": "column-speaker",
@@ -78,7 +78,7 @@
     "file": "audio/column-speaker.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "di-box",
@@ -98,7 +98,7 @@
     "file": "audio/di-box.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "dsp-processor",
@@ -112,7 +112,7 @@
     "file": "audio/dsp-processor.svg",
     "source": "https://github.com/google/material-design-icons",
     "license": "Apache-2.0",
-    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+    "attribution": "Material Symbols (fonts.google.com/icons) — Apache License 2.0, © Google"
   },
   {
     "id": "equalizer",
@@ -132,7 +132,7 @@
     "file": "audio/equalizer.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "headphones",
@@ -150,7 +150,7 @@
     "file": "audio/headphones.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "headphones-fa",
@@ -164,7 +164,7 @@
     "file": "audio/headphones-fa.svg",
     "source": "https://github.com/FortAwesome/Font-Awesome",
     "license": "CC-BY-4.0",
-    "attribution": "Font Awesome Free 6 (fontawesome.com) \u2014 Icons: CC BY 4.0 License, \u00a9 Fonticons, Inc."
+    "attribution": "Font Awesome Free 6 (fontawesome.com) — Icons: CC BY 4.0 License, © Fonticons, Inc."
   },
   {
     "id": "iem-in-ear-monitor",
@@ -183,7 +183,7 @@
     "file": "audio/iem-in-ear-monitor.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "line-array",
@@ -197,7 +197,7 @@
     "file": "audio/line-array.svg",
     "source": "https://github.com/game-icons/icons",
     "license": "CC-BY-3.0",
-    "attribution": "Delapouite (delapouite.com) \u2014 game-icons.net, CC BY 3.0"
+    "attribution": "Delapouite (delapouite.com) — game-icons.net, CC BY 3.0"
   },
   {
     "id": "loudspeaker",
@@ -216,7 +216,7 @@
     "file": "audio/loudspeaker.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "speaker-fa",
@@ -230,7 +230,7 @@
     "file": "audio/speaker-fa.svg",
     "source": "https://github.com/FortAwesome/Font-Awesome",
     "license": "CC-BY-4.0",
-    "attribution": "Font Awesome Free 6 (fontawesome.com) \u2014 Icons: CC BY 4.0 License, \u00a9 Fonticons, Inc."
+    "attribution": "Font Awesome Free 6 (fontawesome.com) — Icons: CC BY 4.0 License, © Fonticons, Inc."
   },
   {
     "id": "media-player",
@@ -250,7 +250,7 @@
     "file": "audio/media-player.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "playlist",
@@ -270,7 +270,7 @@
     "file": "audio/playlist.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "microphone-boundary",
@@ -284,7 +284,7 @@
     "file": "audio/microphone-boundary.svg",
     "source": "https://github.com/google/material-design-icons",
     "license": "Apache-2.0",
-    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+    "attribution": "Material Symbols (fonts.google.com/icons) — Apache License 2.0, © Google"
   },
   {
     "id": "microphone-condenser",
@@ -298,7 +298,7 @@
     "file": "audio/microphone-condenser.svg",
     "source": "https://github.com/game-icons/icons",
     "license": "CC-BY-3.0",
-    "attribution": "Delapouite (delapouite.com) \u2014 game-icons.net, CC BY 3.0"
+    "attribution": "Delapouite (delapouite.com) — game-icons.net, CC BY 3.0"
   },
   {
     "id": "microphone-fa",
@@ -312,7 +312,7 @@
     "file": "audio/microphone-fa.svg",
     "source": "https://github.com/FortAwesome/Font-Awesome",
     "license": "CC-BY-4.0",
-    "attribution": "Font Awesome Free 6 (fontawesome.com) \u2014 Icons: CC BY 4.0 License, \u00a9 Fonticons, Inc."
+    "attribution": "Font Awesome Free 6 (fontawesome.com) — Icons: CC BY 4.0 License, © Fonticons, Inc."
   },
   {
     "id": "microphone-handheld",
@@ -332,7 +332,7 @@
     "file": "audio/microphone-handheld.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "microphone-lavalier",
@@ -346,7 +346,7 @@
     "file": "audio/microphone-lavalier.svg",
     "source": "https://github.com/FortAwesome/Font-Awesome",
     "license": "CC-BY-4.0",
-    "attribution": "Font Awesome Free 6 (fontawesome.com) \u2014 Icons: CC BY 4.0 License, \u00a9 Fonticons, Inc."
+    "attribution": "Font Awesome Free 6 (fontawesome.com) — Icons: CC BY 4.0 License, © Fonticons, Inc."
   },
   {
     "id": "microphone-studio",
@@ -360,7 +360,7 @@
     "file": "audio/microphone-studio.svg",
     "source": "https://github.com/google/material-design-icons",
     "license": "Apache-2.0",
-    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+    "attribution": "Material Symbols (fonts.google.com/icons) — Apache License 2.0, © Google"
   },
   {
     "id": "mixer-faders",
@@ -380,7 +380,7 @@
     "file": "audio/mixer-faders.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "mixing-console",
@@ -394,7 +394,7 @@
     "file": "audio/mixing-console.svg",
     "source": "https://github.com/google/material-design-icons",
     "license": "Apache-2.0",
-    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+    "attribution": "Material Symbols (fonts.google.com/icons) — Apache License 2.0, © Google"
   },
   {
     "id": "mixing-desk",
@@ -408,7 +408,7 @@
     "file": "audio/mixing-desk.svg",
     "source": "https://github.com/game-icons/icons",
     "license": "CC-BY-3.0",
-    "attribution": "Delapouite (delapouite.com) \u2014 game-icons.net, CC BY 3.0"
+    "attribution": "Delapouite (delapouite.com) — game-icons.net, CC BY 3.0"
   },
   {
     "id": "point-source-speaker",
@@ -422,7 +422,7 @@
     "file": "audio/point-source-speaker.svg",
     "source": "https://github.com/google/material-design-icons",
     "license": "Apache-2.0",
-    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+    "attribution": "Material Symbols (fonts.google.com/icons) — Apache License 2.0, © Google"
   },
   {
     "id": "amplifier-fa",
@@ -436,7 +436,7 @@
     "file": "audio/amplifier-fa.svg",
     "source": "https://github.com/FortAwesome/Font-Awesome",
     "license": "CC-BY-4.0",
-    "attribution": "Font Awesome Free 6 (fontawesome.com) \u2014 Icons: CC BY 4.0 License, \u00a9 Fonticons, Inc."
+    "attribution": "Font Awesome Free 6 (fontawesome.com) — Icons: CC BY 4.0 License, © Fonticons, Inc."
   },
   {
     "id": "power-amplifier",
@@ -456,7 +456,7 @@
     "file": "audio/power-amplifier.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "stage-box-snake",
@@ -476,7 +476,7 @@
     "file": "audio/stage-box-snake.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "stage-monitor-wedge",
@@ -490,7 +490,7 @@
     "file": "audio/stage-monitor-wedge.svg",
     "source": "https://github.com/game-icons/icons",
     "license": "CC-BY-3.0",
-    "attribution": "Delapouite (delapouite.com) \u2014 game-icons.net, CC BY 3.0"
+    "attribution": "Delapouite (delapouite.com) — game-icons.net, CC BY 3.0"
   },
   {
     "id": "subwoofer",
@@ -504,7 +504,7 @@
     "file": "audio/subwoofer.svg",
     "source": "https://github.com/google/material-design-icons",
     "license": "Apache-2.0",
-    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+    "attribution": "Material Symbols (fonts.google.com/icons) — Apache License 2.0, © Google"
   },
   {
     "id": "subwoofer-speaker",
@@ -518,7 +518,7 @@
     "file": "audio/subwoofer-speaker.svg",
     "source": "https://github.com/google/material-design-icons",
     "license": "Apache-2.0",
-    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+    "attribution": "Material Symbols (fonts.google.com/icons) — Apache License 2.0, © Google"
   },
   {
     "id": "waveform",
@@ -538,7 +538,7 @@
     "file": "audio/waveform.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "wireless-mic",
@@ -552,7 +552,185 @@
     "file": "audio/wireless-mic.svg",
     "source": "https://github.com/google/material-design-icons",
     "license": "Apache-2.0",
-    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+    "attribution": "Material Symbols (fonts.google.com/icons) — Apache License 2.0, © Google"
+  },
+  {
+    "id": "control-processor",
+    "name": "Control Processor",
+    "category": "compute",
+    "subcategory": "control-processor",
+    "tags": [
+      "control processor",
+      "compute",
+      "processor",
+      "computer",
+      "chip",
+      "hardware",
+      "technology",
+      "electronic"
+    ],
+    "file": "compute/control-processor.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "desktop",
+    "name": "Desktop",
+    "category": "compute",
+    "subcategory": "desktop",
+    "tags": [
+      "desktop",
+      "compute",
+      "monitor",
+      "computer",
+      "imac",
+      "device",
+      "hardware"
+    ],
+    "file": "compute/desktop.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "keyboard",
+    "name": "Keyboard",
+    "category": "compute",
+    "subcategory": "keyboard",
+    "tags": [
+      "keyboard",
+      "compute",
+      "computer",
+      "laptop",
+      "device",
+      "type",
+      "hardware"
+    ],
+    "file": "compute/keyboard.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "kvm-switch",
+    "name": "KVM Switch",
+    "category": "compute",
+    "subcategory": "kvm",
+    "tags": [
+      "kvm",
+      "compute"
+    ],
+    "file": "compute/kvm-switch.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) — Apache License 2.0, © Google"
+  },
+  {
+    "id": "laptop",
+    "name": "Laptop",
+    "category": "compute",
+    "subcategory": "laptop",
+    "tags": [
+      "laptop",
+      "compute",
+      "workstation",
+      "mac",
+      "notebook",
+      "portable",
+      "screen",
+      "computer"
+    ],
+    "file": "compute/laptop.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "phone",
+    "name": "Phone",
+    "category": "compute",
+    "subcategory": "phone",
+    "tags": [
+      "phone",
+      "compute",
+      "iphone",
+      "smartphone",
+      "cellphone",
+      "device",
+      "mobile"
+    ],
+    "file": "compute/phone.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "rack-server",
+    "name": "Rack Server",
+    "category": "compute",
+    "subcategory": "rack-server",
+    "tags": [
+      "rack server",
+      "compute",
+      "storage",
+      "hosting",
+      "www",
+      "server",
+      "hardware",
+      "technology"
+    ],
+    "file": "compute/rack-server.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "sbc-board",
+    "name": "SBC Board",
+    "category": "compute",
+    "subcategory": "sbc-board",
+    "tags": [
+      "sbc board",
+      "compute"
+    ],
+    "file": "compute/sbc-board.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) — Apache License 2.0, © Google"
+  },
+  {
+    "id": "tablet",
+    "name": "Tablet",
+    "category": "compute",
+    "subcategory": "tablet",
+    "tags": [
+      "tablet",
+      "compute",
+      "ipad",
+      "mobile",
+      "touchscreen",
+      "portable",
+      "device"
+    ],
+    "file": "compute/tablet.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "touch-panel",
+    "name": "Touch Panel",
+    "category": "compute",
+    "subcategory": "touch-panel",
+    "tags": [
+      "touch panel",
+      "compute"
+    ],
+    "file": "compute/touch-panel.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) — Apache License 2.0, © Google"
   },
   {
     "id": "banquet-table",
@@ -566,7 +744,7 @@
     "file": "furniture/banquet-table.svg",
     "source": "https://github.com/google/material-design-icons",
     "license": "Apache-2.0",
-    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+    "attribution": "Material Symbols (fonts.google.com/icons) — Apache License 2.0, © Google"
   },
   {
     "id": "bar-counter",
@@ -580,7 +758,7 @@
     "file": "furniture/bar-counter.svg",
     "source": "https://github.com/google/material-design-icons",
     "license": "Apache-2.0",
-    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+    "attribution": "Material Symbols (fonts.google.com/icons) — Apache License 2.0, © Google"
   },
   {
     "id": "chair",
@@ -594,7 +772,7 @@
     "file": "furniture/chair.svg",
     "source": "https://github.com/google/material-design-icons",
     "license": "Apache-2.0",
-    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+    "attribution": "Material Symbols (fonts.google.com/icons) — Apache License 2.0, © Google"
   },
   {
     "id": "chair-gameicon",
@@ -608,7 +786,7 @@
     "file": "furniture/chair-gameicon.svg",
     "source": "https://github.com/game-icons/icons",
     "license": "CC-BY-3.0",
-    "attribution": "Delapouite (delapouite.com) \u2014 game-icons.net, CC BY 3.0"
+    "attribution": "Delapouite (delapouite.com) — game-icons.net, CC BY 3.0"
   },
   {
     "id": "cocktail-poseur-table",
@@ -622,7 +800,7 @@
     "file": "furniture/cocktail-poseur-table.svg",
     "source": "https://github.com/google/material-design-icons",
     "license": "Apache-2.0",
-    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+    "attribution": "Material Symbols (fonts.google.com/icons) — Apache License 2.0, © Google"
   },
   {
     "id": "dancefloor",
@@ -636,7 +814,7 @@
     "file": "furniture/dancefloor.svg",
     "source": "https://github.com/game-icons/icons",
     "license": "CC-BY-3.0",
-    "attribution": "Delapouite (delapouite.com) \u2014 game-icons.net, CC BY 3.0"
+    "attribution": "Delapouite (delapouite.com) — game-icons.net, CC BY 3.0"
   },
   {
     "id": "dj-booth",
@@ -650,7 +828,7 @@
     "file": "furniture/dj-booth.svg",
     "source": "https://github.com/game-icons/icons",
     "license": "CC-BY-3.0",
-    "attribution": "Delapouite (delapouite.com) \u2014 game-icons.net, CC BY 3.0"
+    "attribution": "Delapouite (delapouite.com) — game-icons.net, CC BY 3.0"
   },
   {
     "id": "door",
@@ -664,7 +842,7 @@
     "file": "furniture/door.svg",
     "source": "https://github.com/google/material-design-icons",
     "license": "Apache-2.0",
-    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+    "attribution": "Material Symbols (fonts.google.com/icons) — Apache License 2.0, © Google"
   },
   {
     "id": "door-open",
@@ -678,7 +856,7 @@
     "file": "furniture/door-open.svg",
     "source": "https://github.com/google/material-design-icons",
     "license": "Apache-2.0",
-    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+    "attribution": "Material Symbols (fonts.google.com/icons) — Apache License 2.0, © Google"
   },
   {
     "id": "double-door",
@@ -692,7 +870,7 @@
     "file": "furniture/double-door.svg",
     "source": "https://github.com/google/material-design-icons",
     "license": "Apache-2.0",
-    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+    "attribution": "Material Symbols (fonts.google.com/icons) — Apache License 2.0, © Google"
   },
   {
     "id": "lectern-podium",
@@ -706,7 +884,7 @@
     "file": "furniture/lectern-podium.svg",
     "source": "https://github.com/game-icons/icons",
     "license": "CC-BY-3.0",
-    "attribution": "Delapouite (delapouite.com) \u2014 game-icons.net, CC BY 3.0"
+    "attribution": "Delapouite (delapouite.com) — game-icons.net, CC BY 3.0"
   },
   {
     "id": "podium-speaker",
@@ -720,7 +898,7 @@
     "file": "furniture/podium-speaker.svg",
     "source": "https://github.com/google/material-design-icons",
     "license": "Apache-2.0",
-    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+    "attribution": "Material Symbols (fonts.google.com/icons) — Apache License 2.0, © Google"
   },
   {
     "id": "lighting-fixture",
@@ -734,7 +912,7 @@
     "file": "furniture/lighting-fixture.svg",
     "source": "https://github.com/google/material-design-icons",
     "license": "Apache-2.0",
-    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+    "attribution": "Material Symbols (fonts.google.com/icons) — Apache License 2.0, © Google"
   },
   {
     "id": "mic-stand",
@@ -748,7 +926,7 @@
     "file": "furniture/mic-stand.svg",
     "source": "https://github.com/game-icons/icons",
     "license": "CC-BY-3.0",
-    "attribution": "Delapouite (delapouite.com) \u2014 game-icons.net, CC BY 3.0"
+    "attribution": "Delapouite (delapouite.com) — game-icons.net, CC BY 3.0"
   },
   {
     "id": "people-group",
@@ -768,7 +946,7 @@
     "file": "furniture/people-group.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "person-audience",
@@ -782,7 +960,7 @@
     "file": "furniture/person-audience.svg",
     "source": "https://github.com/google/material-design-icons",
     "license": "Apache-2.0",
-    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+    "attribution": "Material Symbols (fonts.google.com/icons) — Apache License 2.0, © Google"
   },
   {
     "id": "pillar-column",
@@ -796,7 +974,7 @@
     "file": "furniture/pillar-column.svg",
     "source": "https://github.com/game-icons/icons",
     "license": "CC-BY-3.0",
-    "attribution": "Delapouite (delapouite.com) \u2014 game-icons.net, CC BY 3.0"
+    "attribution": "Delapouite (delapouite.com) — game-icons.net, CC BY 3.0"
   },
   {
     "id": "pipe-and-drape",
@@ -810,7 +988,7 @@
     "file": "furniture/pipe-and-drape.svg",
     "source": "https://github.com/google/material-design-icons",
     "license": "Apache-2.0",
-    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+    "attribution": "Material Symbols (fonts.google.com/icons) — Apache License 2.0, © Google"
   },
   {
     "id": "plant-tree",
@@ -824,7 +1002,7 @@
     "file": "furniture/plant-tree.svg",
     "source": "https://github.com/google/material-design-icons",
     "license": "Apache-2.0",
-    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+    "attribution": "Material Symbols (fonts.google.com/icons) — Apache License 2.0, © Google"
   },
   {
     "id": "potted-plant",
@@ -838,7 +1016,7 @@
     "file": "furniture/potted-plant.svg",
     "source": "https://github.com/google/material-design-icons",
     "license": "Apache-2.0",
-    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+    "attribution": "Material Symbols (fonts.google.com/icons) — Apache License 2.0, © Google"
   },
   {
     "id": "rectangular-table",
@@ -852,7 +1030,7 @@
     "file": "furniture/rectangular-table.svg",
     "source": "https://github.com/game-icons/icons",
     "license": "CC-BY-3.0",
-    "attribution": "Delapouite (delapouite.com) \u2014 game-icons.net, CC BY 3.0"
+    "attribution": "Delapouite (delapouite.com) — game-icons.net, CC BY 3.0"
   },
   {
     "id": "round-table",
@@ -866,7 +1044,7 @@
     "file": "furniture/round-table.svg",
     "source": "https://github.com/game-icons/icons",
     "license": "CC-BY-3.0",
-    "attribution": "Delapouite (delapouite.com) \u2014 game-icons.net, CC BY 3.0"
+    "attribution": "Delapouite (delapouite.com) — game-icons.net, CC BY 3.0"
   },
   {
     "id": "round-table-restaurant",
@@ -880,7 +1058,7 @@
     "file": "furniture/round-table-restaurant.svg",
     "source": "https://github.com/google/material-design-icons",
     "license": "Apache-2.0",
-    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+    "attribution": "Material Symbols (fonts.google.com/icons) — Apache License 2.0, © Google"
   },
   {
     "id": "sofa",
@@ -894,7 +1072,7 @@
     "file": "furniture/sofa.svg",
     "source": "https://github.com/google/material-design-icons",
     "license": "Apache-2.0",
-    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+    "attribution": "Material Symbols (fonts.google.com/icons) — Apache License 2.0, © Google"
   },
   {
     "id": "sofa-couch",
@@ -912,7 +1090,7 @@
     "file": "furniture/sofa-couch.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "speaker-stand-tripod",
@@ -932,7 +1110,7 @@
     "file": "furniture/speaker-stand-tripod.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "stackable-chair",
@@ -946,7 +1124,7 @@
     "file": "furniture/stackable-chair.svg",
     "source": "https://github.com/google/material-design-icons",
     "license": "Apache-2.0",
-    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+    "attribution": "Material Symbols (fonts.google.com/icons) — Apache License 2.0, © Google"
   },
   {
     "id": "stage-deck-riser",
@@ -960,7 +1138,7 @@
     "file": "furniture/stage-deck-riser.svg",
     "source": "https://github.com/google/material-design-icons",
     "license": "Apache-2.0",
-    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+    "attribution": "Material Symbols (fonts.google.com/icons) — Apache License 2.0, © Google"
   },
   {
     "id": "stage-platform",
@@ -974,7 +1152,7 @@
     "file": "furniture/stage-platform.svg",
     "source": "https://github.com/game-icons/icons",
     "license": "CC-BY-3.0",
-    "attribution": "Delapouite (delapouite.com) \u2014 game-icons.net, CC BY 3.0"
+    "attribution": "Delapouite (delapouite.com) — game-icons.net, CC BY 3.0"
   },
   {
     "id": "truss-segment",
@@ -993,7 +1171,7 @@
     "file": "furniture/truss-segment.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "window",
@@ -1007,7 +1185,7 @@
     "file": "furniture/window.svg",
     "source": "https://github.com/google/material-design-icons",
     "license": "Apache-2.0",
-    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+    "attribution": "Material Symbols (fonts.google.com/icons) — Apache License 2.0, © Google"
   },
   {
     "id": "arrow-narrow-right",
@@ -1026,7 +1204,7 @@
     "file": "generic/arrow-narrow-right.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "arrow-right",
@@ -1045,7 +1223,7 @@
     "file": "generic/arrow-right.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "brace",
@@ -1065,7 +1243,7 @@
     "file": "generic/brace.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "bracket",
@@ -1085,7 +1263,7 @@
     "file": "generic/bracket.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "callout-corner",
@@ -1099,7 +1277,7 @@
     "file": "generic/callout-corner.svg",
     "source": "https://github.com/lucide-icons/lucide",
     "license": "ISC",
-    "attribution": "Lucide (lucide.dev) \u2014 ISC License, \u00a9 Lucide Contributors. Forked from Feather (MIT, \u00a9 Cole Bemis)."
+    "attribution": "Lucide (lucide.dev) — ISC License, © Lucide Contributors. Forked from Feather (MIT, © Cole Bemis)."
   },
   {
     "id": "callout-speech",
@@ -1119,7 +1297,7 @@
     "file": "generic/callout-speech.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "circle",
@@ -1138,7 +1316,7 @@
     "file": "generic/circle.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "circle-lucide",
@@ -1152,7 +1330,7 @@
     "file": "generic/circle-lucide.svg",
     "source": "https://github.com/lucide-icons/lucide",
     "license": "ISC",
-    "attribution": "Lucide (lucide.dev) \u2014 ISC License, \u00a9 Lucide Contributors. Forked from Feather (MIT, \u00a9 Cole Bemis)."
+    "attribution": "Lucide (lucide.dev) — ISC License, © Lucide Contributors. Forked from Feather (MIT, © Cole Bemis)."
   },
   {
     "id": "x",
@@ -1172,7 +1350,7 @@
     "file": "generic/x.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "dimensions",
@@ -1192,7 +1370,7 @@
     "file": "generic/dimensions.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "ruler",
@@ -1212,7 +1390,7 @@
     "file": "generic/ruler.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "ruler-measure",
@@ -1232,7 +1410,7 @@
     "file": "generic/ruler-measure.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "arrow-left-right",
@@ -1246,7 +1424,7 @@
     "file": "generic/arrow-left-right.svg",
     "source": "https://github.com/lucide-icons/lucide",
     "license": "ISC",
-    "attribution": "Lucide (lucide.dev) \u2014 ISC License, \u00a9 Lucide Contributors. Forked from Feather (MIT, \u00a9 Cole Bemis)."
+    "attribution": "Lucide (lucide.dev) — ISC License, © Lucide Contributors. Forked from Feather (MIT, © Cole Bemis)."
   },
   {
     "id": "arrows-horizontal",
@@ -1266,7 +1444,7 @@
     "file": "generic/arrows-horizontal.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "ellipse",
@@ -1286,7 +1464,7 @@
     "file": "generic/ellipse.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "grid",
@@ -1306,7 +1484,7 @@
     "file": "generic/grid.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "grid-dots",
@@ -1325,7 +1503,7 @@
     "file": "generic/grid-dots.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "hexagon",
@@ -1344,7 +1522,7 @@
     "file": "generic/hexagon.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "line",
@@ -1363,7 +1541,7 @@
     "file": "generic/line.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "line-dashed",
@@ -1382,7 +1560,7 @@
     "file": "generic/line-dashed.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "navigation",
@@ -1396,7 +1574,7 @@
     "file": "generic/navigation.svg",
     "source": "https://github.com/lucide-icons/lucide",
     "license": "ISC",
-    "attribution": "Lucide (lucide.dev) \u2014 ISC License, \u00a9 Lucide Contributors. Forked from Feather (MIT, \u00a9 Cole Bemis)."
+    "attribution": "Lucide (lucide.dev) — ISC License, © Lucide Contributors. Forked from Feather (MIT, © Cole Bemis)."
   },
   {
     "id": "north-arrow-compass",
@@ -1416,7 +1594,7 @@
     "file": "generic/north-arrow-compass.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "plus",
@@ -1435,7 +1613,7 @@
     "file": "generic/plus.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "rectangle",
@@ -1454,7 +1632,7 @@
     "file": "generic/rectangle.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "rounded-rectangle",
@@ -1474,7 +1652,7 @@
     "file": "generic/rounded-rectangle.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "scale-ruler-2",
@@ -1494,7 +1672,7 @@
     "file": "generic/scale-ruler-2.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "star",
@@ -1513,7 +1691,7 @@
     "file": "generic/star.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "letter-t",
@@ -1533,7 +1711,7 @@
     "file": "generic/letter-t.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "text-label",
@@ -1553,7 +1731,7 @@
     "file": "generic/text-label.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "triangle",
@@ -1572,7 +1750,7 @@
     "file": "generic/triangle.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "triangle-bootstrap",
@@ -1586,7 +1764,7 @@
     "file": "generic/triangle-bootstrap.svg",
     "source": "https://github.com/twbs/icons",
     "license": "MIT",
-    "attribution": "Bootstrap Icons (icons.getbootstrap.com) \u2014 MIT License, \u00a9 The Bootstrap Authors"
+    "attribution": "Bootstrap Icons (icons.getbootstrap.com) — MIT License, © The Bootstrap Authors"
   },
   {
     "id": "zone-polygon",
@@ -1606,7 +1784,7 @@
     "file": "generic/zone-polygon.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "zone-rectangle-dashed",
@@ -1626,7 +1804,171 @@
     "file": "generic/zone-rectangle-dashed.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "blinder",
+    "name": "Blinder",
+    "category": "lighting",
+    "subcategory": "blinder",
+    "tags": [
+      "blinder",
+      "lighting"
+    ],
+    "file": "lighting/blinder.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) — Apache License 2.0, © Google"
+  },
+  {
+    "id": "dimmer",
+    "name": "Dimmer",
+    "category": "lighting",
+    "subcategory": "dimmer",
+    "tags": [
+      "dimmer",
+      "lighting"
+    ],
+    "file": "lighting/dimmer.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) — Apache License 2.0, © Google"
+  },
+  {
+    "id": "fresnel",
+    "name": "Fresnel",
+    "category": "lighting",
+    "subcategory": "fresnel",
+    "tags": [
+      "fresnel",
+      "lighting"
+    ],
+    "file": "lighting/fresnel.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) — Apache License 2.0, © Google"
+  },
+  {
+    "id": "hazer",
+    "name": "Hazer",
+    "category": "lighting",
+    "subcategory": "hazer",
+    "tags": [
+      "hazer",
+      "lighting",
+      "weather",
+      "breeze",
+      "tornado",
+      "typhoon",
+      "cyclone",
+      "hurricane"
+    ],
+    "file": "lighting/hazer.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "lighting-console",
+    "name": "Lighting Console",
+    "category": "lighting",
+    "subcategory": "lighting-console",
+    "tags": [
+      "lighting console",
+      "lighting",
+      "equalizer",
+      "sliders",
+      "controls",
+      "settings",
+      "filter",
+      "adjustments"
+    ],
+    "file": "lighting/lighting-console.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "moving-head",
+    "name": "Moving Head",
+    "category": "lighting",
+    "subcategory": "moving-head",
+    "tags": [
+      "moving head",
+      "lighting"
+    ],
+    "file": "lighting/moving-head.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) — Apache License 2.0, © Google"
+  },
+  {
+    "id": "par-can",
+    "name": "Par Can",
+    "category": "lighting",
+    "subcategory": "par-can",
+    "tags": [
+      "par can",
+      "lighting"
+    ],
+    "file": "lighting/par-can.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) — Apache License 2.0, © Google"
+  },
+  {
+    "id": "strobe",
+    "name": "Strobe",
+    "category": "lighting",
+    "subcategory": "strobe",
+    "tags": [
+      "strobe",
+      "lighting",
+      "energy",
+      "power",
+      "electricity",
+      "storm",
+      "lightning",
+      "flash"
+    ],
+    "file": "lighting/strobe.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "wash-light",
+    "name": "Wash Light",
+    "category": "lighting",
+    "subcategory": "wash-light",
+    "tags": [
+      "wash light",
+      "lighting"
+    ],
+    "file": "lighting/wash-light.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) — Apache License 2.0, © Google"
+  },
+  {
+    "id": "worklight",
+    "name": "Worklight",
+    "category": "lighting",
+    "subcategory": "worklight",
+    "tags": [
+      "worklight",
+      "lighting",
+      "energy",
+      "power",
+      "electricity",
+      "creativity",
+      "light",
+      "idea"
+    ],
+    "file": "lighting/worklight.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "wifi",
@@ -1646,7 +1988,7 @@
     "file": "network/wifi.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "wireless-access-point",
@@ -1665,7 +2007,7 @@
     "file": "network/wireless-access-point.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "cloud",
@@ -1684,7 +2026,7 @@
     "file": "network/cloud.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "cloud-network",
@@ -1703,7 +2045,7 @@
     "file": "network/cloud-network.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "equipment-rack",
@@ -1723,7 +2065,7 @@
     "file": "network/equipment-rack.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "rack-fa",
@@ -1737,7 +2079,7 @@
     "file": "network/rack-fa.svg",
     "source": "https://github.com/FortAwesome/Font-Awesome",
     "license": "CC-BY-4.0",
-    "attribution": "Font Awesome Free 6 (fontawesome.com) \u2014 Icons: CC BY 4.0 License, \u00a9 Fonticons, Inc."
+    "attribution": "Font Awesome Free 6 (fontawesome.com) — Icons: CC BY 4.0 License, © Fonticons, Inc."
   },
   {
     "id": "firewall",
@@ -1756,7 +2098,7 @@
     "file": "network/firewall.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "shield-firewall",
@@ -1776,7 +2118,7 @@
     "file": "network/shield-firewall.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "media-converter",
@@ -1796,7 +2138,7 @@
     "file": "network/media-converter.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "modem",
@@ -1816,7 +2158,7 @@
     "file": "network/modem.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "modem-router",
@@ -1830,7 +2172,7 @@
     "file": "network/modem-router.svg",
     "source": "https://github.com/google/material-design-icons",
     "license": "Apache-2.0",
-    "attribution": "Material Symbols (fonts.google.com/icons) \u2014 Apache License 2.0, \u00a9 Google"
+    "attribution": "Material Symbols (fonts.google.com/icons) — Apache License 2.0, © Google"
   },
   {
     "id": "nas-database",
@@ -1850,7 +2192,7 @@
     "file": "network/nas-database.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "nas-stack",
@@ -1870,7 +2212,7 @@
     "file": "network/nas-stack.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "topology-ring",
@@ -1889,7 +2231,7 @@
     "file": "network/topology-ring.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "topology-star",
@@ -1908,7 +2250,7 @@
     "file": "network/topology-star.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "ethernet-port",
@@ -1922,7 +2264,7 @@
     "file": "network/ethernet-port.svg",
     "source": "https://github.com/FortAwesome/Font-Awesome",
     "license": "CC-BY-4.0",
-    "attribution": "Font Awesome Free 6 (fontawesome.com) \u2014 Icons: CC BY 4.0 License, \u00a9 Fonticons, Inc."
+    "attribution": "Font Awesome Free 6 (fontawesome.com) — Icons: CC BY 4.0 License, © Fonticons, Inc."
   },
   {
     "id": "nic-endpoint-desktop",
@@ -1942,7 +2284,7 @@
     "file": "network/nic-endpoint-desktop.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "patch-panel",
@@ -1961,7 +2303,7 @@
     "file": "network/patch-panel.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "poe-injector",
@@ -1981,7 +2323,7 @@
     "file": "network/poe-injector.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "router",
@@ -2001,7 +2343,7 @@
     "file": "network/router.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "router-fa",
@@ -2015,7 +2357,7 @@
     "file": "network/router-fa.svg",
     "source": "https://github.com/FortAwesome/Font-Awesome",
     "license": "CC-BY-4.0",
-    "attribution": "Font Awesome Free 6 (fontawesome.com) \u2014 Icons: CC BY 4.0 License, \u00a9 Fonticons, Inc."
+    "attribution": "Font Awesome Free 6 (fontawesome.com) — Icons: CC BY 4.0 License, © Fonticons, Inc."
   },
   {
     "id": "server",
@@ -2034,7 +2376,7 @@
     "file": "network/server.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "server-2",
@@ -2053,7 +2395,7 @@
     "file": "network/server-2.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "server-fa",
@@ -2067,7 +2409,7 @@
     "file": "network/server-fa.svg",
     "source": "https://github.com/FortAwesome/Font-Awesome",
     "license": "CC-BY-4.0",
-    "attribution": "Font Awesome Free 6 (fontawesome.com) \u2014 Icons: CC BY 4.0 License, \u00a9 Fonticons, Inc."
+    "attribution": "Font Awesome Free 6 (fontawesome.com) — Icons: CC BY 4.0 License, © Fonticons, Inc."
   },
   {
     "id": "network-switch",
@@ -2086,7 +2428,7 @@
     "file": "network/network-switch.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
   },
   {
     "id": "switch-horizontal",
@@ -2105,6 +2447,4065 @@
     "file": "network/switch-horizontal.svg",
     "source": "https://github.com/tabler/tabler-icons",
     "license": "MIT",
-    "attribution": "Tabler Icons (tabler.io/icons) \u2014 MIT License, \u00a9 Pawe\u0142 Kuna"
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "battery",
+    "name": "Battery",
+    "category": "power",
+    "subcategory": "battery",
+    "tags": [
+      "battery",
+      "power",
+      "energy",
+      "electricity",
+      "charge",
+      "hardware"
+    ],
+    "file": "power/battery.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "battery-bank",
+    "name": "Battery Bank",
+    "category": "power",
+    "subcategory": "battery-bank",
+    "tags": [
+      "battery bank",
+      "power"
+    ],
+    "file": "power/battery-bank.svg",
+    "source": "https://github.com/FortAwesome/Font-Awesome",
+    "license": "CC-BY-4.0",
+    "attribution": "Font Awesome Free 6 (fontawesome.com) — Icons: CC BY 4.0 License, © Fonticons, Inc."
+  },
+  {
+    "id": "outlet",
+    "name": "Outlet",
+    "category": "power",
+    "subcategory": "outlet",
+    "tags": [
+      "outlet",
+      "power"
+    ],
+    "file": "power/outlet.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) — Apache License 2.0, © Google"
+  },
+  {
+    "id": "pdu",
+    "name": "PDU",
+    "category": "power",
+    "subcategory": "pdu",
+    "tags": [
+      "pdu",
+      "power"
+    ],
+    "file": "power/pdu.svg",
+    "source": "https://github.com/FortAwesome/Font-Awesome",
+    "license": "CC-BY-4.0",
+    "attribution": "Font Awesome Free 6 (fontawesome.com) — Icons: CC BY 4.0 License, © Fonticons, Inc."
+  },
+  {
+    "id": "power-conditioner",
+    "name": "Power Conditioner",
+    "category": "power",
+    "subcategory": "power-conditioner",
+    "tags": [
+      "power conditioner",
+      "power"
+    ],
+    "file": "power/power-conditioner.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) — Apache License 2.0, © Google"
+  },
+  {
+    "id": "power-distro",
+    "name": "Power Distro",
+    "category": "power",
+    "subcategory": "power-distro",
+    "tags": [
+      "power distro",
+      "power"
+    ],
+    "file": "power/power-distro.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) — Apache License 2.0, © Google"
+  },
+  {
+    "id": "power-inlet",
+    "name": "Power Inlet",
+    "category": "power",
+    "subcategory": "power-inlet",
+    "tags": [
+      "power inlet",
+      "power"
+    ],
+    "file": "power/power-inlet.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) — Apache License 2.0, © Google"
+  },
+  {
+    "id": "ups",
+    "name": "UPS",
+    "category": "power",
+    "subcategory": "ups",
+    "tags": [
+      "ups",
+      "power"
+    ],
+    "file": "power/ups.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) — Apache License 2.0, © Google"
+  },
+  {
+    "id": "camcorder",
+    "name": "Camcorder",
+    "category": "video",
+    "subcategory": "camcorder",
+    "tags": [
+      "camcorder",
+      "video",
+      "film",
+      "shoot",
+      "recording",
+      "taping",
+      "camera"
+    ],
+    "file": "video/camcorder.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "camera-fixed",
+    "name": "Camera Fixed",
+    "category": "video",
+    "subcategory": "camera-fixed",
+    "tags": [
+      "camera fixed",
+      "video",
+      "photo",
+      "aperture",
+      "camera",
+      "content",
+      "entertainment"
+    ],
+    "file": "video/camera-fixed.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "camera-ptz",
+    "name": "Camera PTZ",
+    "category": "video",
+    "subcategory": "camera-ptz",
+    "tags": [
+      "camera ptz",
+      "video",
+      "closed",
+      "circuit",
+      "television",
+      "surveillance",
+      "signal"
+    ],
+    "file": "video/camera-ptz.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "capture-device",
+    "name": "Capture Device",
+    "category": "video",
+    "subcategory": "capture-device",
+    "tags": [
+      "capture device",
+      "video"
+    ],
+    "file": "video/capture-device.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) — Apache License 2.0, © Google"
+  },
+  {
+    "id": "display",
+    "name": "Display",
+    "category": "video",
+    "subcategory": "display",
+    "tags": [
+      "display",
+      "video",
+      "screen",
+      "movie",
+      "film",
+      "watch",
+      "audio"
+    ],
+    "file": "video/display.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "led-wall",
+    "name": "LED Wall",
+    "category": "video",
+    "subcategory": "led-wall",
+    "tags": [
+      "led wall",
+      "video",
+      "table",
+      "side",
+      "line",
+      "border",
+      "all",
+      "creative"
+    ],
+    "file": "video/led-wall.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "media-server",
+    "name": "Media Server",
+    "category": "video",
+    "subcategory": "media-server",
+    "tags": [
+      "media server",
+      "video"
+    ],
+    "file": "video/media-server.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) — Apache License 2.0, © Google"
+  },
+  {
+    "id": "playback-deck",
+    "name": "Playback Deck",
+    "category": "video",
+    "subcategory": "playback-deck",
+    "tags": [
+      "playback deck",
+      "video",
+      "film",
+      "cinema",
+      "movie",
+      "content",
+      "entertainment"
+    ],
+    "file": "video/playback-deck.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "projector",
+    "name": "Projector",
+    "category": "video",
+    "subcategory": "projector",
+    "tags": [
+      "projector",
+      "video",
+      "display",
+      "presentation",
+      "screen",
+      "show",
+      "project",
+      "beam"
+    ],
+    "file": "video/projector.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "scaler",
+    "name": "Scaler",
+    "category": "video",
+    "subcategory": "scaler",
+    "tags": [
+      "scaler",
+      "video"
+    ],
+    "file": "video/scaler.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) — Apache License 2.0, © Google"
+  },
+  {
+    "id": "streaming-encoder",
+    "name": "Streaming Encoder",
+    "category": "video",
+    "subcategory": "streaming-encoder",
+    "tags": [
+      "streaming encoder",
+      "video"
+    ],
+    "file": "video/streaming-encoder.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) — Apache License 2.0, © Google"
+  },
+  {
+    "id": "video-switcher",
+    "name": "Video Switcher",
+    "category": "video",
+    "subcategory": "video-switcher",
+    "tags": [
+      "video switcher",
+      "video"
+    ],
+    "file": "video/video-switcher.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (fonts.google.com/icons) — Apache License 2.0, © Google"
+  },
+  {
+    "id": "speaker-cabinet",
+    "name": "Speaker Cabinet",
+    "category": "audio",
+    "subcategory": "loudspeaker",
+    "tags": [
+      "speaker",
+      "cabinet",
+      "audio",
+      "loudspeaker"
+    ],
+    "file": "audio/speaker-cabinet.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "speaker-pair",
+    "name": "Speaker Pair",
+    "category": "audio",
+    "subcategory": "loudspeaker",
+    "tags": [
+      "speaker",
+      "pair",
+      "audio",
+      "loudspeaker"
+    ],
+    "file": "audio/speaker-pair.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "speaker-wireless",
+    "name": "Wireless Speaker",
+    "category": "audio",
+    "subcategory": "loudspeaker",
+    "tags": [
+      "speaker",
+      "wireless",
+      "audio",
+      "loudspeaker"
+    ],
+    "file": "audio/speaker-wireless.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "surround-sound",
+    "name": "Surround Sound",
+    "category": "audio",
+    "subcategory": "loudspeaker",
+    "tags": [
+      "surround",
+      "sound",
+      "audio",
+      "loudspeaker"
+    ],
+    "file": "audio/surround-sound.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (Google) — Apache 2.0"
+  },
+  {
+    "id": "speaker-group",
+    "name": "Speaker Group",
+    "category": "audio",
+    "subcategory": "loudspeaker",
+    "tags": [
+      "speaker",
+      "group",
+      "audio",
+      "loudspeaker"
+    ],
+    "file": "audio/speaker-group.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (Google) — Apache 2.0"
+  },
+  {
+    "id": "amplifier",
+    "name": "Amplifier",
+    "category": "audio",
+    "subcategory": "amplifier",
+    "tags": [
+      "amplifier",
+      "audio"
+    ],
+    "file": "audio/amplifier.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "microphone",
+    "name": "Microphone",
+    "category": "audio",
+    "subcategory": "microphone",
+    "tags": [
+      "microphone",
+      "audio"
+    ],
+    "file": "audio/microphone.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "microphone-dynamic",
+    "name": "Dynamic Microphone",
+    "category": "audio",
+    "subcategory": "microphone",
+    "tags": [
+      "microphone",
+      "dynamic",
+      "audio"
+    ],
+    "file": "audio/microphone-dynamic.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "microphone-podcast",
+    "name": "Podcast Microphone",
+    "category": "audio",
+    "subcategory": "microphone",
+    "tags": [
+      "microphone",
+      "podcast",
+      "audio"
+    ],
+    "file": "audio/microphone-podcast.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "microphone-input",
+    "name": "Microphone Input",
+    "category": "audio",
+    "subcategory": "microphone",
+    "tags": [
+      "microphone",
+      "input",
+      "audio"
+    ],
+    "file": "audio/microphone-input.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "headphones-over-ear",
+    "name": "Over-Ear Headphones",
+    "category": "audio",
+    "subcategory": "headphones",
+    "tags": [
+      "headphones",
+      "over",
+      "ear",
+      "audio"
+    ],
+    "file": "audio/headphones-over-ear.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "headphones-monitor",
+    "name": "Monitor Headphones",
+    "category": "audio",
+    "subcategory": "headphones",
+    "tags": [
+      "headphones",
+      "monitor",
+      "audio"
+    ],
+    "file": "audio/headphones-monitor.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (Google) — Apache 2.0"
+  },
+  {
+    "id": "in-ear-monitor",
+    "name": "In-Ear Monitor",
+    "category": "audio",
+    "subcategory": "headphones",
+    "tags": [
+      "in",
+      "ear",
+      "monitor",
+      "audio",
+      "headphones"
+    ],
+    "file": "audio/in-ear-monitor.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "graphic-eq",
+    "name": "Graphic EQ",
+    "category": "audio",
+    "subcategory": "processor",
+    "tags": [
+      "graphic",
+      "eq",
+      "audio",
+      "processor"
+    ],
+    "file": "audio/graphic-eq.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (Google) — Apache 2.0"
+  },
+  {
+    "id": "channel-faders",
+    "name": "Channel Faders",
+    "category": "audio",
+    "subcategory": "mixer",
+    "tags": [
+      "channel",
+      "faders",
+      "audio",
+      "mixer"
+    ],
+    "file": "audio/channel-faders.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "signal-tune",
+    "name": "Signal Tune",
+    "category": "audio",
+    "subcategory": "processor",
+    "tags": [
+      "signal",
+      "tune",
+      "audio",
+      "processor"
+    ],
+    "file": "audio/signal-tune.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "mixer-controls",
+    "name": "Mixer Controls",
+    "category": "audio",
+    "subcategory": "mixer",
+    "tags": [
+      "mixer",
+      "controls",
+      "audio"
+    ],
+    "file": "audio/mixer-controls.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "audio-waveform",
+    "name": "Audio Waveform",
+    "category": "audio",
+    "subcategory": "signal",
+    "tags": [
+      "audio",
+      "waveform",
+      "signal"
+    ],
+    "file": "audio/audio-waveform.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "sine-wave",
+    "name": "Sine Wave",
+    "category": "audio",
+    "subcategory": "signal",
+    "tags": [
+      "sine",
+      "wave",
+      "audio",
+      "signal"
+    ],
+    "file": "audio/sine-wave.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "music-note",
+    "name": "Music Note",
+    "category": "audio",
+    "subcategory": "signal",
+    "tags": [
+      "music",
+      "note",
+      "audio",
+      "signal"
+    ],
+    "file": "audio/music-note.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (Google) — Apache 2.0"
+  },
+  {
+    "id": "midi-port",
+    "name": "MIDI Port",
+    "category": "audio",
+    "subcategory": "connector",
+    "tags": [
+      "midi",
+      "port",
+      "audio",
+      "connector"
+    ],
+    "file": "audio/midi-port.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "midi-keys",
+    "name": "MIDI Keyboard",
+    "category": "audio",
+    "subcategory": "instrument",
+    "tags": [
+      "midi",
+      "keys",
+      "audio",
+      "instrument"
+    ],
+    "file": "audio/midi-keys.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "piano-keys",
+    "name": "Piano",
+    "category": "audio",
+    "subcategory": "instrument",
+    "tags": [
+      "piano",
+      "keys",
+      "audio",
+      "instrument"
+    ],
+    "file": "audio/piano-keys.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "guitar-electric",
+    "name": "Electric Guitar",
+    "category": "audio",
+    "subcategory": "instrument",
+    "tags": [
+      "guitar",
+      "electric",
+      "audio",
+      "instrument"
+    ],
+    "file": "audio/guitar-electric.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "cast-audio",
+    "name": "Cast Audio",
+    "category": "audio",
+    "subcategory": "signal",
+    "tags": [
+      "cast",
+      "audio",
+      "signal"
+    ],
+    "file": "audio/cast-audio.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "volume-out",
+    "name": "Volume Out",
+    "category": "audio",
+    "subcategory": "signal",
+    "tags": [
+      "volume",
+      "out",
+      "audio",
+      "signal"
+    ],
+    "file": "audio/volume-out.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "record",
+    "name": "Record",
+    "category": "audio",
+    "subcategory": "transport",
+    "tags": [
+      "record",
+      "audio",
+      "transport"
+    ],
+    "file": "audio/record.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "metronome",
+    "name": "Metronome",
+    "category": "audio",
+    "subcategory": "processor",
+    "tags": [
+      "metronome",
+      "audio",
+      "processor"
+    ],
+    "file": "audio/metronome.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "disc-player",
+    "name": "Disc Player",
+    "category": "audio",
+    "subcategory": "source",
+    "tags": [
+      "disc",
+      "player",
+      "audio",
+      "source"
+    ],
+    "file": "audio/disc-player.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "boombox",
+    "name": "Boombox",
+    "category": "audio",
+    "subcategory": "source",
+    "tags": [
+      "boombox",
+      "audio",
+      "source"
+    ],
+    "file": "audio/boombox.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "monitor-speaker",
+    "name": "Monitor Speaker",
+    "category": "audio",
+    "subcategory": "loudspeaker",
+    "tags": [
+      "monitor",
+      "speaker",
+      "audio",
+      "loudspeaker"
+    ],
+    "file": "audio/monitor-speaker.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "microphone-solid",
+    "name": "Microphone Solid",
+    "category": "audio",
+    "subcategory": "microphone",
+    "tags": [
+      "microphone",
+      "solid",
+      "audio"
+    ],
+    "file": "audio/microphone-solid.svg",
+    "source": "https://github.com/carbon-design-system/carbon",
+    "license": "Apache-2.0",
+    "attribution": "Carbon Icons (IBM) — Apache 2.0"
+  },
+  {
+    "id": "signal-source",
+    "name": "Signal Source",
+    "category": "audio",
+    "subcategory": "source",
+    "tags": [
+      "signal",
+      "source",
+      "audio"
+    ],
+    "file": "audio/signal-source.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "television",
+    "name": "Television",
+    "category": "video",
+    "subcategory": "display",
+    "tags": [
+      "television",
+      "video",
+      "display"
+    ],
+    "file": "video/television.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "tv-panel",
+    "name": "TV Panel",
+    "category": "video",
+    "subcategory": "display",
+    "tags": [
+      "tv",
+      "panel",
+      "video",
+      "display"
+    ],
+    "file": "video/tv-panel.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (Google) — Apache 2.0"
+  },
+  {
+    "id": "monitor-screen",
+    "name": "Monitor Screen",
+    "category": "video",
+    "subcategory": "display",
+    "tags": [
+      "monitor",
+      "screen",
+      "video",
+      "display"
+    ],
+    "file": "video/monitor-screen.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "monitor-multi",
+    "name": "Multi Monitor",
+    "category": "video",
+    "subcategory": "display",
+    "tags": [
+      "monitor",
+      "multi",
+      "video",
+      "display"
+    ],
+    "file": "video/monitor-multi.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "video-camera",
+    "name": "Video Camera",
+    "category": "video",
+    "subcategory": "camera",
+    "tags": [
+      "video",
+      "camera"
+    ],
+    "file": "video/video-camera.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (Google) — Apache 2.0"
+  },
+  {
+    "id": "photo-camera",
+    "name": "Photo Camera",
+    "category": "video",
+    "subcategory": "camera",
+    "tags": [
+      "photo",
+      "camera",
+      "video"
+    ],
+    "file": "video/photo-camera.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "cctv-camera",
+    "name": "CCTV Camera",
+    "category": "video",
+    "subcategory": "camera",
+    "tags": [
+      "cctv",
+      "camera",
+      "video"
+    ],
+    "file": "video/cctv-camera.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "webcam",
+    "name": "Webcam",
+    "category": "video",
+    "subcategory": "camera",
+    "tags": [
+      "webcam",
+      "video",
+      "camera"
+    ],
+    "file": "video/webcam.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "hdmi-input",
+    "name": "HDMI Input",
+    "category": "video",
+    "subcategory": "connector",
+    "tags": [
+      "hdmi",
+      "input",
+      "video",
+      "connector"
+    ],
+    "file": "video/hdmi-input.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (Google) — Apache 2.0"
+  },
+  {
+    "id": "hdmi-port",
+    "name": "HDMI Port",
+    "category": "video",
+    "subcategory": "connector",
+    "tags": [
+      "hdmi",
+      "port",
+      "video",
+      "connector"
+    ],
+    "file": "video/hdmi-port.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "component-input",
+    "name": "Component Input",
+    "category": "video",
+    "subcategory": "connector",
+    "tags": [
+      "component",
+      "input",
+      "video",
+      "connector"
+    ],
+    "file": "video/component-input.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (Google) — Apache 2.0"
+  },
+  {
+    "id": "svideo-input",
+    "name": "S-Video Input",
+    "category": "video",
+    "subcategory": "connector",
+    "tags": [
+      "svideo",
+      "input",
+      "video",
+      "connector"
+    ],
+    "file": "video/svideo-input.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (Google) — Apache 2.0"
+  },
+  {
+    "id": "video-input",
+    "name": "Video Input",
+    "category": "video",
+    "subcategory": "connector",
+    "tags": [
+      "video",
+      "input",
+      "connector"
+    ],
+    "file": "video/video-input.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "projector-screen",
+    "name": "Projector Screen",
+    "category": "video",
+    "subcategory": "display",
+    "tags": [
+      "projector",
+      "screen",
+      "video",
+      "display"
+    ],
+    "file": "video/projector-screen.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "video-switch",
+    "name": "Video Switch",
+    "category": "video",
+    "subcategory": "switcher",
+    "tags": [
+      "video",
+      "switch",
+      "switcher"
+    ],
+    "file": "video/video-switch.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "movie-playback",
+    "name": "Movie Playback",
+    "category": "video",
+    "subcategory": "source",
+    "tags": [
+      "movie",
+      "playback",
+      "video",
+      "source"
+    ],
+    "file": "video/movie-playback.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "filmstrip",
+    "name": "Filmstrip",
+    "category": "video",
+    "subcategory": "media",
+    "tags": [
+      "filmstrip",
+      "video",
+      "media"
+    ],
+    "file": "video/filmstrip.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "video-recorder",
+    "name": "Video Recorder",
+    "category": "video",
+    "subcategory": "recorder",
+    "tags": [
+      "video",
+      "recorder"
+    ],
+    "file": "video/video-recorder.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (Google) — Apache 2.0"
+  },
+  {
+    "id": "cast-screen",
+    "name": "Cast Screen",
+    "category": "video",
+    "subcategory": "signal",
+    "tags": [
+      "cast",
+      "screen",
+      "video",
+      "signal"
+    ],
+    "file": "video/cast-screen.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "cast-connected",
+    "name": "Cast Connected",
+    "category": "video",
+    "subcategory": "signal",
+    "tags": [
+      "cast",
+      "connected",
+      "video",
+      "signal"
+    ],
+    "file": "video/cast-connected.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "screen-display",
+    "name": "Screen Display",
+    "category": "video",
+    "subcategory": "display",
+    "tags": [
+      "screen",
+      "display",
+      "video"
+    ],
+    "file": "video/screen-display.svg",
+    "source": "https://github.com/carbon-design-system/carbon",
+    "license": "Apache-2.0",
+    "attribution": "Carbon Icons (IBM) — Apache 2.0"
+  },
+  {
+    "id": "monitor-crt",
+    "name": "CRT Monitor",
+    "category": "video",
+    "subcategory": "display",
+    "tags": [
+      "monitor",
+      "crt",
+      "video",
+      "display"
+    ],
+    "file": "video/monitor-crt.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "camera-control",
+    "name": "Camera Control",
+    "category": "video",
+    "subcategory": "camera",
+    "tags": [
+      "camera",
+      "control",
+      "video"
+    ],
+    "file": "video/camera-control.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "cinema-camera",
+    "name": "Cinema Camera",
+    "category": "video",
+    "subcategory": "camera",
+    "tags": [
+      "cinema",
+      "camera",
+      "video"
+    ],
+    "file": "video/cinema-camera.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "screenshot-monitor",
+    "name": "Confidence Monitor",
+    "category": "video",
+    "subcategory": "display",
+    "tags": [
+      "screenshot",
+      "monitor",
+      "video",
+      "display"
+    ],
+    "file": "video/screenshot-monitor.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (Google) — Apache 2.0"
+  },
+  {
+    "id": "lightbulb",
+    "name": "Light Bulb",
+    "category": "lighting",
+    "subcategory": "fixture",
+    "tags": [
+      "lightbulb",
+      "lighting",
+      "fixture"
+    ],
+    "file": "lighting/lightbulb.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "lightbulb-on",
+    "name": "Light On",
+    "category": "lighting",
+    "subcategory": "fixture",
+    "tags": [
+      "lightbulb",
+      "on",
+      "lighting",
+      "fixture"
+    ],
+    "file": "lighting/lightbulb-on.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "spotlight",
+    "name": "Spotlight",
+    "category": "lighting",
+    "subcategory": "fixture",
+    "tags": [
+      "spotlight",
+      "lighting",
+      "fixture"
+    ],
+    "file": "lighting/spotlight.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "spotlight-beam",
+    "name": "Spotlight Beam",
+    "category": "lighting",
+    "subcategory": "fixture",
+    "tags": [
+      "spotlight",
+      "beam",
+      "lighting",
+      "fixture"
+    ],
+    "file": "lighting/spotlight-beam.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "track-light",
+    "name": "Track Light",
+    "category": "lighting",
+    "subcategory": "fixture",
+    "tags": [
+      "track",
+      "light",
+      "lighting",
+      "fixture"
+    ],
+    "file": "lighting/track-light.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "ceiling-light",
+    "name": "Ceiling Light",
+    "category": "lighting",
+    "subcategory": "fixture",
+    "tags": [
+      "ceiling",
+      "light",
+      "lighting",
+      "fixture"
+    ],
+    "file": "lighting/ceiling-light.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "wall-sconce",
+    "name": "Wall Sconce",
+    "category": "lighting",
+    "subcategory": "fixture",
+    "tags": [
+      "wall",
+      "sconce",
+      "lighting",
+      "fixture"
+    ],
+    "file": "lighting/wall-sconce.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "floor-lamp",
+    "name": "Floor Lamp",
+    "category": "lighting",
+    "subcategory": "fixture",
+    "tags": [
+      "floor",
+      "lamp",
+      "lighting",
+      "fixture"
+    ],
+    "file": "lighting/floor-lamp.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "led-strip",
+    "name": "LED Strip",
+    "category": "lighting",
+    "subcategory": "fixture",
+    "tags": [
+      "led",
+      "strip",
+      "lighting",
+      "fixture"
+    ],
+    "file": "lighting/led-strip.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "led-indicator",
+    "name": "LED Indicator",
+    "category": "lighting",
+    "subcategory": "fixture",
+    "tags": [
+      "led",
+      "indicator",
+      "lighting",
+      "fixture"
+    ],
+    "file": "lighting/led-indicator.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "string-lights",
+    "name": "String Lights",
+    "category": "lighting",
+    "subcategory": "fixture",
+    "tags": [
+      "string",
+      "lights",
+      "lighting",
+      "fixture"
+    ],
+    "file": "lighting/string-lights.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "bulb-outline",
+    "name": "Bulb Outline",
+    "category": "lighting",
+    "subcategory": "fixture",
+    "tags": [
+      "bulb",
+      "outline",
+      "lighting",
+      "fixture"
+    ],
+    "file": "lighting/bulb-outline.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "lamp",
+    "name": "Lamp",
+    "category": "lighting",
+    "subcategory": "fixture",
+    "tags": [
+      "lamp",
+      "lighting",
+      "fixture"
+    ],
+    "file": "lighting/lamp.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "flashlight",
+    "name": "Flashlight",
+    "category": "lighting",
+    "subcategory": "fixture",
+    "tags": [
+      "flashlight",
+      "lighting",
+      "fixture"
+    ],
+    "file": "lighting/flashlight.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "beacon",
+    "name": "Beacon",
+    "category": "lighting",
+    "subcategory": "fixture",
+    "tags": [
+      "beacon",
+      "lighting",
+      "fixture"
+    ],
+    "file": "lighting/beacon.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "beam-light",
+    "name": "Beam Light",
+    "category": "lighting",
+    "subcategory": "fixture",
+    "tags": [
+      "beam",
+      "light",
+      "lighting",
+      "fixture"
+    ],
+    "file": "lighting/beam-light.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "brightness-control",
+    "name": "Brightness Control",
+    "category": "lighting",
+    "subcategory": "control",
+    "tags": [
+      "brightness",
+      "control",
+      "lighting"
+    ],
+    "file": "lighting/brightness-control.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "incandescent",
+    "name": "Incandescent",
+    "category": "lighting",
+    "subcategory": "fixture",
+    "tags": [
+      "incandescent",
+      "lighting",
+      "fixture"
+    ],
+    "file": "lighting/incandescent.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (Google) — Apache 2.0"
+  },
+  {
+    "id": "stage-highlight",
+    "name": "Stage Highlight",
+    "category": "lighting",
+    "subcategory": "fixture",
+    "tags": [
+      "stage",
+      "highlight",
+      "lighting",
+      "fixture"
+    ],
+    "file": "lighting/stage-highlight.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (Google) — Apache 2.0"
+  },
+  {
+    "id": "wireless-dimmer",
+    "name": "Wireless Dimmer",
+    "category": "lighting",
+    "subcategory": "control",
+    "tags": [
+      "wireless",
+      "dimmer",
+      "lighting",
+      "control"
+    ],
+    "file": "lighting/wireless-dimmer.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "network-mesh",
+    "name": "Network Mesh",
+    "category": "network",
+    "subcategory": "topology",
+    "tags": [
+      "network",
+      "mesh",
+      "topology"
+    ],
+    "file": "network/network-mesh.svg",
+    "source": "https://github.com/carbon-design-system/carbon",
+    "license": "Apache-2.0",
+    "attribution": "Carbon Icons (IBM) — Apache 2.0"
+  },
+  {
+    "id": "bare-metal-server",
+    "name": "Bare Metal Server",
+    "category": "network",
+    "subcategory": "server",
+    "tags": [
+      "bare",
+      "metal",
+      "server",
+      "network"
+    ],
+    "file": "network/bare-metal-server.svg",
+    "source": "https://github.com/carbon-design-system/carbon",
+    "license": "Apache-2.0",
+    "attribution": "Carbon Icons (IBM) — Apache 2.0"
+  },
+  {
+    "id": "load-balancer",
+    "name": "Load Balancer",
+    "category": "network",
+    "subcategory": "appliance",
+    "tags": [
+      "load",
+      "balancer",
+      "network",
+      "appliance"
+    ],
+    "file": "network/load-balancer.svg",
+    "source": "https://github.com/carbon-design-system/carbon",
+    "license": "Apache-2.0",
+    "attribution": "Carbon Icons (IBM) — Apache 2.0"
+  },
+  {
+    "id": "gateway",
+    "name": "Gateway",
+    "category": "network",
+    "subcategory": "appliance",
+    "tags": [
+      "gateway",
+      "network",
+      "appliance"
+    ],
+    "file": "network/gateway.svg",
+    "source": "https://github.com/carbon-design-system/carbon",
+    "license": "Apache-2.0",
+    "attribution": "Carbon Icons (IBM) — Apache 2.0"
+  },
+  {
+    "id": "router-carbon",
+    "name": "Router",
+    "category": "network",
+    "subcategory": "router",
+    "tags": [
+      "router",
+      "carbon",
+      "network"
+    ],
+    "file": "network/router-carbon.svg",
+    "source": "https://github.com/carbon-design-system/carbon",
+    "license": "Apache-2.0",
+    "attribution": "Carbon Icons (IBM) — Apache 2.0"
+  },
+  {
+    "id": "edge-node",
+    "name": "Edge Node",
+    "category": "network",
+    "subcategory": "node",
+    "tags": [
+      "edge",
+      "node",
+      "network"
+    ],
+    "file": "network/edge-node.svg",
+    "source": "https://github.com/carbon-design-system/carbon",
+    "license": "Apache-2.0",
+    "attribution": "Carbon Icons (IBM) — Apache 2.0"
+  },
+  {
+    "id": "ethernet-cable",
+    "name": "Ethernet Cable",
+    "category": "network",
+    "subcategory": "cable",
+    "tags": [
+      "ethernet",
+      "cable",
+      "network"
+    ],
+    "file": "network/ethernet-cable.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "ethernet-hub",
+    "name": "Ethernet Hub",
+    "category": "network",
+    "subcategory": "switch",
+    "tags": [
+      "ethernet",
+      "hub",
+      "network",
+      "switch"
+    ],
+    "file": "network/ethernet-hub.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "network-toggle",
+    "name": "Network Toggle",
+    "category": "network",
+    "subcategory": "switch",
+    "tags": [
+      "network",
+      "toggle",
+      "switch"
+    ],
+    "file": "network/network-toggle.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "lan-cluster",
+    "name": "LAN Cluster",
+    "category": "network",
+    "subcategory": "topology",
+    "tags": [
+      "lan",
+      "cluster",
+      "network",
+      "topology"
+    ],
+    "file": "network/lan-cluster.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "lan-connect",
+    "name": "LAN Connect",
+    "category": "network",
+    "subcategory": "topology",
+    "tags": [
+      "lan",
+      "connect",
+      "network",
+      "topology"
+    ],
+    "file": "network/lan-connect.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "network-hub",
+    "name": "Network Hub",
+    "category": "network",
+    "subcategory": "switch",
+    "tags": [
+      "network",
+      "hub",
+      "switch"
+    ],
+    "file": "network/network-hub.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (Google) — Apache 2.0"
+  },
+  {
+    "id": "dns-server",
+    "name": "DNS Server",
+    "category": "network",
+    "subcategory": "server",
+    "tags": [
+      "dns",
+      "server",
+      "network"
+    ],
+    "file": "network/dns-server.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (Google) — Apache 2.0"
+  },
+  {
+    "id": "lan-port",
+    "name": "LAN Port",
+    "category": "network",
+    "subcategory": "switch",
+    "tags": [
+      "lan",
+      "port",
+      "network",
+      "switch"
+    ],
+    "file": "network/lan-port.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (Google) — Apache 2.0"
+  },
+  {
+    "id": "router-network",
+    "name": "Router Network",
+    "category": "network",
+    "subcategory": "router",
+    "tags": [
+      "router",
+      "network"
+    ],
+    "file": "network/router-network.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "server-network",
+    "name": "Server Network",
+    "category": "network",
+    "subcategory": "server",
+    "tags": [
+      "server",
+      "network"
+    ],
+    "file": "network/server-network.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "wifi-strong",
+    "name": "Wi-Fi Strong",
+    "category": "network",
+    "subcategory": "wireless",
+    "tags": [
+      "wifi",
+      "strong",
+      "network",
+      "wireless"
+    ],
+    "file": "network/wifi-strong.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "access-point-net",
+    "name": "Access Point",
+    "category": "network",
+    "subcategory": "wireless",
+    "tags": [
+      "access",
+      "point",
+      "net",
+      "network",
+      "wireless"
+    ],
+    "file": "network/access-point-net.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "antenna-signal",
+    "name": "Antenna Signal",
+    "category": "network",
+    "subcategory": "wireless",
+    "tags": [
+      "antenna",
+      "signal",
+      "network",
+      "wireless"
+    ],
+    "file": "network/antenna-signal.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "signal-bars",
+    "name": "Signal Bars",
+    "category": "network",
+    "subcategory": "wireless",
+    "tags": [
+      "signal",
+      "bars",
+      "network",
+      "wireless"
+    ],
+    "file": "network/signal-bars.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "network-globe",
+    "name": "Network Globe",
+    "category": "network",
+    "subcategory": "topology",
+    "tags": [
+      "network",
+      "globe",
+      "topology"
+    ],
+    "file": "network/network-globe.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "topology-star-3",
+    "name": "Star Topology",
+    "category": "network",
+    "subcategory": "topology",
+    "tags": [
+      "topology",
+      "star",
+      "3",
+      "network"
+    ],
+    "file": "network/topology-star-3.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "topology-bus",
+    "name": "Bus Topology",
+    "category": "network",
+    "subcategory": "topology",
+    "tags": [
+      "topology",
+      "bus",
+      "network"
+    ],
+    "file": "network/topology-bus.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "firewall-carbon",
+    "name": "Firewall",
+    "category": "network",
+    "subcategory": "appliance",
+    "tags": [
+      "firewall",
+      "carbon",
+      "network",
+      "appliance"
+    ],
+    "file": "network/firewall-carbon.svg",
+    "source": "https://github.com/carbon-design-system/carbon",
+    "license": "Apache-2.0",
+    "attribution": "Carbon Icons (IBM) — Apache 2.0"
+  },
+  {
+    "id": "database",
+    "name": "Database",
+    "category": "network",
+    "subcategory": "storage",
+    "tags": [
+      "database",
+      "network",
+      "storage"
+    ],
+    "file": "network/database.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "data-center",
+    "name": "Data Center",
+    "category": "network",
+    "subcategory": "server",
+    "tags": [
+      "data",
+      "center",
+      "network",
+      "server"
+    ],
+    "file": "network/data-center.svg",
+    "source": "https://github.com/carbon-design-system/carbon",
+    "license": "Apache-2.0",
+    "attribution": "Carbon Icons (IBM) — Apache 2.0"
+  },
+  {
+    "id": "storage-array",
+    "name": "Storage Array",
+    "category": "network",
+    "subcategory": "storage",
+    "tags": [
+      "storage",
+      "array",
+      "network"
+    ],
+    "file": "network/storage-array.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (Google) — Apache 2.0"
+  },
+  {
+    "id": "cloud-upload",
+    "name": "Cloud Upload",
+    "category": "network",
+    "subcategory": "cloud",
+    "tags": [
+      "cloud",
+      "upload",
+      "network"
+    ],
+    "file": "network/cloud-upload.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "vpn-tunnel",
+    "name": "VPN Tunnel",
+    "category": "network",
+    "subcategory": "appliance",
+    "tags": [
+      "vpn",
+      "tunnel",
+      "network",
+      "appliance"
+    ],
+    "file": "network/vpn-tunnel.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "network-overlay",
+    "name": "Network Overlay",
+    "category": "network",
+    "subcategory": "topology",
+    "tags": [
+      "network",
+      "overlay",
+      "topology"
+    ],
+    "file": "network/network-overlay.svg",
+    "source": "https://github.com/carbon-design-system/carbon",
+    "license": "Apache-2.0",
+    "attribution": "Carbon Icons (IBM) — Apache 2.0"
+  },
+  {
+    "id": "cpu-chip",
+    "name": "CPU Chip",
+    "category": "compute",
+    "subcategory": "processor",
+    "tags": [
+      "cpu",
+      "chip",
+      "compute",
+      "processor"
+    ],
+    "file": "compute/cpu-chip.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "cpu-outline",
+    "name": "CPU Outline",
+    "category": "compute",
+    "subcategory": "processor",
+    "tags": [
+      "cpu",
+      "outline",
+      "compute",
+      "processor"
+    ],
+    "file": "compute/cpu-outline.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "soc-chip",
+    "name": "SoC Chip",
+    "category": "compute",
+    "subcategory": "processor",
+    "tags": [
+      "soc",
+      "chip",
+      "compute",
+      "processor"
+    ],
+    "file": "compute/soc-chip.svg",
+    "source": "https://github.com/carbon-design-system/carbon",
+    "license": "Apache-2.0",
+    "attribution": "Carbon Icons (IBM) — Apache 2.0"
+  },
+  {
+    "id": "ram-module",
+    "name": "RAM Module",
+    "category": "compute",
+    "subcategory": "memory",
+    "tags": [
+      "ram",
+      "module",
+      "compute",
+      "memory"
+    ],
+    "file": "compute/ram-module.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "expansion-card",
+    "name": "Expansion Card",
+    "category": "compute",
+    "subcategory": "card",
+    "tags": [
+      "expansion",
+      "card",
+      "compute"
+    ],
+    "file": "compute/expansion-card.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "hard-disk",
+    "name": "Hard Disk",
+    "category": "compute",
+    "subcategory": "storage",
+    "tags": [
+      "hard",
+      "disk",
+      "compute",
+      "storage"
+    ],
+    "file": "compute/hard-disk.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "sd-card",
+    "name": "SD Card",
+    "category": "compute",
+    "subcategory": "storage",
+    "tags": [
+      "sd",
+      "card",
+      "compute",
+      "storage"
+    ],
+    "file": "compute/sd-card.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "usb-port",
+    "name": "USB Port",
+    "category": "compute",
+    "subcategory": "connector",
+    "tags": [
+      "usb",
+      "port",
+      "compute",
+      "connector"
+    ],
+    "file": "compute/usb-port.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "usb-plug",
+    "name": "USB Plug",
+    "category": "compute",
+    "subcategory": "connector",
+    "tags": [
+      "usb",
+      "plug",
+      "compute",
+      "connector"
+    ],
+    "file": "compute/usb-plug.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "usb-drive",
+    "name": "USB Drive",
+    "category": "compute",
+    "subcategory": "storage",
+    "tags": [
+      "usb",
+      "drive",
+      "compute",
+      "storage"
+    ],
+    "file": "compute/usb-drive.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "desktop-tower",
+    "name": "Desktop Tower",
+    "category": "compute",
+    "subcategory": "computer",
+    "tags": [
+      "desktop",
+      "tower",
+      "compute",
+      "computer"
+    ],
+    "file": "compute/desktop-tower.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "workstation",
+    "name": "Workstation",
+    "category": "compute",
+    "subcategory": "computer",
+    "tags": [
+      "workstation",
+      "compute",
+      "computer"
+    ],
+    "file": "compute/workstation.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "laptop-open",
+    "name": "Laptop",
+    "category": "compute",
+    "subcategory": "computer",
+    "tags": [
+      "laptop",
+      "open",
+      "compute",
+      "computer"
+    ],
+    "file": "compute/laptop-open.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "smartphone",
+    "name": "Smartphone",
+    "category": "compute",
+    "subcategory": "mobile",
+    "tags": [
+      "smartphone",
+      "compute",
+      "mobile"
+    ],
+    "file": "compute/smartphone.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (Google) — Apache 2.0"
+  },
+  {
+    "id": "tablet-device",
+    "name": "Tablet",
+    "category": "compute",
+    "subcategory": "mobile",
+    "tags": [
+      "tablet",
+      "device",
+      "compute",
+      "mobile"
+    ],
+    "file": "compute/tablet-device.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (Google) — Apache 2.0"
+  },
+  {
+    "id": "dashboard-monitor",
+    "name": "Dashboard Monitor",
+    "category": "compute",
+    "subcategory": "computer",
+    "tags": [
+      "dashboard",
+      "monitor",
+      "compute",
+      "computer"
+    ],
+    "file": "compute/dashboard-monitor.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "server-unit",
+    "name": "Server Unit",
+    "category": "compute",
+    "subcategory": "server",
+    "tags": [
+      "server",
+      "unit",
+      "compute"
+    ],
+    "file": "compute/server-unit.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "single-board",
+    "name": "Single-Board Computer",
+    "category": "compute",
+    "subcategory": "board",
+    "tags": [
+      "single",
+      "board",
+      "compute"
+    ],
+    "file": "compute/single-board.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "microcontroller",
+    "name": "Microcontroller",
+    "category": "compute",
+    "subcategory": "processor",
+    "tags": [
+      "microcontroller",
+      "compute",
+      "processor"
+    ],
+    "file": "compute/microcontroller.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "keyboard-input",
+    "name": "Keyboard",
+    "category": "compute",
+    "subcategory": "peripheral",
+    "tags": [
+      "keyboard",
+      "input",
+      "compute",
+      "peripheral"
+    ],
+    "file": "compute/keyboard-input.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "mouse",
+    "name": "Mouse",
+    "category": "compute",
+    "subcategory": "peripheral",
+    "tags": [
+      "mouse",
+      "compute",
+      "peripheral"
+    ],
+    "file": "compute/mouse.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "printer",
+    "name": "Printer",
+    "category": "compute",
+    "subcategory": "peripheral",
+    "tags": [
+      "printer",
+      "compute",
+      "peripheral"
+    ],
+    "file": "compute/printer.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (Google) — Apache 2.0"
+  },
+  {
+    "id": "controller",
+    "name": "Game Controller",
+    "category": "compute",
+    "subcategory": "peripheral",
+    "tags": [
+      "controller",
+      "compute",
+      "peripheral"
+    ],
+    "file": "compute/controller.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "logic-board",
+    "name": "Logic Board",
+    "category": "compute",
+    "subcategory": "board",
+    "tags": [
+      "logic",
+      "board",
+      "compute"
+    ],
+    "file": "compute/logic-board.svg",
+    "source": "https://github.com/carbon-design-system/carbon",
+    "license": "Apache-2.0",
+    "attribution": "Carbon Icons (IBM) — Apache 2.0"
+  },
+  {
+    "id": "control-panel",
+    "name": "Control Panel",
+    "category": "compute",
+    "subcategory": "control",
+    "tags": [
+      "control",
+      "panel",
+      "compute"
+    ],
+    "file": "compute/control-panel.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "compute-host",
+    "name": "Compute Host",
+    "category": "compute",
+    "subcategory": "server",
+    "tags": [
+      "compute",
+      "host",
+      "server"
+    ],
+    "file": "compute/compute-host.svg",
+    "source": "https://github.com/carbon-design-system/carbon",
+    "license": "Apache-2.0",
+    "attribution": "Carbon Icons (IBM) — Apache 2.0"
+  },
+  {
+    "id": "data-cable",
+    "name": "Data Cable",
+    "category": "compute",
+    "subcategory": "connector",
+    "tags": [
+      "data",
+      "cable",
+      "compute",
+      "connector"
+    ],
+    "file": "compute/data-cable.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (Google) — Apache 2.0"
+  },
+  {
+    "id": "power-plug",
+    "name": "Power Plug",
+    "category": "power",
+    "subcategory": "connector",
+    "tags": [
+      "power",
+      "plug",
+      "connector"
+    ],
+    "file": "power/power-plug.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "power-plug-open",
+    "name": "Power Plug Open",
+    "category": "power",
+    "subcategory": "connector",
+    "tags": [
+      "power",
+      "plug",
+      "open",
+      "connector"
+    ],
+    "file": "power/power-plug-open.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "socket-us",
+    "name": "US Socket",
+    "category": "power",
+    "subcategory": "outlet",
+    "tags": [
+      "socket",
+      "us",
+      "power",
+      "outlet"
+    ],
+    "file": "power/socket-us.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "socket-eu",
+    "name": "EU Socket",
+    "category": "power",
+    "subcategory": "outlet",
+    "tags": [
+      "socket",
+      "eu",
+      "power",
+      "outlet"
+    ],
+    "file": "power/socket-eu.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "socket-uk",
+    "name": "UK Socket",
+    "category": "power",
+    "subcategory": "outlet",
+    "tags": [
+      "socket",
+      "uk",
+      "power",
+      "outlet"
+    ],
+    "file": "power/socket-uk.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "power-bolt",
+    "name": "Power Bolt",
+    "category": "power",
+    "subcategory": "signal",
+    "tags": [
+      "power",
+      "bolt",
+      "signal"
+    ],
+    "file": "power/power-bolt.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "lightning-bolt",
+    "name": "Lightning Bolt",
+    "category": "power",
+    "subcategory": "signal",
+    "tags": [
+      "lightning",
+      "bolt",
+      "power",
+      "signal"
+    ],
+    "file": "power/lightning-bolt.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "grid-power",
+    "name": "Grid Power",
+    "category": "power",
+    "subcategory": "source",
+    "tags": [
+      "grid",
+      "power",
+      "source"
+    ],
+    "file": "power/grid-power.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "battery-charging",
+    "name": "Battery Charging",
+    "category": "power",
+    "subcategory": "battery",
+    "tags": [
+      "battery",
+      "charging",
+      "power"
+    ],
+    "file": "power/battery-charging.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "power-cell",
+    "name": "Power Cell",
+    "category": "power",
+    "subcategory": "battery",
+    "tags": [
+      "power",
+      "cell",
+      "battery"
+    ],
+    "file": "power/power-cell.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "power-button",
+    "name": "Power Button",
+    "category": "power",
+    "subcategory": "control",
+    "tags": [
+      "power",
+      "button",
+      "control"
+    ],
+    "file": "power/power-button.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "power-cycle",
+    "name": "Power Cycle",
+    "category": "power",
+    "subcategory": "control",
+    "tags": [
+      "power",
+      "cycle",
+      "control"
+    ],
+    "file": "power/power-cycle.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "electrical-service",
+    "name": "Electrical Service",
+    "category": "power",
+    "subcategory": "source",
+    "tags": [
+      "electrical",
+      "service",
+      "power",
+      "source"
+    ],
+    "file": "power/electrical-service.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (Google) — Apache 2.0"
+  },
+  {
+    "id": "energy-bolt",
+    "name": "Energy Bolt",
+    "category": "power",
+    "subcategory": "signal",
+    "tags": [
+      "energy",
+      "bolt",
+      "power",
+      "signal"
+    ],
+    "file": "power/energy-bolt.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (Google) — Apache 2.0"
+  },
+  {
+    "id": "solar-power",
+    "name": "Solar Power",
+    "category": "power",
+    "subcategory": "source",
+    "tags": [
+      "solar",
+      "power",
+      "source"
+    ],
+    "file": "power/solar-power.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (Google) — Apache 2.0"
+  },
+  {
+    "id": "charge-station",
+    "name": "Charge Station",
+    "category": "power",
+    "subcategory": "source",
+    "tags": [
+      "charge",
+      "station",
+      "power",
+      "source"
+    ],
+    "file": "power/charge-station.svg",
+    "source": "https://github.com/google/material-design-icons",
+    "license": "Apache-2.0",
+    "attribution": "Material Symbols (Google) — Apache 2.0"
+  },
+  {
+    "id": "power-supply",
+    "name": "Power Supply",
+    "category": "power",
+    "subcategory": "control",
+    "tags": [
+      "power",
+      "supply",
+      "control"
+    ],
+    "file": "power/power-supply.svg",
+    "source": "https://github.com/carbon-design-system/carbon",
+    "license": "Apache-2.0",
+    "attribution": "Carbon Icons (IBM) — Apache 2.0"
+  },
+  {
+    "id": "plug-connected",
+    "name": "Plug Connected",
+    "category": "power",
+    "subcategory": "connector",
+    "tags": [
+      "plug",
+      "connected",
+      "power",
+      "connector"
+    ],
+    "file": "power/plug-connected.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "battery-level",
+    "name": "Battery Level",
+    "category": "power",
+    "subcategory": "battery",
+    "tags": [
+      "battery",
+      "level",
+      "power"
+    ],
+    "file": "power/battery-level.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "ac-waveform",
+    "name": "AC Waveform",
+    "category": "power",
+    "subcategory": "signal",
+    "tags": [
+      "ac",
+      "waveform",
+      "power",
+      "signal"
+    ],
+    "file": "power/ac-waveform.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "square-shape",
+    "name": "Square",
+    "category": "generic",
+    "subcategory": "shape",
+    "tags": [
+      "square",
+      "shape",
+      "generic"
+    ],
+    "file": "generic/square-shape.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "circle-dot",
+    "name": "Circle Dot",
+    "category": "generic",
+    "subcategory": "shape",
+    "tags": [
+      "circle",
+      "dot",
+      "generic",
+      "shape"
+    ],
+    "file": "generic/circle-dot.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "diamond",
+    "name": "Diamond",
+    "category": "generic",
+    "subcategory": "shape",
+    "tags": [
+      "diamond",
+      "generic",
+      "shape"
+    ],
+    "file": "generic/diamond.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "pentagon",
+    "name": "Pentagon",
+    "category": "generic",
+    "subcategory": "shape",
+    "tags": [
+      "pentagon",
+      "generic",
+      "shape"
+    ],
+    "file": "generic/pentagon.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "octagon",
+    "name": "Octagon",
+    "category": "generic",
+    "subcategory": "shape",
+    "tags": [
+      "octagon",
+      "generic",
+      "shape"
+    ],
+    "file": "generic/octagon.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "arrows-diagonal",
+    "name": "Arrows Diagonal",
+    "category": "generic",
+    "subcategory": "arrow",
+    "tags": [
+      "arrows",
+      "diagonal",
+      "generic",
+      "arrow"
+    ],
+    "file": "generic/arrows-diagonal.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "arrow-up",
+    "name": "Arrow Up",
+    "category": "generic",
+    "subcategory": "arrow",
+    "tags": [
+      "arrow",
+      "up",
+      "generic"
+    ],
+    "file": "generic/arrow-up.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "arrow-down",
+    "name": "Arrow Down",
+    "category": "generic",
+    "subcategory": "arrow",
+    "tags": [
+      "arrow",
+      "down",
+      "generic"
+    ],
+    "file": "generic/arrow-down.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "chevron-right",
+    "name": "Chevron Right",
+    "category": "generic",
+    "subcategory": "arrow",
+    "tags": [
+      "chevron",
+      "right",
+      "generic",
+      "arrow"
+    ],
+    "file": "generic/chevron-right.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "corner-arrow",
+    "name": "Corner Arrow",
+    "category": "generic",
+    "subcategory": "arrow",
+    "tags": [
+      "corner",
+      "arrow",
+      "generic"
+    ],
+    "file": "generic/corner-arrow.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "tag-label",
+    "name": "Tag",
+    "category": "generic",
+    "subcategory": "label",
+    "tags": [
+      "tag",
+      "label",
+      "generic"
+    ],
+    "file": "generic/tag-label.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "flag-marker",
+    "name": "Flag Marker",
+    "category": "generic",
+    "subcategory": "label",
+    "tags": [
+      "flag",
+      "marker",
+      "generic",
+      "label"
+    ],
+    "file": "generic/flag-marker.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "map-pin",
+    "name": "Map Pin",
+    "category": "generic",
+    "subcategory": "label",
+    "tags": [
+      "map",
+      "pin",
+      "generic",
+      "label"
+    ],
+    "file": "generic/map-pin.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "note-card",
+    "name": "Note",
+    "category": "generic",
+    "subcategory": "label",
+    "tags": [
+      "note",
+      "card",
+      "generic",
+      "label"
+    ],
+    "file": "generic/note-card.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "info-circle",
+    "name": "Info",
+    "category": "generic",
+    "subcategory": "label",
+    "tags": [
+      "info",
+      "circle",
+      "generic",
+      "label"
+    ],
+    "file": "generic/info-circle.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "alert-triangle",
+    "name": "Alert",
+    "category": "generic",
+    "subcategory": "label",
+    "tags": [
+      "alert",
+      "triangle",
+      "generic",
+      "label"
+    ],
+    "file": "generic/alert-triangle.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "help-circle",
+    "name": "Help",
+    "category": "generic",
+    "subcategory": "label",
+    "tags": [
+      "help",
+      "circle",
+      "generic",
+      "label"
+    ],
+    "file": "generic/help-circle.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "target",
+    "name": "Target",
+    "category": "generic",
+    "subcategory": "shape",
+    "tags": [
+      "target",
+      "generic",
+      "shape"
+    ],
+    "file": "generic/target.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "focus-point",
+    "name": "Focus Point",
+    "category": "generic",
+    "subcategory": "shape",
+    "tags": [
+      "focus",
+      "point",
+      "generic",
+      "shape"
+    ],
+    "file": "generic/focus-point.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "cylinder",
+    "name": "Cylinder",
+    "category": "generic",
+    "subcategory": "shape",
+    "tags": [
+      "cylinder",
+      "generic",
+      "shape"
+    ],
+    "file": "generic/cylinder.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "cone",
+    "name": "Cone",
+    "category": "generic",
+    "subcategory": "shape",
+    "tags": [
+      "cone",
+      "generic",
+      "shape"
+    ],
+    "file": "generic/cone.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "angle-measure",
+    "name": "Angle",
+    "category": "generic",
+    "subcategory": "measure",
+    "tags": [
+      "angle",
+      "measure",
+      "generic"
+    ],
+    "file": "generic/angle-measure.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "vector-triangle",
+    "name": "Vector Triangle",
+    "category": "generic",
+    "subcategory": "shape",
+    "tags": [
+      "vector",
+      "triangle",
+      "generic",
+      "shape"
+    ],
+    "file": "generic/vector-triangle.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "polygon",
+    "name": "Polygon",
+    "category": "generic",
+    "subcategory": "shape",
+    "tags": [
+      "polygon",
+      "generic",
+      "shape"
+    ],
+    "file": "generic/polygon.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "conference-table",
+    "name": "Conference Table",
+    "category": "furniture",
+    "subcategory": "table",
+    "tags": [
+      "conference",
+      "table",
+      "furniture"
+    ],
+    "file": "furniture/conference-table.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "table-chair",
+    "name": "Table & Chair",
+    "category": "furniture",
+    "subcategory": "table",
+    "tags": [
+      "table",
+      "chair",
+      "furniture"
+    ],
+    "file": "furniture/table-chair.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "desk",
+    "name": "Desk",
+    "category": "furniture",
+    "subcategory": "table",
+    "tags": [
+      "desk",
+      "furniture",
+      "table"
+    ],
+    "file": "furniture/desk.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "office-chair",
+    "name": "Office Chair",
+    "category": "furniture",
+    "subcategory": "chair",
+    "tags": [
+      "office",
+      "chair",
+      "furniture"
+    ],
+    "file": "furniture/office-chair.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "school-chair",
+    "name": "School Chair",
+    "category": "furniture",
+    "subcategory": "chair",
+    "tags": [
+      "school",
+      "chair",
+      "furniture"
+    ],
+    "file": "furniture/school-chair.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "armchair-single",
+    "name": "Armchair",
+    "category": "furniture",
+    "subcategory": "seating",
+    "tags": [
+      "armchair",
+      "single",
+      "furniture",
+      "seating"
+    ],
+    "file": "furniture/armchair-single.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "seat",
+    "name": "Seat",
+    "category": "furniture",
+    "subcategory": "seating",
+    "tags": [
+      "seat",
+      "furniture",
+      "seating"
+    ],
+    "file": "furniture/seat.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "bench",
+    "name": "Bench",
+    "category": "furniture",
+    "subcategory": "seating",
+    "tags": [
+      "bench",
+      "furniture",
+      "seating"
+    ],
+    "file": "furniture/bench.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "bar-stool",
+    "name": "Bar Stool",
+    "category": "furniture",
+    "subcategory": "seating",
+    "tags": [
+      "bar",
+      "stool",
+      "furniture",
+      "seating"
+    ],
+    "file": "furniture/bar-stool.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "shelving",
+    "name": "Shelving",
+    "category": "furniture",
+    "subcategory": "storage",
+    "tags": [
+      "shelving",
+      "furniture",
+      "storage"
+    ],
+    "file": "furniture/shelving.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "wardrobe",
+    "name": "Wardrobe",
+    "category": "furniture",
+    "subcategory": "storage",
+    "tags": [
+      "wardrobe",
+      "furniture",
+      "storage"
+    ],
+    "file": "furniture/wardrobe.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "fridge",
+    "name": "Refrigerator",
+    "category": "furniture",
+    "subcategory": "appliance",
+    "tags": [
+      "fridge",
+      "furniture",
+      "appliance"
+    ],
+    "file": "furniture/fridge.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "stairs",
+    "name": "Stairs",
+    "category": "furniture",
+    "subcategory": "structure",
+    "tags": [
+      "stairs",
+      "furniture",
+      "structure"
+    ],
+    "file": "furniture/stairs.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "window-open",
+    "name": "Window Open",
+    "category": "furniture",
+    "subcategory": "structure",
+    "tags": [
+      "window",
+      "open",
+      "furniture",
+      "structure"
+    ],
+    "file": "furniture/window-open.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "sliding-door",
+    "name": "Sliding Door",
+    "category": "furniture",
+    "subcategory": "structure",
+    "tags": [
+      "sliding",
+      "door",
+      "furniture",
+      "structure"
+    ],
+    "file": "furniture/sliding-door.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "garage-door",
+    "name": "Garage Door",
+    "category": "furniture",
+    "subcategory": "structure",
+    "tags": [
+      "garage",
+      "door",
+      "furniture",
+      "structure"
+    ],
+    "file": "furniture/garage-door.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "wall-section",
+    "name": "Wall Section",
+    "category": "furniture",
+    "subcategory": "structure",
+    "tags": [
+      "wall",
+      "section",
+      "furniture",
+      "structure"
+    ],
+    "file": "furniture/wall-section.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "stove",
+    "name": "Stove",
+    "category": "furniture",
+    "subcategory": "appliance",
+    "tags": [
+      "stove",
+      "furniture",
+      "appliance"
+    ],
+    "file": "furniture/stove.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "toilet",
+    "name": "Toilet",
+    "category": "furniture",
+    "subcategory": "fixture",
+    "tags": [
+      "toilet",
+      "furniture",
+      "fixture"
+    ],
+    "file": "furniture/toilet.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "shower",
+    "name": "Shower",
+    "category": "furniture",
+    "subcategory": "fixture",
+    "tags": [
+      "shower",
+      "furniture",
+      "fixture"
+    ],
+    "file": "furniture/shower.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "bed",
+    "name": "Bed",
+    "category": "furniture",
+    "subcategory": "seating",
+    "tags": [
+      "bed",
+      "furniture",
+      "seating"
+    ],
+    "file": "furniture/bed.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "coat-rack",
+    "name": "Coat Rack",
+    "category": "furniture",
+    "subcategory": "fixture",
+    "tags": [
+      "coat",
+      "rack",
+      "furniture",
+      "fixture"
+    ],
+    "file": "furniture/coat-rack.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "place-setting",
+    "name": "Place Setting",
+    "category": "furniture",
+    "subcategory": "tabletop",
+    "tags": [
+      "place",
+      "setting",
+      "furniture",
+      "tabletop"
+    ],
+    "file": "furniture/place-setting.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "cocktail-glass",
+    "name": "Cocktail Glass",
+    "category": "furniture",
+    "subcategory": "tabletop",
+    "tags": [
+      "cocktail",
+      "glass",
+      "furniture",
+      "tabletop"
+    ],
+    "file": "furniture/cocktail-glass.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "stairs-up",
+    "name": "Stairs Up",
+    "category": "furniture",
+    "subcategory": "structure",
+    "tags": [
+      "stairs",
+      "up",
+      "furniture",
+      "structure"
+    ],
+    "file": "furniture/stairs-up.svg",
+    "source": "https://github.com/tabler/tabler-icons",
+    "license": "MIT",
+    "attribution": "Tabler Icons (tabler.io/icons) — MIT License, © Paweł Kuna"
+  },
+  {
+    "id": "usb-c-port",
+    "name": "USB-C Port",
+    "category": "compute",
+    "subcategory": "connector",
+    "tags": [
+      "usb",
+      "c",
+      "port",
+      "compute",
+      "connector"
+    ],
+    "file": "compute/usb-c-port.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "cabinet",
+    "name": "Cabinet",
+    "category": "furniture",
+    "subcategory": "storage",
+    "tags": [
+      "cabinet",
+      "furniture",
+      "storage"
+    ],
+    "file": "furniture/cabinet.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "stage-riser",
+    "name": "Stage Riser",
+    "category": "furniture",
+    "subcategory": "structure",
+    "tags": [
+      "stage",
+      "riser",
+      "furniture",
+      "structure"
+    ],
+    "file": "furniture/stage-riser.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "partition-screen",
+    "name": "Partition Screen",
+    "category": "furniture",
+    "subcategory": "structure",
+    "tags": [
+      "partition",
+      "screen",
+      "furniture",
+      "structure"
+    ],
+    "file": "furniture/partition-screen.svg",
+    "source": "https://github.com/Templarian/MaterialDesign",
+    "license": "Apache-2.0",
+    "attribution": "Material Design Icons (Pictogrammers) — Apache 2.0"
+  },
+  {
+    "id": "monitor-controller",
+    "name": "Monitor Controller",
+    "category": "audio",
+    "subcategory": "monitoring",
+    "tags": [
+      "monitor",
+      "controller",
+      "volume",
+      "studio",
+      "reference",
+      "audio"
+    ],
+    "file": "audio/monitor-controller.svg",
+    "source": "https://github.com/glenandrewbrown/EasySchematic",
+    "license": "CC0-1.0",
+    "attribution": "EasySchematic original AV artwork (CC0)"
+  },
+  {
+    "id": "patchbay",
+    "name": "Patchbay",
+    "category": "audio",
+    "subcategory": "patch",
+    "tags": [
+      "patchbay",
+      "patch",
+      "jacks",
+      "normalling",
+      "tt",
+      "bantam",
+      "audio"
+    ],
+    "file": "audio/patchbay.svg",
+    "source": "https://github.com/glenandrewbrown/EasySchematic",
+    "license": "CC0-1.0",
+    "attribution": "EasySchematic original AV artwork (CC0)"
+  },
+  {
+    "id": "direct-box",
+    "name": "DI Box",
+    "category": "audio",
+    "subcategory": "di",
+    "tags": [
+      "di",
+      "direct",
+      "box",
+      "xlr",
+      "instrument",
+      "ground",
+      "audio"
+    ],
+    "file": "audio/direct-box.svg",
+    "source": "https://github.com/glenandrewbrown/EasySchematic",
+    "license": "CC0-1.0",
+    "attribution": "EasySchematic original AV artwork (CC0)"
+  },
+  {
+    "id": "mic-preamp",
+    "name": "Mic Preamp",
+    "category": "audio",
+    "subcategory": "preamp",
+    "tags": [
+      "mic",
+      "preamp",
+      "gain",
+      "microphone",
+      "channel",
+      "audio"
+    ],
+    "file": "audio/mic-preamp.svg",
+    "source": "https://github.com/glenandrewbrown/EasySchematic",
+    "license": "CC0-1.0",
+    "attribution": "EasySchematic original AV artwork (CC0)"
+  },
+  {
+    "id": "channel-strip",
+    "name": "Channel Strip",
+    "category": "audio",
+    "subcategory": "processor",
+    "tags": [
+      "channel",
+      "strip",
+      "eq",
+      "compressor",
+      "preamp",
+      "audio"
+    ],
+    "file": "audio/channel-strip.svg",
+    "source": "https://github.com/glenandrewbrown/EasySchematic",
+    "license": "CC0-1.0",
+    "attribution": "EasySchematic original AV artwork (CC0)"
+  },
+  {
+    "id": "summing-mixer",
+    "name": "Summing Mixer",
+    "category": "audio",
+    "subcategory": "mixer",
+    "tags": [
+      "summing",
+      "mixer",
+      "analog",
+      "bus",
+      "sigma",
+      "audio"
+    ],
+    "file": "audio/summing-mixer.svg",
+    "source": "https://github.com/glenandrewbrown/EasySchematic",
+    "license": "CC0-1.0",
+    "attribution": "EasySchematic original AV artwork (CC0)"
+  },
+  {
+    "id": "ad-da-converter",
+    "name": "AD/DA Converter",
+    "category": "audio",
+    "subcategory": "converter",
+    "tags": [
+      "ad",
+      "da",
+      "converter",
+      "digital",
+      "analog",
+      "interface",
+      "audio"
+    ],
+    "file": "audio/ad-da-converter.svg",
+    "source": "https://github.com/glenandrewbrown/EasySchematic",
+    "license": "CC0-1.0",
+    "attribution": "EasySchematic original AV artwork (CC0)"
+  },
+  {
+    "id": "word-clock",
+    "name": "Word Clock",
+    "category": "audio",
+    "subcategory": "clock",
+    "tags": [
+      "word",
+      "clock",
+      "sync",
+      "master",
+      "timing",
+      "audio"
+    ],
+    "file": "audio/word-clock.svg",
+    "source": "https://github.com/glenandrewbrown/EasySchematic",
+    "license": "CC0-1.0",
+    "attribution": "EasySchematic original AV artwork (CC0)"
+  },
+  {
+    "id": "stagebox",
+    "name": "Stage Box",
+    "category": "audio",
+    "subcategory": "stagebox",
+    "tags": [
+      "stagebox",
+      "stage",
+      "box",
+      "xlr",
+      "multicore",
+      "io",
+      "audio"
+    ],
+    "file": "audio/stagebox.svg",
+    "source": "https://github.com/glenandrewbrown/EasySchematic",
+    "license": "CC0-1.0",
+    "attribution": "EasySchematic original AV artwork (CC0)"
+  },
+  {
+    "id": "audio-snake",
+    "name": "Audio Snake",
+    "category": "audio",
+    "subcategory": "cable",
+    "tags": [
+      "snake",
+      "multicore",
+      "cable",
+      "loom",
+      "fanout",
+      "audio"
+    ],
+    "file": "audio/audio-snake.svg",
+    "source": "https://github.com/glenandrewbrown/EasySchematic",
+    "license": "CC0-1.0",
+    "attribution": "EasySchematic original AV artwork (CC0)"
+  },
+  {
+    "id": "matrix-router",
+    "name": "Matrix Router",
+    "category": "audio",
+    "subcategory": "router",
+    "tags": [
+      "matrix",
+      "router",
+      "crosspoint",
+      "routing",
+      "grid",
+      "audio"
+    ],
+    "file": "audio/matrix-router.svg",
+    "source": "https://github.com/glenandrewbrown/EasySchematic",
+    "license": "CC0-1.0",
+    "attribution": "EasySchematic original AV artwork (CC0)"
+  },
+  {
+    "id": "daw-controller",
+    "name": "DAW Controller",
+    "category": "audio",
+    "subcategory": "controller",
+    "tags": [
+      "daw",
+      "controller",
+      "faders",
+      "transport",
+      "surface",
+      "audio"
+    ],
+    "file": "audio/daw-controller.svg",
+    "source": "https://github.com/glenandrewbrown/EasySchematic",
+    "license": "CC0-1.0",
+    "attribution": "EasySchematic original AV artwork (CC0)"
+  },
+  {
+    "id": "nearfield-monitor",
+    "name": "Nearfield Monitor",
+    "category": "audio",
+    "subcategory": "monitor",
+    "tags": [
+      "nearfield",
+      "monitor",
+      "studio",
+      "speaker",
+      "reference",
+      "audio"
+    ],
+    "file": "audio/nearfield-monitor.svg",
+    "source": "https://github.com/glenandrewbrown/EasySchematic",
+    "license": "CC0-1.0",
+    "attribution": "EasySchematic original AV artwork (CC0)"
+  },
+  {
+    "id": "midfield-monitor",
+    "name": "Midfield Monitor",
+    "category": "audio",
+    "subcategory": "monitor",
+    "tags": [
+      "midfield",
+      "monitor",
+      "studio",
+      "speaker",
+      "three-way",
+      "audio"
+    ],
+    "file": "audio/midfield-monitor.svg",
+    "source": "https://github.com/glenandrewbrown/EasySchematic",
+    "license": "CC0-1.0",
+    "attribution": "EasySchematic original AV artwork (CC0)"
+  },
+  {
+    "id": "subwoofer-studio",
+    "name": "Studio Subwoofer",
+    "category": "audio",
+    "subcategory": "subwoofer",
+    "tags": [
+      "subwoofer",
+      "sub",
+      "studio",
+      "lfe",
+      "bass",
+      "audio"
+    ],
+    "file": "audio/subwoofer-studio.svg",
+    "source": "https://github.com/glenandrewbrown/EasySchematic",
+    "license": "CC0-1.0",
+    "attribution": "EasySchematic original AV artwork (CC0)"
+  },
+  {
+    "id": "loudspeaker-dsp",
+    "name": "DSP Loudspeaker",
+    "category": "audio",
+    "subcategory": "loudspeaker",
+    "tags": [
+      "loudspeaker",
+      "dsp",
+      "powered",
+      "active",
+      "speaker",
+      "audio"
+    ],
+    "file": "audio/loudspeaker-dsp.svg",
+    "source": "https://github.com/glenandrewbrown/EasySchematic",
+    "license": "CC0-1.0",
+    "attribution": "EasySchematic original AV artwork (CC0)"
+  },
+  {
+    "id": "wireless-mic-rx",
+    "name": "Wireless Mic RX",
+    "category": "audio",
+    "subcategory": "wireless",
+    "tags": [
+      "wireless",
+      "mic",
+      "receiver",
+      "rx",
+      "rf",
+      "radio",
+      "audio"
+    ],
+    "file": "audio/wireless-mic-rx.svg",
+    "source": "https://github.com/glenandrewbrown/EasySchematic",
+    "license": "CC0-1.0",
+    "attribution": "EasySchematic original AV artwork (CC0)"
+  },
+  {
+    "id": "wireless-mic-tx",
+    "name": "Wireless Mic TX",
+    "category": "audio",
+    "subcategory": "wireless",
+    "tags": [
+      "wireless",
+      "mic",
+      "transmitter",
+      "tx",
+      "bodypack",
+      "beltpack",
+      "audio"
+    ],
+    "file": "audio/wireless-mic-tx.svg",
+    "source": "https://github.com/glenandrewbrown/EasySchematic",
+    "license": "CC0-1.0",
+    "attribution": "EasySchematic original AV artwork (CC0)"
+  },
+  {
+    "id": "iem-pack",
+    "name": "IEM Pack",
+    "category": "audio",
+    "subcategory": "wireless",
+    "tags": [
+      "iem",
+      "in-ear",
+      "monitor",
+      "beltpack",
+      "pack",
+      "wireless",
+      "audio"
+    ],
+    "file": "audio/iem-pack.svg",
+    "source": "https://github.com/glenandrewbrown/EasySchematic",
+    "license": "CC0-1.0",
+    "attribution": "EasySchematic original AV artwork (CC0)"
+  },
+  {
+    "id": "intercom-station",
+    "name": "Intercom Station",
+    "category": "audio",
+    "subcategory": "comms",
+    "tags": [
+      "intercom",
+      "comms",
+      "beltpack",
+      "headset",
+      "talkback",
+      "partyline",
+      "audio"
+    ],
+    "file": "audio/intercom-station.svg",
+    "source": "https://github.com/glenandrewbrown/EasySchematic",
+    "license": "CC0-1.0",
+    "attribution": "EasySchematic original AV artwork (CC0)"
+  },
+  {
+    "id": "sdi-router",
+    "name": "SDI Router",
+    "category": "video",
+    "subcategory": "router",
+    "tags": [
+      "sdi",
+      "router",
+      "bnc",
+      "crosspoint",
+      "video",
+      "broadcast"
+    ],
+    "file": "video/sdi-router.svg",
+    "source": "https://github.com/glenandrewbrown/EasySchematic",
+    "license": "CC0-1.0",
+    "attribution": "EasySchematic original AV artwork (CC0)"
+  },
+  {
+    "id": "video-scaler",
+    "name": "Video Scaler",
+    "category": "video",
+    "subcategory": "processor",
+    "tags": [
+      "scaler",
+      "video",
+      "upscale",
+      "resolution",
+      "converter"
+    ],
+    "file": "video/video-scaler.svg",
+    "source": "https://github.com/glenandrewbrown/EasySchematic",
+    "license": "CC0-1.0",
+    "attribution": "EasySchematic original AV artwork (CC0)"
+  },
+  {
+    "id": "capture-card",
+    "name": "Capture Card",
+    "category": "video",
+    "subcategory": "capture",
+    "tags": [
+      "capture",
+      "card",
+      "pcie",
+      "hdmi",
+      "record",
+      "grabber",
+      "video"
+    ],
+    "file": "video/capture-card.svg",
+    "source": "https://github.com/glenandrewbrown/EasySchematic",
+    "license": "CC0-1.0",
+    "attribution": "EasySchematic original AV artwork (CC0)"
+  },
+  {
+    "id": "playback-server",
+    "name": "Playback Server",
+    "category": "video",
+    "subcategory": "server",
+    "tags": [
+      "playback",
+      "server",
+      "media",
+      "video",
+      "spool"
+    ],
+    "file": "video/playback-server.svg",
+    "source": "https://github.com/glenandrewbrown/EasySchematic",
+    "license": "CC0-1.0",
+    "attribution": "EasySchematic original AV artwork (CC0)"
+  },
+  {
+    "id": "led-processor",
+    "name": "LED Processor",
+    "category": "video",
+    "subcategory": "processor",
+    "tags": [
+      "led",
+      "processor",
+      "wall",
+      "pixel",
+      "video",
+      "map"
+    ],
+    "file": "video/led-processor.svg",
+    "source": "https://github.com/glenandrewbrown/EasySchematic",
+    "license": "CC0-1.0",
+    "attribution": "EasySchematic original AV artwork (CC0)"
+  },
+  {
+    "id": "dmx-node",
+    "name": "DMX Node",
+    "category": "lighting",
+    "subcategory": "control",
+    "tags": [
+      "dmx",
+      "node",
+      "artnet",
+      "sacn",
+      "gateway",
+      "ethernet",
+      "lighting"
+    ],
+    "file": "lighting/dmx-node.svg",
+    "source": "https://github.com/glenandrewbrown/EasySchematic",
+    "license": "CC0-1.0",
+    "attribution": "EasySchematic original AV artwork (CC0)"
+  },
+  {
+    "id": "moving-head-fixture",
+    "name": "Moving Head",
+    "category": "lighting",
+    "subcategory": "fixture",
+    "tags": [
+      "moving",
+      "head",
+      "fixture",
+      "yoke",
+      "beam",
+      "intelligent",
+      "lighting"
+    ],
+    "file": "lighting/moving-head-fixture.svg",
+    "source": "https://github.com/glenandrewbrown/EasySchematic",
+    "license": "CC0-1.0",
+    "attribution": "EasySchematic original AV artwork (CC0)"
+  },
+  {
+    "id": "power-sequencer",
+    "name": "Power Sequencer",
+    "category": "power",
+    "subcategory": "distribution",
+    "tags": [
+      "power",
+      "sequencer",
+      "sequence",
+      "distribution",
+      "staged",
+      "relay"
+    ],
+    "file": "power/power-sequencer.svg",
+    "source": "https://github.com/glenandrewbrown/EasySchematic",
+    "license": "CC0-1.0",
+    "attribution": "EasySchematic original AV artwork (CC0)"
   }
 ]

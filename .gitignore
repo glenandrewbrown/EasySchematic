@@ -136,3 +136,4 @@ handover/
 
 # Local QA test-report artifacts (test-report skill)
 test-reports/
+Design_Handoff/svg-library/_build/__pycache__/

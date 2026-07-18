@@ -27,6 +27,7 @@ export default function CanvasRuler() {
   const show = useSchematicStore((s) => s.gridSettings.gridVisible);
   const metresPerPixel = useSchematicStore((s) => s.gridSettings.metresPerPixel);
   const unit = useSchematicStore((s) => s.gridSettings.layoutGridUnit);
+  const layoutGridStep = useSchematicStore((s) => s.gridSettings.layoutGridStep);
   const isLayout = useSchematicStore((s) => s.canvasViewMode === "layout");
 
   const svgRef = useRef<SVGSVGElement>(null);
@@ -54,7 +55,11 @@ export default function CanvasRuler() {
   let hTicks: RulerTick[];
   let vTicks: RulerTick[];
   if (isLayout) {
-    const step = realRulerStep(zoom, metresPerPixel, unit);
+    // Use the GRID's own major step (layoutGridStep) so ruler majors sit exactly on the
+    // grid's major lines and minors (step ÷ 5) on its minor lines — same source as the
+    // <Background> in App.tsx. Only fall back to the zoom-adaptive step if the doc scale
+    // is unset, to keep labels from crowding before a grid is configured.
+    const step = layoutGridStep > 0 ? layoutGridStep : realRulerStep(zoom, metresPerPixel, unit);
     hTicks = buildRealRulerTicks(x, zoom, width, metresPerPixel, unit, step);
     vTicks = buildRealRulerTicks(y, zoom, height, metresPerPixel, unit, step);
   } else {

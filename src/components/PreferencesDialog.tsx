@@ -351,9 +351,19 @@ function AppearanceSection() {
   const stubLabelPageMode = useSchematicStore((s) => s.stubLabelPageMode);
   const setStubLabelPageMode = useSchematicStore((s) => s.setStubLabelPageMode);
 
+  const uiFont = useSchematicStore((s) => s.uiFont);
+  const setUiFont = useSchematicStore((s) => s.setUiFont);
+
   const setTheme = (wantDark: boolean) => {
     if (wantDark !== isDark) toggle();
   };
+
+  const UI_FONT_OPTIONS: { id: "jost" | "plex-sans" | "public-sans" | "system"; name: string; note: string; stack: string }[] = [
+    { id: "jost", name: "Jost", note: "default — geometric, the Slate × Carbon voice", stack: '"Jost", system-ui, sans-serif' },
+    { id: "plex-sans", name: "IBM Plex Sans", note: "grotesque, pairs with Plex Mono", stack: '"IBM Plex Sans", system-ui, sans-serif' },
+    { id: "public-sans", name: "Public Sans", note: "neutral, high legibility at small sizes", stack: '"Public Sans", system-ui, sans-serif' },
+    { id: "system", name: "System", note: "native (SF / Segoe), zero download", stack: "-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif" },
+  ];
 
   return (
     <>
@@ -418,6 +428,50 @@ function AppearanceSection() {
             {!isDark && <CheckIcon />}
           </div>
         </button>
+      </div>
+
+      {/* Interface font (board 5g) — swaps --font-ui only; mono stays IBM Plex Mono. */}
+      <FieldLabel>Interface font</FieldLabel>
+      <div className="flex flex-col gap-1.5 mb-6 w-[400px]">
+        {UI_FONT_OPTIONS.map((f) => {
+          const active = uiFont === f.id;
+          return (
+            <button
+              key={f.id}
+              type="button"
+              onClick={() => setUiFont(f.id)}
+              aria-pressed={active}
+              className="flex items-center gap-3 px-3.5 py-2.5 rounded-[10px] text-left cursor-pointer bg-[var(--color-surface)] transition-colors"
+              style={{ border: `1.5px solid ${active ? "var(--color-accent)" : "var(--color-border)"}` }}
+            >
+              <span
+                aria-hidden
+                className="w-[16px] h-[16px] rounded-full shrink-0"
+                style={{
+                  border: active
+                    ? "5px solid var(--color-accent)"
+                    : "1.5px solid var(--ui-border-strong)",
+                }}
+              />
+              <span className="flex flex-col min-w-0 flex-1">
+                <span className="text-xs font-semibold text-[var(--color-text-heading)]" style={{ fontFamily: f.stack }}>
+                  {f.name}
+                  {f.id === "jost" && <span className="font-normal text-[var(--color-text-muted)]"> · default</span>}
+                </span>
+                <span className="text-[10.5px] text-[var(--color-text-muted)] truncate" style={{ fontFamily: f.stack }}>
+                  Kii Three · Speaker — {f.note}
+                </span>
+              </span>
+              <span className="text-lg text-[var(--color-text-heading)] shrink-0" style={{ fontFamily: f.stack }} aria-hidden>
+                Aa
+              </span>
+            </button>
+          );
+        })}
+        <p className="text-[10.5px] text-[var(--color-text-muted)] mt-0.5">
+          Swaps the interface face only — numerics, IDs and labels stay IBM Plex Mono. Applies
+          instantly app-wide and is remembered on this device.
+        </p>
       </div>
 
       {/* Workspace accents */}

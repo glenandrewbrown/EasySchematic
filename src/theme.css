@@ -30,10 +30,27 @@
   --color-success: #188a64;
   --color-warning: #8a5e12;
   --color-error: #d6453a;             /* Carbon coral — the attention accent */
+  --color-on-error: #ffffff;          /* Ink on error fill — white on dark red */
   --color-info: #1664c8;
   --font-mono: "IBM Plex Mono", "SF Mono", "JetBrains Mono", "Berkeley Mono", ui-monospace, "Cascadia Code", Menlo, monospace;
   /* UI face moves to Jost (geometric). Add @font-face / body font-family in index.css. */
   --font-ui: "Jost", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+}
+
+/* Interface-font preference (board 5g) — Preferences ▸ Appearance swaps --font-ui ONLY;
+   --font-mono keeps owning numerics/IDs in every option. The store stamps data-ui-font
+   on <html> from the persisted easyschematic.ui.v1 preference. */
+:root[data-ui-font="plex-sans"] {
+  --font-ui: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+}
+:root[data-ui-font="public-sans"] {
+  --font-ui: "Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+}
+:root[data-ui-font="system"] {
+  --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+}
+
+:root {
   --ui-border: #c9d1db;           /* hairline border (chrome) */
   --ui-border-strong: #9aa4b2;
   /* Slate-tinted elevation — shadows carry the surface hue, never flat black */
@@ -142,6 +159,7 @@
   --color-success: #54d6a6;
   --color-warning: #eac06a;
   --color-error: #ff8a7e;           /* Carbon coral — the attention accent */
+  --color-on-error: #2a1512;        /* Ink on error fill — dark navy on light pastel (7.95:1 contrast) */
   --color-info: #6fb8ff;
   --ui-border: #52617a;         /* hairline border (chrome) */
   --ui-border-strong: #76859a;  /* strong / node border */

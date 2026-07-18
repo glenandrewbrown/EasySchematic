@@ -16,8 +16,9 @@ import { defaultStubPlacement } from "./stubPlacement";
 import { getPortAbsolutePositions } from "./snapUtils";
 import { mostCommonRoomScale, DEFAULT_METRES_PER_PIXEL } from "./layoutScale";
 import { DEFAULT_GRID_SETTINGS, type SchematicNode } from "./types";
+import { emojiToArtworkId } from "./deviceArtwork";
 
-export const CURRENT_SCHEMA_VERSION = 48;
+export const CURRENT_SCHEMA_VERSION = 51;
 
 /** Stub-label nodes paint at this z-index so connection lines render UNDER their
  *  white box (matches waypoint/junction z — above edge z, below the 10000 edge labels). */
@@ -547,6 +548,47 @@ const migrations: Record<number, Migration> = {
     // transform. (Bundle membership is upstream's data.bundleId + data.bundles, reconciled
     // at v39→v40; this fork's separate bundle grouping folded into that model.)
     data.version = 48;
+    return data;
+  },
+  48: (data) => {
+    // v48 → v49: device artwork replaces emoji icons (round-3 R3). Each legacy
+    // data.icon emoji maps to the nearest bundled symbol (emojiToArtworkId); unknown
+    // glyphs map to nothing and the class-default symbol renders instead. The icon
+    // field is dropped — emoji are banned from app chrome from v49 on.
+    if (Array.isArray(data.nodes)) {
+      for (const n of data.nodes) {
+        if (n?.type !== "device" || !n.data) continue;
+        const icon = typeof n.data.icon === "string" ? n.data.icon : "";
+        if (icon && !n.data.artworkAssetId) {
+          const mapped = emojiToArtworkId(icon);
+          if (mapped) n.data.artworkAssetId = mapped;
+        }
+        delete n.data.icon;
+      }
+    }
+    data.version = 49;
+    return data;
+  },
+  49: (data) => {
+    // v49 → v50: nested layer groups + multi-document tabs + adapter-create +
+    // device-details page. Every new field is additive/optional:
+    //   - SchematicLayer.parentId — absent means a root layer (no backfill; the
+    //     existing flat layers all become roots).
+    //   - Project tabs (documents / activeDocumentId) are session-only live state,
+    //     never serialized into the on-disk SchematicFile, so nothing to migrate.
+    // A v49 file is therefore already a valid v50 file — this is a pure bump.
+    data.version = 50;
+    return data;
+  },
+  50: (data) => {
+    // v50 → v51: channel ⇄ connector model + multi-channel cables + internal
+    // routing/buses + patchbay archetype (R2). Every new field is additive and
+    // optional: DeviceData.channels/connectors/patchbay, ConnectionData.
+    // sourceConnectorId/targetConnectorId/channelCount/internal. Existing single-
+    // channel gear keeps the legacy Port[] as its render/anchor unit unchanged;
+    // the channel layer is opt-in richer metadata, so no data transform is needed.
+    // A v50 file is already a valid v51 file — pure bump.
+    data.version = 51;
     return data;
   },
 

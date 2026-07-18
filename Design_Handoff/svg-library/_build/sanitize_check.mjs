@@ -2,7 +2,7 @@ import { sanitizeSvg } from '/Users/glenandrewbrown/Development/EasySchematic/sr
 import fs from 'node:fs';
 import path from 'node:path';
 const root='/Users/glenandrewbrown/Development/EasySchematic/Design_Handoff/svg-library';
-const cats=['generic','audio','network','furniture'];
+const cats=['generic','audio','video','lighting','network','compute','power','furniture'];
 let total=0,nulled=[],lostCc=[];
 for(const c of cats){
   for(const f of fs.readdirSync(path.join(root,c))){
