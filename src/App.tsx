@@ -34,6 +34,7 @@ import { validateSchematic, type IssueSeverity } from "./validation";
 import DeviceEditor from "./components/DeviceEditor";
 import DeviceDetailsPage from "./components/DeviceDetailsPage";
 import RoutingMatrix from "./components/RoutingMatrix";
+import SignalFlowOverlay from "./components/SignalFlowOverlay";
 import RightRail from "./components/RightRail";
 import ScheduleView from "./components/ScheduleView";
 import EditorTopBar from "./components/EditorTopBar";
@@ -2426,6 +2427,7 @@ export default function App() {
       <DeviceEditor />
       <DeviceDetailsPage />
       <RoutingMatrix />
+      <SignalFlowOverlay />
       <RoomEditor />
       <AnnotationEditor />
       <EdgeContextMenu />

@@ -9,7 +9,9 @@ import type {
   ConnectorType,
   DeviceChannel,
   DeviceConnector,
+  PatchPoint,
 } from "../types";
+import type { Terminal } from "../patchbayNormalling";
 import { SIGNAL_COLORS, SIGNAL_LABELS, CONNECTOR_LABELS, portSide, DEFAULT_LAYER_ID } from "../types";
 import { deviceClassColor } from "../deviceClassColor";
 import { useSchematicStore, type NodeViewTier } from "../store";
@@ -28,6 +30,7 @@ import type { AuxRow } from "../types";
 import { useDisplayLabel } from "../labelCaseUtils";
 import { resolveDeviceLabel } from "../displayName";
 import ArtworkChip from "./ArtworkChip";
+import PatchbayFace, { type PatchbayColumn } from "./PatchbayFace";
 import "../deviceNodeMotion.css";
 
 /** Minimal store shape the per-node severity selector reads. Structurally a subset of
@@ -205,6 +208,8 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
   // routes, serialized so the node re-renders only when ITS internal routes change.
   const routingExpanded = useSchematicStore((s) => s.expandedRoutingDeviceIds.includes(id));
   const toggleDeviceRoutingExpanded = useSchematicStore((s) => s.toggleDeviceRoutingExpanded);
+  // C7 — patchbay per-point mode control. Selector returns the stable store action.
+  const setPatchPointMode = useSchematicStore((s) => s.setPatchPointMode);
   const internalRouteStr = useSchematicStore((s) => {
     const parts: string[] = [];
     for (const e of s.edges) {
@@ -250,6 +255,42 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
     return { wired, synthConnections };
   }, [hasChannelModel, wiredConnectorIdStr, id]);
 
+  // C7 — patchbay face columns. A patchbay device carries `data.patchbay.points`
+  // alongside the R2-5 channels/connectors; each point's four jacks live in
+  // `data.connectors` tagged with jackRole + patchPointId. Resolve them into one
+  // column per point (with the point's A-circuit signal colour) so PatchbayFace
+  // stays purely presentational. Structure-only (never wiring) → recomputes only
+  // when the device's patchbay/connectors/channels change, never on a re-wire.
+  const patchbayColumns = useMemo<PatchbayColumn[] | null>(() => {
+    const points = data.patchbay?.points;
+    if (!points?.length) return null;
+    const connectors = data.connectors ?? [];
+    const channels = data.channels ?? [];
+    const jacksByPoint = new Map<string, Partial<Record<Terminal, DeviceConnector>>>();
+    for (const c of connectors) {
+      if (!c.patchPointId || !c.jackRole) continue;
+      const entry = jacksByPoint.get(c.patchPointId) ?? {};
+      entry[c.jackRole] = c;
+      jacksByPoint.set(c.patchPointId, entry);
+    }
+    const signalOfPoint = (jacks: Partial<Record<Terminal, DeviceConnector>>): SignalType => {
+      // The A circuit is the point's identity; fall back to any carried channel.
+      const carrier = jacks.frontA ?? jacks.rearA ?? jacks.frontB ?? jacks.rearB;
+      const channelId = carrier?.carries[0];
+      const channel = channelId ? channels.find((ch) => ch.id === channelId) : undefined;
+      return channel?.signalType ?? "custom";
+    };
+    return points.map((point: PatchPoint) => {
+      const jacks = jacksByPoint.get(point.id) ?? {};
+      const signal = signalOfPoint(jacks);
+      return {
+        point,
+        jacks,
+        signalColor: SIGNAL_COLORS[signal] ?? SIGNAL_COLORS.custom,
+      };
+    });
+  }, [data.patchbay, data.connectors, data.channels]);
+
   // Density tier: the per-device override wins, else the schematic-wide `nodeCompact` baseline.
   const tier: NodeViewTier = nodeViewOverride ?? (nodeCompact ? "compact" : "default");
   // "tile" is drawn as an OVERLAY, never as its own layout: the underlying tree still renders at
@@ -257,6 +298,11 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
   // its handle bounds and therefore every wire anchor are identical tiled or not. Nothing about the
   // tile may be allowed to change the box — React Flow measures handles off the live DOM rects.
   const isTile = tier === "tile";
+  // C7 — a patchbay renders the horizontal jack face instead of the port rows. Tile tier still
+  // wins if the user tiles it (so patchbay defers to tile). Like the tile overlay, the underlying
+  // port tree stays laid out (visibility: hidden) so every @xyflow Handle keeps its exact DOM rect
+  // and cables anchor exactly as they do on the plain patch-panel node today.
+  const isPatchbay = patchbayColumns != null && !isTile;
   const baselineTier: NodeViewTier = isTile ? (nodeCompact ? "compact" : "default") : tier;
   const isCompact = baselineTier === "compact";
   // The footer stats block is the "detailed" tier's only addition over "default".
@@ -1249,7 +1295,7 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
       {/* Layout wrapper. `visibility: hidden` (never `display: none`) keeps every layout box —
            and so every handle's DOM rect — exactly where it sits untiled, while taking the
            hidden tree out of hit-testing and the accessibility tree. */}
-      <div style={{ visibility: isTile ? "hidden" : undefined }}>
+      <div style={{ visibility: isTile || isPatchbay ? "hidden" : undefined }}>
       {/* Layer colour, "band" mode — a 3px bar across the node's top edge. Absolutely
            positioned (like the status dot) so it overlays the header rather than adding a row:
            the header-band invariant is untouched. The header's layer chip carries the
@@ -1602,6 +1648,28 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
            it shows at any density) but INSIDE the visibility wrapper so the tile tier hides it. */}
       {renderInternalRoutingLane()}
       </div>
+
+      {/* C7 — patchbay face. Absolute overlay covering the (still-laid-out, visibility:hidden)
+           port body, exactly like the tile block: the hidden passthrough rows keep every Handle's
+           DOM rect so cables anchor unchanged, while this face is the schematic representation.
+           `occupancy.wired` is this device's wired connector-id set (already derived for C1), so a
+           FRONT jack in it is patched. */}
+      {isPatchbay && patchbayColumns && (
+        <div
+          className="absolute inset-0 rounded-[6px] overflow-hidden"
+          style={{ background: bodyWash }}
+        >
+          <PatchbayFace
+            deviceName={displayLabel(resolvedLabel.text)}
+            columns={patchbayColumns}
+            patchedConnectorIds={occupancy?.wired ?? new Set<string>()}
+            liveSignal={liveSignal}
+            reduceMotion={reduceMotion}
+            onSetMode={(pointId, mode) => setPatchPointMode(id, pointId, mode)}
+            displayLabel={displayLabel}
+          />
+        </div>
+      )}
 
       {/* Tile tier — a solid class-colour block covering the (still-laid-out) node. The code, the
            Device name and the connected/total count are all text, so the class colour is never

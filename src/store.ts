@@ -63,6 +63,7 @@ import { CURRENT_SCHEMA_VERSION, STUB_LABEL_Z_INDEX, migrateSchematic } from "./
 import { healStaleWaypoints } from "./waypointHealing";
 import { newBundleId, gcBundles, reconcileBundleJunctions, bundleJunctionsFor, splitMemberWaypoints } from "./bundles";
 import { computeBundleTrunk, type BundleEndpoint } from "./routing/bundleRoute";
+import type { SignalFlowTrigger } from "./signalFlowTrace";
 import { buildHandleSnapshot } from "./routing/handleSnapshot";
 import { requestRoutes, setRoutingResultHandler, type RoutingResult } from "./routing/routingClient";
 import { reconcileWaypointNodes, syncEdgesFromWaypointNodes, spliceWaypointsForRemovedNodes } from "./waypointSync";
@@ -483,6 +484,14 @@ interface SchematicState {
   openRoutingMatrix: (id: string) => void;
   /** Close the routing matrix. */
   closeRoutingMatrix: () => void;
+  /** When set, the signal-flow / path-explain overlay traces this trigger
+   *  (a Connection or a patchbay point). UI-only flag (session state); the
+   *  overlay reads the live graph and resolves normalling on the fly. */
+  signalFlowTrigger: SignalFlowTrigger | null;
+  /** Open the signal-flow overlay for a Connection or patch point. */
+  openSignalFlow: (trigger: SignalFlowTrigger) => void;
+  /** Close the signal-flow overlay. */
+  closeSignalFlow: () => void;
   customTemplates: DeviceTemplate[];
   ownedGear: OwnedGearItem[];
   ownedCables: OwnedCableItem[];
@@ -1955,6 +1964,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
   creatingNodeId: null,
   deviceDetailsPageId: null,
   routingMatrixDeviceId: null,
+  signalFlowTrigger: null,
   adapterCreationRequest: null,
   documents: [],
   activeDocumentId: "",
@@ -3609,6 +3619,14 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
 
   closeRoutingMatrix: () => {
     set({ routingMatrixDeviceId: null });
+  },
+
+  openSignalFlow: (trigger) => {
+    set({ signalFlowTrigger: trigger });
+  },
+
+  closeSignalFlow: () => {
+    set({ signalFlowTrigger: null });
   },
 
   createAndEditDevice: (template, position) => {
