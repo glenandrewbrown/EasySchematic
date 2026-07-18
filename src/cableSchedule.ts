@@ -8,6 +8,7 @@ import type {
 import { SIGNAL_LABELS, CONNECTOR_LABELS, DEFAULT_DISTANCE_SETTINGS } from "./types";
 import { getCableType } from "./cableTypes";
 import { resolvePort, resolvePortLabel, getRoomLabel, escapeCsv, csvRow, groupBy } from "./packList";
+import { bundleChannelCount, channelFit as resolveChannelFit, type ChannelFit } from "./cableFit";
 import { transformLabelNow } from "./labelCaseUtils";
 import type { ReportLayout } from "./reportLayout";
 import type { ReportTableData } from "./reportPdf";
@@ -60,6 +61,14 @@ export interface CableScheduleRow {
   tested: string;
   /** Raw cable use: "patch" | "field" | "" (#P2-019). */
   cableUse: string;
+  /** Multi-channel cable bundle (R2-3 C4): min(source, target) channel count this run
+   *  carries, resolved from each end's multicable Port. Undefined = a plain single-channel
+   *  run (or unknown) — no `·Nch` suffix. See cableFit.ts bundleChannelCount. */
+  channelCount?: number;
+  /** Fit verdict between the two ends' channel counts — "mismatch" when an N-channel
+   *  connector plugs into a run that can't carry all N channels (e.g. an 8ch DB25 into a
+   *  2ch breakout), flagged as a warning in the schedule grid. */
+  channelFit?: ChannelFit;
 }
 
 /** Sort key that keeps a trunk's legs adjacent without reordering within the trunk.
@@ -246,6 +255,8 @@ export function computeCableSchedule(
         : "—";
       const sourceRoom = srcNode ? getRoomLabel(nodes, srcNode.parentId) : "Unknown";
       const targetRoom = tgtNode ? getRoomLabel(nodes, tgtNode.parentId) : "Unknown";
+      const srcChannelCount = srcPort?.isMulticable ? srcPort.channelCount : undefined;
+      const tgtChannelCount = tgtPort?.isMulticable ? tgtPort.channelCount : undefined;
 
       return {
         edgeId: e.id,
@@ -273,6 +284,8 @@ export function computeCableSchedule(
         targetRoom,
         computedLength: estimated?.text,
         computedLengthM: estimated?.meters,
+        channelCount: bundleChannelCount(srcChannelCount, tgtChannelCount),
+        channelFit: resolveChannelFit(srcChannelCount, tgtChannelCount),
       };
     });
 
@@ -325,6 +338,8 @@ export function computeCableSchedule(
         cableAlias: c.cableAlias,
         tested: c.tested,
         cableUse: c.cableUse,
+        channelCount: c.channelCount,
+        channelFit: c.channelFit,
       };
     });
   }
@@ -353,6 +368,8 @@ export function computeCableSchedule(
     cableAlias: c.cableAlias,
     tested: c.tested,
     cableUse: c.cableUse,
+    channelCount: c.channelCount,
+    channelFit: c.channelFit,
   }));
 }
 

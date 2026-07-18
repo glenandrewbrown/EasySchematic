@@ -1,10 +1,20 @@
 import { memo, useMemo, useCallback } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
-import type { DeviceNode as DeviceNodeType, Port, SchematicNode, ConnectionEdge, SignalType } from "../types";
+import type {
+  DeviceNode as DeviceNodeType,
+  Port,
+  SchematicNode,
+  ConnectionEdge,
+  SignalType,
+  ConnectorType,
+  DeviceChannel,
+  DeviceConnector,
+} from "../types";
 import { SIGNAL_COLORS, SIGNAL_LABELS, CONNECTOR_LABELS, portSide, DEFAULT_LAYER_ID } from "../types";
 import { deviceClassColor } from "../deviceClassColor";
 import { useSchematicStore, type NodeViewTier } from "../store";
-import { signalLabel as signalTypeLabel, portLabel } from "../plainLanguage";
+import { signalLabel as signalTypeLabel } from "../plainLanguage";
+import { isConnectorLockedByShare, connectorChannelCount } from "../deviceChannels";
 import { validateSchematic, type IssueSeverity } from "../validation";
 import {
   resolveAuxiliaryLine,
@@ -167,6 +177,79 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
   const nodeColorOverride = useSchematicStore((s) => s.nodeColors[id]);
   const nodeViewOverride = useSchematicStore((s) => s.nodeView[id]);
 
+  // ── Channel ⇄ connector model (C1) + internal-routing lane (C6) ──────────────
+  // Simple 1:1 gear has no `channels`/`connectors`, so `hasChannelModel` is false and every
+  // port falls through to the single `· <TYPE>` connector sublabel — today's look, made
+  // consistent across all rows. Channel-model gear (Trinnov, MADI/DB25 breakouts) additionally
+  // renders shared-connector chip clusters with derived occupied/locked state.
+  const hasChannelModel =
+    (data.connectors?.length ?? 0) > 0 && (data.channels?.length ?? 0) > 0;
+
+  // Serialized set of THIS device's wired connectorIds. Returns a primitive so the node only
+  // re-renders when its own connectors' wired state changes (never on unrelated edge edits).
+  // Empty string short-circuits for the common no-channel-model case (no edge iteration).
+  const wiredConnectorIdStr = useSchematicStore((s) => {
+    if (!hasChannelModel) return "";
+    const own = new Set((data.connectors ?? []).map((c) => c.id));
+    const ids: string[] = [];
+    for (const e of s.edges) {
+      const sc = e.data?.sourceConnectorId;
+      const tc = e.data?.targetConnectorId;
+      if (sc && own.has(sc)) ids.push(sc);
+      if (tc && own.has(tc)) ids.push(tc);
+    }
+    return [...new Set(ids)].sort().join(",");
+  });
+
+  // C6 — internal-routing lane expansion (session/UI store state) + this device's internal
+  // routes, serialized so the node re-renders only when ITS internal routes change.
+  const routingExpanded = useSchematicStore((s) => s.expandedRoutingDeviceIds.includes(id));
+  const toggleDeviceRoutingExpanded = useSchematicStore((s) => s.toggleDeviceRoutingExpanded);
+  const internalRouteStr = useSchematicStore((s) => {
+    const parts: string[] = [];
+    for (const e of s.edges) {
+      if (e.data?.internal && e.source === id && e.target === id) {
+        parts.push(`${e.sourceHandle ?? ""}>${e.targetHandle ?? ""}`);
+      }
+    }
+    return parts.sort().join(",");
+  });
+
+  // Static channel→connectors index (structure only — independent of wiring, so it never
+  // forces a re-widen). `byChannel` maps a channelId to every connector that carries it (the
+  // "alternate connectors" of C1); the label/id maps resolve a rendered Port to its channel.
+  const channelIndex = useMemo(() => {
+    if (!hasChannelModel) return null;
+    const channels = data.channels ?? [];
+    const connectors = data.connectors ?? [];
+    const byChannel = new Map<string, DeviceConnector[]>();
+    for (const connector of connectors) {
+      for (const channelId of connector.carries) {
+        const list = byChannel.get(channelId);
+        if (list) list.push(connector);
+        else byChannel.set(channelId, [connector]);
+      }
+    }
+    const channelById = new Map(channels.map((c) => [c.id, c] as const));
+    const channelByLabel = new Map(
+      channels.map((c) => [c.label.trim().toLowerCase(), c] as const),
+    );
+    return { byChannel, channelById, channelByLabel };
+  }, [hasChannelModel, data.channels, data.connectors]);
+
+  // Dynamic occupancy — the wired connector set + minimal synthetic Connections so the pure
+  // deviceChannels helpers (isConnectorLockedByShare) derive mutex without this node ever
+  // subscribing to the whole edges array. Only the chip colour/lock depends on this, never width.
+  const occupancy = useMemo(() => {
+    if (!hasChannelModel) return null;
+    const wired = new Set(wiredConnectorIdStr ? wiredConnectorIdStr.split(",") : []);
+    const synthConnections: ConnectionEdge[] = [...wired].map(
+      (cid) =>
+        ({ id: cid, source: id, target: id, data: { sourceConnectorId: cid } }) as ConnectionEdge,
+    );
+    return { wired, synthConnections };
+  }, [hasChannelModel, wiredConnectorIdStr, id]);
+
   // Density tier: the per-device override wins, else the schematic-wide `nodeCompact` baseline.
   const tier: NodeViewTier = nodeViewOverride ?? (nodeCompact ? "compact" : "default");
   // "tile" is drawn as an OVERLAY, never as its own layout: the underlying tree still renders at
@@ -275,6 +358,45 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
     }
     return m;
   }, [data.internalLinks]);
+
+  // C6 — resolved internal routes for the expanded lane. Each endpoint id is a channelId or a
+  // bus connectorId; resolve its label + signal colour (bus endpoints tint violet). Depends only
+  // on the serialized route string + device structure, so it recomputes only on a real change.
+  const internalRoutes = useMemo(() => {
+    if (!internalRouteStr) return [];
+    const channels = data.channels ?? [];
+    const connectors = data.connectors ?? [];
+    const findChannel = (epId: string): DeviceChannel | undefined =>
+      channels.find((c) => c.id === epId);
+    const findConnector = (epId: string): DeviceConnector | undefined =>
+      connectors.find((c) => c.id === epId);
+    const endpointLabel = (epId: string): string =>
+      findChannel(epId)?.label ?? findConnector(epId)?.label ?? epId;
+    const endpointSignal = (epId: string): SignalType => {
+      const channel = findChannel(epId);
+      if (channel) return channel.signalType;
+      const connector = findConnector(epId);
+      if (connector) {
+        const carried = channels.find((c) => connector.carries.includes(c.id));
+        if (carried) return carried.signalType;
+      }
+      return "custom";
+    };
+    const isBus = (epId: string): boolean => findConnector(epId)?.role === "bus";
+    return internalRouteStr.split(",").map((pair, i) => {
+      const gt = pair.indexOf(">");
+      const from = gt >= 0 ? pair.slice(0, gt) : pair;
+      const to = gt >= 0 ? pair.slice(gt + 1) : "";
+      const bus = isBus(from) || isBus(to);
+      const signal = endpointSignal(from);
+      return {
+        key: `${pair}-${i}`,
+        fromLabel: endpointLabel(from),
+        toLabel: endpointLabel(to),
+        color: bus ? VIRTUAL_PORT_COLOR : (SIGNAL_COLORS[signal] ?? SIGNAL_COLORS.custom),
+      };
+    });
+  }, [internalRouteStr, data.channels, data.connectors]);
 
   const headerAuxRows = useMemo(
     () => {
@@ -433,15 +555,203 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
     </div>
   );
 
-  /** Port row text. Plain language shows the Port's own name; technical detail appends the
-   *  jargon suffix the design shows ("Mic 1 · XLR"). Passthrough Ports carry their connector
-   *  per face, so the rear face stands in for the row. */
-  const portRowLabel = (port: Port) => {
+  /** Port row NAME (Jost). The connector type is no longer folded into this string — C1 renders
+   *  it as a separate mono sublabel/chip cluster on EVERY row (see renderConnectorAffix), so the
+   *  name can truncate independently while the connector stays legible. */
+  const portRowLabel = (port: Port) => displayLabel(port.label);
+
+  /** The DeviceChannel a rendered Port maps to, if the device opted into the channel model.
+   *  There is no explicit Port→channel link field, so match by id then by (case-folded) label —
+   *  the two identities channel-model gear naturally shares with its ports. */
+  const channelForPort = (port: Port): DeviceChannel | null => {
+    if (!channelIndex) return null;
+    return (
+      channelIndex.channelById.get(port.id) ??
+      channelIndex.channelByLabel.get(port.label.trim().toLowerCase()) ??
+      null
+    );
+  };
+
+  const connectorTypeLabel = (t?: ConnectorType): string | undefined =>
+    t ? CONNECTOR_LABELS[t] : undefined;
+
+  /** Plain-text of the connector affix — used only to size the node (renderConnectorAffix draws
+   *  the real JSX). Depends on device STRUCTURE, never on wiring, so width stays stable. */
+  const connectorAffixText = (port: Port): string => {
+    const channel = channelForPort(port);
+    if (channel && channelIndex) {
+      const alts = channelIndex.byChannel.get(channel.id) ?? [];
+      if (alts.length >= 1) {
+        return alts
+          .map(
+            (a) =>
+              `${connectorTypeLabel(a.type) ?? a.type}${
+                connectorChannelCount(a) > 1 ? `${connectorChannelCount(a)}ch` : ""
+              }`,
+          )
+          .join(" ");
+      }
+    }
     const connector = port.connectorType ?? port.rearConnectorType;
-    return portLabel(
-      displayLabel(port.label),
-      connector ? CONNECTOR_LABELS[connector] : undefined,
-      detailLevel,
+    return connector && connector !== "none" ? `· ${connectorTypeLabel(connector) ?? connector}` : "";
+  };
+
+  /** A single mono muted connector sublabel, e.g. `· XLR` or `· DB25 · 8ch` (the bundle count). */
+  const renderConnectorSub = (text?: string, channelCount?: number): React.ReactNode => {
+    if (!text) return null;
+    return (
+      <span
+        className="device-connector-sub shrink-0"
+        style={{ fontFamily: "var(--font-mono)" }}
+        title={`Connector: ${text}${channelCount ? ` — carries ${channelCount} channels` : ""}`}
+      >
+        · {text}
+        {channelCount ? ` · ${channelCount}ch` : ""}
+      </span>
+    );
+  };
+
+  /** C1 — the connector affix for a row. Channel-model gear whose channel is exposed on ≥2
+   *  connectors renders a chip cluster (the wired one lit in the signal colour, alternates muted,
+   *  a sibling whose channel is wired elsewhere shown occupied/locked). One connector → a plain
+   *  mono sublabel; a bundle connector (carries>1) shows its channel count. Legacy 1:1 gear
+   *  falls through to the port's own connectorType sublabel. */
+  const renderConnectorAffix = (port: Port): React.ReactNode => {
+    const channel = channelForPort(port);
+    if (channel && channelIndex) {
+      const alts = channelIndex.byChannel.get(channel.id) ?? [];
+      if (alts.length >= 2) {
+        const sig = SIGNAL_COLORS[channel.signalType] ?? SIGNAL_COLORS.custom;
+        return (
+          <span className="device-connector-cluster inline-flex items-center gap-0.5 shrink-0">
+            {alts.map((alt) => {
+              const wired = occupancy?.wired.has(alt.id) ?? false;
+              const locked =
+                !wired &&
+                occupancy != null &&
+                isConnectorLockedByShare(data, alt.id, occupancy.synthConnections);
+              const bundle = connectorChannelCount(alt) > 1;
+              const cls = wired
+                ? "device-connector-chip device-connector-chip--active"
+                : locked
+                  ? "device-connector-chip device-connector-chip--locked"
+                  : "device-connector-chip";
+              const title = `${displayLabel(channel.label)} · ${connectorTypeLabel(alt.type) ?? alt.type}${
+                bundle ? ` · ${connectorChannelCount(alt)} channels` : ""
+              }${wired ? " — wired" : locked ? " — occupied (channel wired on an alternate connector)" : ""}`;
+              return (
+                <span
+                  key={alt.id}
+                  className={cls}
+                  style={wired ? { color: sig, borderColor: sig } : undefined}
+                  title={title}
+                >
+                  {connectorTypeLabel(alt.type) ?? alt.type}
+                  {bundle && <span className="device-connector-chip__ch">{connectorChannelCount(alt)}ch</span>}
+                  {locked && (
+                    <svg width="6" height="7" viewBox="0 0 6 7" fill="none" aria-hidden className="shrink-0">
+                      <rect x="0.5" y="3" width="5" height="3.5" rx="0.7" stroke="currentColor" />
+                      <path d="M1.6 3V2a1.4 1.4 0 0 1 2.8 0v1" stroke="currentColor" />
+                    </svg>
+                  )}
+                </span>
+              );
+            })}
+          </span>
+        );
+      }
+      if (alts.length === 1) {
+        const only = alts[0];
+        return renderConnectorSub(
+          connectorTypeLabel(only.type) ?? only.type,
+          connectorChannelCount(only) > 1 ? connectorChannelCount(only) : undefined,
+        );
+      }
+    }
+    const connector = port.connectorType ?? port.rearConnectorType;
+    if (connector && connector !== "none") return renderConnectorSub(connectorTypeLabel(connector) ?? connector);
+    return null;
+  };
+
+  /** C6 — the internal-routing lane. Collapsed by default (returns null) so a simple device is
+   *  pixel-identical to today. Expanded → a recessed inset panel BELOW the port grid drawing this
+   *  device's internal routes as short orthogonal segments in their signal colour (bus = violet).
+   *  These are confined to the node's own bounds and never touch the global A* router. Adds height
+   *  below the ports only, so the header band + port grid invariants are untouched. */
+  const renderInternalRoutingLane = (): React.ReactNode => {
+    const hasRoutes = internalRoutes.length > 0;
+    if (!routingExpanded && !hasRoutes) return null;
+
+    if (!routingExpanded) {
+      return (
+        <button
+          type="button"
+          className="device-internal-toggle flex items-center gap-1 w-full px-3 h-4 border-t border-[var(--ui-border)] text-[8px] text-[var(--color-text-muted)]"
+          style={{ fontFamily: "var(--font-mono)", background: "transparent" }}
+          onClick={(e) => {
+            e.stopPropagation();
+            toggleDeviceRoutingExpanded(id);
+          }}
+          title="Show internal routing"
+        >
+          <svg width="8" height="8" viewBox="0 0 8 8" fill="none" aria-hidden>
+            <path d="M2 3l2 2 2-2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          Internal routing · {internalRoutes.length}
+        </button>
+      );
+    }
+
+    return (
+      <div className={`device-internal-lane${reduceMotion ? "" : " device-internal-lane--enter"}`}>
+        <div className="flex items-center justify-between mb-1">
+          <span
+            className="text-[8px] uppercase text-[var(--color-text-muted)]"
+            style={{ fontFamily: "var(--font-mono)", letterSpacing: "0.08em" }}
+          >
+            Internal routing · {internalRoutes.length}
+          </span>
+          <button
+            type="button"
+            className="device-internal-collapse text-[var(--color-text-muted)]"
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleDeviceRoutingExpanded(id);
+            }}
+            title="Hide internal routing"
+          >
+            <svg width="8" height="8" viewBox="0 0 8 8" fill="none" aria-hidden>
+              <path d="M2 5l2-2 2 2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        </div>
+        {internalRoutes.length === 0 ? (
+          <div
+            className="text-[8px] text-[var(--color-text-muted)] italic"
+            style={{ fontFamily: "var(--font-mono)" }}
+          >
+            No internal routes yet
+          </div>
+        ) : (
+          <div className="flex flex-col gap-0.5">
+            {internalRoutes.map((r) => (
+              <div
+                key={r.key}
+                className="device-internal-route flex items-center gap-1 text-[8px] text-[var(--color-text)]"
+                style={{ fontFamily: "var(--font-mono)" }}
+                title={`${displayLabel(r.fromLabel)} → ${displayLabel(r.toLabel)}`}
+              >
+                <span className="truncate min-w-0 flex-1 text-right">{displayLabel(r.fromLabel)}</span>
+                <svg width="26" height="12" viewBox="0 0 26 12" fill="none" aria-hidden className="shrink-0">
+                  <path d="M1 3 H12 V9 H22" stroke={r.color} strokeWidth="1.4" fill="none" />
+                  <path d="M21 6.5 L25 9 L21 11.5 Z" fill={r.color} />
+                </svg>
+                <span className="truncate min-w-0 flex-1">{displayLabel(r.toLabel)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     );
   };
 
@@ -507,23 +817,28 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
   // flush on the border — the connector + internal-link pip both live inside that 16px zone, so
   // no separate "connector + gap" allowance is needed on top of it (round-3 route-under-card).
   const SIDE_CHROME = 16;
+  // The mono connector affix (C1) sits shrink-0 beside the name, so it must be counted into the
+  // content-fit width or the name would truncate to make room for it. Mono at ~8px ≈ 4.6px/char.
+  const AFFIX_W = 4.6;
+  const rowNeed = (port: Port): number =>
+    portRowLabel(port).length * CHAR_W + connectorAffixText(port).length * AFFIX_W;
   const nodeWidth = useMemo(() => {
     let need = 132;
     const rows = Math.max(leftPorts.length, rightPorts.length);
     for (let i = 0; i < rows; i++) {
-      const l = leftPorts[i] ? portRowLabel(leftPorts[i]).length * CHAR_W + SIDE_CHROME : 0;
-      const r = rightPorts[i] ? portRowLabel(rightPorts[i]).length * CHAR_W + SIDE_CHROME : 0;
+      const l = leftPorts[i] ? rowNeed(leftPorts[i]) + SIDE_CHROME : 0;
+      const r = rightPorts[i] ? rowNeed(rightPorts[i]) + SIDE_CHROME : 0;
       need = Math.max(need, l + r + 8);
     }
     for (const p of [...bidirectional, ...passthroughPorts]) {
-      need = Math.max(need, portRowLabel(p).length * CHAR_W + 64);
+      need = Math.max(need, rowNeed(p) + 64);
     }
     if (categoryText || layerChipName) {
       need = Math.max(need, (categoryText.length + (layerChipName?.length ?? 0)) * 4.6 + 56);
     }
     return Math.min(330, Math.max(144, Math.ceil(need / 16) * 16));
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- portRowLabel is render-stable per detailLevel/displayLabel below
-  }, [leftPorts, rightPorts, bidirectional, passthroughPorts, categoryText, layerChipName, detailLevel, displayLabel]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- portRowLabel/connectorAffixText are render-stable per detailLevel/displayLabel/channelIndex below
+  }, [leftPorts, rightPorts, bidirectional, passthroughPorts, categoryText, layerChipName, detailLevel, displayLabel, channelIndex]);
 
   /** At the width cap, middle-truncate a row label to its half-row character budget — the CSS
    *  end-ellipsis then never fires and the tooltip carries the full name (board 2a §5). */
@@ -592,12 +907,13 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
         )}
         {isLeft && renderInternalMark(port, "left")}
         <span
-          className="text-[10px] leading-4 truncate"
+          className="text-[10px] leading-4 truncate min-w-0"
           style={{ color: "var(--color-text)" }}
           title={portRowTitle(port)}
         >
           {fitPortLabel(portRowLabel(port))}
         </span>
+        {renderConnectorAffix(port)}
         {!isLeft && renderInternalMark(port, "right")}
         {!isLeft && (
           <Handle
@@ -648,12 +964,15 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
           style={connectorStyle(signalColor, rearConnected)}
         />
         <span
-          className="text-[10px] leading-4 truncate px-4 flex-1 text-center"
+          className="text-[10px] leading-4 truncate px-4 flex-1 text-center inline-flex items-center justify-center gap-1 min-w-0"
           style={{ color: "var(--color-text)" }}
           title={`${portRowLabel(port)} (${resolvedSignalLabel}) — passthrough`}
         >
-          <span aria-hidden style={{ color: "var(--color-text-muted)" }}>⇔ </span>
-          {fitPortLabel(portRowLabel(port), true)}
+          <span className="truncate min-w-0">
+            <span aria-hidden style={{ color: "var(--color-text-muted)" }}>⇔ </span>
+            {fitPortLabel(portRowLabel(port), true)}
+          </span>
+          {renderConnectorAffix(port)}
         </span>
         {/* Front handle — right edge, source (same reasoning as rear) */}
         <Handle
@@ -1093,12 +1412,13 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
                         />
                         {renderInternalMark(left, "left")}
                         <span
-                          className="text-[10px] leading-4 truncate"
+                          className="text-[10px] leading-4 truncate min-w-0"
                           style={{ color: "var(--color-text)" }}
                           title={portRowTitle(left)}
                         >
                           {fitPortLabel(portRowLabel(left))}
                         </span>
+                        {renderConnectorAffix(left)}
                       </>
                     )}
                   </div>
@@ -1106,12 +1426,13 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
                     {right && rh && (
                       <>
                         <span
-                          className="text-[10px] leading-4 truncate"
+                          className="text-[10px] leading-4 truncate min-w-0"
                           style={{ color: "var(--color-text)" }}
                           title={portRowTitle(right)}
                         >
                           {fitPortLabel(portRowLabel(right))}
                         </span>
+                        {renderConnectorAffix(right)}
                         {renderInternalMark(right, "right")}
                         <Handle
                           type={rh.handleType}
@@ -1216,12 +1537,15 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
                      are drawn on the left/right column ports, which is where the design scopes
                      them and where the geometry is unambiguous. */}
                 <span
-                  className="text-[10px] leading-4 truncate"
+                  className="text-[10px] leading-4 truncate min-w-0 inline-flex items-center justify-center gap-1"
                   style={{ color: "var(--color-text)" }}
                   title={portRowTitle(port) + " — bidirectional"}
                 >
-                  <span aria-hidden style={{ color: "var(--color-text-muted)" }}>↔ </span>
-                  {fitPortLabel(portRowLabel(port), true)}
+                  <span className="truncate min-w-0">
+                    <span aria-hidden style={{ color: "var(--color-text-muted)" }}>↔ </span>
+                    {fitPortLabel(portRowLabel(port), true)}
+                  </span>
+                  {renderConnectorAffix(port)}
                 </span>
                 <Handle
                   type="source"
@@ -1274,6 +1598,9 @@ function DeviceNodeComponent({ id, data, selected }: NodeProps<DeviceNodeType>) 
       {renderFooterAuxBlock(footerAuxRows)}
       </div>
       )}
+      {/* C6 — internal-routing lane. Sits below the port body (and outside the !isCompact gate so
+           it shows at any density) but INSIDE the visibility wrapper so the tile tier hides it. */}
+      {renderInternalRoutingLane()}
       </div>
 
       {/* Tile tier — a solid class-colour block covering the (still-laid-out) node. The code, the

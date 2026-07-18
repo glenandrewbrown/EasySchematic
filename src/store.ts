@@ -1099,6 +1099,11 @@ interface SchematicState {
   listDeviceBuses: (deviceId: string) => DeviceConnector[];
   /** Set a patchbay point's normalling mode. No-op if the device has no such point. */
   setPatchPointMode: (deviceId: string, pointId: string, mode: NormallingMode) => void;
+  /** Devices whose internal-routing lane is expanded on the canvas (C6). Session/UI
+   *  state — never serialized into the SchematicFile; collapsed by default. */
+  expandedRoutingDeviceIds: string[];
+  /** Toggle a device's internal-routing lane open/closed on the canvas (immutable). */
+  toggleDeviceRoutingExpanded: (deviceId: string) => void;
 
   // Multi-document project tabs (session/live state — never serialized into SchematicFile)
   /** Open project tabs. The ACTIVE doc's live content is the main store; each entry's
@@ -5453,6 +5458,15 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
     });
     get().saveToLocalStorage();
   },
+
+  // Internal-routing lane expansion (C6) — session/UI only, no undo, not persisted.
+  expandedRoutingDeviceIds: [],
+  toggleDeviceRoutingExpanded: (deviceId) =>
+    set((state) => ({
+      expandedRoutingDeviceIds: state.expandedRoutingDeviceIds.includes(deviceId)
+        ? state.expandedRoutingDeviceIds.filter((existingId) => existingId !== deviceId)
+        : [...state.expandedRoutingDeviceIds, deviceId],
+    })),
 
   // ── Multi-document project tabs (snapshot-swap; session-only, not serialized) ─
   newDocument: (name) => {

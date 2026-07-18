@@ -6,6 +6,7 @@ import {
 } from "@xyflow/react";
 import { useSchematicStore } from "../store";
 import {
+  CONNECTOR_LABELS,
   DEFAULT_DISTANCE_SETTINGS,
   LINE_STYLE_DASHARRAY,
   type ConnectionEdge,
@@ -14,6 +15,7 @@ import {
 } from "../types";
 import { usbcPowerShortfallW } from "../connectorTypes";
 import { resolvePort } from "../packList";
+import { bundleChannelCount, channelCountSuffix, channelFit } from "../cableFit";
 import { computeCableLength, getRoomDistance } from "../roomDistance";
 import { FEET_PER_METER, formatLengthMode } from "../lengthFormat";
 import "../liveSignal.css";
@@ -170,6 +172,32 @@ function OffsetEdgeComponent({
       resolvePort(tgtNode, edge.targetHandle)?.connectorType === "wireless"
     );
   });
+
+  // Multi-channel cable bundle (C4): connector + channel count for the hover/selection chip,
+  // e.g. "DB25 · 8ch". Connector label comes from each end's Port.connectorType; the channel
+  // count comes from Port.isMulticable/channelCount (the populated multicable-port model —
+  // see cableFit.ts's bundle helpers). Empty string when neither end resolves a connector, so
+  // the chip renders nothing rather than an empty badge. Serialized (label\0fit) like every
+  // other selector here for a stable primitive comparison.
+  const channelChipStr = useSchematicStore((s) => {
+    const edge = s.edges.find((e) => e.id === id);
+    if (!edge) return "";
+    const srcNode = s.nodes.find((n) => n.id === edge.source);
+    const tgtNode = s.nodes.find((n) => n.id === edge.target);
+    const srcPort = resolvePort(srcNode, edge.sourceHandle);
+    const tgtPort = resolvePort(tgtNode, edge.targetHandle);
+    const srcLabel = srcPort?.connectorType ? CONNECTOR_LABELS[srcPort.connectorType] : "";
+    const tgtLabel = tgtPort?.connectorType ? CONNECTOR_LABELS[tgtPort.connectorType] : "";
+    const label = srcLabel && tgtLabel && srcLabel !== tgtLabel ? `${srcLabel} → ${tgtLabel}` : srcLabel || tgtLabel;
+    if (!label) return "";
+    const srcCount = srcPort?.isMulticable ? srcPort.channelCount : undefined;
+    const tgtCount = tgtPort?.isMulticable ? tgtPort.channelCount : undefined;
+    const suffix = channelCountSuffix(bundleChannelCount(srcCount, tgtCount));
+    return `${label}${suffix}\0${channelFit(srcCount, tgtCount)}`;
+  });
+  const [channelChipLabel, channelChipFit] = channelChipStr
+    ? (channelChipStr.split("\0") as [string, string])
+    : ["", "unknown"];
 
   // Real signal-flow direction along the cable (OUTPUT end → INPUT end), independent of React
   // Flow's source/target (which only reflect the order the connection was drawn). Drives the
@@ -782,6 +810,43 @@ function OffsetEdgeComponent({
     </div>
   ) : null;
 
+  // Multi-channel bundle chip (C4) — connector + `·Nch` at the cable's midpoint, revealed on
+  // hover/selection only (a chip on every cable would clutter the canvas). Not shown for
+  // wireless (has its own identity badge) or direct-attach (not a cable). Always mounted once
+  // there's a connector to show — visibility toggles via opacity/scale so the reveal transitions
+  // rather than popping in on mount. Coral border+text when the two ends' channel counts
+  // mismatch (an over/under-capacity run), same signal-colour border otherwise.
+  const showChannelChip = !!channelChipLabel && !isWireless && !directAttach && !!routeStr;
+  const channelChipVisible = showChannelChip && (selected || isHovered);
+  const channelChipMismatch = channelChipFit === "mismatch";
+  const channelChip = showChannelChip ? (
+    <div
+      key="channel-chip"
+      style={{
+        position: "absolute",
+        pointerEvents: "none",
+        transform:
+          `translate(-50%, -100%) translate(${customMidPt.x}px, ${customMidPt.y - 10}px)` +
+          (motionOff ? "" : ` scale(${channelChipVisible ? 1 : 0.95})`),
+        transformOrigin: "50% 100%",
+        opacity: channelChipVisible ? 1 : 0,
+        transition: motionOff ? "opacity 140ms ease-out" : "opacity 140ms ease-out, transform 140ms ease-out",
+        fontSize: 8.5,
+        fontFamily: "var(--font-mono)",
+        fontWeight: 700,
+        letterSpacing: "0.02em",
+        color: channelChipMismatch ? "var(--color-error)" : "var(--color-text-heading)",
+        background: "var(--color-surface)",
+        border: `1px solid ${channelChipMismatch ? "var(--color-error)" : signalColor}`,
+        borderRadius: 4,
+        padding: "1px 5px",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {channelChipLabel}
+    </div>
+  ) : null;
+
   // Visual-only reconnect circles + tooltip — rendered in HTML layer above cable labels.
   // Interaction is handled by RF's native SVG updater circles (pointer events pass through
   // labels since they have pointer-events: none). These HTML elements are purely decorative.
@@ -949,7 +1014,7 @@ function OffsetEdgeComponent({
   // All labels + reconnect visuals rendered via EdgeLabelRenderer (HTML layer above all SVG edges)
   const hasPortalContent =
     customLabels || cableIdLabels || reconnectVisuals || wirelessBadge || trunkBadge ||
-    usbcWarningBadge;
+    usbcWarningBadge || channelChip;
   const edgeLabelsPortal = hasPortalContent ? (
     <EdgeLabelRenderer>
       {cableIdLabels}
@@ -957,6 +1022,7 @@ function OffsetEdgeComponent({
       {wirelessBadge}
       {trunkBadge}
       {usbcWarningBadge}
+      {channelChip}
       {reconnectVisuals}
     </EdgeLabelRenderer>
   ) : null;
