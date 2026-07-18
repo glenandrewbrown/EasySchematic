@@ -105,6 +105,11 @@ export function symbolCountByCategory(): Record<SymbolCategory | "all", number> 
  * Required + courtesy attribution for the bundled artwork. The CC-BY entries
  * (Font Awesome, game-icons.net) legally require credit; the rest are credited as
  * good practice. Surfaced in the symbol picker's footer.
+ *
+ * The bulk-imported sets (Material Design Icons, Carbon, plus more Tabler + Material
+ * Symbols) are silent-license (Apache-2.0 / MIT) and the AV-niche originals are CC0,
+ * so none require footer credit — their per-glyph provenance is recorded in
+ * `Design_Handoff/svg-library/manifest.json`.
  */
 export const SYMBOL_LIBRARY_ATTRIBUTION =
   "Symbols: Tabler Icons (MIT), Lucide (ISC), Bootstrap Icons (MIT), " +
