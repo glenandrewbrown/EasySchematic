@@ -475,6 +475,14 @@ interface SchematicState {
   openDeviceDetailsPage: (id: string) => void;
   /** Close the Device Details page. */
   closeDeviceDetailsPage: () => void;
+  /** When set, the full-screen routing matrix is open for this device node id.
+   *  UI-only flag (session state); the matrix reads/edits the live device's
+   *  channels/connectors + internal-route Connections. */
+  routingMatrixDeviceId: string | null;
+  /** Open the routing matrix for a device node. */
+  openRoutingMatrix: (id: string) => void;
+  /** Close the routing matrix. */
+  closeRoutingMatrix: () => void;
   customTemplates: DeviceTemplate[];
   ownedGear: OwnedGearItem[];
   ownedCables: OwnedCableItem[];
@@ -1941,6 +1949,7 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
   editingNodeId: null,
   creatingNodeId: null,
   deviceDetailsPageId: null,
+  routingMatrixDeviceId: null,
   adapterCreationRequest: null,
   documents: [],
   activeDocumentId: "",
@@ -3587,6 +3596,14 @@ export const useSchematicStore = create<SchematicState>((set, get) => ({
 
   closeDeviceDetailsPage: () => {
     set({ deviceDetailsPageId: null });
+  },
+
+  openRoutingMatrix: (id) => {
+    set({ routingMatrixDeviceId: id });
+  },
+
+  closeRoutingMatrix: () => {
+    set({ routingMatrixDeviceId: null });
   },
 
   createAndEditDevice: (template, position) => {

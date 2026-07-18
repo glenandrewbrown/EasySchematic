@@ -336,6 +336,7 @@ function DeviceBody({ node }: { node: SchematicNode }) {
   const rotateDevice = useSchematicStore((s) => s.rotateDevice);
   const setEditingNodeId = useSchematicStore((s) => s.setEditingNodeId);
   const openDeviceDetailsPage = useSchematicStore((s) => s.openDeviceDetailsPage);
+  const openRoutingMatrix = useSchematicStore((s) => s.openRoutingMatrix);
   const setSvgImportTarget = useSchematicStore((s) => s.setSvgImportTarget);
   const allNodes = useSchematicStore((s) => s.nodes);
   const edges = useSchematicStore((s) => s.edges);
@@ -466,6 +467,11 @@ function DeviceBody({ node }: { node: SchematicNode }) {
           <button className="ui-btn ui-btn-secondary w-full text-xs" onClick={() => setEditingNodeId(node.id)}>
             Edit ports &amp; template…
           </button>
+          {((data.channels?.length ?? 0) > 0 || (data.connectors?.length ?? 0) > 0 || data.patchbay != null) && (
+            <button className="ui-btn ui-btn-secondary w-full text-xs" onClick={() => openRoutingMatrix(node.id)}>
+              Open routing matrix…
+            </button>
+          )}
         </AccordionSection>
 
         {/* 2. Layer — group membership + colour. */}

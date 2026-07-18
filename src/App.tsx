@@ -33,6 +33,7 @@ import { toolForHotkey } from "./toolMode";
 import { validateSchematic, type IssueSeverity } from "./validation";
 import DeviceEditor from "./components/DeviceEditor";
 import DeviceDetailsPage from "./components/DeviceDetailsPage";
+import RoutingMatrix from "./components/RoutingMatrix";
 import RightRail from "./components/RightRail";
 import ScheduleView from "./components/ScheduleView";
 import EditorTopBar from "./components/EditorTopBar";
@@ -2424,6 +2425,7 @@ export default function App() {
       <CommandPalette />
       <DeviceEditor />
       <DeviceDetailsPage />
+      <RoutingMatrix />
       <RoomEditor />
       <AnnotationEditor />
       <EdgeContextMenu />
