@@ -35,6 +35,12 @@ export * as SignalColors from "./signalColors";
 export * as DeviceArtwork from "./deviceArtwork";
 export * as SymbolLibrary from "./symbolLibrary";
 
+// Channel ⇄ connector model (R2): logical channels, physical/bus connectors,
+// patchbay normalling, and the signal-flow trace built on top of them.
+export * as DeviceChannels from "./deviceChannels";
+export * as PatchbayNormalling from "./patchbayNormalling";
+export * as SignalFlowTrace from "./signalFlowTrace";
+
 // Routing & pathfinding
 export * as EdgeRouter from "./edgeRouter";
 export * as Pathfinding from "./pathfinding";
@@ -50,6 +56,7 @@ export * as PatchPanelSchedule from "./patchPanelSchedule";
 export * as Thermal from "./thermal";
 export * as RackStats from "./rackStats";
 export * as InventoryKey from "./inventoryKey";
+export * as CableFit from "./cableFit";
 
 // Layout & UI utilities
 export * as AlignUtils from "./alignUtils";

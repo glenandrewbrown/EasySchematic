@@ -346,11 +346,9 @@ function walk(
       advanced = true;
     }
     // Exit terminal that leaves the device but is not wired onward: an open tie-line.
+    // `device` is non-null here (guarded above) and unchanged, so reuse it directly.
     if (!advanced) {
-      const exitDevice = graph.devices.get(deviceId);
-      const exitRef = exitDevice
-        ? terminalRef(exitDevice, exit.terminalId, ref.signalType)
-        : ref;
+      const exitRef = terminalRef(device, exit.terminalId, ref.signalType);
       children.push({ id: nextId(), ref: exitRef, kind: "sink", children: [] });
     }
   }

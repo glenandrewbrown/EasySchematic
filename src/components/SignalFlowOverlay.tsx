@@ -31,7 +31,7 @@ function signalColorVar(signalType: string): string {
 }
 
 /** One hop pill + its downstream branches (recursive; >1 child = fork). */
-function HopRow({ hop, depth }: { hop: TraceHop; depth: number }) {
+function HopRow({ hop }: { hop: TraceHop }) {
   const accent = signalColorVar(hop.ref.signalType);
   const forked = hop.children.length > 1;
 
@@ -83,7 +83,7 @@ function HopRow({ hop, depth }: { hop: TraceHop; depth: number }) {
         <div className={forked ? "sf-children sf-children-fork" : "sf-children"}>
           {forked && <div className="sf-fork-label">fork · {hop.children.length} branches</div>}
           {hop.children.map((child) => (
-            <HopRow key={child.id} hop={child} depth={depth + 1} />
+            <HopRow key={child.id} hop={child} />
           ))}
         </div>
       )}
@@ -277,7 +277,7 @@ export default function SignalFlowOverlay() {
       </div>
       <div className="sf-body">
         {trace ? (
-          <HopRow hop={trace.root} depth={0} />
+          <HopRow hop={trace.root} />
         ) : (
           <div className="sf-empty">Couldn't resolve this path — the Connection or patch point may be stale.</div>
         )}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSchematicStore } from "../store";
 import type { DeviceChannel, DeviceConnector, DeviceData, Port, SchematicNode, SignalType } from "../types";
 
@@ -266,8 +266,6 @@ function Matrix({ node }: { node: SchematicNode }) {
     toggle(Number(el.dataset.r), Number(el.dataset.c));
   };
 
-  const overlayRef = useRef<HTMLDivElement>(null);
-
   const panelTransition = `transform ${closing ? 160 : 220}ms ${EASE_OUT}, opacity ${closing ? 160 : 220}ms ${EASE_OUT}`;
   const panelTransform = reduce ? "none" : shown ? "scale(1)" : "scale(0.96)";
 
@@ -287,7 +285,6 @@ function Matrix({ node }: { node: SchematicNode }) {
 
   return (
     <div
-      ref={overlayRef}
       className="fixed inset-0 z-[60] flex items-center justify-center p-6"
       data-print-hide
       data-rmx
