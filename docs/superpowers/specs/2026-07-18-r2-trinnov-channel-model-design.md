@@ -127,6 +127,7 @@ Each ships + verifies (tsc/eslint/build/tests + desktop screenshot) before the n
 2. **R2-2** bulk-add settings (DeviceEditor only).
 3. **R2-3** channel⇄connector model + mutex + multi-channel cable display (schema v51, migration, DeviceEditor channel/connector editor, DeviceNode connector labels, connect-validation mutex, Cable BOM `·Nch`).
 4. **R2-4** virtual buses + routing matrix + internal cables + expand-node render (builds on R2-3; prototype intra-node edge first).
+5. **R2-5** patchbay archetype + normalling resolver + signal-flow visualizer (builds on R2-3 channel model + R2-4 internal-routing/expand-node). See §11.
 
 ---
 
@@ -137,7 +138,55 @@ Each ships + verifies (tsc/eslint/build/tests + desktop screenshot) before the n
 
 ---
 
-## 10. Open items / non-goals (v1)
+## 11. Patchbay archetype (R2-5)
+
+A patchbay is the ultimate stress test of internal routing: routing is **implicit** (normalled) and **plug-state-dependent** (patching a front jack can break a normal). The goal is a device that shows *exactly* where signal goes for any patch combination, including passive-split level effects.
+
+### Structure
+A patchbay device has `points: PatchPoint[]` (e.g. 24 columns for a Neutrik NYS-SPP-L1 48-jack 1U). Each point is one vertical A/B strip with **four connectors** and a **mode**:
+
+```ts
+type NormallingMode = "half-normalled" | "split" | "isolated";
+
+interface PatchPoint {
+  id: string;
+  label?: string;            // e.g. "1", or a tie-line name
+  mode: NormallingMode;
+  // four connectors, mapped into DeviceConnector[]:
+  //   rearA  — permanent tie-line (top,   gear side)
+  //   rearB  — permanent tie-line (bottom, gear side)
+  //   frontA — patch jack (top face)
+  //   frontB — patch jack (bottom face)
+}
+```
+
+- **Rear connectors** = tie-lines: wired on the canvas to other devices' ports (permanent).
+- **Front connectors** = patch face: patch cables plug here.
+- Mode is per-point (real patchbays set it per card/orientation); editable in the DeviceEditor and via a quick per-point control on the expanded node.
+
+### Normalling resolver (the core — pure, unit-tested)
+`resolvePatchPoint(mode, { frontAPatched, frontBPatched }) → PatchNet[]` returns the effective electrical nets (which of {rearA, rearB, frontA, frontB} are commoned) plus flags. Truth table:
+
+| Mode | Front-A patched | Front-B patched | Effective nets | Notes |
+|------|-----------------|-----------------|----------------|-------|
+| **half-normalled** | – | – | `{rearA, rearB}` | normal live: rearA→rearB |
+| half-normalled | A | – | `{rearA, rearB, frontA}` | **passive split** — frontA taps, normal still live |
+| half-normalled | – | B | `{rearA, frontA?}`, `{frontB, rearB}` | **insert** — frontB breaks the normal, feeds rearB; rearA now dangling (or tapped by frontA) |
+| half-normalled | A | B | `{rearA, frontA}`, `{frontB, rearB}` | frontA taps rearA; frontB→rearB (broken normal) |
+| **split** | any | any | `{rearA, rearB, frontA, frontB}` | permanent passive mult, no breaks |
+| **isolated** | any | any | `{rearA, frontA}`, `{rearB, frontB}` | two independent thru circuits |
+
+- **Passive-split detection:** any net with **>1 sink** on a passive path is flagged `passiveSplit` → surfaces a warning annotation ("passive mult — level/impedance interaction; worst-case ~-6 dB into low-Z loads"). This is the "effect on the audio signal" Glen asked for. (Modeled as a flag + note in v1; no numeric loss math beyond the advisory, unless load impedances are known.)
+
+### Signal-flow visualizer
+- The patchbay resolves its internal nets from mode + live patch state, then emits **internal Connections** (per §5) so path-explain traces *through* it automatically: "Console Out → [Patchbay pt.3 rearA] →(half-normal)→ rearB → Monitor In; front-A tap → Recorder In (passive split)."
+- On the **expanded node** (§5), each point draws its live internal wiring in the app style (a clean redraw of the Neutrik mode diagrams), highlighting the active path and marking broken normals + passive splits.
+- Path-explain / signal-flow overlay gains normalling awareness so hovering any cable shows the full resolved route, breaks included.
+
+### Fit with the channel model
+Each point's A and B are `DeviceChannel`s; the four jacks are `DeviceConnector`s carrying them; the **mode + plug-state → internal Connections** mapping is a conditional specialization of the §5 internal-routing engine. So R2-5 is mostly: the resolver, the patchbay device template/archetype, the per-point mode UI, and the expanded-node normalling render — all on top of R2-3 + R2-4.
+
+## 12. Open items / non-goals (v1)
 
 - Per-cross-point gain / mute in the matrix — **out of v1** (routing on/off only). Revisit.
 - Mono/stereo channel pairing UI sugar — out of v1 (buses can carry 2ch, which covers stereo buses).
